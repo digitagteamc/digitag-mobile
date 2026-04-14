@@ -23,6 +23,26 @@ export const requestOtp = async (phoneNumber: string) => {
     }
 };
 
+/** Fetch full user profile */
+export const getFullProfile = async (token: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/user/me/full`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (response.ok) {
+            const data = await response.json();
+            return { success: true, data };
+        }
+        return { success: false, error: "Failed to fetch profile" };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
 /** 2. Verify OTP & Get Token */
 export const verifyOtp = async (phoneNumber: string, otp: string) => {
     try {

@@ -1,388 +1,934 @@
-import CategoryOptions from '@/Components/CatergoryOptions';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
+  Dimensions,
+  Image,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator,
 } from 'react-native';
-import Hero from '../../Components/Hero';
-import Navbar from '../../Components/Navbar';
-import TopCreators from '../../Components/TopCreators';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import { getFullProfile } from '../../services/userService';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://192.168.2.3:3001';
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = width - 32;
 
-interface Creator {
-  id: number;
-  name: string;
-  category: string;
-  city?: string;
-  state?: string;
-  phoneNumber?: string;
-  instagram?: string;
-  email?: string;
-}
+// ─── Figma asset URLs from the localhost dev server (Figma MCP)
+const imgChatGptImageMar272026104242Am1 = 'http://localhost:3845/assets/433440489db1bc86b19d2fe2e382e541dbd1c6b3.png';
+const imgJamieStreetUnsplash1 = 'http://localhost:3845/assets/e163a7a55d7383a4547aa41778d291b7bd50a5ef.png';
+const imgJamieStreetUnsplash2 = 'http://localhost:3845/assets/c7d3d3c46f542d3105102566c8c4d6e4fdce83d1.png';
+const imgJamieStreetUnsplash3 = 'http://localhost:3845/assets/068c225fbf028e84247785426f0eb10a6d9d2ed9.png';
+const imgFrame427318958 = 'http://localhost:3845/assets/eed7dba5ea152c5e0e3e2b490b42b92b946dcb5d.png';
+const imgFrame427318959 = 'http://localhost:3845/assets/231da894fd13807579f8de9d2a586e7dc00b1696.png';
+const imgVideoEditorsCat = require('../../assets/images/video_editors.png');
+const imgCreatorsCat = require('../../assets/images/creators.png');
+const imgDesignerCat = require('../../assets/images/designer.png');
+const imgWritersCat = require('../../assets/images/writers.png');
+
+// ─── Category data exactly from Figma
+const CATEGORIES = [
+  { id: '1', label: 'Video Editors', bg: '#e9f5f7', image: imgVideoEditorsCat, imgSize: 84, imgTop: 0, shadowColor: 'rgba(47,122,134,0.25)' },
+  { id: '2', label: 'Creators', bg: '#fdf1dd', image: imgCreatorsCat, imgSize: 82, imgTop: 0, shadowColor: '#dcc196' },
+  { id: '3', label: 'Designer', bg: '#ebe5f0', image: imgDesignerCat, imgSize: 80, imgTop: 0, shadowColor: '#c8a7e3' },
+  { id: '4', label: 'Writers', bg: '#e1eefb', image: imgWritersCat, imgSize: 55, imgTop: 12, shadowColor: '#93b9df' },
+];
 
 export default function Homepage() {
-  const { isGuest, userRole, logout } = useAuth();
   const router = useRouter();
+  const { token, isGuest, userId, userRole } = useAuth();
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
-  const isBrand = userRole?.toUpperCase() === 'BRAND';
-  const isCreator = userRole?.toUpperCase() === 'CREATOR';
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string>('');
 
-  const handleLogout = () => {
-    logout();
-    router.replace('/login');
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/posts/feed`);
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        const data = await response.json();
+
+        const allPosts: any[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+        // ── Role-based filtering ──────────────────────────────────────────
+        // CREATOR  → sees posts by FREELANCER authors only
+        // FREELANCER → sees posts by CREATOR authors only
+        // BRAND / GUEST / other → sees all posts
+        const role = userRole?.toUpperCase();
+        let filtered = allPosts;
+        if (role === 'CREATOR') {
+          filtered = allPosts.filter(p => p.author?.role === 'FREELANCER');
+        } else if (role === 'FREELANCER') {
+          filtered = allPosts.filter(p => p.author?.role === 'CREATOR');
+        }
+
+        setPosts(filtered);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+        setPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+
+    const fetchUser = async () => {
+      if (isGuest || !token) {
+        setUserName('Guest');
+        return;
+      }
+      
+      const res = await getFullProfile(token);
+      
+      if (res.success && res.data?.profile) {
+        const p = res.data.profile;
+        setUserName(p.name || p.creatorName || p.brandName || 'User');
+      } else {
+        // Fallback for older Render deployments missing the /user/me/full endpoint
+        if (userRole === 'CREATOR' && userId) {
+             try {
+                 const fallbackRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/creators`);
+                 if (fallbackRes.ok) {
+                     const creatorsData = await fallbackRes.json();
+                     // Data shape could be { value: [...] } or [...]
+                     const creatorsList = creatorsData.value ? creatorsData.value : creatorsData;
+                     const myProfile = creatorsList.find((c: any) => c.userId === userId);
+                     if (myProfile) {
+                         setUserName(myProfile.name || myProfile.creatorName || 'Creator');
+                         return;
+                     }
+                 }
+             } catch (e) {
+                 console.error("Fallback fetch failed", e);
+             }
+        }
+        setUserName('User');
+      }
+    };
+
+    fetchPosts();
+    fetchUser();
+  }, [token, isGuest, userRole]);
+
+  const getAuthorName = (author: any) => {
+    if (author?.role === 'BRAND') return author.brandProfile?.brandName || 'Brand';
+    if (author?.role === 'CREATOR') return author.creatorProfile?.name || author.creatorProfile?.creatorName || 'Creator';
+    if (author?.role === 'FREELANCER') return author.freelancerProfile?.name || 'Freelancer';
+    return 'User';
   };
 
+  const getProfilePic = (author: any) => {
+    if (author?.role === 'CREATOR') return author.creatorProfile?.profilePicture;
+    return null; // backend currently only has profilePicture for creator implicitly via Prisma schema (not shown perfectly, but works for the logic)
+  };
+
+  const getTimeAgo = (dateStr: string) => {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.round(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.round(diffHrs / 24);
+    return `${diffDays}d ago`;
+  };
+
+  const cards = posts.map(post => {
+    const name = getAuthorName(post.author);
+    const pic = getProfilePic(post.author);
+    return {
+      id: post.id,
+      bannerUri: post.imageUrl || imgJamieStreetUnsplash1, 
+      isInitials: !pic,
+      initials: name.slice(0, 2).toUpperCase(),
+      avatarUri: pic,
+      name: name,
+      role: post.author?.role?.toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Unknown',
+      desc: post.description,
+      price: '₹40K-50K/Month', // Hardcoded as placeholder based on design, backend does not have price
+      time: getTimeAgo(post.createdAt),
+    };
+  });
+
   return (
-    <SafeAreaView style={styles.wrapper}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.content}>
-        <Navbar />
+    <View style={styles.root}>
+      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-        {isGuest && (
-          <TouchableOpacity style={styles.guestBanner} onPress={() => router.navigate('/login')}>
-            <Text style={styles.lockIcon}>🔒</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.guestTitle}>You're browsing as a guest</Text>
-              <Text style={styles.guestSub}>Tap any feature to login and unlock everything</Text>
+      {/* Full-screen purple→black gradient (top 264dp area) */}
+      <View style={[styles.topGradientBand, { paddingTop: statusBarHeight }]}>
+        <LinearGradient
+          colors={['#7352DD', '#000000']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </View>
+
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: statusBarHeight + 16 }]}
+          showsVerticalScrollIndicator={false}
+        >
+
+          {/* ══════════════ HEADER ══════════════ */}
+          <View style={styles.header}>
+            {/* Avatar + greeting */}
+            <View style={styles.headerLeft}>
+              <View style={styles.avatarWrap}>
+                <Image
+                  source={{ uri: imgChatGptImageMar272026104242Am1 }}
+                  style={styles.avatar}
+                  resizeMode="cover"
+                />
+              </View>
+              <View>
+                <Text style={styles.hiText}>Hi {userName}</Text>
+                <Text style={styles.welcomeText}>Welcome To Digitag</Text>
+              </View>
             </View>
-            <Text style={styles.guestArrow}>Login →</Text>
-          </TouchableOpacity>
-        )}
 
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-          {isCreator ? (
-            <CreatorView handleLogout={handleLogout} />
-          ) : isBrand ? (
-            <BrandView handleLogout={handleLogout} />
-          ) : (
-            <GuestView />
-          )}
+            {/* Icons right */}
+            <View style={styles.headerRight}>
+              {/* Chart icon */}
+              <TouchableOpacity style={styles.iconCircle}>
+                <Ionicons name="bar-chart-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+              {/* Notification bell */}
+              <TouchableOpacity style={styles.iconCircle}>
+                <Ionicons name="notifications-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ══════════════ SEARCH BAR ══════════════ */}
+          {/* Figma: glassmorphic h-56, rounded-12, border rgba(156,156,156,0.5) */}
+          <View style={styles.searchBar}>
+            {/* Inner blur tint */}
+            <View style={styles.searchBarBlur} />
+            <View style={styles.searchBarInner}>
+              {/* Search icon */}
+              <Feather name="search" size={18} color="#d6d6d6" />
+              <Text style={styles.searchGray}>Search here for </Text>
+              <Text style={styles.searchWhite}>Animator</Text>
+            </View>
+            {/* Mic icon right */}
+            <Ionicons name="mic-outline" size={18} color="#d6d6d6" style={styles.micIcon} />
+          </View>
+
+          {/* ══════════════ BANNER ══════════════ */}
+          {/* Figma: glassmorphic rgba(240,240,240,0.3) with border rgba(64,64,64,0.5) */}
+          <View style={styles.bannerOuter}>
+            {/* Glass backing */}
+            <View style={styles.bannerGlass} />
+            <View style={styles.bannerInner}>
+              {/* Left text block */}
+              <View style={styles.bannerTextBlock}>
+                <Text style={styles.bannerTitle}>Discover Top Brands</Text>
+                <Text style={styles.bannerDesc}>Connect with fashion, beauty &amp; {"\n"} lifestyle brands.</Text>
+                <TouchableOpacity style={styles.exploreBtn} activeOpacity={0.85}>
+                  <Text style={styles.exploreBtnText}>Explore Now</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Right image — overflows */}
+              <Image
+                source={require('../../assets/images/banner.png')}
+                style={styles.bannerImg}
+                resizeMode="contain"
+              />
+            </View>
+            {/* Inset shadow overlay from Figma */}
+            <View style={styles.bannerInsetOverlay} pointerEvents="none" />
+          </View>
+
+          {/* ══════════════ CATEGORIES ══════════════ */}
+          <View style={styles.catRow}>
+            {CATEGORIES.map((cat) => (
+              <TouchableOpacity key={cat.id} style={styles.catItem} activeOpacity={0.8}>
+                <View style={styles.catCardWrap}>
+                  {/* Colored rounded card — full height of wrapper bottom */}
+                  <View style={[styles.catCard, { backgroundColor: cat.bg }]}>
+                    {/* Label text INSIDE the card at the bottom */}
+                    <Text style={styles.catLabel}>{cat.label}</Text>
+                  </View>
+                  {/* 3D image: per-category size+top so all look visually aligned */}
+                  <Image
+                    source={cat.image}
+                    style={[styles.catImg, { width: cat.imgSize, height: cat.imgSize, top: cat.imgTop }]}
+                    resizeMode="contain"
+                  />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* ══════════════ RECENTLY UPDATED HEADER ══════════════ */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recently Updated</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAll}>View all</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ══════════════ CARDS ══════════════ */}
+          {/* Figma: each card 408×290, glassmorphic bg #1e1e24, border rgba(156,156,156,0.5) */}
+          <View style={styles.cardsList}>
+            {loading ? (
+              <ActivityIndicator size="large" color="#7352DD" style={{ marginTop: 40 }} />
+            ) : cards.length === 0 ? (
+              <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
+            ) : (
+              cards.map((item) => (
+                <View key={item.id} style={styles.card}>
+                  {/* ── Top hero image (152px tall) */}
+                  <View style={styles.cardHero}>
+                    <Image source={{ uri: item.bannerUri }} style={styles.cardBannerImg} resizeMode="cover" />
+                    {/* Slight dark overlay per Figma rgba(0,0,0,0.2) */}
+                    <View style={styles.cardHeroOverlay} />
+
+                  {/* Bookmark icon — top right */}
+                  <TouchableOpacity style={styles.bookmarkBtn}>
+                    <Ionicons name="bookmark-outline" size={16} color="#fff" />
+                  </TouchableOpacity>
+
+                  {/* Profile row — bottom-left of hero */}
+                  <View style={styles.cardProfile}>
+                    {item.isInitials ? (
+                      /* Initials circle with glass effect */
+                      <View style={styles.initialsCircle}>
+                        <Text style={styles.initialsText}>{(item as any).initials}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.avatarCircle}>
+                        <Image source={{ uri: (item as any).avatarUri }} style={styles.cardAvatar} resizeMode="cover" />
+                      </View>
+                    )}
+                    <View style={styles.cardNameBlock}>
+                      <Text style={styles.cardName}>{item.name}</Text>
+                      <Text style={styles.cardRole}>{item.role}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* ── Card body */}
+                <View style={styles.cardBody}>
+                  {/* Description */}
+                  <Text style={styles.cardDesc} numberOfLines={2}>{item.desc}</Text>
+
+                  {/* Price + Time row */}
+                  <View style={styles.cardMetaRow}>
+                    <Text style={styles.cardPrice}>{item.price}</Text>
+                    <View style={styles.timeRow}>
+                      <Ionicons name="time-outline" size={12} color="#7a7a8a" />
+                      <Text style={styles.cardTime}> {item.time}</Text>
+                    </View>
+                  </View>
+
+                  {/* Action buttons */}
+                  <View style={styles.cardActions}>
+                    {/* Quick Chat — glass outline */}
+                    <TouchableOpacity style={styles.btnQuickChat} activeOpacity={0.8}>
+                      <View style={styles.btnBlurBg} />
+                      <Ionicons name="chatbubble-ellipses-outline" size={14} color="#fff" />
+                      <Text style={styles.btnQuickChatText}>Quick Chat</Text>
+                    </TouchableOpacity>
+
+                    {/* Call directly — purple fill */}
+                    <TouchableOpacity style={styles.btnCall} activeOpacity={0.8}>
+                      <View style={styles.btnPurpleBg} />
+                      <Ionicons name="call-outline" size={14} color="#fff" />
+                      <Text style={styles.btnCallText}>Call directly</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Inset shadow overlay */}
+                <View style={styles.cardInsetOverlay} pointerEvents="none" />
+              </View>
+            )))}
+          </View>
+
+          {/* Bottom spacer so content doesn't hide behind nav */}
           <View style={{ height: 100 }} />
         </ScrollView>
-      </View>
-    </SafeAreaView>
-  );
-}
+      </SafeAreaView>
 
-/** Default view for Guest users */
-function GuestView() {
-  return (
-    <>
-      <Hero />
-      <CategoryOptions />
-      <TopCreators />
-    </>
-  );
-}
+      {/* ══════════════ BOTTOM NAV ══════════════ */}
+      {/* Figma: Component 21 — #1e1e24, rounded-tl/tr-16, px-24 py-16 */}
+      <View style={styles.bottomNavContainer}>
+        {/* The nav bar */}
+        <View style={styles.bottomNav}>
+          {/* Home — ACTIVE: #e9e2ff pill, purple icon + text */}
+          <TouchableOpacity style={styles.navHome} activeOpacity={0.9}>
+            <Ionicons name="home" size={28} color="#7352DD" />
+            <Text style={styles.navHomeLabel}>Home</Text>
+          </TouchableOpacity>
 
-/** UI for Creator users */
-function CreatorView({ handleLogout }: { handleLogout: () => void }) {
-  const router = useRouter();
+          {/* Explore */}
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+            <Ionicons name="compass" size={28} color="#6b6b8a" />
+          </TouchableOpacity>
 
-  return (
-    <>
-      <View style={styles.roleHeader}>
-        <View style={styles.headerInfo}>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.roleTitle}>Creator Partner 👋</Text>
+          {/* Chat */}
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+            <Ionicons name="chatbubble-ellipses" size={26} color="#6b6b8a" />
+          </TouchableOpacity>
+
+          {/* Profile */}
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => router.push('/(tabs)/profile')}>
+            <Ionicons name="person-circle" size={28} color="#6b6b8a" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.minimalLogout} onPress={handleLogout}>
-          <Text style={styles.minimalLogoutText}>Logout</Text>
+
+        {/* FAB — purple gradient circle with + , sits above the nav bar */}
+        <TouchableOpacity style={styles.fab} activeOpacity={0.85}>
+          <LinearGradient
+            colors={['#9b7ef7', '#7352DD', '#5a3db8']}
+            start={{ x: 0.2, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fabGrad}
+          >
+            <Ionicons name="add" size={26} color="#fff" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Collaboration Center</Text>
-        <TouchableOpacity onPress={() => router.push('/creator-inbox')}>
-          <Text style={styles.seeAllText}>Open Inbox</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={styles.inboxCard}
-        onPress={() => router.push('/creator-inbox')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.inboxIconBg}>
-          <Text style={styles.inboxIcon}>📩</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.inboxTitle}>New Invitations</Text>
-          <Text style={styles.inboxDesc}>You have potential collaborations waiting for your approval.</Text>
-        </View>
-        <View style={styles.inboxBadge}>
-          <Text style={styles.inboxBadgeText}>0</Text>
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Performance</Text>
-      </View>
-
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <View style={[styles.statIconBg, { backgroundColor: 'rgba(79, 70, 229, 0.15)' }]}>
-            <Text style={styles.statIcon}>🔥</Text>
-          </View>
-          <Text style={styles.statNum}>0</Text>
-          <Text style={styles.statLabel}>Active Campaigns</Text>
-        </View>
-        <View style={styles.statCard}>
-          <View style={[styles.statIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-            <Text style={styles.statIcon}>⚖️</Text>
-          </View>
-          <Text style={styles.statNum}>0</Text>
-          <Text style={styles.statLabel}>Avg. Engagement</Text>
-        </View>
-      </View>
-
-      <View style={styles.premiumBanner}>
-        <View style={styles.premiumIconBg}>
-          <Text style={styles.premiumIcon}>✨</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.premiumTitle}>Grow your Influence</Text>
-          <Text style={styles.premiumDesc}>Update your portfolio daily to attract 2x more brands.</Text>
-        </View>
-      </View>
-    </>
-  );
-}
-
-import CreatorHits from '../../Components/CreatorHits';
-
-/** UI for Brand users */
-function BrandView({ handleLogout }: { handleLogout: () => void }) {
-  return (
-    <>
-      <View style={styles.roleHeader}>
-        <View style={styles.headerInfo}>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.roleTitle}>Brand Partner 🏢</Text>
-        </View>
-        <TouchableOpacity style={styles.minimalLogout} onPress={handleLogout}>
-          <Text style={styles.minimalLogoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.brandHero}>
-        <Text style={styles.brandHeroTitle}>Discover the Perfect Voice</Text>
-        <Text style={styles.brandHeroSub}>Search through thousands of verified creators ready for your next campaign.</Text>
-        <TouchableOpacity
-          style={styles.brandHeroBtn}
-          onPress={() => { /* Potential Search Navigation */ }}
-        >
-          <Text style={styles.brandHeroBtnText}>Start Scouting</Text>
-        </TouchableOpacity>
-      </View>
-
-      <CategoryOptions />
-
-      {/* 
-          Removing the manual directory list here because CreatorHits 
-          already provides a premium grid view of top creators.
-      */}
-      <CreatorHits />
-
-      <View style={styles.infoBox}>
-        <View style={styles.infoBoxHeader}>
-          <Text style={styles.infoBoxIcon}>💡</Text>
-          <Text style={styles.infoBoxTitle}>Quick Insight</Text>
-        </View>
-        <Text style={styles.infoBoxDesc}>Brands that collaborate with micro-creators see a 40% higher conversion rate on average.</Text>
-      </View>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: '#0f0f1e' },
-  content: { flex: 1 },
-  container: { flex: 1 },
+  root: {
+    flex: 1,
+    backgroundColor: '#060606',
+  },
 
-  // Guest banner
-  guestBanner: {
+  // ── Top gradient band (264px tall in Figma, covers header area)
+  topGradientBand: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+  },
+
+  safeArea: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+
+  // ── Header
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(79,70,229,0.15)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(79,70,229,0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  lockIcon: { fontSize: 16 },
-  guestTitle: { color: '#a78bfa', fontSize: 13, fontWeight: '700' },
-  guestSub: { color: '#7c6fad', fontSize: 11, marginTop: 2 },
-  guestArrow: { color: '#a78bfa', fontSize: 13, fontWeight: '700' },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatarWrap: {
+    width: 45,
+    height: 44,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
+  hiText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    lineHeight: 20,
+  },
+  welcomeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: -0.5,
+    lineHeight: 18,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
-  // Role Header
-  roleHeader: {
+  // ── Search bar (Figma: border rgba(156,156,156,0.5), bg rgba(240,240,240,0.1))
+  searchBar: {
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(156,156,156,0.5)',
+    marginBottom: 20,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  searchBarBlur: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(240,240,240,0.1)',
+  },
+  searchBarInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  searchGray: {
+    color: '#d6d6d6',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  searchWhite: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  micIcon: {
+    marginLeft: 8,
+  },
+
+  // ── Banner (Figma: glassmorphic 152×409, bg rgba(240,240,240,0.3), border rgba(64,64,64,0.5))
+  bannerOuter: {
+    height: 152,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(64,64,64,0.5)',
+    overflow: 'hidden',
+    marginBottom: 28,
+    position: 'relative',
+  },
+  bannerGlass: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(240,240,240,0.3)',
+  },
+  bannerInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 15,
+    paddingRight: 0,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  bannerTextBlock: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  bannerTitle: {
+    color: '#000',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+    marginBottom: 4,
+  },
+  bannerDesc: {
+    color: '#000',
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 16,
+    width: 212,
+  },
+  exploreBtn: {
+    backgroundColor: '#F26930',
+    borderRadius: 99,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
+  },
+  exploreBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    letterSpacing: -0.5,
+    lineHeight: 14,
+  },
+  bannerImg: {
+    width: 152,
+    height: 152,
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+  },
+  bannerInsetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 0,
+  },
+
+  // ── Categories
+  catRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  catItem: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 20,
+    width: (width - 48) / 4,
   },
-  headerInfo: { flex: 1 },
-  welcomeText: { color: '#64748b', fontSize: 14, fontWeight: '500' },
-  roleTitle: { color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 4 },
-  minimalLogout: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+  // Wrapper: relative, height = card(82) + image overflow above(28) = 110
+  catCardWrap: {
+    width: 80,
+    height: 110,
+    position: 'relative',
+    alignItems: 'center',
   },
-  minimalLogoutText: { color: '#ef4444', fontSize: 13, fontWeight: '700' },
+  // Card: absolute at bottom of wrapper, contains the label at its bottom
+  catCard: {
+    position: 'absolute',
+    bottom: 0,
+    width: 80,
+    height: 82,
+    borderRadius: 16,
+    justifyContent: 'flex-end',   // push label to bottom
+    alignItems: 'center',
+    paddingBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  // Image: identical fixed box for all 4 — resizeMode contain keeps aspect ratio
+  // top: 0 means ~28px overflows above the card (110-82=28)
+  catImg: {
+    position: 'absolute',
+    top: 0,
+    width: 68,
+    height: 68,
+    zIndex: 2,
+  },
+  catLabel: {
+    color: '#1a1a2e',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
 
-  // Section Styling
+  // ── Section header
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 15,
-    marginBottom: 15,
-  },
-  sectionTitle: { color: '#fff', fontSize: 20, fontWeight: '800', letterSpacing: 0.5 },
-  seeAllText: { color: '#4f46e5', fontSize: 13, fontWeight: '700' },
-
-  // Inbox Card
-  inboxCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e1e30',
-    marginHorizontal: 16,
-    padding: 24,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#2e2e4e',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  inboxIconBg: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: 'rgba(79, 70, 229, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  inboxIcon: { fontSize: 24 },
-  inboxTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
-  inboxDesc: { color: '#64748b', fontSize: 13, marginTop: 6, lineHeight: 18 },
-  inboxBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#ef4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  inboxBadgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
-
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#1e1e30',
-    padding: 24,
-    borderRadius: 26,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2e2e4e',
-  },
-  statIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 14,
   },
-  statIcon: { fontSize: 20 },
-  statNum: { color: '#fff', fontSize: 28, fontWeight: '900' },
-  statLabel: { color: '#64748b', fontSize: 12, marginTop: 4, fontWeight: '600', textAlign: 'center' },
-
-  // Premium Banner
-  premiumBanner: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: '#4f46e5',
-    padding: 20,
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
+  sectionTitle: {
+    // Figma: Poppins SemiBold 20px white
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 28,
   },
-  premiumIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  viewAll: {
+    // Figma: Poppins Medium 14px #7352dd
+    color: '#7352DD',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // ── Cards list
+  cardsList: {
+    gap: 20,
+  },
+
+  // ── Individual card (Figma: 408×290, bg #1e1e24, border rgba(156,156,156,0.5), rounded-20)
+  card: {
+    width: CARD_WIDTH,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(156,156,156,0.5)',
+    overflow: 'hidden',
+    backgroundColor: '#1e1e24',
+    position: 'relative',
+  },
+
+  // Card hero section (152px tall)
+  cardHero: {
+    height: 152,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  cardBannerImg: {
+    width: '100%',
+    height: 177,
+    position: 'absolute',
+    top: -13,
+    left: 0,
+  },
+  cardHeroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+
+  // Bookmark top-right
+  bookmarkBtn: {
+    position: 'absolute',
+    top: 15,
+    right: 12,
+    width: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  premiumIcon: { fontSize: 22 },
-  premiumTitle: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  premiumDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2, lineHeight: 16 },
 
-  // Brand Hero
-  brandHero: {
-    backgroundColor: '#16162d',
-    marginHorizontal: 16,
-    padding: 25,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: '#2e2e4e',
-    marginBottom: 20,
+  // Profile row in hero
+  cardProfile: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
-  brandHeroTitle: { color: '#fff', fontSize: 24, fontWeight: '900', lineHeight: 30 },
-  brandHeroSub: { color: '#64748b', fontSize: 13, marginTop: 8, lineHeight: 19 },
-  brandHeroBtn: {
-    backgroundColor: '#4f46e5',
-    alignSelf: 'flex-start',
-    marginTop: 18,
-    paddingHorizontal: 20,
+  // Initials circle (Figma: glassmorphic rounded-100, 36px)
+  initialsCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(64,64,64,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initialsText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  // Regular photo avatar circle
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 100,
+    overflow: 'hidden',
+    backgroundColor: '#efefef',
+  },
+  cardAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  cardNameBlock: {
+    gap: 4,
+  },
+  cardName: {
+    // Figma: Manrope SemiBold 16px white
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.5,
+    lineHeight: 18,
+  },
+  cardRole: {
+    // Figma: Poppins Medium 12px white
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: -0.5,
+  },
+
+  // Card body
+  cardBody: {
+    paddingHorizontal: 11,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  cardDesc: {
+    // Figma: Poppins Regular 12px white, line-height 16
+    color: '#fff',
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: 10,
+    width: 324,
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  cardPrice: {
+    // Figma: Poppins Medium 12px #00a401
+    color: '#00a401',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardTime: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+
+  // Action buttons row
+  cardActions: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+
+  // Quick Chat button (Figma: glassmorphic, border rgba(156,156,156,0.5), rounded-20)
+  btnQuickChat: {
+    flex: 1,
+    height: 38,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(156,156,156,0.5)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  btnBlurBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(240,240,240,0.1)',
+  },
+  btnQuickChatText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    letterSpacing: -0.5,
+  },
+
+  // Call directly button (Figma: bg #7352dd, rounded-99)
+  btnCall: {
+    flex: 1,
+    height: 38,
+    borderRadius: 99,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  btnPurpleBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#7352DD',
+  },
+  btnCallText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+    letterSpacing: -0.5,
+  },
+
+  cardInsetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    borderWidth: 0,
+    shadowColor: '#323232',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+
+  // ── Bottom Nav wrapper — spans full width, sits at absolute bottom
+  bottomNavContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  // The dark bar itself (Figma: bg #1e1e24, rounded-tl/tr-16, px-24 py-16)
+  bottomNav: {
+    backgroundColor: '#1e1e24',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+    justifyContent: 'space-between',
+  },
+
+  // Active Home tab — Figma: bg #e9e2ff pill, gap-8, px-16 py-10, rounded-30
+  navHome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#e9e2ff',
+    borderRadius: 30,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
   },
-  brandHeroBtnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  navHomeLabel: {
+    // Figma: Poppins SemiBold 14px #7352dd
+    color: '#7352DD',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  // Inactive items: same padding structure, no background (Figma: px-16 py-10 rounded-30)
+  navItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 30,
+  },
 
-  // Info Box
-  infoBox: {
-    marginHorizontal: 16,
-    marginTop: 20,
-    padding: 20,
-    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(79, 70, 229, 0.1)',
-    borderStyle: 'dashed',
+  // FAB (Figma node 59:1023): 50×50, purple gradient, positioned above the nav — smaller so it clears the profile icon)
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: Platform.OS === 'ios' ? 72 : 62,  // lifted higher to clear the profile icon
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    overflow: 'hidden',
+    // Purple glow shadow
+    shadowColor: '#7352DD',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 14,
   },
-  infoBoxHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  infoBoxIcon: { fontSize: 18 },
-  infoBoxTitle: { color: '#818cf8', fontSize: 15, fontWeight: 'bold' },
-  infoBoxDesc: { color: '#64748b', fontSize: 13, lineHeight: 19 },
+  fabGrad: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

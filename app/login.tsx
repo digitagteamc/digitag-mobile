@@ -1,19 +1,21 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     ActivityIndicator,
     Alert,
     KeyboardAvoidingView,
     Platform,
-    SafeAreaView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { checkBrandStatus, checkCreatorStatus, requestOtp, verifyOtp } from '../services/userService';
+import { LinearGradient } from 'expo-linear-gradient';
+import GradientButton from '../Components/ui/GradientButton';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -22,6 +24,7 @@ export default function LoginScreen() {
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1); // 1: Phone, 2: OTP
+    const otpInputRef = useRef<TextInput>(null);
 
     const handleRequestOtp = async () => {
         if (phoneNumber.trim().length < 10) {
@@ -34,7 +37,7 @@ export default function LoginScreen() {
             const res = await requestOtp(phoneNumber.replace(/\s+/g, ''));
             if (res.success) {
                 setStep(2);
-                Alert.alert("OTP Sent", "Check your phone. Dev OTP: 1234");
+                // We'll focus the hidden OTP input automatically in Step 2 rendering
             } else {
                 Alert.alert("Error", res.error || "Failed to send OTP.");
             }
@@ -59,27 +62,17 @@ export default function LoginScreen() {
             console.log("🔐 verifyOtp FULL result:", JSON.stringify(res, null, 2));
 
             if (res.success) {
-                // Try every common token field name
                 const resAny = res as any;
                 const token = resAny.token || resAny.accessToken || resAny.access_token || resAny.jwt || '';
-
-                if (!token) {
-                    console.warn("⚠️ NO TOKEN returned from verify-otp! Backend response keys:", Object.keys(res));
-                    console.warn("⚠️ Proceeding without token — backend may use cookies or the token field name is different.");
-                }
-
-                // Save to context (role determined later, but if user object has it, set it now)
                 const userRoleFromBackend = res.user?.role || (res as any).role;
-                login(cleanPhone, token || 'session-active', userRoleFromBackend);
-
+                const userIdFromBackend = res.user?.id || (res as any).id;
                 if (res.needsRegistration || res.isNewUser) {
-                    console.log("🆕 New user → role selection");
-                    router.replace('/signup/role-selection');
-                } else {
-                    // Existing user → check their status
-                    console.log("👤 Existing user → checking status...");
-                    await checkStatusAndNavigate(cleanPhone, token || 'session-active');
+                    Alert.alert("User Not Existed", "This number is not registered yet. Later I will implement the signup page. Please use an available user.");
+                    return;
                 }
+                
+                login(cleanPhone, token || 'session-active', userRoleFromBackend, userIdFromBackend);
+                await checkStatusAndNavigate(cleanPhone, token || 'session-active', userRoleFromBackend);
             } else {
                 Alert.alert("Login Failed", res.error || "Invalid OTP.");
             }
@@ -90,47 +83,45 @@ export default function LoginScreen() {
         }
     };
 
-    const checkStatusAndNavigate = async (phone: string, authToken: string) => {
+    const checkStatusAndNavigate = async (phone: string, authToken: string, role: string) => {
         try {
-            // Fetch status from the backend
-            // Since both creator/me/status and brands/me/status return the user's current role
-            const creatorRes = await checkCreatorStatus(authToken);
+            const normalizedRole = role?.toUpperCase();
 
-            if (creatorRes.success && creatorRes.data) {
-                const actualRole = creatorRes.data.role; // This is the source of truth
-                console.log(`📊 Backend reported role: ${actualRole}`);
+            // ── FREELANCER: no approval flow, go straight to home ──
+            if (normalizedRole === 'FREELANCER') {
+                router.replace('/(tabs)');
+                return;
+            }
 
-                if (actualRole === 'BRAND') {
-                    // It's a brand — now check brand-specific status
-                    const brandRes = await checkBrandStatus(authToken);
-                    const brandStatus = brandRes.success && brandRes.data
-                        ? (brandRes.data.brandStatus || brandRes.data.status)
-                        : 'NOT_REGISTERED';
-
-                    console.log("🏢 Brand status:", brandStatus);
-                    login(phone, authToken, 'BRAND');
-
-                    if (brandStatus === 'APPROVED') {
-                        router.replace('/(tabs)');
-                    } else {
-                        router.replace({ pathname: '/signup/pending', params: { role: 'BRAND' } });
-                    }
+            // ── BRAND: check brand approval status ──
+            if (normalizedRole === 'BRAND') {
+                const brandRes = await checkBrandStatus(authToken);
+                const brandStatus = brandRes.success && brandRes.data
+                    ? (brandRes.data.brandStatus || brandRes.data.status)
+                    : 'NOT_REGISTERED';
+                if (brandStatus === 'APPROVED') {
+                    router.replace('/(tabs)');
                 } else {
-                    // It's a creator
-                    const creatorStatus = creatorRes.data.creatorStatus || creatorRes.data.status;
-                    console.log("📊 Creator status:", creatorStatus);
-                    login(phone, authToken, 'CREATOR');
-
-                    if (creatorStatus === 'APPROVED') {
-                        router.replace('/(tabs)');
-                    } else {
-                        router.replace('/signup/pending');
-                    }
+                    router.replace({ pathname: '/signup/pending', params: { role: 'BRAND' } });
                 }
                 return;
             }
 
-            // Fallback
+            // ── CREATOR: check creator approval status ──
+            if (normalizedRole === 'CREATOR') {
+                const creatorRes = await checkCreatorStatus(authToken);
+                const creatorStatus = creatorRes.success && creatorRes.data
+                    ? (creatorRes.data.creatorStatus || creatorRes.data.status)
+                    : 'NOT_APPLIED';
+                if (creatorStatus === 'APPROVED') {
+                    router.replace('/(tabs)');
+                } else {
+                    router.replace('/signup/pending');
+                }
+                return;
+            }
+
+            // ── Unknown role ──
             router.replace('/(tabs)');
         } catch (e) {
             console.error("Status check error:", e);
@@ -139,128 +130,174 @@ export default function LoginScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <View style={styles.content}>
-                    <Text style={styles.logo}>Digitag</Text>
-                    <View style={styles.formCard}>
-                        {step === 1 ? (
-                            <>
-                                <Text style={styles.label}>Mobile Number</Text>
+        <View style={styles.container}>
+            <LinearGradient colors={['#000000', '#201242']} style={StyleSheet.absoluteFill} />
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+                    
+                    {step === 1 ? (
+                        <View style={styles.contentCentered}>
+                            {/* Visual Logo for Step 1 */}
+                            <View style={styles.logoContainer}>
+                                <View style={styles.chevronTopContainer}>
+                                    <View style={styles.chevronPart1} />
+                                    <View style={styles.chevronPart2} />
+                                </View>
+                                <View style={styles.chevronBottomContainer}>
+                                    <View style={styles.chevronPart1b} />
+                                    <View style={styles.chevronPart2b} />
+                                </View>
+                            </View>
+                            
+                            <Text style={styles.titleCentered}>Login</Text>
+                            <Text style={styles.subtitleCentered}>
+                                Enter your mobile number and we'll send you a verification code to get started
+                            </Text>
+ 
+                            <View style={styles.inputContainer}>
+                                <View style={styles.countryCode}>
+                                    <View style={styles.flagCircle}>
+                                        <View style={styles.flagStripeOrange} />
+                                        <View style={styles.flagStripeWhite}><View style={styles.chakra} /></View>
+                                        <View style={styles.flagStripeGreen} />
+                                    </View>
+                                    <Text style={styles.countryText}>India +91</Text>
+                                    <Text style={styles.dropdownIcon}>v</Text>
+                                </View>
                                 <TextInput
-                                    style={styles.input}
-                                    placeholder="9876543210"
-                                    placeholderTextColor="#666"
+                                    style={styles.inputExpanded}
+                                    placeholder="Enter Mobile Number"
+                                    placeholderTextColor="#888"
                                     keyboardType="phone-pad"
                                     value={phoneNumber}
                                     onChangeText={setPhoneNumber}
                                     maxLength={15}
+                                    autoFocus
                                 />
-                                <TouchableOpacity
-                                    style={styles.button}
-                                    onPress={handleRequestOtp}
-                                    disabled={loading}
-                                >
-                                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Get OTP</Text>}
-                                </TouchableOpacity>
-                                <Text style={styles.hint}>We'll send a verification code.</Text>
-                            </>
-                        ) : (
-                            <>
-                                <Text style={styles.label}>Enter OTP</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="1234"
-                                    placeholderTextColor="#666"
-                                    keyboardType="number-pad"
-                                    value={otp}
-                                    onChangeText={setOtp}
-                                    maxLength={6}
-                                />
-                                <View style={styles.buttonRow}>
-                                    <TouchableOpacity
-                                        style={[styles.outlineButton, { flex: 1, marginRight: 10 }]}
-                                        onPress={() => setStep(1)}
-                                    >
-                                        <Text style={styles.outlineButtonText}>Change Number</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.button, { flex: 1.5 }]}
-                                        onPress={handleVerifyOtp}
-                                        disabled={loading}
-                                    >
-                                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify</Text>}
-                                    </TouchableOpacity>
-                                </View>
-                            </>
-                        )}
-                    </View>
+                            </View>
 
-                    {step === 1 && (
-                        <TouchableOpacity
-                            style={styles.skipButton}
-                            onPress={() => {
-                                loginAsGuest();
-                                router.replace('/(tabs)');
-                            }}
-                        >
-                            <Text style={styles.skipText}>Skip for now</Text>
-                        </TouchableOpacity>
+                            {loading ? (
+                                <ActivityIndicator color="#C3CE21" style={{ marginVertical: 20 }} />
+                            ) : (
+                                <GradientButton title="Get OTP" onPress={handleRequestOtp} containerStyle={styles.buttonContainer} />
+                            )}
+
+                            <Text style={styles.termsText}>
+                                By continuing, I confirm that i am at least 18 years old, and agree to{' '}
+                                <Text style={styles.termsHighlight}>Terms & Conditions</Text> and{' '}
+                                <Text style={styles.termsHighlight}>Privacy Policy</Text>
+                            </Text>
+                            
+                            <TouchableOpacity style={styles.skipButton} onPress={() => { loginAsGuest(); router.replace('/(tabs)'); }}>
+                                <Text style={styles.skipText}>Skip for now</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.contentTopAligned}>
+                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
+                                <Text style={styles.backButtonIcon}>{'<'}</Text>
+                            </TouchableOpacity>
+
+                            <Text style={styles.titleLeft}>Enter the Code</Text>
+                            <Text style={styles.subtitleLeft}>
+                                Enter OTP Received on <Text style={styles.boldText}>+91 {phoneNumber}</Text>
+                            </Text>
+
+                            {/* 4 Digit OTP Boxes */}
+                            <TouchableOpacity activeOpacity={1} onPress={() => otpInputRef.current?.focus()} style={styles.otpRow}>
+                                {[0, 1, 2, 3].map((index) => {
+                                    const digit = otp[index];
+                                    const isActive = otp.length === index;
+                                    return (
+                                        <View key={index} style={[styles.otpBox, isActive && styles.otpBoxActive]}>
+                                            <Text style={styles.otpText}>{digit ? '•' : ''}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </TouchableOpacity>
+
+                            {/* Hidden TextInput handling real input */}
+                            <TextInput
+                                ref={otpInputRef}
+                                style={styles.hiddenInput}
+                                value={otp}
+                                onChangeText={setOtp}
+                                keyboardType="number-pad"
+                                maxLength={4}
+                                autoFocus
+                            />
+
+                            <Text style={styles.resendInfo}>
+                                You can resend the code in 24 seconds
+                            </Text>
+
+                            {loading ? (
+                                <ActivityIndicator color="#C3CE21" style={{ marginVertical: 20 }} />
+                            ) : (
+                                <GradientButton title="Next" onPress={handleVerifyOtp} containerStyle={styles.buttonContainer} />
+                            )}
+
+                            <TouchableOpacity style={styles.resendButton} onPress={handleRequestOtp}>
+                                <Text style={styles.resendText}>Resend</Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
-                </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#0f0f1e' },
+    container: { flex: 1, backgroundColor: '#000' },
     keyboardView: { flex: 1 },
-    content: { flex: 1, justifyContent: 'center', padding: 24 },
-    logo: { fontSize: 42, fontWeight: '900', color: '#fff', textAlign: 'center', marginBottom: 40, letterSpacing: 2 },
-    formCard: {
-        backgroundColor: '#1e1e30',
-        padding: 24,
-        borderRadius: 24,
-        shadowColor: '#000',
-        shadowOpacity: 0.3,
-        shadowRadius: 20,
-        elevation: 10
-    },
-    label: { color: '#aaa', marginBottom: 12, fontSize: 14, fontWeight: '600', marginLeft: 4 },
-    input: {
-        backgroundColor: '#16162a',
-        color: '#fff',
-        padding: 16,
-        borderRadius: 12,
-        fontSize: 18,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#2e2e4e'
-    },
-    button: {
-        backgroundColor: '#4f46e5',
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-    outlineButton: {
-        backgroundColor: 'transparent',
-        padding: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#4f46e5'
-    },
-    outlineButtonText: { color: '#4f46e5', fontWeight: 'bold', fontSize: 16 },
-    buttonRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    hint: { color: '#666', marginTop: 16, textAlign: 'center', fontSize: 12 },
-    skipButton: { marginTop: 24, alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 20 },
-    skipText: { color: '#555', fontSize: 14, textDecorationLine: 'underline' },
+    
+    // Step 1 styling
+    contentCentered: { flex: 1, justifyContent: 'center', paddingHorizontal: 30, alignItems: 'center' },
+    logoContainer: { height: 120, width: 80, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+    chevronTopContainer: { transform: [{ rotate: '45deg' }, { translateX: -10 }, { translateY: 0 }] },
+    chevronPart1: { width: 30, height: 14, backgroundColor: '#D1E61A', borderRadius: 7 },
+    chevronPart2: { width: 14, height: 30, backgroundColor: '#D1E61A', borderRadius: 7, position: 'absolute', right: 0, top: 0 },
+    chevronBottomContainer: { transform: [{ rotate: '-135deg' }, { translateX: -10 }, { translateY: -25 }] },
+    chevronPart1b: { width: 30, height: 14, backgroundColor: '#D1E61A', borderRadius: 7 },
+    chevronPart2b: { width: 14, height: 30, backgroundColor: '#D1E61A', borderRadius: 7, position: 'absolute', right: 0, top: 0 },
+    
+    titleCentered: { fontSize: 36, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 16 },
+    subtitleCentered: { fontSize: 13, color: '#A0A0B0', textAlign: 'center', marginBottom: 36, lineHeight: 20, paddingHorizontal: 10 },
+    
+    inputContainer: { flexDirection: 'row', backgroundColor: '#34264A', borderRadius: 30, paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center', marginBottom: 24, width: '100%', minHeight: 60 },
+    countryCode: { flexDirection: 'row', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#4f4066', paddingRight: 10, marginRight: 10 },
+    flagCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden', marginRight: 8 },
+    flagStripeOrange: { flex: 1, backgroundColor: '#FF9933' },
+    flagStripeWhite: { flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+    flagStripeGreen: { flex: 1, backgroundColor: '#138808' },
+    chakra: { width: 6, height: 6, borderRadius: 3, borderWidth: 1, borderColor: '#000080' },
+    countryText: { color: '#fff', fontSize: 14, fontWeight: '600', marginRight: 6 },
+    dropdownIcon: { color: '#B0A0C0', fontSize: 12, transform: [{ scaleX: 1.5 }, { scaleY: 0.8 }], marginLeft: 4, fontWeight: '900' },
+    inputExpanded: { flex: 1, color: '#fff', fontSize: 16, minHeight: 30 },
+    
+    // Step 2 styling (OTP)
+    contentTopAligned: { flex: 1, paddingTop: 40, paddingHorizontal: 24 },
+    backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#4d4d63', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+    backButtonIcon: { color: '#fff', fontSize: 18, fontWeight: '600', paddingBottom: 2 },
+    titleLeft: { fontSize: 30, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
+    subtitleLeft: { fontSize: 14, color: '#A0A0B0', marginBottom: 40 },
+    boldText: { color: '#fff', fontWeight: 'bold' },
+    
+    otpRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 30, paddingHorizontal: 10 },
+    otpBox: { flex: 1, aspectRatio: 1, borderRadius: 40, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
+    otpBoxActive: { borderColor: '#fff' },
+    otpText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
+    hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+    
+    resendInfo: { color: '#D4D4D4', fontSize: 14, textAlign: 'center', marginBottom: 40 },
+    resendButton: { marginTop: 24, alignItems: 'center' },
+    resendText: { color: '#A58BFF', fontSize: 16, fontWeight: '600' },
+
+    buttonContainer: { width: '100%', marginBottom: 20 },
+    termsText: { color: '#A0A0B0', fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 18 },
+    termsHighlight: { color: '#D1E61A', fontWeight: 'bold' },
+    skipButton: { marginTop: 24 },
+    skipText: { color: '#6A5B80', fontSize: 14, textDecorationLine: 'underline' }
 });
