@@ -8,6 +8,7 @@ export default function TabsLayout() {
             <Tabs.Screen name="brands" />
             <Tabs.Screen name="agencies" />
             <Tabs.Screen name="freelancers" />
+            <Tabs.Screen name="profile" />
         </Tabs>
     );
 }
