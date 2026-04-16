@@ -6,9 +6,13 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        'poppins-bold': ['Poppins-Bold'],
-        'poppins-regular': ['Poppins-Regular'],
-        'inter-medium': ['Inter-Medium'],
+        'poppins-extralight': ['Poppins_200ExtraLight'],
+        'poppins-regular': ['Poppins_400Regular'],
+        'poppins-semibold': ['Poppins_600SemiBold'],
+        'poppins-bold': ['Poppins_700Bold'],
+        'poppins-extrabold': ['Poppins_800ExtraBold'],
+        'inter-regular': ['Inter_400Regular'],
+        'inter-medium': ['Inter_500Medium'],
       },
     },
   },
