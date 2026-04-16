@@ -319,3 +319,67 @@ export const respondToCollab = async (token: string, requestId: string, action: 
         return { success: false, error: error.message };
     }
 };
+
+/** 12. Save a post */
+export const savePost = async (postId: string, token: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/posts/${postId}/save`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to save post');
+        return { success: true, data };
+    } catch (error: any) {
+        console.error('❌ savePost error:', error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+/** 13. Unsave a post */
+export const unsavePost = async (postId: string, token: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/posts/${postId}/save`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to unsave post');
+        return { success: true, data };
+    } catch (error: any) {
+        console.error('❌ unsavePost error:', error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+/** 14. Get saved posts (full post objects) */
+export const getSavedPosts = async (token: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/posts/saved`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch saved posts');
+        return { success: true, data };
+    } catch (error: any) {
+        console.error('❌ getSavedPosts error:', error.message);
+        return { success: false, error: error.message };
+    }
+};
+
+/** 15. Get saved post IDs (lightweight, for bookmark toggle state) */
+export const getSavedPostIds = async (token: string) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/posts/saved/ids`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!response.ok) return { success: true, data: [] as string[] };
+        const data = await response.json();
+        return { success: true, data: Array.isArray(data) ? (data as string[]) : [] };
+    } catch (error: any) {
+        console.error('❌ getSavedPostIds error:', error.message);
+        return { success: false, data: [] as string[], error: error.message };
+    }
+};

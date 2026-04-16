@@ -46,7 +46,7 @@ export default function Splash5() {
               <Text style={styles.title}>Agency Faster</Text>
             </View>
             <Text style={styles.subtitle}>
-              Handle clients, campaigns, and {'\n'}analytics—all in one powerful platform.
+              Handle clients, campaigns, and {'\n'}analytics—all in one powerful {"\n"} platform.
             </Text>
           </View>
 

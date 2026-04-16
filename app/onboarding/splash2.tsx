@@ -1,10 +1,10 @@
-import React from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
 import GradientButton from '@/Components/ui/GradientButton';
-import { StatusBar } from 'expo-status-bar';
 import SplashBackground from '@/Components/ui/SplashBackground';
+import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const splashBubble = require('../../assets/images/splash_bubble.png');
 const splashHeart = require('../../assets/images/splash_heart.png');
@@ -20,9 +20,9 @@ export default function Splash2() {
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         {/* Header (Skip) */}
         <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.replace('/login')}>
-                <Text style={styles.skipText}>Skip</Text>
-            </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.replace('/login')}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
@@ -34,13 +34,13 @@ export default function Splash2() {
             {/* Progress Indicators */}
             <View style={styles.progressRow}>
               <View style={styles.dotsContainer}>
-                  <View style={[styles.dot, styles.activeDot]} />
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
-                  <View style={styles.dot} />
+                <View style={[styles.dot, styles.activeDot]} />
+                <View style={styles.dot} />
+                <View style={styles.dot} />
+                <View style={styles.dot} />
               </View>
               <View style={styles.stepPill}>
-                  <Text style={styles.stepText}>Step 1 of 4</Text>
+                <Text style={styles.stepText}>Step 1 of 4</Text>
               </View>
             </View>
 
@@ -49,13 +49,13 @@ export default function Splash2() {
               <Text style={styles.title}>Brands</Text>
             </View>
             <Text style={styles.subtitle}>
-              Connect with fashion labels, beauty brands, and lifestyle companies ready to collaborate.
+              Connect with fashion labels, beauty brands, and lifestyle companies ready to {"\n"} collaborate.
             </Text>
           </View>
 
-          <GradientButton 
-            title="Next" 
-            onPress={() => router.push('/onboarding/splash3')} 
+          <GradientButton
+            title="Next"
+            onPress={() => router.push('/onboarding/splash3')}
             containerStyle={styles.buttonContainer}
           />
         </View>
