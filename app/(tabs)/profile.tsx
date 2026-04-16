@@ -103,6 +103,14 @@ export default function ProfileScreen() {
     fetchProfile();
   }, [token, isGuest]);
 
+  const handleMenuPress = (id: string) => {
+    if (id === 'about') router.push('/about-digitag');
+    if (id === 'help') router.push('/help-support');
+    if (id === 'saved') router.push('/saved-posts');
+    if (id === 'settings') router.push('/settings');
+    // other items can be wired here
+  };
+
   const handleLogout = () => {
     logout();
     router.replace('/login');
@@ -217,7 +225,7 @@ export default function ProfileScreen() {
 
             {MENU_ITEMS.map((item, index) => (
               <React.Fragment key={item.id}>
-                <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
                   {/* Icon pill */}
                   <View style={styles.menuIconPill}>
                     <Ionicons name={item.icon} size={16} color="#F26930" />
