@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { getFullProfile } from '../../services/userService';
+import { getFullProfile, getSavedPostIds, savePost, unsavePost } from '../../services/userService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -49,6 +49,7 @@ export default function Homepage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>('');
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -121,6 +122,13 @@ export default function Homepage() {
 
     fetchPosts();
     fetchUser();
+
+    // Load saved bookmark IDs so the bookmark icon reflects the correct state
+    if (token && !isGuest) {
+      getSavedPostIds(token).then(res => {
+        if (res.success) setSavedIds(new Set(res.data));
+      });
+    }
   }, [token, isGuest, userRole]);
 
   const getAuthorName = (author: any) => {
@@ -143,6 +151,23 @@ export default function Homepage() {
     if (diffHrs < 24) return `${diffHrs}h ago`;
     const diffDays = Math.round(diffHrs / 24);
     return `${diffDays}d ago`;
+  };
+
+  const handleBookmark = async (postId: string) => {
+    if (!token || isGuest) return;
+    const isCurrentlySaved = savedIds.has(postId);
+    // Optimistic update
+    setSavedIds(prev => {
+      const next = new Set(prev);
+      if (isCurrentlySaved) next.delete(postId); else next.add(postId);
+      return next;
+    });
+    // Call API
+    if (isCurrentlySaved) {
+      await unsavePost(postId, token);
+    } else {
+      await savePost(postId, token);
+    }
   };
 
   const cards = posts.map(post => {
@@ -299,8 +324,12 @@ export default function Homepage() {
                     <View style={styles.cardHeroOverlay} />
 
                     {/* Bookmark icon — top right */}
-                    <TouchableOpacity style={styles.bookmarkBtn}>
-                      <Ionicons name="bookmark-outline" size={16} color="#fff" />
+                    <TouchableOpacity style={styles.bookmarkBtn} onPress={() => handleBookmark(item.id)}>
+                      <Ionicons
+                        name={savedIds.has(item.id) ? 'bookmark' : 'bookmark-outline'}
+                        size={16}
+                        color={savedIds.has(item.id) ? '#F26930' : '#fff'}
+                      />
                     </TouchableOpacity>
 
                     {/* Profile row — bottom-left of hero */}
