@@ -9,6 +9,9 @@ export default function TabsLayout() {
             <Tabs.Screen name="agencies" />
             <Tabs.Screen name="freelancers" />
             <Tabs.Screen name="profile" />
+            <Tabs.Screen name="create-post" />
+            <Tabs.Screen name="explore" />
+            <Tabs.Screen name="messages" />
         </Tabs>
     );
 }

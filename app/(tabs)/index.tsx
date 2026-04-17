@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   Image,
   Platform,
@@ -12,7 +13,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -60,8 +60,8 @@ export default function Homepage() {
         const allPosts: any[] = Array.isArray(data)
           ? data
           : Array.isArray(data?.data)
-          ? data.data
-          : [];
+            ? data.data
+            : [];
 
         // ── Role-based filtering ──────────────────────────────────────────
         // CREATOR  → sees posts by FREELANCER authors only
@@ -90,30 +90,30 @@ export default function Homepage() {
         setUserName('Guest');
         return;
       }
-      
+
       const res = await getFullProfile(token);
-      
+
       if (res.success && res.data?.profile) {
         const p = res.data.profile;
         setUserName(p.name || p.creatorName || p.brandName || 'User');
       } else {
         // Fallback for older Render deployments missing the /user/me/full endpoint
         if (userRole === 'CREATOR' && userId) {
-             try {
-                 const fallbackRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/creators`);
-                 if (fallbackRes.ok) {
-                     const creatorsData = await fallbackRes.json();
-                     // Data shape could be { value: [...] } or [...]
-                     const creatorsList = creatorsData.value ? creatorsData.value : creatorsData;
-                     const myProfile = creatorsList.find((c: any) => c.userId === userId);
-                     if (myProfile) {
-                         setUserName(myProfile.name || myProfile.creatorName || 'Creator');
-                         return;
-                     }
-                 }
-             } catch (e) {
-                 console.error("Fallback fetch failed", e);
-             }
+          try {
+            const fallbackRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/creators`);
+            if (fallbackRes.ok) {
+              const creatorsData = await fallbackRes.json();
+              // Data shape could be { value: [...] } or [...]
+              const creatorsList = creatorsData.value ? creatorsData.value : creatorsData;
+              const myProfile = creatorsList.find((c: any) => c.userId === userId);
+              if (myProfile) {
+                setUserName(myProfile.name || myProfile.creatorName || 'Creator');
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("Fallback fetch failed", e);
+          }
         }
         setUserName('User');
       }
@@ -150,7 +150,7 @@ export default function Homepage() {
     const pic = getProfilePic(post.author);
     return {
       id: post.id,
-      bannerUri: post.imageUrl || imgJamieStreetUnsplash1, 
+      bannerUri: post.imageUrl || imgJamieStreetUnsplash1,
       isInitials: !pic,
       initials: name.slice(0, 2).toUpperCase(),
       avatarUri: pic,
@@ -298,66 +298,66 @@ export default function Homepage() {
                     {/* Slight dark overlay per Figma rgba(0,0,0,0.2) */}
                     <View style={styles.cardHeroOverlay} />
 
-                  {/* Bookmark icon — top right */}
-                  <TouchableOpacity style={styles.bookmarkBtn}>
-                    <Ionicons name="bookmark-outline" size={16} color="#fff" />
-                  </TouchableOpacity>
+                    {/* Bookmark icon — top right */}
+                    <TouchableOpacity style={styles.bookmarkBtn}>
+                      <Ionicons name="bookmark-outline" size={16} color="#fff" />
+                    </TouchableOpacity>
 
-                  {/* Profile row — bottom-left of hero */}
-                  <View style={styles.cardProfile}>
-                    {item.isInitials ? (
-                      /* Initials circle with glass effect */
-                      <View style={styles.initialsCircle}>
-                        <Text style={styles.initialsText}>{(item as any).initials}</Text>
+                    {/* Profile row — bottom-left of hero */}
+                    <View style={styles.cardProfile}>
+                      {item.isInitials ? (
+                        /* Initials circle with glass effect */
+                        <View style={styles.initialsCircle}>
+                          <Text style={styles.initialsText}>{(item as any).initials}</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.avatarCircle}>
+                          <Image source={{ uri: (item as any).avatarUri }} style={styles.cardAvatar} resizeMode="cover" />
+                        </View>
+                      )}
+                      <View style={styles.cardNameBlock}>
+                        <Text style={styles.cardName}>{item.name}</Text>
+                        <Text style={styles.cardRole}>{item.role}</Text>
                       </View>
-                    ) : (
-                      <View style={styles.avatarCircle}>
-                        <Image source={{ uri: (item as any).avatarUri }} style={styles.cardAvatar} resizeMode="cover" />
-                      </View>
-                    )}
-                    <View style={styles.cardNameBlock}>
-                      <Text style={styles.cardName}>{item.name}</Text>
-                      <Text style={styles.cardRole}>{item.role}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* ── Card body */}
-                <View style={styles.cardBody}>
-                  {/* Description */}
-                  <Text style={styles.cardDesc} numberOfLines={2}>{item.desc}</Text>
-
-                  {/* Price + Time row */}
-                  <View style={styles.cardMetaRow}>
-                    <Text style={styles.cardPrice}>{item.price}</Text>
-                    <View style={styles.timeRow}>
-                      <Ionicons name="time-outline" size={12} color="#7a7a8a" />
-                      <Text style={styles.cardTime}> {item.time}</Text>
                     </View>
                   </View>
 
-                  {/* Action buttons */}
-                  <View style={styles.cardActions}>
-                    {/* Quick Chat — glass outline */}
-                    <TouchableOpacity style={styles.btnQuickChat} activeOpacity={0.8}>
-                      <View style={styles.btnBlurBg} />
-                      <Ionicons name="chatbubble-ellipses-outline" size={14} color="#fff" />
-                      <Text style={styles.btnQuickChatText}>Quick Chat</Text>
-                    </TouchableOpacity>
+                  {/* ── Card body */}
+                  <View style={styles.cardBody}>
+                    {/* Description */}
+                    <Text style={styles.cardDesc} numberOfLines={2}>{item.desc}</Text>
 
-                    {/* Call directly — purple fill */}
-                    <TouchableOpacity style={styles.btnCall} activeOpacity={0.8}>
-                      <View style={styles.btnPurpleBg} />
-                      <Ionicons name="call-outline" size={14} color="#fff" />
-                      <Text style={styles.btnCallText}>Call directly</Text>
-                    </TouchableOpacity>
+                    {/* Price + Time row */}
+                    <View style={styles.cardMetaRow}>
+                      <Text style={styles.cardPrice}>{item.price}</Text>
+                      <View style={styles.timeRow}>
+                        <Ionicons name="time-outline" size={12} color="#7a7a8a" />
+                        <Text style={styles.cardTime}> {item.time}</Text>
+                      </View>
+                    </View>
+
+                    {/* Action buttons */}
+                    <View style={styles.cardActions}>
+                      {/* Quick Chat — glass outline */}
+                      <TouchableOpacity style={styles.btnQuickChat} activeOpacity={0.8}>
+                        <View style={styles.btnBlurBg} />
+                        <Ionicons name="chatbubble-ellipses-outline" size={14} color="#fff" />
+                        <Text style={styles.btnQuickChatText}>Quick Chat</Text>
+                      </TouchableOpacity>
+
+                      {/* Call directly — purple fill */}
+                      <TouchableOpacity style={styles.btnCall} activeOpacity={0.8}>
+                        <View style={styles.btnPurpleBg} />
+                        <Ionicons name="call-outline" size={14} color="#fff" />
+                        <Text style={styles.btnCallText}>Call directly</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
 
-                {/* Inset shadow overlay */}
-                <View style={styles.cardInsetOverlay} pointerEvents="none" />
-              </View>
-            )))}
+                  {/* Inset shadow overlay */}
+                  <View style={styles.cardInsetOverlay} pointerEvents="none" />
+                </View>
+              )))}
           </View>
 
           {/* Bottom spacer so content doesn't hide behind nav */}
@@ -376,13 +376,21 @@ export default function Homepage() {
             <Text style={styles.navHomeLabel}>Home</Text>
           </TouchableOpacity>
 
-          {/* Explore */}
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          {/* Explore — NEW: routes to /explore */}
+          <TouchableOpacity 
+            style={styles.navItem} 
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/explore')}
+          >
             <Ionicons name="compass" size={28} color="#6b6b8a" />
           </TouchableOpacity>
 
-          {/* Chat */}
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          {/* Chat — NEW: routes to /messages */}
+          <TouchableOpacity 
+            style={styles.navItem} 
+            activeOpacity={0.7}
+            onPress={() => router.push('/(tabs)/messages')}
+          >
             <Ionicons name="chatbubble-ellipses" size={26} color="#6b6b8a" />
           </TouchableOpacity>
 
@@ -393,7 +401,7 @@ export default function Homepage() {
         </View>
 
         {/* FAB — purple gradient circle with + , sits above the nav bar */}
-        <TouchableOpacity style={styles.fab} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => router.push('/create-post' as any)}>
           <LinearGradient
             colors={['#9b7ef7', '#7352DD', '#5a3db8']}
             start={{ x: 0.2, y: 0 }}
