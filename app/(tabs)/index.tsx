@@ -377,20 +377,16 @@ export default function Homepage() {
           </TouchableOpacity>
 
           {/* Explore — NEW: routes to /explore */}
-          <TouchableOpacity 
-            style={styles.navItem} 
+          <TouchableOpacity
+            style={styles.navItem}
             activeOpacity={0.7}
             onPress={() => router.push('/(tabs)/explore')}
           >
             <Ionicons name="compass" size={28} color="#6b6b8a" />
           </TouchableOpacity>
 
-          {/* Chat — NEW: routes to /messages */}
-          <TouchableOpacity 
-            style={styles.navItem} 
-            activeOpacity={0.7}
-            onPress={() => router.push('/(tabs)/messages')}
-          >
+          {/* Chat */}
+          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
             <Ionicons name="chatbubble-ellipses" size={26} color="#6b6b8a" />
           </TouchableOpacity>
 
