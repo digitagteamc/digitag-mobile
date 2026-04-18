@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { Text, View, Image, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
 import GradientButton from '@/Components/ui/GradientButton';
-import { StatusBar } from 'expo-status-bar';
 import SplashBackground from '@/Components/ui/SplashBackground';
-import Animated, { FadeIn, FadeOut, FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect, useState } from 'react';
+import { BackHandler, Image, Platform, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const splashBubble = require('../../assets/images/splash_bubble.png');
 const splashHeart = require('../../assets/images/splash_heart.png');
@@ -18,50 +18,82 @@ interface OnboardingStep {
   dotColor?: string;
   stepLabel?: string;
   activeIndex?: number;
+  buttonColors?: readonly [string, string, ...string[]];
+  buttonLocations?: readonly [number, number, ...number[]];
+  buttonBorderColors?: readonly [string, string, ...string[]];
+  buttonShadowColor?: string;
+  buttonInsetTopColor?: string;
+  buttonInsetBottomColor?: string;
+  buttonTextColor?: string;
 }
 
 const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     gradientColors: ['#000000', '#621487'],
-    titles: ["Your beauty × brand", "collaboration platform."],
+    titles: ["Your beauty × brand", "collaboration", "platform."],
     subtitle: "DigiTag",
     buttonText: "Get Started",
   },
   {
     gradientColors: ['#000000', '#1C265C'],
     titles: ["Discover Top", "Brands"],
-    subtitle: "Connect with fashion labels, beauty brands, and lifestyle companies ready to collaborate.",
+    subtitle: "Connect with fashion labels, beauty \nbrands, and lifestyle companies ready to collaborate.",
     buttonText: "Next",
     dotColor: "#405BFF",
     stepLabel: "Step 1 of 4",
     activeIndex: 0,
+    buttonColors: ['#253477', '#9198C6', '#253477'],
+    buttonLocations: [0.1108, 0.4204, 0.959],
+    buttonBorderColors: ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.08)'],
+    buttonShadowColor: '#5C69AE',
+    buttonInsetTopColor: '#5C69AE6E',
+    buttonInsetBottomColor: '#253E9352',
   },
   {
     gradientColors: ['#000000', '#B01E68'],
     titles: ["Book Expert", "Creators"],
-    subtitle: "Find makeup artists, hair stylists, photographers, editors & more for every occasion.",
+    subtitle: "Find makeup artists, hair stylists, photographers, editors & more for\nevery occasion.",
     buttonText: "Next",
     dotColor: "#E01E79",
     stepLabel: "Step 2 of 4",
     activeIndex: 1,
+    buttonColors: ['#ED2A91', '#F15DAB', '#ED2A91'],
+    buttonLocations: [0.1108, 0.4204, 0.959],
+    buttonBorderColors: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'],
+    buttonShadowColor: '#ED2A91',
+    buttonInsetTopColor: '#F15DAB6E',
+    buttonInsetBottomColor: '#ED2A9152',
   },
   {
     gradientColors: ['#000000', '#B33E1A'],
     titles: ["Grow & Earn", "Together"],
-    subtitle: "Launch campaigns, track performance, and turn your creativity into a thriving business.",
+    subtitle: "Launch campaigns, track\nperformance, and turn your\ncreativity into a thriving business.",
     buttonText: "Next",
     dotColor: "#FF6B35",
     stepLabel: "Step 3 of 4",
     activeIndex: 2,
+    buttonColors: ['#B33E1A', '#FF6B35', '#B33E1A'],
+    buttonLocations: [0.1108, 0.4204, 0.959],
+    buttonBorderColors: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'],
+    buttonShadowColor: '#FF6B35',
+    buttonInsetTopColor: '#FF6B356E',
+    buttonInsetBottomColor: '#B33E1A52',
   },
   {
     gradientColors: ['#000000', '#566B00'],
     titles: ["Scale Your", "Agency Faster"],
-    subtitle: "Handle clients, campaigns, and analytics—all in one powerful platform.",
+    subtitle: "Handle clients, campaigns, and\nanalytics—all in one powerful\nplatform.",
     buttonText: "Get Started",
     dotColor: "#C1E300",
     stepLabel: "Step 4 of 4",
     activeIndex: 3,
+    buttonColors: ['#566B00', '#C1E300', '#566B00'],
+    buttonLocations: [0.1108, 0.4204, 0.959],
+    buttonBorderColors: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'],
+    buttonShadowColor: '#C1E300',
+    buttonInsetTopColor: '#C1E3006E',
+    buttonInsetBottomColor: '#566B0052',
+    buttonTextColor: '#000000',
   },
 ];
 
@@ -70,16 +102,35 @@ export default function Splash1() {
   const [currentStep, setCurrentStep] = useState(0);
   const data = ONBOARDING_STEPS[currentStep];
 
+  useEffect(() => {
+    const handleBackPress = () => {
+      if (currentStep > 0) {
+        setCurrentStep((prev) => prev - 1);
+        return true; // prevent default behavior
+      }
+      return false; // allow default behavior
+    };
+
+    const backHandlerSubscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
+    return () => {
+      backHandlerSubscription.remove();
+    };
+  }, [currentStep]);
+
   const handleNext = () => {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.replace('/login');
+      router.replace('/role-selection');
     }
   };
 
   const handleSkip = () => {
-    router.replace('/login');
+    if (currentStep < ONBOARDING_STEPS.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      router.replace('/role-selection');
+    }
   };
 
   return (
@@ -87,11 +138,24 @@ export default function Splash1() {
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
 
-      <SafeAreaView className="flex-1" edges={['top', 'bottom', 'left', 'right']}>
+      <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}>
+
+        {/* Fixed Floating 3D Elements */}
+        <Image
+          source={splashBubble}
+          className={`absolute ${Platform.OS === 'ios' ? 'bottom-[57px]' : 'bottom-[70px]'} -left-[60px] w-[150px] h-[150px] z-10 rotate-[12deg]`}
+          resizeMode="contain"
+        />
+        <Image
+          source={splashHeart}
+          className={`absolute top-[83%] -right-[60px] w-[130px] h-[130px] z-10 ${Platform.OS === 'ios' ? '-mt-[120px]' : '-mt-[140px]'}`}
+          resizeMode="contain"
+        />
+
         {/* Header (Skip) - Only show for onboarding steps */}
         {currentStep > 0 && (
-          <Animated.View 
-            entering={FadeIn} 
+          <Animated.View
+            entering={FadeIn}
             exiting={FadeOut}
             className="items-end px-5 pt-[10px] z-20"
           >
@@ -101,23 +165,11 @@ export default function Splash1() {
           </Animated.View>
         )}
 
-        <View className="flex-1 justify-end items-center pb-10 px-5 z-20">
+        <View className={`flex-1 justify-end items-center ${Platform.OS === 'ios' ? 'pb-8' : 'pb-10'} px-5 z-20`}>
           <View className="w-full items-center mb-10 relative">
-            {/* Floating 3D Elements */}
-            <Image 
-              source={splashBubble} 
-              className="absolute -bottom-[50px] -left-[50px] w-[100px] h-[100px] z-10 rotate-[14.75deg]" 
-              resizeMode="contain" 
-            />
-            <Image 
-              source={splashHeart} 
-              className="absolute top-0 -right-[45px] w-[80px] h-[80px] z-10" 
-              resizeMode="contain" 
-            />
-
-            {/* Progress Row - Only show for onboarding steps */}
+            {/* Text Content */}
             {currentStep > 0 && (
-              <Animated.View 
+              <Animated.View
                 key={`progress-${currentStep}`}
                 entering={FadeIn}
                 exiting={FadeOut}
@@ -125,10 +177,10 @@ export default function Splash1() {
               >
                 <View className="flex-row gap-2 items-center">
                   {[0, 1, 2, 3].map((idx) => (
-                    <View 
+                    <View
                       key={idx}
-                      style={{ 
-                        backgroundColor: idx === data.activeIndex ? data.dotColor : 'rgba(255,255,255,0.2)' 
+                      style={{
+                        backgroundColor: idx === data.activeIndex ? data.dotColor : 'rgba(255,255,255,0.2)'
                       }}
                       className={idx === data.activeIndex ? "w-6 h-1.5 rounded-full" : "w-1.5 h-1.5 rounded-full"}
                     />
@@ -141,38 +193,53 @@ export default function Splash1() {
             )}
 
             {/* Text Content */}
-            <Animated.View 
+            <Animated.View
               key={`content-${currentStep}`}
               entering={FadeIn.duration(600)}
               exiting={FadeOut.duration(600)}
               className="w-full items-center"
             >
-              <View className="items-center mb-3 px-4">
+              <View className="items-center mb-5 px-4">
                 {data.titles.map((title, i) => (
-                  <Text 
-                    key={i} 
-                    className="font-poppins-bold text-[32px] text-white text-center leading-[40px]"
+                  <Text
+                    key={i}
+                    className="font-poppins-bold text-[32px] text-white text-center leading-[38px]"
                   >
                     {title}
                   </Text>
                 ))}
               </View>
-              <Text className="font-poppins-regular text-base text-[#E0E0E0] text-center px-2.5 leading-6">
-                {data.subtitle}
-              </Text>
+              <View className="items-center px-4">
+                <Text
+                  className={
+                    currentStep === 0
+                      ? "font-poppins-regular text-[24px] text-[#E0E0E0] text-center px-2.5 leading-[30px] pb-1"
+                      : "font-poppins-regular text-[16px] text-[#E0E0E0] text-center px-2.5 leading-[26px] font-normal tracking-normal pb-1"
+                  }
+                >
+                  {data.subtitle}
+                </Text>
+              </View>
             </Animated.View>
           </View>
 
-          <GradientButton 
+          <GradientButton
             title={data.buttonText}
-            onPress={handleNext} 
-            className={`${currentStep === 0 ? "w-[250px]" : "w-full"} mb-[30px] z-20`}
+            onPress={handleNext}
+            colors={data.buttonColors}
+            locations={data.buttonLocations}
+            borderColors={data.buttonBorderColors}
+            shadowColor={data.buttonShadowColor}
+            insetTopColor={data.buttonInsetTopColor}
+            insetBottomColor={data.buttonInsetBottomColor}
+            textStyle={{ color: data.buttonTextColor || '#FFFFFF' }}
+            className={`${currentStep === 0 ? "w-[250px]" : "w-[250px]"} mb-[30px] z-20 py-2`}
           />
 
           {currentStep === 0 && (
-            <Animated.Text 
+            <Animated.Text
               entering={FadeIn}
-              className="font-poppins-regular text-sm text-[#b4b4b4] text-center leading-5 mt-[10px] z-20"
+              className="font-poppins-extralight text-[18px] text-[#b4b4b4] text-center leading-[24px] mt-[10px] z-20"
             >
               By Continuing. You accept our{' '}
               <Text className="text-white underline">Terms and Privacy Policy</Text>

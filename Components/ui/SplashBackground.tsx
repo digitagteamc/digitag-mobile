@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
+import SplashAvatars from './SplashAvatars';
 
 const { width } = Dimensions.get('window');
 
@@ -42,6 +43,8 @@ export default function SplashBackground({
           className="absolute border-white/[0.18]"
         />
       </View>
+
+      <SplashAvatars />
 
       {children}
     </View>
