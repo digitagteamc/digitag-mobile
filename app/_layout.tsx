@@ -1,4 +1,3 @@
-import "../global.css";
 import { AuthProvider } from '@/context/AuthContext';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +14,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 SplashScreen.preventAutoHideAsync();
+import '../global.css';
 
 export default function RootLayout() {
     const [loaded, error] = useFonts({
