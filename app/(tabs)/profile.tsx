@@ -103,6 +103,14 @@ export default function ProfileScreen() {
     fetchProfile();
   }, [token, isGuest]);
 
+  const handleMenuPress = (id: string) => {
+    if (id === 'about') router.push('/about-digitag');
+    if (id === 'help') router.push('/help-support');
+    if (id === 'saved') router.push('/saved-posts');
+    if (id === 'settings') router.push('/settings');
+    // other items can be wired here
+  };
+
   const handleLogout = () => {
     logout();
     router.replace('/login');
@@ -217,7 +225,7 @@ export default function ProfileScreen() {
 
             {MENU_ITEMS.map((item, index) => (
               <React.Fragment key={item.id}>
-                <TouchableOpacity style={styles.menuRow} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
                   {/* Icon pill */}
                   <View style={styles.menuIconPill}>
                     <Ionicons name={item.icon} size={16} color="#F26930" />
@@ -244,6 +252,26 @@ export default function ProfileScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* BOTTOM NAV */}
+      <View style={styles.bottomTabBar}>
+        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)')}>
+          <Ionicons name="home-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/explore')}>
+          <Ionicons name="compass-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/messages')}>
+          <Ionicons name="chatbubble-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={styles.activePillTab}>
+          <Ionicons name="person" size={20} color="#ED2A91" />
+          <Text style={styles.activePillText}>Profile</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -466,5 +494,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
+  },
+  bottomTabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: '#15151A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#222',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  tabBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activePillTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFDCEE',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 25,
+    gap: 8,
+  },
+  activePillText: {
+    color: '#ED2A91',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });
