@@ -1,13 +1,14 @@
 import { useAuth } from '@/context/AuthContext';
+import { useProfileGate } from '@/context/useProfileGate';
+import { getFeed } from '@/services/userService';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Dimensions,
+  Alert,
   Image,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -15,109 +16,143 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
-// ─── Filter Tabs Data
+// ─── Filter pills (UI-only for now — backend does not accept these filters yet)
 const FILTER_TABS = [
   { id: 'all', label: 'All feed' },
   { id: 'creators', label: 'Creators' },
-  { id: 'brands', label: 'Brands' },
-  { id: 'agency', label: 'Agency' },
-
+  { id: 'freelancers', label: 'Freelancers' },
+  { id: 'paid', label: 'Paid Collab' },
 ];
 
-// ─── Mock Data for Figma Match
-const MOCK_CARDS = [
-  {
-    id: 'mock1',
-    type: 'CONTACT',
-    name: 'VISHWA JANI',
-    role: 'Video Editor',
-    desc: 'Passionate Video Editor with 5+ years of experience in storytelling and cinematic edits. Specialist in Reel architecture.',
-    price: '₹ 40K-50K/Month',
-    time: '4h ago',
-    bannerUri: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1000&auto=format&fit=crop',
-    avatarUri: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=1000&auto=format&fit=crop',
-    isInitials: false,
-    initials: 'VJ',
-  },
-  {
-    id: 'mock2',
-    type: 'REQUEST',
-    name: 'AARAV SHARMA',
-    role: 'Motion Designer',
-    desc: 'Creating fluid motions and dynamic visual effects for leading global brands. Open for new collaborations.',
-    price: '₹ 60K-80K/Month',
-    time: '2h ago',
-    bannerUri: 'https://images.unsplash.com/photo-1550745165-9bc0b252723f?q=80&w=1000&auto=format&fit=crop',
-    avatarUri: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=1000&auto=format&fit=crop',
-    isInitials: false,
-    initials: 'AS',
-  },
-  {
-    id: 'mock3',
-    type: 'CONTACT',
-    name: 'ISHA PATEL',
-    role: 'Content Creator',
-    desc: 'Lifestyle and travel creator focused on aesthetic storytelling through high-quality video content.',
-    price: '₹ 30K-45K/Month',
-    time: '1h ago',
-    bannerUri: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1000&auto=format&fit=crop',
-    avatarUri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop',
-    isInitials: false,
-    initials: 'IP',
-  },
-];
+function getInitials(name: string | null | undefined) {
+  if (!name) return 'U';
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase();
+}
+
+function timeAgo(dateStr: string | null | undefined) {
+  if (!dateStr) return '';
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const diffMins = Math.max(0, Math.round(diffMs / 60000));
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHrs = Math.round(diffMins / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  return `${Math.round(diffHrs / 24)}d ago`;
+}
 
 export default function ExploreTab() {
   const router = useRouter();
-  const { token } = useAuth();
-  const [cards, setCards] = useState<any[]>(MOCK_CARDS); // Default to mock data
-  const [loading, setLoading] = useState(false); // No spinner for mock data initial view
+  const { token, isGuest } = useAuth();
+  const { requireProfile } = useProfileGate();
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
+    if (!token) { setPosts([]); setLoading(false); return; }
     try {
-      const resp = await axios.get('https://api.digitag.world/api/post/get-all-post', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (resp.data.success) {
-        const raw = resp.data.data;
-        const processed = raw.map((p: any, index: number) => {
-          const names = p.user_id?.name?.split(' ') || ['User'];
-          const initials = names.map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-
-          // Figma logic: some cards have a single "SEND REQUEST" button
-          // We'll alternate or use a specific index for demonstration
-          const cardType = index === 1 ? 'REQUEST' : 'CONTACT';
-
-          return {
-            id: p._id,
-            type: cardType,
-            name: p.user_id?.name || 'User',
-            role: p.user_id?.category || 'Creator',
-            desc: p.description?.substring(0, 100) + '...',
-            price: `₹ ${p.min_price || '10'}K-${p.max_price || '20'}K/Month`,
-            time: '4h ago',
-            bannerUri: p.media_url?.[0] || 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop',
-            avatarUri: p.user_id?.profile_image_url,
-            isInitials: !p.user_id?.profile_image_url,
-            initials,
-          };
-        });
-        setCards(processed);
-      }
+      const res = await getFeed(token);
+      const rows = Array.isArray(res.data) ? res.data : [];
+      console.log(`🧭 Explore feed loaded: ${rows.length} post(s)`);
+      setPosts(rows);
     } catch (err) {
-      console.log('Fetch error:', err);
+      console.log('Explore fetch error:', err);
+      setPosts([]);
     } finally {
       setLoading(false);
     }
+  }, [token]);
+
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPosts();
+    setRefreshing(false);
+  };
+
+  // Client-side view filters. Backend already filters by opposite role, so
+  // "Creators" / "Freelancers" pills narrow within the already-opposite set.
+  const filteredPosts = posts.filter((p) => {
+    if (activeFilter === 'creators' && p.owner?.role !== 'CREATOR') return false;
+    if (activeFilter === 'freelancers' && p.owner?.role !== 'FREELANCER') return false;
+    if (activeFilter === 'paid' && p.collaborationType !== 'PAID') return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const haystack = [p.description, p.location, p.owner?.name].filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const cards = filteredPosts.map((p, index) => {
+    const owner = p.owner || {};
+    const name = owner.name || (owner.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
+    const roleLabel = owner.role
+      ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase()
+      : 'User';
+    return {
+      id: p.id,
+      ownerId: owner.id as string | undefined,
+      // Alternate between the two card styles for visual variety, matching the
+      // original Figma layout. The API has no "type" concept yet.
+      type: index % 3 === 1 ? 'REQUEST' : 'CONTACT',
+      name,
+      role: roleLabel,
+      desc: p.description || '',
+      price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
+      time: timeAgo(p.createdAt),
+      bannerUri: p.imageUrl || FALLBACK_BANNER,
+      avatarUri: owner.profilePicture || null,
+      isInitials: !owner.profilePicture,
+      initials: getInitials(name),
+    };
+  });
+
+  const handleCardTap = (postId: string, ownerId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('view this profile')) return;
+    router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
+  };
+
+  const handleChat = () => {
+    if (!requireProfile('start a chat')) return;
+    Alert.alert('Coming Soon', 'Chat is not yet available.');
+  };
+
+  const handleCall = () => {
+    if (!requireProfile('call directly')) return;
+    Alert.alert('Coming Soon', 'Direct calling is not yet available.');
+  };
+
+  const handlePortfolio = () => {
+    Alert.alert('Coming Soon', 'Portfolio view is not yet available.');
+  };
+
+  const handleSendRequest = () => {
+    if (!requireProfile('send a request')) return;
+    Alert.alert('Coming Soon', 'Collaboration requests are not yet available.');
+  };
+
+  const handleBookmark = () => {
+    if (!requireProfile('save this post')) return;
+    Alert.alert('Coming Soon', 'Saving posts is not yet available.');
+  };
+
+  const handleShare = () => {
+    Alert.alert('Share', 'Share sheet is not yet wired up.');
   };
 
   return (
@@ -134,6 +169,7 @@ export default function ExploreTab() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         >
           {/* SEARCH BAR */}
           <View style={styles.searchContainer}>
@@ -143,6 +179,9 @@ export default function ExploreTab() {
                 style={styles.searchInput}
                 placeholder="Search here for Animator"
                 placeholderTextColor="#666"
+                value={search}
+                onChangeText={setSearch}
+                autoCapitalize="none"
               />
               <Ionicons name="mic-outline" size={22} color="#888" />
             </View>
@@ -150,35 +189,56 @@ export default function ExploreTab() {
 
           {/* FILTER PILLS */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pillsContent}>
-            {FILTER_TABS.map((tab) => (
-              <TouchableOpacity key={tab.id} style={[styles.pill, tab.id === 'all' && styles.pillActive]}>
-                <Text style={[styles.pillText, tab.id === 'all' && styles.pillTextActive]}>{tab.label}</Text>
-              </TouchableOpacity>
-            ))}
+            {FILTER_TABS.map((tab) => {
+              const active = tab.id === activeFilter;
+              return (
+                <TouchableOpacity
+                  key={tab.id}
+                  style={[styles.pill, active && styles.pillActive]}
+                  onPress={() => setActiveFilter(tab.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pillText, active && styles.pillTextActive]}>{tab.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* FEED LIST */}
           {loading ? (
             <ActivityIndicator size="large" color="#ED2A91" style={{ marginTop: 40 }} />
+          ) : cards.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="compass-outline" size={48} color="#3A3A47" />
+              <Text style={styles.emptyTitle}>Nothing to explore yet</Text>
+              <Text style={styles.emptySubtitle}>
+                {search.trim() || activeFilter !== 'all'
+                  ? 'No posts match your filters. Try a different search.'
+                  : 'Pull down to refresh — new posts will appear here as people share them.'}
+              </Text>
+            </View>
           ) : (
             <View style={styles.feedList}>
               {cards.map((item) => (
-                <View key={item.id} style={styles.exploreCard}>
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.exploreCard}
+                  activeOpacity={0.9}
+                  onPress={() => handleCardTap(item.id, item.ownerId)}
+                >
                   {/* HERO IMAGE */}
                   <View style={styles.cardHero}>
                     <Image source={{ uri: item.bannerUri }} style={styles.heroImg} />
 
-                    {/* TOP ACTIONS - Positioned absolute in Hero */}
                     <View style={styles.heroActions}>
-                      <TouchableOpacity style={styles.heroActionBtn}>
+                      <TouchableOpacity style={styles.heroActionBtn} onPress={handleShare}>
                         <Ionicons name="share-social-outline" size={16} color="#fff" />
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.heroActionBtn}>
+                      <TouchableOpacity style={styles.heroActionBtn} onPress={handleBookmark}>
                         <Ionicons name="bookmark-outline" size={16} color="#fff" />
                       </TouchableOpacity>
                     </View>
 
-                    {/* PROFILE OVERLAY - Floating on Hero */}
                     <View style={styles.profileOverlay}>
                       <View style={styles.profileAvatar}>
                         {item.isInitials ? (
@@ -198,7 +258,7 @@ export default function ExploreTab() {
 
                   {/* DETAILS */}
                   <View style={styles.cardInfo}>
-                    <Text style={styles.cardDesc}>{item.desc}</Text>
+                    <Text style={styles.cardDesc} numberOfLines={3}>{item.desc}</Text>
 
                     <View style={styles.cardMeta}>
                       <Text style={styles.priceTxt}>{item.price}</Text>
@@ -208,33 +268,30 @@ export default function ExploreTab() {
                       </View>
                     </View>
 
-                    {/* BUTTONS VARIATION */}
                     {item.type === 'REQUEST' ? (
-                      /* TYPE 2: Single Large Button */
-                      <TouchableOpacity style={styles.requestBtn} activeOpacity={0.8}>
+                      <TouchableOpacity style={styles.requestBtn} activeOpacity={0.8} onPress={handleSendRequest}>
                         <Ionicons name="paper-plane" size={18} color="#fff" />
                         <Text style={styles.requestBtnText}>SEND REQUEST</Text>
                       </TouchableOpacity>
                     ) : (
-                      /* TYPE 1: Row of Buttons */
                       <View style={styles.btnRow}>
-                        <TouchableOpacity style={styles.chatCircle} activeOpacity={0.7}>
+                        <TouchableOpacity style={styles.chatCircle} activeOpacity={0.7} onPress={handleChat}>
                           <Ionicons name="chatbubble-ellipses" size={20} color="#fff" />
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8}>
+                        <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8} onPress={handleCall}>
                           <Ionicons name="call" size={16} color="#fff" />
                           <Text style={styles.contactBtnText}>Call directly</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8}>
+                        <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8} onPress={handlePortfolio}>
                           <Text style={styles.contactBtnText}>See Portfolio</Text>
                           <Ionicons name="chevron-down" size={16} color="#fff" />
                         </TouchableOpacity>
                       </View>
                     )}
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -243,35 +300,7 @@ export default function ExploreTab() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={styles.floatingBtn}
-        onPress={() => router.push('/create-post')}
-      >
-        <LinearGradient colors={['#ED2A91', '#D81B60']} style={styles.floatingBtnGrad}>
-          <Ionicons name="add" size={30} color="#fff" />
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* BOTTOM NAV */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)')}>
-          <Ionicons name="home-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <View style={styles.activePillTab}>
-          <Ionicons name="compass" size={20} color="#ED2A91" />
-          <Text style={styles.activePillText}>Explore</Text>
-        </View>
-
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/messages')}>
-          <Ionicons name="chatbubble-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/profile')}>
-          <Ionicons name="person-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {/* FAB + bottom nav are rendered globally by (tabs)/_layout.tsx. */}
     </View>
   );
 }
@@ -358,6 +387,24 @@ const styles = StyleSheet.create({
   feedList: {
     paddingHorizontal: 20,
     gap: 20,
+  },
+  emptyState: {
+    paddingHorizontal: 40,
+    paddingTop: 60,
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  emptySubtitle: {
+    color: '#888',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   exploreCard: {
     backgroundColor: '#1E1E24',
@@ -560,7 +607,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   activePillText: {
-    color: '#ED2A91', // Main pink for text
+    color: '#ED2A91',
     fontWeight: '800',
     fontSize: 14,
   },

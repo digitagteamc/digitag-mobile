@@ -11,11 +11,13 @@ const BASE = width * 1;
 export default function SplashBackground({
   children,
   gradientColors = ['#000000', '#621487'],
-  className
+  className,
+  showAvatars = true,
 }: {
   children?: React.ReactNode;
   gradientColors?: readonly [string, string, ...string[]];
   className?: string;
+  showAvatars?: boolean;
 }) {
   return (
     <View className={`flex-1 overflow-hidden bg-black ${className}`}>
@@ -44,7 +46,7 @@ export default function SplashBackground({
         />
       </View>
 
-      <SplashAvatars />
+      {showAvatars && <SplashAvatars />}
 
       {children}
     </View>

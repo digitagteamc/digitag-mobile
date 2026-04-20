@@ -12,7 +12,6 @@ import {
     View
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { fetchCollabInbox, respondToCollab } from '../services/userService';
 
 export default function CreatorInbox() {
     const router = useRouter();
@@ -26,45 +25,20 @@ export default function CreatorInbox() {
     }, []);
 
     const loadInbox = async () => {
-        if (!token) return;
-        setLoading(true);
-        const res = await fetchCollabInbox(token);
-        if (res.success) {
-            setRequests(res.data);
-        }
+        // Backend has no collaborations module yet — reconnect when
+        // /collaborations endpoints are added.
+        setRequests([]);
         setLoading(false);
     };
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        const res = await fetchCollabInbox(token!);
-        if (res.success) setRequests(res.data);
+        setRequests([]);
         setRefreshing(false);
     };
 
     const handleAction = async (id: string, action: 'approve' | 'reject') => {
-        Alert.alert(
-            action === 'approve' ? 'Approve Collaboration?' : 'Reject Collaboration?',
-            action === 'approve'
-                ? 'The brand will be notified that you are interested.'
-                : 'This request will be removed from your active inbox.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: action === 'approve' ? 'Approve' : 'Reject',
-                    style: action === 'reject' ? 'destructive' : 'default',
-                    onPress: async () => {
-                        const res = await respondToCollab(token!, id, action);
-                        if (res.success) {
-                            Alert.alert("Success", `Request ${action}d!`);
-                            loadInbox();
-                        } else {
-                            Alert.alert("Error", res.error || "Failed to respond");
-                        }
-                    }
-                }
-            ]
-        );
+        Alert.alert("Coming Soon", "Collaboration responses are not yet available on the server.");
     };
 
     const StatusBadge = ({ status }: { status: string }) => {

@@ -16,7 +16,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { getFullProfile, getSavedPostIds, savePost, unsavePost } from '../../services/userService';
+import { useProfileGate } from '../../context/useProfileGate';
+import { getFeed, getFullProfile, listCollaborations } from '../../services/userService';
+import { useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -43,40 +45,28 @@ const CATEGORIES = [
 
 export default function Homepage() {
   const router = useRouter();
-  const { token, isGuest, userId, userRole } = useAuth();
+  const { token, isGuest, userRole } = useAuth();
+  const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>('');
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/posts/feed`);
-        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
-        const data = await response.json();
-
-        const allPosts: any[] = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.data)
-            ? data.data
-            : [];
-
-        // ── Role-based filtering ──────────────────────────────────────────
-        // CREATOR  → sees posts by FREELANCER authors only
-        // FREELANCER → sees posts by CREATOR authors only
-        // BRAND / GUEST / other → sees all posts
-        const role = userRole?.toUpperCase();
-        let filtered = allPosts;
-        if (role === 'CREATOR') {
-          filtered = allPosts.filter(p => p.author?.role === 'FREELANCER');
-        } else if (role === 'FREELANCER') {
-          filtered = allPosts.filter(p => p.author?.role === 'CREATOR');
-        }
-
-        setPosts(filtered);
+        if (!token) { setPosts([]); setLoading(false); return; }
+        const res = await getFeed(token);
+        // Backend GET /feed already filters by opposite role server-side
+        // (CREATOR → FREELANCER posts, FREELANCER → CREATOR posts) via
+        // OPPOSITE_FEED_ROLE, so no client-side filter is needed.
+        const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
+        console.log(`📰 Feed loaded: ${allPosts.length} post(s)`);
+        setPosts(allPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
         setPosts([]);
@@ -93,54 +83,35 @@ export default function Homepage() {
       }
 
       const res = await getFullProfile(token);
-
       if (res.success && res.data?.profile) {
         const p = res.data.profile;
-        setUserName(p.name || p.creatorName || p.brandName || 'User');
+        setUserName(p.name || 'User');
       } else {
-        // Fallback for older Render deployments missing the /user/me/full endpoint
-        if (userRole === 'CREATOR' && userId) {
-          try {
-            const fallbackRes = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/creators`);
-            if (fallbackRes.ok) {
-              const creatorsData = await fallbackRes.json();
-              // Data shape could be { value: [...] } or [...]
-              const creatorsList = creatorsData.value ? creatorsData.value : creatorsData;
-              const myProfile = creatorsList.find((c: any) => c.userId === userId);
-              if (myProfile) {
-                setUserName(myProfile.name || myProfile.creatorName || 'Creator');
-                return;
-              }
-            }
-          } catch (e) {
-            console.error("Fallback fetch failed", e);
-          }
-        }
         setUserName('User');
+      }
+    };
+
+    const fetchPendingCount = async () => {
+      if (!token || isGuest) return;
+      const res = await listCollaborations(token, { direction: 'incoming' });
+      if (res.success && Array.isArray(res.data)) {
+        setPendingCount(res.data.filter((r: any) => r.status === 'PENDING').length);
       }
     };
 
     fetchPosts();
     fetchUser();
-
-    // Load saved bookmark IDs so the bookmark icon reflects the correct state
-    if (token && !isGuest) {
-      getSavedPostIds(token).then(res => {
-        if (res.success) setSavedIds(new Set(res.data));
-      });
-    }
+    fetchPendingCount();
   }, [token, isGuest, userRole]);
 
-  const getAuthorName = (author: any) => {
-    if (author?.role === 'BRAND') return author.brandProfile?.brandName || 'Brand';
-    if (author?.role === 'CREATOR') return author.creatorProfile?.name || author.creatorProfile?.creatorName || 'Creator';
-    if (author?.role === 'FREELANCER') return author.freelancerProfile?.name || 'Freelancer';
+  // Backend `shapePost` already flattens the author → { id, role, name,
+  // profilePicture, location } on `post.owner`. `name` falls back to the
+  // role label when the user hasn't completed their profile yet.
+  const getOwnerName = (owner: any) => {
+    if (owner?.name) return owner.name;
+    if (owner?.role === 'CREATOR') return 'Creator';
+    if (owner?.role === 'FREELANCER') return 'Freelancer';
     return 'User';
-  };
-
-  const getProfilePic = (author: any) => {
-    if (author?.role === 'CREATOR') return author.creatorProfile?.profilePicture;
-    return null; // backend currently only has profilePicture for creator implicitly via Prisma schema (not shown perfectly, but works for the logic)
   };
 
   const getTimeAgo = (dateStr: string) => {
@@ -154,35 +125,54 @@ export default function Homepage() {
   };
 
   const handleBookmark = async (postId: string) => {
-    if (!token || isGuest) return;
-    const isCurrentlySaved = savedIds.has(postId);
-    // Optimistic update
-    setSavedIds(prev => {
-      const next = new Set(prev);
-      if (isCurrentlySaved) next.delete(postId); else next.add(postId);
-      return next;
-    });
-    // Call API
-    if (isCurrentlySaved) {
-      await unsavePost(postId, token);
-    } else {
-      await savePost(postId, token);
-    }
+    // Backend save/unsave endpoints not implemented yet — reconnect when
+    // /posts/:id/save is added.
   };
 
-  const cards = posts.map(post => {
-    const name = getAuthorName(post.author);
-    const pic = getProfilePic(post.author);
+  const handlePostTap = (postId: string, ownerId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('view this profile')) return;
+    router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
+  };
+
+  // Category keyword map for loose filtering against post descriptions / owner category
+  const CATEGORY_KEYWORDS: Record<string, string[]> = {
+    '1': ['video', 'editor', 'editing', 'motion', 'reel'],
+    '2': ['creator', 'influencer', 'content', 'ugc'],
+    '3': ['design', 'graphic', 'illustration', 'branding', 'ui', 'ux'],
+    '4': ['writ', 'copywrite', 'blog', 'content write'],
+  };
+
+  const filteredPosts = selectedCategory
+    ? posts.filter(post => {
+        const keywords = CATEGORY_KEYWORDS[selectedCategory] || [];
+        const searchText = [
+          post.description || '',
+          post.owner?.categoryName || '',
+          post.category?.name || '',
+        ].join(' ').toLowerCase();
+        return keywords.some(kw => searchText.includes(kw));
+      })
+    : posts;
+
+  const cards = filteredPosts.map(post => {
+    const owner = post.owner || {};
+    const name = getOwnerName(owner);
+    const pic = owner.profilePicture || null;
+    const roleLabel = owner.role
+      ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase()
+      : 'User';
     return {
       id: post.id,
+      ownerId: owner.id as string | undefined,
       bannerUri: post.imageUrl || imgJamieStreetUnsplash1,
       isInitials: !pic,
       initials: name.slice(0, 2).toUpperCase(),
       avatarUri: pic,
-      name: name,
-      role: post.author?.role?.toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Unknown',
+      name,
+      role: roleLabel,
       desc: post.description,
-      price: '₹40K-50K/Month', // Hardcoded as placeholder based on design, backend does not have price
+      price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       time: getTimeAgo(post.createdAt),
     };
   });
@@ -194,7 +184,7 @@ export default function Homepage() {
       {/* Full-screen purple→black gradient (top 264dp area) */}
       <View style={[styles.topGradientBand, { paddingTop: statusBarHeight }]}>
         <LinearGradient
-          colors={['#7352DD', '#000000']}
+          colors={[theme.primary, '#000000']}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFillObject}
@@ -232,8 +222,13 @@ export default function Homepage() {
                 <Ionicons name="bar-chart-outline" size={16} color="#fff" />
               </TouchableOpacity>
               {/* Notification bell */}
-              <TouchableOpacity style={styles.iconCircle}>
+              <TouchableOpacity style={styles.iconCircle} onPress={() => router.push('/notifications' as any)}>
                 <Ionicons name="notifications-outline" size={16} color="#fff" />
+                {pendingCount > 0 && (
+                  <View style={[styles.badge, { backgroundColor: theme.primary }]}>
+                    <Text style={styles.badgeText}>{pendingCount > 9 ? '9+' : pendingCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -280,23 +275,32 @@ export default function Homepage() {
 
           {/* ══════════════ CATEGORIES ══════════════ */}
           <View style={styles.catRow}>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity key={cat.id} style={styles.catItem} activeOpacity={0.8}>
-                <View style={styles.catCardWrap}>
-                  {/* Colored rounded card — full height of wrapper bottom */}
-                  <View style={[styles.catCard, { backgroundColor: cat.bg }]}>
-                    {/* Label text INSIDE the card at the bottom */}
-                    <Text style={styles.catLabel}>{cat.label}</Text>
+            {CATEGORIES.map((cat) => {
+              const isActive = selectedCategory === cat.id;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={styles.catItem}
+                  activeOpacity={0.8}
+                  onPress={() => setSelectedCategory(isActive ? null : cat.id)}
+                >
+                  <View style={styles.catCardWrap}>
+                    <View style={[
+                      styles.catCard,
+                      { backgroundColor: cat.bg },
+                      isActive && { borderWidth: 2, borderColor: theme.primary },
+                    ]}>
+                      <Text style={styles.catLabel}>{cat.label}</Text>
+                    </View>
+                    <Image
+                      source={cat.image}
+                      style={[styles.catImg, { width: cat.imgSize, height: cat.imgSize, top: cat.imgTop }]}
+                      resizeMode="contain"
+                    />
                   </View>
-                  {/* 3D image: per-category size+top so all look visually aligned */}
-                  <Image
-                    source={cat.image}
-                    style={[styles.catImg, { width: cat.imgSize, height: cat.imgSize, top: cat.imgTop }]}
-                    resizeMode="contain"
-                  />
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* ══════════════ RECENTLY UPDATED HEADER ══════════════ */}
@@ -311,12 +315,12 @@ export default function Homepage() {
           {/* Figma: each card 408×290, glassmorphic bg #1e1e24, border rgba(156,156,156,0.5) */}
           <View style={styles.cardsList}>
             {loading ? (
-              <ActivityIndicator size="large" color="#7352DD" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
             ) : cards.length === 0 ? (
               <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
             ) : (
               cards.map((item) => (
-                <View key={item.id} style={styles.card}>
+                <TouchableOpacity key={item.id} style={styles.card} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
                   {/* ── Top hero image (152px tall) */}
                   <View style={styles.cardHero}>
                     <Image source={{ uri: item.bannerUri }} style={styles.cardBannerImg} resizeMode="cover" />
@@ -325,11 +329,7 @@ export default function Homepage() {
 
                     {/* Bookmark icon — top right */}
                     <TouchableOpacity style={styles.bookmarkBtn} onPress={() => handleBookmark(item.id)}>
-                      <Ionicons
-                        name={savedIds.has(item.id) ? 'bookmark' : 'bookmark-outline'}
-                        size={16}
-                        color={savedIds.has(item.id) ? '#F26930' : '#fff'}
-                      />
+                      <Ionicons name="bookmark-outline" size={16} color="#fff" />
                     </TouchableOpacity>
 
                     {/* Profile row — bottom-left of hero */}
@@ -365,27 +365,23 @@ export default function Homepage() {
                       </View>
                     </View>
 
-                    {/* Action buttons */}
+                    {/* Action button */}
                     <View style={styles.cardActions}>
-                      {/* Quick Chat — glass outline */}
-                      <TouchableOpacity style={styles.btnQuickChat} activeOpacity={0.8}>
-                        <View style={styles.btnBlurBg} />
-                        <Ionicons name="chatbubble-ellipses-outline" size={14} color="#fff" />
-                        <Text style={styles.btnQuickChatText}>Quick Chat</Text>
-                      </TouchableOpacity>
-
-                      {/* Call directly — purple fill */}
-                      <TouchableOpacity style={styles.btnCall} activeOpacity={0.8}>
-                        <View style={styles.btnPurpleBg} />
-                        <Ionicons name="call-outline" size={14} color="#fff" />
-                        <Text style={styles.btnCallText}>Call directly</Text>
+                      <TouchableOpacity
+                        style={styles.btnViewProfile}
+                        activeOpacity={0.8}
+                        onPress={() => handlePostTap(item.id, item.ownerId)}
+                      >
+                        <View style={[styles.btnPurpleBg, { backgroundColor: theme.primary }]} />
+                        <Ionicons name="person-outline" size={14} color="#fff" />
+                        <Text style={styles.btnCallText}>View Profile</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
 
                   {/* Inset shadow overlay */}
                   <View style={styles.cardInsetOverlay} pointerEvents="none" />
-                </View>
+                </TouchableOpacity>
               )))}
           </View>
 
@@ -394,49 +390,7 @@ export default function Homepage() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* ══════════════ BOTTOM NAV ══════════════ */}
-      {/* Figma: Component 21 — #1e1e24, rounded-tl/tr-16, px-24 py-16 */}
-      <View style={styles.bottomNavContainer}>
-        {/* The nav bar */}
-        <View style={styles.bottomNav}>
-          {/* Home — ACTIVE: #e9e2ff pill, purple icon + text */}
-          <TouchableOpacity style={styles.navHome} activeOpacity={0.9}>
-            <Ionicons name="home" size={28} color="#7352DD" />
-            <Text style={styles.navHomeLabel}>Home</Text>
-          </TouchableOpacity>
-
-          {/* Explore — NEW: routes to /explore */}
-          <TouchableOpacity
-            style={styles.navItem}
-            activeOpacity={0.7}
-            onPress={() => router.push('/(tabs)/explore')}
-          >
-            <Ionicons name="compass" size={28} color="#6b6b8a" />
-          </TouchableOpacity>
-
-          {/* Chat */}
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
-            <Ionicons name="chatbubble-ellipses" size={26} color="#6b6b8a" />
-          </TouchableOpacity>
-
-          {/* Profile */}
-          <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={() => router.push('/(tabs)/profile')}>
-            <Ionicons name="person-circle" size={28} color="#6b6b8a" />
-          </TouchableOpacity>
-        </View>
-
-        {/* FAB — purple gradient circle with + , sits above the nav bar */}
-        <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => router.push('/create-post' as any)}>
-          <LinearGradient
-            colors={['#9b7ef7', '#7352DD', '#5a3db8']}
-            start={{ x: 0.2, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.fabGrad}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      {/* Bottom nav + FAB are rendered globally by (tabs)/_layout.tsx. */}
     </View>
   );
 }
@@ -515,6 +469,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  badge: {
+    position: 'absolute', top: -4, right: -4,
+    minWidth: 16, height: 16, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
 
   // ── Search bar (Figma: border rgba(156,156,156,0.5), bg rgba(240,240,240,0.1))
   searchBar: {
@@ -840,33 +801,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
 
-  // Quick Chat button (Figma: glassmorphic, border rgba(156,156,156,0.5), rounded-20)
-  btnQuickChat: {
-    flex: 1,
-    height: 38,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.5)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  btnBlurBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(240,240,240,0.1)',
-  },
-  btnQuickChatText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: -0.5,
-  },
-
-  // Call directly button (Figma: bg #7352dd, rounded-99)
-  btnCall: {
+  btnViewProfile: {
     flex: 1,
     height: 38,
     borderRadius: 99,
@@ -964,4 +899,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
 });

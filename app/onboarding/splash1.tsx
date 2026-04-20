@@ -3,7 +3,7 @@ import SplashBackground from '@/Components/ui/SplashBackground';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Image, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, Image, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -99,8 +99,30 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
 
 export default function Splash1() {
   const router = useRouter();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const [currentStep, setCurrentStep] = useState(0);
   const data = ONBOARDING_STEPS[currentStep];
+
+  // Responsive decorative sizes: scale with screen width but cap for tablets,
+  // and step down further on short phones so the 3D ornaments never crowd the
+  // text/button stack at the bottom of the screen.
+  const isCompact = screenH < 720;
+  const bubbleSize = Math.round(Math.min(150, screenW * (isCompact ? 0.30 : 0.36)));
+  const heartSize = Math.round(Math.min(130, screenW * (isCompact ? 0.26 : 0.32)));
+
+  // Reserve a content zone at the bottom ~42% of the viewport for text + CTA
+  // (or ~48% on short phones). Decorative ornaments sit outside that zone.
+  const contentReserve = isCompact ? 0.48 : 0.42;
+  const safeArea = screenH * (1 - contentReserve);
+
+  // Bubble pinned near the top-left, Heart near the top-right, both partially
+  // offscreen for the "floating" look without colliding with the text block.
+  const bubbleTop = Math.max(40, safeArea * 0.55);
+  const heartTop = Math.max(20, safeArea * 0.30);
+  const titleFontSize = isCompact ? 26 : 32;
+  const titleLineHeight = isCompact ? 32 : 38;
+  const subtitleFontSize = currentStep === 0 ? (isCompact ? 20 : 24) : (isCompact ? 14 : 16);
+  const subtitleLineHeight = currentStep === 0 ? (isCompact ? 26 : 30) : (isCompact ? 22 : 26);
 
   useEffect(() => {
     const handleBackPress = () => {
@@ -140,15 +162,31 @@ export default function Splash1() {
 
       <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}>
 
-        {/* Fixed Floating 3D Elements */}
+        {/* Floating 3D decorations — positioned relative to screen height so
+            they never overlap the text/button area on any device size. */}
         <Image
           source={splashBubble}
-          className={`absolute ${Platform.OS === 'ios' ? 'bottom-[57px]' : 'bottom-[70px]'} -left-[60px] w-[150px] h-[150px] z-10 rotate-[12deg]`}
+          style={{
+            position: 'absolute',
+            top: bubbleTop,
+            left: -Math.round(bubbleSize * 0.4),
+            width: bubbleSize,
+            height: bubbleSize,
+            transform: [{ rotate: '12deg' }],
+            zIndex: 10,
+          }}
           resizeMode="contain"
         />
         <Image
           source={splashHeart}
-          className={`absolute top-[83%] -right-[60px] w-[130px] h-[130px] z-10 ${Platform.OS === 'ios' ? '-mt-[120px]' : '-mt-[140px]'}`}
+          style={{
+            position: 'absolute',
+            top: heartTop,
+            right: -Math.round(heartSize * 0.4),
+            width: heartSize,
+            height: heartSize,
+            zIndex: 10,
+          }}
           resizeMode="contain"
         />
 
@@ -203,7 +241,8 @@ export default function Splash1() {
                 {data.titles.map((title, i) => (
                   <Text
                     key={i}
-                    className="font-poppins-bold text-[32px] text-white text-center leading-[38px]"
+                    className="font-poppins-bold text-white text-center"
+                    style={{ fontSize: titleFontSize, lineHeight: titleLineHeight }}
                   >
                     {title}
                   </Text>
@@ -211,11 +250,8 @@ export default function Splash1() {
               </View>
               <View className="items-center px-4">
                 <Text
-                  className={
-                    currentStep === 0
-                      ? "font-poppins-regular text-[24px] text-[#E0E0E0] text-center px-2.5 leading-[30px] pb-1"
-                      : "font-poppins-regular text-[16px] text-[#E0E0E0] text-center px-2.5 leading-[26px] font-normal tracking-normal pb-1"
-                  }
+                  className="font-poppins-regular text-[#E0E0E0] text-center px-2.5 pb-1"
+                  style={{ fontSize: subtitleFontSize, lineHeight: subtitleLineHeight }}
                 >
                   {data.subtitle}
                 </Text>

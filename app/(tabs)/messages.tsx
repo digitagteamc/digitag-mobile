@@ -1,300 +1,242 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Dimensions,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
+import { listConversations } from '../../services/userService';
 
-const { width } = Dimensions.get('window');
+const ACCENT = '#F26930';
 
-const MOCK_MESSAGES = [
-  {
-    id: '1',
-    name: 'Priya Sharma',
-    lastMessage: 'Hey! we loved your portfolio are you..',
-    time: '3:05 pm',
-    unreadCount: 2,
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1000&auto=format&fit=crop',
-  },
-  {
-    id: '2',
-    name: 'FreshBrew Co.',
-    lastMessage: 'Thanks for contacting us! Let’s ho...',
-    time: '1:25 pm',
-    unreadCount: 1,
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1000&auto=format&fit=crop',
-  },
-  {
-    id: '3',
-    name: 'Laila Noor',
-    lastMessage: 'Hi! I think we’d be a great fit for th....',
-    time: '1:25 pm',
-    unreadCount: 0,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=1000&auto=format&fit=crop',
-  },
-  {
-    id: '4',
-    name: 'Aadhya Sharma',
-    lastMessage: 'Hi! I saw your post on digitag. le...',
-    time: '23/3/2026',
-    unreadCount: 1,
-    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=1000&auto=format&fit=crop',
-  },
-];
+function getInitials(name: string | null | undefined) {
+    if (!name) return 'U';
+    return name
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase();
+}
 
-export default function MessagesScreen() {
-  const router = useRouter();
+function formatTime(dateStr: string | null | undefined) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString();
+}
 
-  return (
-    <View style={styles.root}>
-      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
+export default function MessagesTab() {
+    const router = useRouter();
+    const { token, isGuest } = useAuth();
 
-      {/* Top Background Gradient */}
-      <View style={styles.topGradient}>
-        <LinearGradient
-          colors={['#421133', '#060606']}
-          style={StyleSheet.absoluteFillObject}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-        />
-      </View>
+    const [conversations, setConversations] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [search, setSearch] = useState('');
 
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Messages</Text>
-            <Text style={styles.headerSubtitle}>Your Collab Conversations</Text>
-          </View>
-        </View>
+    const load = useCallback(async () => {
+        if (!token || isGuest) { setConversations([]); setLoading(false); return; }
+        const res = await listConversations(token);
+        if (res.success) setConversations(res.data || []);
+        setLoading(false);
+    }, [token, isGuest]);
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <Text style={styles.placeholderText}>Search here</Text>
-          </View>
-        </View>
+    useEffect(() => { load(); }, [load]);
 
-        {/* Chat List */}
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-          {MOCK_MESSAGES.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.chatItem}
-              onPress={() => router.push({
-                pathname: '/chat/[id]',
-                params: { id: item.id, name: item.name, avatar: item.avatar }
-              })}
-            >
-              <Image source={{ uri: item.avatar }} style={styles.avatar} />
-              <View style={styles.chatDetails}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.nameText}>{item.name}</Text>
-                  <Text style={styles.timeText}>{item.time}</Text>
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+    };
+
+    const filtered = conversations.filter((c) => {
+        if (!search.trim()) return true;
+        const q = search.trim().toLowerCase();
+        const name = (c.other?.name || '').toLowerCase();
+        const msg = (c.lastMessage?.content || '').toLowerCase();
+        return name.includes(q) || msg.includes(q);
+    });
+
+    const handleOpen = (conv: any) => {
+        router.push({ pathname: '/chat/[id]', params: { id: conv.id } } as any);
+    };
+
+    return (
+        <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+            <View style={styles.header}>
+                <TouchableOpacity
+                    style={styles.headerIconBtn}
+                    onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+                >
+                    <Ionicons name="chevron-back" size={20} color="#fff" />
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.title}>Messages</Text>
+                    <Text style={styles.subtitle}>Your Collab Conversations</Text>
                 </View>
-                <View style={styles.messageRow}>
-                  <Text style={styles.messageText} numberOfLines={1}>
-                    {item.lastMessage}
-                  </Text>
-                  {item.unreadCount > 0 && (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadText}>{item.unreadCount}</Text>
-                    </View>
-                  )}
+                <TouchableOpacity
+                    style={styles.headerIconBtn}
+                    onPress={() => router.push('/notifications' as any)}
+                    accessibilityLabel="Open notifications"
+                >
+                    <Ionicons name="notifications-outline" size={20} color="#fff" />
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchWrap}>
+                <View style={styles.searchBar}>
+                    <Ionicons name="search-outline" size={18} color="#6B6B7A" />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search here"
+                        placeholderTextColor="#6B6B7A"
+                        value={search}
+                        onChangeText={setSearch}
+                        autoCapitalize="none"
+                    />
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </SafeAreaView>
+            </View>
 
-      {/* Bottom Tab Bar */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)')}>
-          <Ionicons name="home-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/explore')}>
-          <Ionicons name="compass-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <View style={styles.activePillTab}>
-          <Ionicons name="chatbubble-ellipses" size={20} color="#ED2A91" />
-          <Text style={styles.activePillText}>Messages</Text>
-        </View>
-
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/profile')}>
-          <Ionicons name="person-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+            {loading ? (
+                <View style={styles.centerWrap}>
+                    <ActivityIndicator color={ACCENT} size="large" />
+                </View>
+            ) : filtered.length === 0 ? (
+                <View style={styles.emptyBox}>
+                    <Ionicons name="chatbubbles-outline" size={48} color="#3A3A47" />
+                    <Text style={styles.emptyTitle}>No conversations yet</Text>
+                    <Text style={styles.emptySubtitle}>
+                        Accepted collab requests open a chat here. Send or accept a request to get started.
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filtered}
+                    keyExtractor={(c) => c.id}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ACCENT} />}
+                    contentContainerStyle={{ paddingBottom: 120 }}
+                    renderItem={({ item }) => {
+                        const name = item.other?.name || (item.other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
+                        const pic = item.other?.profilePicture || null;
+                        const preview = item.lastMessage?.content || 'Say hi to start the conversation';
+                        const when = formatTime(item.lastMessageAt || item.createdAt);
+                        const unread = item.unreadCount || 0;
+                        return (
+                            <TouchableOpacity style={styles.row} activeOpacity={0.8} onPress={() => handleOpen(item)}>
+                                {pic ? (
+                                    <Image source={{ uri: pic }} style={styles.avatar} />
+                                ) : (
+                                    <View style={[styles.avatar, styles.initialsAvatar]}>
+                                        <Text style={styles.initialsText}>{getInitials(name)}</Text>
+                                    </View>
+                                )}
+                                <View style={styles.rowBody}>
+                                    <Text style={styles.rowName} numberOfLines={1}>{name}</Text>
+                                    <Text style={styles.rowPreview} numberOfLines={1}>{preview}</Text>
+                                </View>
+                                <View style={styles.rowRight}>
+                                    <Text style={styles.rowTime}>{when}</Text>
+                                    {unread > 0 ? (
+                                        <View style={styles.unreadBadge}>
+                                            <Text style={styles.unreadText}>{unread}</Text>
+                                        </View>
+                                    ) : null}
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    }}
+                />
+            )}
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#060606',
-  },
-  topGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 30,
+    safe: { flex: 1, backgroundColor: '#0A0A10' },
 
-  },
-  backBtn: {
-    marginRight: 15,
-  },
-  headerTitleContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  headerSubtitle: {
-    color: '#AAA',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  searchBar: {
-    height: 56,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  placeholderText: {
-    color: '#888',
-    fontSize: 16,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  chatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 25,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 15,
-  },
-  chatDetails: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  nameText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  timeText: {
-    color: '#AAA',
-    fontSize: 12,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  messageText: {
-    color: '#AAA',
-    fontSize: 14,
-    flex: 1,
-    marginRight: 10,
-  },
-  unreadBadge: {
-    backgroundColor: '#F26930',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  bottomTabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: '#15151A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#222',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  tabBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activePillTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFDCEE',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 25,
-    gap: 8,
-  },
-  activePillText: {
-    color: '#ED2A91',
-    fontWeight: '800',
-    fontSize: 14,
-  },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 10,
+    },
+    headerIconBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#1A1A22',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    title: { color: '#fff', fontSize: 22, fontFamily: 'Poppins_600SemiBold' },
+    subtitle: { color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2 },
+
+    searchWrap: { paddingHorizontal: 16, paddingBottom: 14 },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#1A1A22',
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+    },
+    searchInput: { flex: 1, color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular' },
+
+    centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    emptyBox: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 40,
+        gap: 10,
+    },
+    emptyTitle: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold', marginTop: 10 },
+    emptySubtitle: { color: '#8A8A99', fontSize: 13, fontFamily: 'Poppins_400Regular', textAlign: 'center', lineHeight: 20 },
+
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+    },
+    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#2A2A32' },
+    initialsAvatar: { alignItems: 'center', justifyContent: 'center' },
+    initialsText: { color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
+
+    rowBody: { flex: 1 },
+    rowName: { color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold' },
+    rowPreview: { color: '#8A8A99', fontSize: 13, fontFamily: 'Poppins_400Regular', marginTop: 3 },
+
+    rowRight: { alignItems: 'flex-end', gap: 6 },
+    rowTime: { color: '#8A8A99', fontSize: 11, fontFamily: 'Poppins_400Regular' },
+    unreadBadge: {
+        minWidth: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: ACCENT,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 6,
+    },
+    unreadText: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold' },
 });

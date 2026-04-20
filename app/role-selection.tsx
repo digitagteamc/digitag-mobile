@@ -2,7 +2,7 @@ import GradientButton from '@/Components/ui/GradientButton';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Image assets mapping
@@ -66,7 +66,11 @@ export default function RoleSelectionScreen() {
 
     const handleNext = () => {
         if (!selectedRole) return;
-        router.push('/login');
+        if (selectedRole === 'brand' || selectedRole === 'agency') {
+            Alert.alert('Coming Soon', 'Brand and Agency flows are not yet available. Please choose Creator or Freelancer.');
+            return;
+        }
+        router.push({ pathname: '/login', params: { role: selectedRole.toUpperCase() } });
     };
 
     return (

@@ -13,7 +13,6 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { registerBrand, registerUserRole } from '../../services/userService';
 
 export default function BrandSignup() {
     const router = useRouter();
@@ -32,77 +31,12 @@ export default function BrandSignup() {
     const validatePan = (pan: string) => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan.toUpperCase());
 
     const handleSubmit = async () => {
-        if (!userPhone) {
-            Alert.alert("Error", "Phone number missing. Please log in again.");
-            router.replace('/');
-            return;
-        }
-
-        if (!form.brandName.trim()) {
-            Alert.alert("Validation Error", "Brand / Company Name is required.");
-            return;
-        }
-
-        if (!form.pan.trim()) {
-            Alert.alert("Validation Error", "PAN Number is required.");
-            return;
-        }
-
-        if (!validatePan(form.pan.trim())) {
-            Alert.alert("Invalid PAN", "PAN must be in format: ABCDE1234F");
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            const cleanPhone = userPhone.replace(/\s+/g, '');
-            const authToken = token || 'session-active';
-
-            // Step 1: Register User with BRAND role (backend requires this FIRST)
-            // The brands/register endpoint checks that user exists with BRAND role
-            setStep('registering_role');
-            console.log("📝 Step 1: Registering BRAND role...");
-            try {
-                await registerUserRole(cleanPhone, 'BRAND', authToken);
-            } catch (roleErr: any) {
-                // If user already has this role, that's fine — proceed
-                if (!roleErr.message?.includes('already') && !roleErr.message?.includes('exists')) {
-                    throw roleErr;
-                }
-                console.log("ℹ️ Role already registered, continuing...");
-            }
-
-            // Step 2: Submit brand profile
-            setStep('submitting');
-            console.log("📝 Step 2: Submitting brand profile...");
-            const brandPayload = {
-                phoneNumber: cleanPhone,
-                brandName: form.brandName.trim(),
-                pan: form.pan.trim().toUpperCase(),
-                gstin: form.gstin.trim().toUpperCase() || undefined,
-                city: form.city.trim() || undefined,
-                state: form.state.trim() || undefined,
-            };
-
-            const result = await registerBrand(brandPayload, authToken);
-
-            if (result.success) {
-                Alert.alert(
-                    "Application Submitted! 🏢",
-                    "Your brand details have been submitted for admin verification. You will be notified once approved.",
-                    [{ text: "OK", onPress: () => router.replace({ pathname: '/signup/pending', params: { role: 'BRAND' } }) }]
-                );
-            } else {
-                Alert.alert("Registration Failed", result.error || "Something went wrong. Please try again.");
-            }
-        } catch (e: any) {
-            console.error("Brand signup error:", e);
-            Alert.alert("Error", e.message || "Failed to submit brand details. Please try again.");
-        } finally {
-            setLoading(false);
-            setStep('idle');
-        }
+        // Backend does not yet expose a brand module — reconnect this when
+        // /api/v1/brands endpoints are added.
+        Alert.alert(
+            "Coming Soon",
+            "Brand registration is not yet available on the server. Please check back later.",
+        );
     };
 
     const getLoadingText = () => {

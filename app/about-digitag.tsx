@@ -125,7 +125,7 @@ export default function AboutDigitagScreen() {
 
               {/* External link arrow */}
               <View style={styles.arrowCircle}>
-                <Ionicons name="arrow-up-forward" size={16} color="#7352DD" />
+                <Ionicons name="arrow-forward" size={16} color="#7352DD" />
               </View>
             </View>
           </TouchableOpacity>

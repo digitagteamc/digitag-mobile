@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
-import { getSavedPosts, unsavePost } from '../services/userService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -33,11 +32,9 @@ export default function SavedPostsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchSaved = useCallback(async () => {
-    if (!token || isGuest) { setLoading(false); return; }
-    const res = await getSavedPosts(token);
-    if (res.success && Array.isArray(res.data)) {
-      setPosts(res.data);
-    }
+    // Backend does not yet expose saved-posts endpoints — reconnect when
+    // /posts/saved is added.
+    setPosts([]);
     setLoading(false);
   }, [token, isGuest]);
 
@@ -50,16 +47,15 @@ export default function SavedPostsScreen() {
   };
 
   const handleUnsave = async (postId: string) => {
-    if (!token) return;
-    // Optimistic removal
+    // Optimistic removal — backend unsave endpoint is not implemented yet.
     setPosts(prev => prev.filter(p => p.id !== postId));
-    await unsavePost(postId, token);
   };
 
-  const getAuthorName = (author: any) => {
-    if (author?.role === 'BRAND') return author.brandProfile?.brandName || 'Brand';
-    if (author?.role === 'CREATOR') return author.creatorProfile?.name || 'Creator';
-    if (author?.role === 'FREELANCER') return author.freelancerProfile?.name || 'Freelancer';
+  // Backend shapePost returns a flat `owner` object: { id, role, name, profilePicture, location }.
+  const getOwnerName = (owner: any) => {
+    if (owner?.name) return owner.name;
+    if (owner?.role === 'CREATOR') return 'Creator';
+    if (owner?.role === 'FREELANCER') return 'Freelancer';
     return 'User';
   };
 
@@ -112,9 +108,10 @@ export default function SavedPostsScreen() {
             }
           >
             {posts.map(post => {
-              const name = getAuthorName(post.author);
+              const owner = post.owner || {};
+              const name = getOwnerName(owner);
               const initials = name.slice(0, 2).toUpperCase();
-              const pic = post.author?.creatorProfile?.profilePicture;
+              const pic = owner.profilePicture || null;
               const banner = post.imageUrl || FALLBACK_BANNER;
 
               return (
@@ -146,7 +143,7 @@ export default function SavedPostsScreen() {
                       <View>
                         <Text style={styles.authorName}>{name}</Text>
                         <Text style={styles.authorRole}>
-                          {post.author?.role?.charAt(0) + post.author?.role?.slice(1).toLowerCase()}
+                          {owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User'}
                         </Text>
                       </View>
                     </View>
@@ -159,7 +156,7 @@ export default function SavedPostsScreen() {
                     </Text>
                     <View style={styles.cardMeta}>
                       <Text style={styles.interestCount}>
-                        {post._count?.interests ?? 0} interested
+                        {post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab'}
                       </Text>
                       <View style={styles.timeRow}>
                         <Ionicons name="time-outline" size={12} color="#7a7a8a" />

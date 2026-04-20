@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { getFullProfile } from '../../services/userService';
+import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
+import { useRoleTheme } from '../../theme/useRoleTheme';
 
 // ── Figma background blur image (dark photo)
 const HERO_BG = 'http://localhost:3845/assets/595d43e9722ebfd6a20e39509f33138336aa83fe.png';
@@ -26,30 +27,46 @@ interface ProfileData {
   phone: string;
   role: string;
   profilePicture?: string | null;
-  instagram?: string | null;
-  facebook?: string | null;
-  twitter?: string | null;
-  threads?: string | null;
-  industry?: string | null;
   bio?: string | null;
-  followerCount?: number | null;
+  category?: string | null;
+  // Creator-specific
+  instagramHandle?: string | null;
+  instagramFollowers?: number | null;
+  youtubeHandle?: string | null;
+  youtubeFollowers?: number | null;
+  twitterHandle?: string | null;
+  twitterFollowers?: number | null;
+  preferredCollabType?: string | null;
+  isAvailableForCollab?: boolean | null;
+  // Freelancer-specific
+  skills?: string[] | null;
+  hourlyRate?: number | null;
+  experienceLevel?: string | null;
+  portfolioUrl?: string | null;
+  availability?: string | null;
 }
 
 const MENU_ITEMS = [
-  { id: 'profile', icon: 'person-outline' as const, label: 'My Profile' },
-  { id: 'saved',   icon: 'heart-outline' as const,  label: 'Saved Posts' },
-  { id: 'settings',icon: 'settings-outline' as const, label: 'Settings' },
-  { id: 'help',    icon: 'help-circle-outline' as const, label: 'Help & Support' },
-  { id: 'about',   icon: 'information-circle-outline' as const, label: 'About Digitag' },
+  { id: 'edit_profile', icon: 'create-outline' as const,           label: 'Edit Profile' },
+  { id: 'saved',        icon: 'heart-outline' as const,            label: 'Saved Posts' },
+  { id: 'settings',    icon: 'settings-outline' as const,          label: 'Settings' },
+  { id: 'help',         icon: 'help-circle-outline' as const,      label: 'Help & Support' },
+  { id: 'about',        icon: 'information-circle-outline' as const,label: 'About Digitag' },
 ];
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { token, isGuest, userPhone, userRole, logout } = useAuth();
+  const { token, isGuest, userPhone, userRole, userId, logout, setProfiles } = useAuth();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
+  const theme = useRoleTheme();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [collabCount, setCollabCount] = useState(0);
+  const [myPosts, setMyPosts] = useState<any[]>([]);
+  const [myCollabs, setMyCollabs] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -65,22 +82,56 @@ export default function ProfileScreen() {
 
       try {
         const res = await getFullProfile(token);
+        // Hydrate dual-role profile map so the role-switcher screen has the
+        // freshest state without an extra round-trip.
+        if (res.success && res.data?.profiles) {
+          setProfiles(res.data.profiles);
+        }
+        // Fetch counts, posts and collabs in parallel
+        const [countRes, postsRes, collabsRes] = await Promise.all([
+            getUserStats(token),
+            getMyPosts(token, { limit: '20' }),
+            listCollaborations(token, { status: 'ACCEPTED', direction: 'all' }),
+        ]);
+        if (countRes.success && countRes.data) {
+          setFollowerCount(countRes.data.followerCount ?? 0);
+          setFollowingCount(countRes.data.followingCount ?? 0);
+          setCollabCount(countRes.data.collabCount ?? 0);
+        }
+        if (postsRes.success) setMyPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
+        if (collabsRes.success) setMyCollabs(Array.isArray(collabsRes.data) ? collabsRes.data : []);
         if (res.success && res.data?.profile) {
           const p = res.data.profile;
           const role = res.data.role || userRole || 'USER';
-          setProfile({
-            name: p.name || p.creatorName || p.brandName || 'User',
-            phone: p.phoneNumber || p.phone || userPhone || '',
+          const base: ProfileData = {
+            name: p.name || 'User',
+            phone: userPhone || '',
             role,
             profilePicture: p.profilePicture || null,
-            instagram: p.socialLinks?.instagram || p.instagram || null,
-            facebook: p.socialLinks?.facebook || null,
-            twitter: p.socialLinks?.twitter || null,
-            threads: p.socialLinks?.threads || null,
-            industry: p.industry || p.category || null,
             bio: p.bio || null,
-            followerCount: p.followerCount || null,
-          });
+            category: p.category?.name || null,
+          };
+          if (role === 'CREATOR') {
+            Object.assign(base, {
+              instagramHandle: p.instagramHandle || null,
+              instagramFollowers: p.instagramFollowers ?? null,
+              youtubeHandle: p.youtubeHandle || null,
+              youtubeFollowers: p.youtubeFollowers ?? null,
+              twitterHandle: p.twitterHandle || null,
+              twitterFollowers: p.twitterFollowers ?? null,
+              preferredCollabType: p.preferredCollabType || null,
+              isAvailableForCollab: p.isAvailableForCollab ?? true,
+            });
+          } else {
+            Object.assign(base, {
+              skills: Array.isArray(p.skills) ? p.skills : null,
+              hourlyRate: p.hourlyRate ? Number(p.hourlyRate) : null,
+              experienceLevel: p.experienceLevel || null,
+              portfolioUrl: p.portfolioUrl || null,
+              availability: p.availability || 'AVAILABLE',
+            });
+          }
+          setProfile(base);
         } else {
           setProfile({
             name: 'User',
@@ -104,16 +155,19 @@ export default function ProfileScreen() {
   }, [token, isGuest]);
 
   const handleMenuPress = (id: string) => {
+    if (id === 'edit_profile') {
+      const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+      router.push(editPath as any);
+    }
     if (id === 'about') router.push('/about-digitag');
-    if (id === 'help') router.push('/help-support');
+    if (id === 'help') router.push('/help-support' as any);
     if (id === 'saved') router.push('/saved-posts');
-    if (id === 'settings') router.push('/settings');
-    // other items can be wired here
+    if (id === 'settings') router.push('/settings' as any);
   };
 
   const handleLogout = () => {
     logout();
-    router.replace('/login');
+    router.replace('/role-selection');
   };
 
   const getRoleLabel = (role: string) => {
@@ -129,13 +183,41 @@ export default function ProfileScreen() {
     if (url) Linking.openURL(url).catch(() => {});
   };
 
+  const fmtCount = (n?: number | null) => {
+    if (!n) return '—';
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return String(n);
+  };
+
+  const availColor = (a?: string | null) => {
+    if (a === 'BUSY') return { bg: 'rgba(245,158,11,0.15)', dot: '#F59E0B', text: '#F59E0B' };
+    if (a === 'NOT_AVAILABLE') return { bg: 'rgba(239,68,68,0.15)', dot: '#EF4444', text: '#EF4444' };
+    return { bg: 'rgba(16,185,129,0.15)', dot: '#10B981', text: '#10B981' };
+  };
+
+  const fmtAvailability = (a?: string | null) => {
+    if (a === 'BUSY') return 'Busy';
+    if (a === 'NOT_AVAILABLE') return 'Not Available';
+    return 'Available';
+  };
+
   const initials = (name: string) =>
     name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+  const timeAgo = (dateStr: string) => {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const m = Math.round(diffMs / 60000);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.round(h / 24)}d ago`;
+  };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#7352DD" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -178,7 +260,7 @@ export default function ProfileScreen() {
                   />
                 ) : (
                   <LinearGradient
-                    colors={['#9b7ef7', '#7352DD']}
+                    colors={[theme.softStrong, theme.primary] as [string, string]}
                     style={styles.avatarFallback}
                   >
                     <Text style={styles.avatarInitials}>
@@ -199,36 +281,196 @@ export default function ProfileScreen() {
                   <Ionicons name="checkmark-circle" size={13} color="#ed2a91" style={{ marginLeft: 3 }} />
                 </View>
 
-                {/* Social icons */}
-                <View style={styles.socialRow}>
-                  <TouchableOpacity onPress={() => openLink(profile?.instagram)} style={styles.socialIcon}>
-                    <Ionicons name="logo-instagram" size={22} color="#E1306C" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openLink(profile?.facebook)} style={styles.socialIcon}>
-                    <Ionicons name="logo-facebook" size={22} color="#1877F2" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openLink(profile?.threads)} style={styles.socialIcon}>
-                    <MaterialCommunityIcons name="alpha-t-circle" size={22} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => openLink(profile?.twitter)} style={styles.socialIcon}>
-                    <Ionicons name="logo-twitter" size={22} color="#1DA1F2" />
-                  </TouchableOpacity>
-                </View>
+                {/* Category + location */}
+                {profile?.category ? (
+                  <Text style={[styles.categoryText, { color: theme.primary }]}>#{profile.category}</Text>
+                ) : null}
               </View>
             </View>
           </View>
+
+          {/* ══════════ FOLLOW / COLLAB COUNTS ══════════ */}
+          <View style={styles.countsRow}>
+            <View style={styles.countItem}>
+              <Text style={[styles.countValue, { color: theme.primary }]}>{followerCount}</Text>
+              <Text style={styles.countLabel}>Followers</Text>
+            </View>
+            <View style={styles.countDivider} />
+            <View style={styles.countItem}>
+              <Text style={[styles.countValue, { color: theme.primary }]}>{followingCount}</Text>
+              <Text style={styles.countLabel}>Following</Text>
+            </View>
+            <View style={styles.countDivider} />
+            <View style={styles.countItem}>
+              <Text style={[styles.countValue, { color: theme.primary }]}>{collabCount}</Text>
+              <Text style={styles.countLabel}>Collabs</Text>
+            </View>
+          </View>
+
+          {/* ══════════ ROLE STATS CARD ══════════ */}
+          {profile && profile.role === 'CREATOR' && (
+            <View style={styles.statsCard}>
+              {(profile.instagramHandle || profile.youtubeHandle || profile.twitterHandle) && (
+                <View style={styles.socialStatsRow}>
+                  {profile.instagramHandle && (
+                    <View style={styles.socialStat}>
+                      <Ionicons name="logo-instagram" size={15} color="#E1306C" />
+                      <Text style={styles.socialStatCount}>{fmtCount(profile.instagramFollowers)}</Text>
+                      <Text style={styles.socialStatHandle}>@{profile.instagramHandle}</Text>
+                    </View>
+                  )}
+                  {profile.youtubeHandle && (
+                    <View style={styles.socialStat}>
+                      <Ionicons name="logo-youtube" size={15} color="#FF0000" />
+                      <Text style={styles.socialStatCount}>{fmtCount(profile.youtubeFollowers)}</Text>
+                      <Text style={styles.socialStatHandle}>@{profile.youtubeHandle}</Text>
+                    </View>
+                  )}
+                  {profile.twitterHandle && (
+                    <View style={styles.socialStat}>
+                      <Ionicons name="logo-twitter" size={15} color="#1DA1F2" />
+                      <Text style={styles.socialStatCount}>{fmtCount(profile.twitterFollowers)}</Text>
+                      <Text style={styles.socialStatHandle}>@{profile.twitterHandle}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+              <View style={styles.badgeRow}>
+                <View style={[styles.availBadge, {
+                  backgroundColor: profile.isAvailableForCollab ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                }]}>
+                  <View style={[styles.availDot, { backgroundColor: profile.isAvailableForCollab ? '#10B981' : '#EF4444' }]} />
+                  <Text style={[styles.availText, { color: profile.isAvailableForCollab ? '#10B981' : '#EF4444' }]}>
+                    {profile.isAvailableForCollab ? 'Open to Collabs' : 'Not Available'}
+                  </Text>
+                </View>
+                {profile.preferredCollabType && (
+                  <View style={[styles.collabTypeBadge, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                    <Text style={[styles.collabTypeText, { color: theme.primary }]}>{profile.preferredCollabType}</Text>
+                  </View>
+                )}
+              </View>
+              {profile.bio ? <Text style={styles.bioText}>{profile.bio}</Text> : null}
+            </View>
+          )}
+
+          {profile && profile.role === 'FREELANCER' && (
+            <View style={styles.statsCard}>
+              <View style={styles.badgeRow}>
+                {(() => { const c = availColor(profile.availability); return (
+                  <View style={[styles.availBadge, { backgroundColor: c.bg }]}>
+                    <View style={[styles.availDot, { backgroundColor: c.dot }]} />
+                    <Text style={[styles.availText, { color: c.text }]}>{fmtAvailability(profile.availability)}</Text>
+                  </View>
+                ); })()}
+                {profile.experienceLevel && (
+                  <View style={[styles.expBadge, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                    <Text style={[styles.expText, { color: theme.primary }]}>{profile.experienceLevel}</Text>
+                  </View>
+                )}
+                {profile.hourlyRate ? (
+                  <View style={styles.rateBadge}>
+                    <Text style={styles.rateText}>₹{profile.hourlyRate}/hr</Text>
+                  </View>
+                ) : null}
+              </View>
+              {profile.skills && profile.skills.length > 0 && (
+                <View style={styles.skillsRow}>
+                  {profile.skills.slice(0, 6).map((skill, i) => (
+                    <View key={i} style={[styles.skillChip, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                      <Text style={[styles.skillChipText, { color: theme.primary }]}>{skill}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {profile.bio ? <Text style={styles.bioText}>{profile.bio}</Text> : null}
+              {profile.portfolioUrl ? (
+                <TouchableOpacity onPress={() => openLink(profile.portfolioUrl)} style={styles.portfolioRow}>
+                  <Ionicons name="link-outline" size={13} color={theme.primary} />
+                  <Text style={[styles.portfolioText, { color: theme.primary }]}>View Portfolio</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+
+          {/* ══════════ MY POSTS ══════════ */}
+          {myPosts.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>My Posts</Text>
+              {myPosts.map(post => (
+                <View key={post.id} style={styles.postItem}>
+                  {post.imageUrl ? (
+                    <Image source={{ uri: post.imageUrl }} style={styles.postThumb} />
+                  ) : (
+                    <View style={[styles.postThumb, styles.postThumbPlaceholder]}>
+                      <Ionicons name="image-outline" size={20} color="#555" />
+                    </View>
+                  )}
+                  <View style={styles.postItemBody}>
+                    <Text style={styles.postItemDesc} numberOfLines={2}>{post.description}</Text>
+                    <View style={styles.postItemMeta}>
+                      <View style={[styles.postTypeBadge, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                        <Text style={[styles.postTypeText, { color: theme.primary }]}>
+                          {post.collaborationType === 'PAID' ? 'Paid' : 'Free'}
+                        </Text>
+                      </View>
+                      <Text style={styles.postItemTime}>{timeAgo(post.createdAt)}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* ══════════ MY COLLABS ══════════ */}
+          {myCollabs.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>My Collabs</Text>
+              {myCollabs.map(collab => {
+                const other = collab.sender?.id === userId ? collab.receiver : collab.sender;
+                const otherProfile = other?.creatorProfile || other?.freelancerProfile;
+                const otherName = otherProfile?.name || other?.role || 'User';
+                const description = collab.post?.description || collab.message || '';
+                return (
+                  <TouchableOpacity
+                    key={collab.id}
+                    style={styles.collabItem}
+                    activeOpacity={0.8}
+                    onPress={() => other?.id && router.push({ pathname: '/creator-details', params: { userId: other.id } } as any)}
+                  >
+                    <View style={[styles.collabAvatar, { backgroundColor: theme.soft, borderColor: theme.border }]}>
+                      <Text style={[styles.collabAvatarText, { color: theme.primary }]}>
+                        {otherName.slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={styles.collabItemBody}>
+                      <Text style={styles.collabItemName}>{otherName}</Text>
+                      <Text style={styles.collabItemRole}>{other?.role?.toLowerCase() || ''}</Text>
+                      {description ? (
+                        <Text style={styles.collabItemDesc} numberOfLines={2}>{description}</Text>
+                      ) : null}
+                    </View>
+                    <View style={[styles.collabStatusBadge, { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)' }]}>
+                      <Text style={{ color: '#10B981', fontSize: 11, fontWeight: '600' }}>Accepted</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           {/* ══════════ MENU CARD ══════════ */}
           <View style={styles.menuCard}>
             <View style={styles.menuCardBlur} />
             <View style={styles.menuCardInset} />
 
-            {MENU_ITEMS.map((item, index) => (
+            {MENU_ITEMS.map((item, index) => {
+              return (
               <React.Fragment key={item.id}>
                 <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
                   {/* Icon pill */}
-                  <View style={styles.menuIconPill}>
-                    <Ionicons name={item.icon} size={16} color="#F26930" />
+                  <View style={[styles.menuIconPill, { borderColor: theme.border }]}>
+                    <Ionicons name={item.icon} size={16} color={theme.primary} />
                   </View>
                   <Text style={styles.menuLabel}>{item.label}</Text>
                   <Ionicons name="chevron-forward" size={14} color="#9a9a9a" />
@@ -237,7 +479,7 @@ export default function ProfileScreen() {
                 {/* Divider (not after last item) */}
                 {index < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
               </React.Fragment>
-            ))}
+            )})}
           </View>
 
           {/* ══════════ LOGOUT BUTTON ══════════ */}
@@ -253,25 +495,7 @@ export default function ProfileScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* BOTTOM NAV */}
-      <View style={styles.bottomTabBar}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)')}>
-          <Ionicons name="home-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/explore')}>
-          <Ionicons name="compass-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabBtn} onPress={() => router.push('/(tabs)/messages')}>
-          <Ionicons name="chatbubble-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-
-        <View style={styles.activePillTab}>
-          <Ionicons name="person" size={20} color="#ED2A91" />
-          <Text style={styles.activePillText}>Profile</Text>
-        </View>
-      </View>
+      {/* Bottom nav rendered globally by (tabs)/_layout.tsx. */}
     </View>
   );
 }
@@ -531,4 +755,97 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
   },
+
+  categoryText: { color: '#A78BFA', fontSize: 12, fontWeight: '500', marginTop: 4 },
+
+  // ── Role stats card
+  statsCard: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: 14,
+    gap: 10,
+  },
+  socialStatsRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
+  socialStat: { alignItems: 'center', gap: 2 },
+  socialStatCount: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  socialStatHandle: { color: '#8A8A99', fontSize: 10 },
+
+  badgeRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  availBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  availDot: { width: 6, height: 6, borderRadius: 3 },
+  availText: { fontSize: 12, fontWeight: '600' },
+  collabTypeBadge: {
+    backgroundColor: 'rgba(115,82,221,0.15)', borderWidth: 1, borderColor: 'rgba(115,82,221,0.35)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  collabTypeText: { color: '#A78BFA', fontSize: 12, fontWeight: '600' },
+
+  expBadge: {
+    backgroundColor: 'rgba(242,105,48,0.12)', borderWidth: 1, borderColor: 'rgba(242,105,48,0.35)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  expText: { color: '#F26930', fontSize: 12, fontWeight: '600' },
+  rateBadge: {
+    backgroundColor: 'rgba(16,185,129,0.12)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.35)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  rateText: { color: '#10B981', fontSize: 12, fontWeight: '600' },
+
+  skillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  skillChip: {
+    backgroundColor: 'rgba(242,105,48,0.12)', borderWidth: 1, borderColor: 'rgba(242,105,48,0.3)',
+    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  skillChipText: { color: '#F26930', fontSize: 12 },
+
+  bioText: { color: '#C0C0CC', fontSize: 13, lineHeight: 19 },
+  portfolioRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  portfolioText: { color: '#A58BFF', fontSize: 13 },
+  countsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#14141C', borderRadius: 16, marginHorizontal: 16,
+    marginTop: -1, marginBottom: 12, paddingVertical: 14,
+    borderWidth: 1, borderColor: '#1E1E2A',
+  },
+  countItem: { flex: 1, alignItems: 'center' },
+  countValue: { fontSize: 20, fontWeight: '700' },
+  countLabel: { color: '#8A8A99', fontSize: 12, marginTop: 2 },
+  countDivider: { width: 1, height: 32, backgroundColor: '#2A2A36' },
+
+  section: { marginHorizontal: 16, marginTop: 20 },
+  sectionTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 },
+
+  postItem: {
+    flexDirection: 'row', gap: 12, marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 10,
+  },
+  postThumb: { width: 60, height: 60, borderRadius: 8, backgroundColor: '#1C1C24' },
+  postThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  postItemBody: { flex: 1, justifyContent: 'space-between' },
+  postItemDesc: { color: '#fff', fontSize: 13, lineHeight: 18 },
+  postItemMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  postTypeBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2 },
+  postTypeText: { fontSize: 11, fontWeight: '600' },
+  postItemTime: { color: '#8A8A99', fontSize: 11 },
+
+  collabItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)', padding: 12,
+  },
+  collabAvatar: {
+    width: 42, height: 42, borderRadius: 21, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  collabAvatarText: { fontSize: 14, fontWeight: '700' },
+  collabItemBody: { flex: 1 },
+  collabItemName: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  collabItemRole: { color: '#8A8A99', fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
+  collabStatusBadge: { borderRadius: 20, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+  collabItemDesc: { color: '#8A8A99', fontSize: 12, marginTop: 3, lineHeight: 16 },
 });

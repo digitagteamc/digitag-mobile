@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { checkBrandStatus, checkCreatorStatus } from '../../services/userService';
+import { checkCreatorStatus } from '../../services/userService';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Role = 'CREATOR' | 'BRAND';
@@ -44,13 +44,11 @@ export default function PendingScreen() {
         }
         setLoading(true);
         try {
-            const result = role === 'BRAND'
-                ? await checkBrandStatus(token)
-                : await checkCreatorStatus(token);
+            const result = await checkCreatorStatus(token);
 
             if (result.success && result.data) {
                 // Backend may return status under various field names
-                const s = result.data.status || result.data.creatorStatus || result.data.brandStatus || 'PENDING';
+                const s = result.data.status || result.data.creatorStatus || 'PENDING';
                 const normalized = s.toUpperCase() as Status;
                 setStatus(normalized);
 

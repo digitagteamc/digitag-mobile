@@ -1,573 +1,598 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Image,
     KeyboardAvoidingView,
     Linking,
     Modal,
     Platform,
-    SafeAreaView,
     ScrollView,
-    Share,
-    StatusBar,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Button from '../Components/ui/Button';
+import CollabAction, { CollabState, deriveCollabState } from '../Components/ui/CollabAction';
+import IconButton from '../Components/ui/IconButton';
+import StatusBadge from '../Components/ui/StatusBadge';
 import { useAuth } from '../context/AuthContext';
-import { checkCollabStatus, submitCollabRequest } from '../services/userService';
+import { useProfileGate } from '../context/useProfileGate';
+import { fonts, palette, spacing } from '../theme/colors';
+import { useRoleTheme } from '../theme/useRoleTheme';
+import {
+    cancelCollaboration,
+    followUser,
+    getCollaborationWith,
+    getFollowStatus,
+    getPostById,
+    getUserById,
+    getUserPosts,
+    getUserStats,
+    openConversationWith,
+    respondCollaboration,
+    sendCollaboration,
+    unfollowUser,
+} from '../services/userService';
+
+function getInitials(name: string | null | undefined) {
+    if (!name) return 'U';
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
+}
+
+function pickProfile(user: any) {
+    if (!user) return null;
+    const role = (user.role || user.activeRole || '').toUpperCase();
+    if (role === 'FREELANCER') return user.freelancerProfile || user.creatorProfile || null;
+    return user.creatorProfile || user.freelancerProfile || null;
+}
+
+function timeAgo(dateStr: string | null | undefined) {
+    if (!dateStr) return '';
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMins = Math.max(0, Math.round(diffMs / 60000));
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.round(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return `${Math.round(diffHrs / 24)}d ago`;
+}
 
 export default function CreatorDetails() {
-    const params = useLocalSearchParams();
     const router = useRouter();
-    const { token, userRole, isGuest } = useAuth();
+    const { token, userId: myId, userRole, isProfileCompleted } = useAuth();
+    const { requireProfile } = useProfileGate();
 
-    console.log(`👤 CreatorDetails - Role: "${userRole}", isGuest: ${isGuest}`);
+    const params = useLocalSearchParams<{ id?: string; userId?: string; postId?: string }>();
+    const initialPostId = (params.postId || params.id) as string | undefined;
+    const initialUserId = params.userId as string | undefined;
 
-    const {
-        id,
-        name,
-        category,
-        city,
-        state,
-        instagram,
-        email,
-        phoneNumber
-    } = params;
+    const [resolvedUserId, setResolvedUserId] = useState<string | null>(initialUserId || null);
+    const [profile, setProfile] = useState<any>(null);
+    const [stats, setStats] = useState<{ followerCount: number; followingCount: number; collabCount: number } | null>(null);
+    const [posts, setPosts] = useState<any[]>([]);
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [collab, setCollab] = useState<any | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    // Collab Modal State
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [existingRequest, setExistingRequest] = useState<{ contacted: boolean; status: string | null }>({
-        contacted: false,
-        status: null
-    });
+    const [collabOpen, setCollabOpen] = useState(false);
+    const [collabMessage, setCollabMessage] = useState('');
+    const [collabBusy, setCollabBusy] = useState(false);
+    const [followBusy, setFollowBusy] = useState(false);
 
-    const [form, setForm] = useState({
-        requirement: '',
-        budget: '',
-        timeline: '',
-        message: ''
-    });
+    // Theme always follows the LOGGED-IN user's role, not the profile being viewed.
+    const theme = useRoleTheme();
 
-    const isBrand = userRole?.toUpperCase() === 'BRAND';
-
-    useEffect(() => {
-        if (isBrand && token && id) {
-            loadExistingRequest();
-        }
-    }, [id, token, isBrand]);
-
-    const loadExistingRequest = async () => {
-        const res = await checkCollabStatus(token!, id as string);
-        if (res.success && res.data) {
-            setExistingRequest(res.data);
-        }
-    };
-
-    const handleShare = async () => {
+    const load = useCallback(async () => {
+        if (!token) { setLoading(false); return; }
         try {
-            await Share.share({
-                message: `Check out ${name} on Digitag! Category: ${category}`,
-            });
-        } catch (error: any) {
-            Alert.alert(error.message);
-        }
-    };
-
-    const handleInstagram = () => {
-        if (instagram) {
-            Linking.openURL(`https://instagram.com/${instagram}`);
-        }
-    };
-
-    const handleEmail = () => {
-        if (email) {
-            Linking.openURL(`mailto:${email}`);
-        }
-    };
-
-    const handleCollabSubmit = async () => {
-        console.log("🚀 Submit attempt - isBrand:", isBrand, "Role:", userRole);
-
-        if (!isBrand) {
-            Alert.alert(
-                "Permission Denied",
-                `Only brand accounts can send requests. Your current role is: ${userRole || 'Guest'}`
-            );
-            return;
-        }
-
-        if (!form.requirement.trim()) {
-            Alert.alert("Requirement Missing", "Please specify your requirements.");
-            return;
-        }
-
-        setSubmitting(true);
-        try {
-            const res = await submitCollabRequest(token || '', {
-                creatorId: id as string,
-                requirement: form.requirement.trim(),
-                budget: form.budget.trim(),
-                timeline: form.timeline.trim(),
-                message: form.message.trim(),
-            });
-
-            if (res.success) {
-                Alert.alert("Success 🎉", "Your collaboration request has been sent to the creator!");
-                setIsModalOpen(false);
-                setExistingRequest({ contacted: true, status: 'PENDING' });
-                setForm({ requirement: '', budget: '', timeline: '', message: '' });
-            } else {
-                Alert.alert("Error", res.error || "Failed to send request.");
+            let uid = initialUserId || null;
+            if (!uid && initialPostId) {
+                const postRes = await getPostById(initialPostId, token);
+                if (postRes.success && postRes.data) {
+                    uid = postRes.data.owner?.id || postRes.data.userId || null;
+                }
             }
-        } catch (error) {
-            console.error("Collab submission error:", error);
-            Alert.alert("Error", "Something went wrong. Please try again.");
+            if (!uid) { setLoading(false); return; }
+
+            setResolvedUserId(uid);
+
+            const [userRes, postsRes, followRes, collabRes, statsRes] = await Promise.all([
+                getUserById(uid, token),
+                getUserPosts(uid, token, { limit: '10' }),
+                getFollowStatus(token, uid),
+                getCollaborationWith(token, uid),
+                getUserStats(token, uid),
+            ]);
+            if (userRes.success) setProfile(userRes.data || null);
+            if (postsRes.success) setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
+            if (followRes.success) setIsFollowing(Boolean(followRes.data?.isFollowing));
+            if (collabRes.success) setCollab(collabRes.data || null);
+            if (statsRes.success && statsRes.data) setStats(statsRes.data);
         } finally {
-            setSubmitting(false);
+            setLoading(false);
+        }
+    }, [token, initialUserId, initialPostId]);
+
+    useEffect(() => { load(); }, [load]);
+
+    const isSelf = !!(resolvedUserId && myId && resolvedUserId === myId);
+    const collabState: CollabState = isSelf ? 'none' : deriveCollabState(collab, myId);
+
+    const openCollab = () => {
+        if (!requireProfile('send a collaboration request')) return;
+        if (isSelf) return;
+        setCollabOpen(true);
+    };
+
+    const submitCollab = async () => {
+        if (!token || !resolvedUserId) return;
+        setCollabBusy(true);
+        try {
+            const res = await sendCollaboration(token, {
+                receiverId: resolvedUserId,
+                postId: initialPostId,
+                message: collabMessage.trim() || undefined,
+            });
+            if (!res.success) {
+                Alert.alert('Could not send', res.error || 'Request failed');
+                return;
+            }
+            setCollab(res.data || null);
+            setCollabOpen(false);
+            setCollabMessage('');
+        } finally {
+            setCollabBusy(false);
         }
     };
 
-    const getCollabBtnText = () => {
-        if (!isBrand) return "Send Collaboration Proposal";
-        if (existingRequest.contacted) {
-            return `Invitation ${existingRequest.status}`;
+    const respondTo = async (action: 'ACCEPT' | 'DECLINE') => {
+        if (!token || !collab?.id) return;
+        setCollabBusy(true);
+        try {
+            const res = await respondCollaboration(token, collab.id, action);
+            if (!res.success) {
+                Alert.alert('Failed', res.error || 'Could not respond');
+                return;
+            }
+            setCollab(res.data || null);
+            if (action === 'ACCEPT' && resolvedUserId) {
+                const opened = await openConversationWith(token, resolvedUserId);
+                if (opened.success && opened.data?.id) {
+                    router.push({ pathname: '/chat/[id]', params: { id: opened.data.id } } as any);
+                }
+            }
+        } finally {
+            setCollabBusy(false);
         }
-        return "Send Collaboration Proposal";
     };
+
+    const cancelMyRequest = async () => {
+        if (!token || !collab?.id) return;
+        setCollabBusy(true);
+        try {
+            const res = await cancelCollaboration(token, collab.id);
+            if (res.success) setCollab(null);
+        } finally {
+            setCollabBusy(false);
+        }
+    };
+
+    const openChat = async () => {
+        if (!requireProfile('start a chat')) return;
+        if (!token || !resolvedUserId || isSelf) return;
+        const res = await openConversationWith(token, resolvedUserId);
+        if (res.success && res.data?.id) {
+            router.push({ pathname: '/chat/[id]', params: { id: res.data.id } } as any);
+        } else {
+            Alert.alert('Could not open chat', res.error || 'Please try again later.');
+        }
+    };
+
+    const handleCall = () => {
+        if (!requireProfile('call this profile')) return;
+        if (!collab?.id || !resolvedUserId) return;
+        const p = pickProfile(profile);
+        const peerName = p?.name || (profile?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
+        router.push({ pathname: '/call/[roomId]', params: { roomId: collab.id, peerName } } as any);
+    };
+
+    const handleFollow = async () => {
+        if (!requireProfile(isFollowing ? 'unfollow this profile' : 'follow this profile')) return;
+        if (!token || !resolvedUserId || isSelf) return;
+        setFollowBusy(true);
+        try {
+            const res = isFollowing
+                ? await unfollowUser(token, resolvedUserId)
+                : await followUser(token, resolvedUserId);
+            if (res.success) setIsFollowing(!isFollowing);
+        } finally {
+            setFollowBusy(false);
+        }
+    };
+
+    const handleInstagram = (link: string) => {
+        Linking.openURL(link).catch(() => Alert.alert('Cannot open link'));
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.loadingWrap}>
+                <ActivityIndicator size="large" color={theme.primary} />
+            </View>
+        );
+    }
+
+    // Gate: viewer must have a completed profile to see anyone else's.
+    if (!loading && !isProfileCompleted) {
+        const signupPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+        return (
+            <View style={[styles.loadingWrap, { paddingHorizontal: 32 }]}>
+                <Ionicons name="lock-closed" size={48} color={theme.primary} />
+                <Text style={[styles.loadingText, { fontSize: 18, fontWeight: '700', color: '#fff', marginTop: 8 }]}>
+                    Profile Locked
+                </Text>
+                <Text style={[styles.loadingText, { textAlign: 'center', marginTop: 4 }]}>
+                    Complete your own profile to view and connect with others.
+                </Text>
+                <TouchableOpacity
+                    style={{ marginTop: 18, backgroundColor: theme.primary, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 30 }}
+                    onPress={() => router.push(signupPath as any)}
+                >
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Complete Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{ marginTop: 14 }} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
+                    <Text style={[styles.loadingText, { textDecorationLine: 'underline' }]}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <View style={styles.loadingWrap}>
+                <Ionicons name="person-outline" size={48} color={palette.borderStrong} />
+                <Text style={styles.loadingText}>Profile not found</Text>
+            </View>
+        );
+    }
+
+    const p = pickProfile(profile);
+    const name = p?.name || (profile.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
+    const roleLabel = profile.role === 'FREELANCER' ? 'Freelancer' : 'Creator';
+    const bio = p?.bio || '';
+    const location = p?.location || '';
+    const instagram = p?.instagramHandle ? `https://instagram.com/${p.instagramHandle}` : (p?.portfolioUrl || null);
+    const joinedAt = profile.createdAt ? new Date(profile.createdAt) : null;
+    const joinedLabel = joinedAt
+        ? `Joined ${joinedAt.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`
+        : '';
+    const specialization = profile.category?.name || '';
+    const specTags = [specialization, p?.language && `${p.language} speaker`].filter(Boolean) as string[];
+
+    // Gradient follows the logged-in user's theme, not the profile being viewed.
+    const gradientTop = userRole?.toUpperCase() === 'FREELANCER' ? '#5B2A12' : '#3B1B60';
+    const gradientMid = userRole?.toUpperCase() === 'FREELANCER' ? '#2A1208' : '#1A0E2E';
 
     return (
-        <SafeAreaView style={styles.wrapper}>
-            <StatusBar barStyle="light-content" />
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Text style={styles.backText}>← Back</Text>
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Creator Profile</Text>
-                <View style={styles.headerRight}>
-                    {userRole?.toUpperCase() === 'CREATOR' && (
-                        <TouchableOpacity
-                            onPress={() => router.push('/creator-inbox')}
-                            style={styles.headerIconBtn}
-                        >
-                            <Text style={styles.shareEmoji}>🔔</Text>
-                            <View style={styles.headerNotifDot} />
-                        </TouchableOpacity>
-                    )}
-                    <TouchableOpacity onPress={handleShare} style={styles.headerIconBtn}>
-                        <Text style={styles.shareEmoji}>🔗</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+        <View style={{ flex: 1, backgroundColor: palette.background }}>
+            <LinearGradient
+                colors={[gradientTop, gradientMid, palette.background]}
+                locations={[0, 0.4, 1]}
+                style={styles.headerGradient}
+            />
 
-            <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-                {/* Profile Hero Section */}
-                <View style={styles.profileHero}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarInitial}>
-                            {name ? (name as string).charAt(0).toUpperCase() : '?'}
-                        </Text>
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
+                <View style={styles.topBar}>
+                    <IconButton tone="transparent" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
+                        <Ionicons name="chevron-back" size={20} color="#fff" />
+                    </IconButton>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <IconButton tone="transparent" onPress={() => router.push('/notifications' as any)}>
+                            <Ionicons name="notifications-outline" size={18} color="#fff" />
+                        </IconButton>
+                        <IconButton tone="transparent" onPress={() => {}}>
+                            <Ionicons name="ellipsis-vertical" size={18} color="#fff" />
+                        </IconButton>
                     </View>
-                    <Text style={styles.name}>{name}</Text>
-                    <Text style={styles.category}>{category}</Text>
-
-                    {(city || state) && (
-                        <View style={styles.locationBadge}>
-                            <Text style={styles.locationText}>
-                                📍 {[city, state].filter(Boolean).join(', ')}
-                            </Text>
-                        </View>
-                    )}
                 </View>
 
-                {/* Status Badge for Existing Request */}
-                {existingRequest.contacted && (
-                    <View style={[
-                        styles.requestStatusBar,
-                        existingRequest.status === 'APPROVED' ? styles.statusApproved :
-                            existingRequest.status === 'REJECTED' ? styles.statusRejected : styles.statusPending
-                    ]}>
-                        <Text style={styles.requestStatusText}>
-                            {existingRequest.status === 'PENDING' ? '⏳ Request Pending Approval' :
-                                existingRequest.status === 'APPROVED' ? '✅ Collaboration Approved' :
-                                    '❌ Invitation Rejected'}
-                        </Text>
+                <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+                    {/* Hero avatar + name */}
+                    <View style={styles.heroWrap}>
+                        {p?.profilePicture ? (
+                            <Image source={{ uri: p.profilePicture }} style={[styles.heroAvatar, { borderColor: theme.border }]} />
+                        ) : (
+                            <View style={[styles.heroAvatar, styles.heroInitials, { backgroundColor: theme.softStrong, borderColor: theme.border }]}>
+                                <Text style={[styles.heroInitialsText, { color: theme.primary }]}>{getInitials(name)}</Text>
+                            </View>
+                        )}
+                        <Text style={styles.heroName}>{name}</Text>
+                        <Text style={styles.heroRole}>{roleLabel}</Text>
                     </View>
-                )}
 
-                {/* Details Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Contact & Socials</Text>
-
-                    {instagram && (
-                        <TouchableOpacity style={styles.detailCard} onPress={handleInstagram}>
-                            <View style={styles.detailIconBg}>
-                                <Text style={styles.detailEmoji}>📸</Text>
-                            </View>
-                            <View style={styles.detailContent}>
-                                <Text style={styles.detailLabel}>Instagram</Text>
-                                <Text style={styles.detailValue}>@{instagram}</Text>
-                            </View>
-                            <Text style={styles.arrow}>→</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {email && (
-                        <TouchableOpacity style={styles.detailCard} onPress={handleEmail}>
-                            <View style={styles.detailIconBg}>
-                                <Text style={styles.detailEmoji}>📧</Text>
-                            </View>
-                            <View style={styles.detailContent}>
-                                <Text style={styles.detailLabel}>Email Address</Text>
-                                <Text style={styles.detailValue}>{email}</Text>
-                            </View>
-                            <Text style={styles.arrow}>→</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    {phoneNumber && (
-                        <View style={styles.detailCard}>
-                            <View style={styles.detailIconBg}>
-                                <Text style={styles.detailEmoji}>📱</Text>
-                            </View>
-                            <View style={styles.detailContent}>
-                                <Text style={styles.detailLabel}>Phone Number</Text>
-                                <Text style={styles.detailValue}>{phoneNumber}</Text>
+                    {/* Collab state-machine action row */}
+                    {!isSelf ? (
+                        <View style={styles.actionBlock}>
+                            <CollabAction
+                                state={collabState}
+                                role={profile.role}
+                                busy={collabBusy}
+                                onCollab={openCollab}
+                                onAccept={() => respondTo('ACCEPT')}
+                                onReject={() => respondTo('DECLINE')}
+                                onChat={openChat}
+                                onCall={handleCall}
+                            />
+                            <View style={styles.metaActionsRow}>
+                                <Button
+                                    title={isFollowing ? 'Following' : 'Follow'}
+                                    role={profile.role}
+                                    variant={isFollowing ? 'outline' : 'subtle'}
+                                    size="sm"
+                                    onPress={handleFollow}
+                                    loading={followBusy}
+                                    leftIcon={
+                                        <Ionicons
+                                            name={isFollowing ? 'checkmark' : 'add'}
+                                            size={14}
+                                            color={theme.primary}
+                                        />
+                                    }
+                                    fullWidth={false}
+                                />
+                                {collabState === 'sent_pending' ? (
+                                    <Button
+                                        title="Cancel Request"
+                                        role={profile.role}
+                                        variant="ghost"
+                                        size="sm"
+                                        onPress={cancelMyRequest}
+                                        loading={collabBusy}
+                                        fullWidth={false}
+                                    />
+                                ) : null}
                             </View>
                         </View>
-                    )}
-                </View>
+                    ) : null}
 
-                {/* About/Stats Placeholder */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Performance</Text>
+                    {/* Stats */}
                     <View style={styles.statsRow}>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>Reach</Text>
-                            <Text style={styles.statValue}>10k+</Text>
+                        <View style={styles.statCol}>
+                            <Text style={styles.statValue}>{stats?.followerCount ?? profile.followerCount ?? 0}</Text>
+                            <Text style={styles.statLabel}>Followers</Text>
                         </View>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>Engagement</Text>
-                            <Text style={styles.statValue}>4.5%</Text>
+                        <View style={styles.statCol}>
+                            <Text style={styles.statValue}>{stats?.followingCount ?? profile.followingCount ?? 0}</Text>
+                            <Text style={styles.statLabel}>Following</Text>
+                        </View>
+                        <View style={styles.statCol}>
+                            <Text style={styles.statValue}>{stats?.collabCount ?? profile.collabCount ?? 0}</Text>
+                            <Text style={styles.statLabel}>Collabs</Text>
                         </View>
                     </View>
-                </View>
 
-                <View style={{ height: 40 }} />
-            </ScrollView>
-
-            <View style={styles.footer}>
-                <TouchableOpacity
-                    style={[
-                        styles.brandButton,
-                        (!isBrand || existingRequest.contacted) && styles.brandButtonDisabled
-                    ]}
-                    onPress={() => setIsModalOpen(true)}
-                    activeOpacity={0.8}
-                    disabled={!isBrand || existingRequest.contacted}
-                >
-                    <Text style={styles.brandButtonText}>{getCollabBtnText()}</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Collaboration Request Modal */}
-            <Modal
-                visible={isModalOpen}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setIsModalOpen(false)}
-            >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
-                >
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Collab Proposal</Text>
-                            <TouchableOpacity onPress={() => setIsModalOpen(false)}>
-                                <Text style={styles.closeBtn}>✕</Text>
-                            </TouchableOpacity>
+                    {/* About */}
+                    {(bio || location || instagram || joinedLabel) ? (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>About</Text>
+                            {bio ? <Text style={styles.aboutText}>{bio}</Text> : null}
+                            {location ? (
+                                <View style={styles.infoRow}>
+                                    <Ionicons name="location-outline" size={15} color={theme.primary} />
+                                    <Text style={styles.infoText}>{location}</Text>
+                                </View>
+                            ) : null}
+                            {instagram ? (
+                                <TouchableOpacity style={styles.infoRow} onPress={() => handleInstagram(instagram)}>
+                                    <Ionicons name="link-outline" size={15} color={theme.primary} />
+                                    <Text style={styles.infoText} numberOfLines={1}>
+                                        {instagram.replace(/^https?:\/\//, '')}
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : null}
+                            {joinedLabel ? (
+                                <View style={styles.infoRow}>
+                                    <Ionicons name="calendar-outline" size={15} color={theme.primary} />
+                                    <Text style={styles.infoText}>{joinedLabel}</Text>
+                                </View>
+                            ) : null}
                         </View>
+                    ) : null}
 
-                        <ScrollView style={styles.modalForm} showsVerticalScrollIndicator={false}>
-                            <Text style={styles.modalLabel}>Campaign Requirement *</Text>
-                            <TextInput
-                                style={[styles.modalInput, styles.textArea]}
-                                placeholder="e.g. 2 Reels and 1 Story for brand launch"
-                                placeholderTextColor="#555"
-                                multiline
-                                numberOfLines={3}
-                                value={form.requirement}
-                                onChangeText={v => setForm(f => ({ ...f, requirement: v }))}
-                            />
-
-                            <View style={styles.modalRow}>
-                                <View style={{ flex: 1, marginRight: 8 }}>
-                                    <Text style={styles.modalLabel}>Budget ($)</Text>
-                                    <TextInput
-                                        style={styles.modalInput}
-                                        placeholder="e.g. 500"
-                                        placeholderTextColor="#555"
-                                        keyboardType="numeric"
-                                        value={form.budget}
-                                        onChangeText={v => setForm(f => ({ ...f, budget: v }))}
-                                    />
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 8 }}>
-                                    <Text style={styles.modalLabel}>Timeline</Text>
-                                    <TextInput
-                                        style={styles.modalInput}
-                                        placeholder="e.g. 2 weeks"
-                                        placeholderTextColor="#555"
-                                        value={form.timeline}
-                                        onChangeText={v => setForm(f => ({ ...f, timeline: v }))}
-                                    />
-                                </View>
+                    {/* Specializations */}
+                    {specTags.length > 0 ? (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Specializations</Text>
+                            <View style={styles.tagRow}>
+                                {specTags.map((t, i) => (
+                                    <StatusBadge key={i} label={t} tone="role" role={profile.role} size="md" />
+                                ))}
                             </View>
+                        </View>
+                    ) : null}
 
-                            <Text style={styles.modalLabel}>Message (Optional)</Text>
-                            <TextInput
-                                style={[styles.modalInput, styles.textArea]}
-                                placeholder="Any specific notes or questions?"
-                                placeholderTextColor="#555"
-                                multiline
-                                numberOfLines={3}
-                                value={form.message}
-                                onChangeText={v => setForm(f => ({ ...f, message: v }))}
-                            />
+                    {/* Recent Requirements */}
+                    {posts.length > 0 ? (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Recent Requirements</Text>
+                            {posts.slice(0, 5).map((post) => (
+                                <View key={post.id} style={styles.postCard}>
+                                    {post.imageUrl ? (
+                                        <Image source={{ uri: post.imageUrl }} style={styles.postImg} />
+                                    ) : (
+                                        <View style={[styles.postImg, styles.postImgPlaceholder]}>
+                                            <Ionicons name="image-outline" size={28} color={palette.borderStrong} />
+                                        </View>
+                                    )}
+                                    <View style={styles.postBody}>
+                                        <Text style={styles.postDesc} numberOfLines={2}>{post.description}</Text>
+                                        <View style={styles.postMeta}>
+                                            <StatusBadge
+                                                label={post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab'}
+                                                tone={post.collaborationType === 'PAID' ? 'role' : 'neutral'}
+                                                role={profile.role}
+                                            />
+                                            <Text style={styles.postTime}>{timeAgo(post.createdAt)}</Text>
+                                        </View>
+                                        {post.location ? (
+                                            <Text style={styles.postLocation}>📍 {post.location}</Text>
+                                        ) : null}
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    ) : null}
 
-                            <TouchableOpacity
-                                style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-                                onPress={handleCollabSubmit}
-                                disabled={submitting}
-                            >
-                                {submitting ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.submitButtonText}>Submit Invite</Text>
-                                )}
-                            </TouchableOpacity>
-                        </ScrollView>
+                    {/* Leave enough space for the persistent bottom nav. */}
+                    <View style={{ height: 120 }} />
+                </ScrollView>
+            </SafeAreaView>
+
+            {/* Collab modal */}
+            <Modal visible={collabOpen} transparent animationType="slide" onRequestClose={() => setCollabOpen(false)}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.modalBackdrop}
+                >
+                    <View style={styles.modalSheet}>
+                        <View style={styles.modalHandle} />
+                        <Text style={styles.modalTitle}>Send a Collab Request</Text>
+                        <Text style={styles.modalSubtitle}>
+                            Tell {name} why you want to work together. They’ll see your profile and message.
+                        </Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Your message (optional)"
+                            placeholderTextColor={palette.textMuted}
+                            multiline
+                            value={collabMessage}
+                            onChangeText={setCollabMessage}
+                            maxLength={1000}
+                        />
+                        <Button
+                            title="Send Request"
+                            role={profile.role}
+                            variant="solid"
+                            size="lg"
+                            onPress={submitCollab}
+                            loading={collabBusy}
+                        />
+                        <Button
+                            title="Cancel"
+                            variant="ghost"
+                            size="md"
+                            role={profile.role}
+                            onPress={() => setCollabOpen(false)}
+                            textStyle={{ color: palette.textMuted }}
+                        />
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    wrapper: { flex: 1, backgroundColor: '#0f0f1e' },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#1e1e30',
-    },
-    backBtn: {
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-    },
-    backText: { color: '#4f46e5', fontSize: 16, fontWeight: '600' },
-    headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-    headerRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    headerIconBtn: {
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        position: 'relative',
-    },
-    headerNotifDot: {
-        position: 'absolute',
-        top: 4,
-        right: 8,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#ef4444',
-    },
-    shareEmoji: { fontSize: 18 },
-    container: { padding: 20 },
-    profileHero: {
-        alignItems: 'center',
-        paddingVertical: 30,
-        backgroundColor: '#16162a',
-        borderRadius: 24,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: '#2e2e4e',
-    },
-    avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: '#312e81',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-        shadowColor: '#4f46e5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    avatarInitial: { color: '#818cf8', fontSize: 40, fontWeight: 'bold' },
-    name: { color: '#fff', fontSize: 26, fontWeight: '800', marginBottom: 4 },
-    category: { color: '#a78bfa', fontSize: 16, fontWeight: '600', marginBottom: 16 },
-    locationBadge: {
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-    },
-    locationText: { color: '#94a3b8', fontSize: 13 },
-    section: { marginBottom: 24 },
-    sectionTitle: { color: '#64748b', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginLeft: 4 },
-    detailCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#1e1e30',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#2e2e4e',
-    },
-    detailIconBg: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: 'rgba(79, 70, 229, 0.1)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 16,
-    },
-    detailEmoji: { fontSize: 20 },
-    detailContent: { flex: 1 },
-    detailLabel: { color: '#64748b', fontSize: 12, marginBottom: 2 },
-    detailValue: { color: '#fff', fontSize: 15, fontWeight: '600' },
-    arrow: { color: '#444', fontSize: 18 },
-    statsRow: { flexDirection: 'row', gap: 12 },
-    statBox: {
-        flex: 1,
-        backgroundColor: '#1e1e30',
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#2e2e4e',
-        alignItems: 'center',
-    },
-    statLabel: { color: '#64748b', fontSize: 12, marginBottom: 4 },
-    statValue: { color: '#4f46e5', fontSize: 20, fontWeight: '800' },
-    footer: {
-        padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: '#1e1e30',
-        backgroundColor: '#0f0f1e',
-    },
-    brandButton: {
-        backgroundColor: '#4f46e5',
-        paddingVertical: 16,
-        borderRadius: 16,
-        alignItems: 'center',
-        shadowColor: '#4f46e5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
-    brandButtonDisabled: {
-        backgroundColor: '#1e1e30',
-        borderColor: '#2e2e4e',
-        borderWidth: 1,
-    },
-    brandButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.background, gap: 8 },
+    loadingText: { color: palette.textMuted, fontFamily: fonts.regular, fontSize: 13 },
 
-    // Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        justifyContent: 'flex-end',
+    headerGradient: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0,
+        height: 320,
     },
-    modalContent: {
-        backgroundColor: '#16162a',
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        padding: 24,
-        maxHeight: '80%',
-    },
-    modalHeader: {
+
+    topBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
     },
-    modalTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-    closeBtn: { color: '#64748b', fontSize: 24, fontWeight: 'bold' },
-    modalForm: { marginBottom: 20 },
-    modalLabel: { color: '#94a3b8', fontSize: 13, fontWeight: '600', marginBottom: 8, marginLeft: 4 },
-    modalInput: {
-        backgroundColor: '#1e1e30',
-        color: '#fff',
-        padding: 16,
-        borderRadius: 16,
-        fontSize: 15,
-        marginBottom: 20,
+
+    scroll: { paddingBottom: 40 },
+
+    heroWrap: { alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.md, paddingHorizontal: spacing.xl },
+    heroAvatar: {
+        width: 92,
+        height: 92,
+        borderRadius: 46,
+        borderWidth: 3,
+        backgroundColor: palette.surface,
+    },
+    heroInitials: { alignItems: 'center', justifyContent: 'center' },
+    heroInitialsText: { fontSize: 28, fontFamily: fonts.bold },
+    heroName: { color: palette.textPrimary, fontSize: 22, fontFamily: fonts.bold, marginTop: 12 },
+    heroRole: { color: palette.textSecondary, fontSize: 13, fontFamily: fonts.regular, marginTop: 2 },
+
+    actionBlock: { paddingHorizontal: spacing.xl, gap: 10, marginBottom: 18 },
+    metaActionsRow: { flexDirection: 'row', justifyContent: 'center', gap: 10 },
+
+    statsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        paddingHorizontal: spacing.xl,
+        marginBottom: 22,
+    },
+    statCol: { alignItems: 'center' },
+    statLabel: { color: palette.textMuted, fontSize: 11, fontFamily: fonts.regular, marginTop: 2 },
+    statValue: { color: palette.textPrimary, fontSize: 15, fontFamily: fonts.semibold },
+
+    section: { paddingHorizontal: spacing.xl, marginBottom: 22 },
+    sectionTitle: { color: palette.textPrimary, fontSize: 16, fontFamily: fonts.bold, marginBottom: 10 },
+
+    aboutText: { color: palette.textSecondary, fontSize: 13, lineHeight: 20, fontFamily: fonts.regular, marginBottom: 10 },
+    infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+    infoText: { color: palette.textSecondary, fontSize: 13, fontFamily: fonts.regular },
+
+    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+
+    postCard: {
+        backgroundColor: palette.surface,
+        borderRadius: 14,
+        marginBottom: 12,
+        overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#2e2e4e',
+        borderColor: palette.border,
     },
-    textArea: {
+    postImg: { width: '100%', height: 140, backgroundColor: palette.surfaceRaised },
+    postImgPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+    postBody: { padding: 12 },
+    postDesc: { color: palette.textPrimary, fontSize: 13, fontFamily: fonts.regular, lineHeight: 19 },
+    postMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+    postTime: { color: palette.textMuted, fontSize: 11, fontFamily: fonts.regular },
+    postLocation: { color: palette.textMuted, fontSize: 11, fontFamily: fonts.regular, marginTop: 4 },
+
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    modalSheet: {
+        backgroundColor: palette.surfaceAlt,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        paddingHorizontal: 20,
+        paddingTop: 10,
+        paddingBottom: 30,
+        gap: 10,
+    },
+    modalHandle: { width: 48, height: 4, borderRadius: 2, backgroundColor: palette.borderStrong, alignSelf: 'center', marginBottom: 10 },
+    modalTitle: { color: palette.textPrimary, fontSize: 17, fontFamily: fonts.semibold, marginBottom: 6 },
+    modalSubtitle: { color: palette.textMuted, fontSize: 12, fontFamily: fonts.regular, marginBottom: 8 },
+    modalInput: {
+        backgroundColor: palette.surface,
+        borderWidth: 1,
+        borderColor: palette.border,
+        borderRadius: 12,
+        padding: 12,
+        color: palette.textPrimary,
+        fontSize: 14,
+        fontFamily: fonts.regular,
         minHeight: 100,
         textAlignVertical: 'top',
-    },
-    modalRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    submitButton: {
-        backgroundColor: '#4f46e5',
-        paddingVertical: 18,
-        borderRadius: 16,
-        alignItems: 'center',
-        marginTop: 10,
-    },
-    submitButtonDisabled: { opacity: 0.6 },
-    submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-
-    // Collaboration Status Bar
-    requestStatusBar: {
-        marginHorizontal: 20,
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        marginBottom: 20,
-        alignItems: 'center',
-    },
-    statusPending: {
-        backgroundColor: 'rgba(234, 179, 8, 0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(234, 179, 8, 0.3)',
-    },
-    statusApproved: {
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(34, 197, 94, 0.3)',
-    },
-    statusRejected: {
-        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(239, 68, 68, 0.3)',
-    },
-    requestStatusText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#fff',
+        marginBottom: 6,
     },
 });

@@ -47,6 +47,9 @@ export default function RootLayout() {
                     <Stack.Screen name="signup" />
                     <Stack.Screen name="role-selection" />
                     <Stack.Screen name="creator-details" />
+                    <Stack.Screen name="notifications" />
+                    <Stack.Screen name="chat/[id]" />
+                    <Stack.Screen name="switch-role" />
                 </Stack>
             </AuthProvider>
         </SafeAreaProvider>
