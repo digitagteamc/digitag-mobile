@@ -115,10 +115,9 @@ export default function Splash1() {
   const contentReserve = isCompact ? 0.48 : 0.42;
   const safeArea = screenH * (1 - contentReserve);
 
-  // Bubble pinned near the top-left, Heart near the top-right, both partially
-  // offscreen for the "floating" look without colliding with the text block.
-  const bubbleTop = Math.max(40, safeArea * 0.55);
-  const heartTop = Math.max(20, safeArea * 0.30);
+  // Bubble pinned near bottom-left, Heart near middle-right
+  const bubbleBottom = isCompact ? 40 : 60;
+  const heartBottom = isCompact ? 160 : 190;
   const titleFontSize = isCompact ? 26 : 32;
   const titleLineHeight = isCompact ? 32 : 38;
   const subtitleFontSize = currentStep === 0 ? (isCompact ? 20 : 24) : (isCompact ? 14 : 16);
@@ -168,7 +167,7 @@ export default function Splash1() {
           source={splashBubble}
           style={{
             position: 'absolute',
-            top: bubbleTop,
+            bottom: bubbleBottom,
             left: -Math.round(bubbleSize * 0.4),
             width: bubbleSize,
             height: bubbleSize,
@@ -181,7 +180,7 @@ export default function Splash1() {
           source={splashHeart}
           style={{
             position: 'absolute',
-            top: heartTop,
+            bottom: heartBottom,
             right: -Math.round(heartSize * 0.4),
             width: heartSize,
             height: heartSize,

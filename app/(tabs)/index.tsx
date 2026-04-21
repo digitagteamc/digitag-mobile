@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
@@ -34,6 +35,33 @@ const imgVideoEditorsCat = require('../../assets/images/video_editors.png');
 const imgCreatorsCat = require('../../assets/images/creators.png');
 const imgDesignerCat = require('../../assets/images/designer.png');
 const imgWritersCat = require('../../assets/images/writers.png');
+
+const CAROUSEL_DATA = [
+  {
+    id: '1',
+    title: 'Discover Top Brands',
+    desc: 'Connect with fashion, beauty &\nlifestyle brands.',
+    image: require('../../assets/images/banner.png'),
+  },
+  {
+    id: '2',
+    title: 'Book Expert Creators',
+    desc: 'Find makeup, hair & creative\nprofessionals.',
+    image: require('../../assets/images/creator.png'),
+  },
+  {
+    id: '3',
+    title: 'Grow & Earn Together',
+    desc: 'Launch, track, and grow your\nbusiness.',
+    image: require('../../assets/images/freelancer.png'),
+  },
+  {
+    id: '4',
+    title: 'Scale Your Agency Faster',
+    desc: 'Manage clients, campaigns &\nanalytics in one place.',
+    image: require('../../assets/images/agency.png'),
+  },
+];
 
 // ─── Category data exactly from Figma
 const CATEGORIES = [
@@ -145,14 +173,14 @@ export default function Homepage() {
 
   const filteredPosts = selectedCategory
     ? posts.filter(post => {
-        const keywords = CATEGORY_KEYWORDS[selectedCategory] || [];
-        const searchText = [
-          post.description || '',
-          post.owner?.categoryName || '',
-          post.category?.name || '',
-        ].join(' ').toLowerCase();
-        return keywords.some(kw => searchText.includes(kw));
-      })
+      const keywords = CATEGORY_KEYWORDS[selectedCategory] || [];
+      const searchText = [
+        post.description || '',
+        post.owner?.categoryName || '',
+        post.category?.name || '',
+      ].join(' ').toLowerCase();
+      return keywords.some(kw => searchText.includes(kw));
+    })
     : posts;
 
   const cards = filteredPosts.map(post => {
@@ -248,29 +276,40 @@ export default function Homepage() {
             <Ionicons name="mic-outline" size={18} color="#d6d6d6" style={styles.micIcon} />
           </View>
 
-          {/* ══════════════ BANNER ══════════════ */}
+          {/* ══════════════ BANNER CAROUSEL ══════════════ */}
           {/* Figma: glassmorphic rgba(240,240,240,0.3) with border rgba(64,64,64,0.5) */}
-          <View style={styles.bannerOuter}>
-            {/* Glass backing */}
-            <View style={styles.bannerGlass} />
-            <View style={styles.bannerInner}>
-              {/* Left text block */}
-              <View style={styles.bannerTextBlock}>
-                <Text style={styles.bannerTitle}>Discover Top Brands</Text>
-                <Text style={styles.bannerDesc}>Connect with fashion, beauty &amp; {"\n"} lifestyle brands.</Text>
-                <TouchableOpacity style={styles.exploreBtn} activeOpacity={0.85}>
-                  <Text style={styles.exploreBtnText}>Explore Now</Text>
-                </TouchableOpacity>
-              </View>
-              {/* Right image — overflows */}
-              <Image
-                source={require('../../assets/images/banner.png')}
-                style={styles.bannerImg}
-                resizeMode="contain"
-              />
-            </View>
-            {/* Inset shadow overlay from Figma */}
-            <View style={styles.bannerInsetOverlay} pointerEvents="none" />
+          <View style={{ marginBottom: 28, borderRadius: 20, marginHorizontal: -8 }}>
+            <Carousel
+              loop
+              width={width - 16}
+              height={152}
+              autoPlay={true}
+              data={CAROUSEL_DATA}
+              scrollAnimationDuration={1000}
+              style={{ overflow: 'visible' }}
+              renderItem={({ item }) => (
+                <View style={{ paddingHorizontal: 8 }}>
+                  <View style={[styles.bannerOuter, { marginBottom: 0 }]}>
+                    <View style={styles.bannerGlass} />
+                    <View style={styles.bannerInner}>
+                      <View style={styles.bannerTextBlock}>
+                        <Text style={styles.bannerTitle}>{item.title}</Text>
+                        <Text style={styles.bannerDesc}>{item.desc}</Text>
+                        <TouchableOpacity style={styles.exploreBtn} activeOpacity={0.85}>
+                          <Text style={styles.exploreBtnText}>Explore Now</Text>
+                        </TouchableOpacity>
+                      </View>
+                      <Image
+                        source={item.image}
+                        style={styles.bannerImg}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <View style={styles.bannerInsetOverlay} pointerEvents="none" />
+                  </View>
+                </View>
+              )}
+            />
           </View>
 
           {/* ══════════════ CATEGORIES ══════════════ */}
@@ -515,7 +554,7 @@ const styles = StyleSheet.create({
 
   // ── Banner (Figma: glassmorphic 152×409, bg rgba(240,240,240,0.3), border rgba(64,64,64,0.5))
   bannerOuter: {
-    height: 152,
+    height: 148,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(64,64,64,0.5)',
@@ -525,7 +564,7 @@ const styles = StyleSheet.create({
   },
   bannerGlass: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(240,240,240,0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   bannerInner: {
     flex: 1,
@@ -543,16 +582,19 @@ const styles = StyleSheet.create({
   bannerTitle: {
     color: '#000',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     letterSpacing: -0.5,
-    marginBottom: 4,
+    marginBottom: 2,
+    fontFamily: 'Poppins_600SemiBold',
   },
   bannerDesc: {
     color: '#000',
     fontSize: 12,
     lineHeight: 18,
-    marginBottom: 16,
+    marginBottom: 12,
     width: 212,
+    fontFamily: 'Poppins_500SemiBold',
+
   },
   exploreBtn: {
     backgroundColor: '#F26930',
@@ -560,6 +602,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     alignSelf: 'flex-start',
+    fontFamily: 'Poppins_500Medium',
+    letterSpacing: -0.5,
+    fontSize: 14,
+
   },
   exploreBtnText: {
     color: '#fff',
@@ -570,10 +616,12 @@ const styles = StyleSheet.create({
   },
   bannerImg: {
     width: 152,
-    height: 152,
+    height: 128.04,
     position: 'absolute',
     right: 0,
     bottom: 0,
+    top: 12,
+    left: 230,
   },
   bannerInsetOverlay: {
     ...StyleSheet.absoluteFillObject,

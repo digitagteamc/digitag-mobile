@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
@@ -12,10 +13,9 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GradientButton from '../Components/ui/GradientButton';
 import { useAuth } from '../context/AuthContext';
 import { requestOtp, verifyOtp } from '../services/userService';
-import { LinearGradient } from 'expo-linear-gradient';
-import GradientButton from '../Components/ui/GradientButton';
 
 type SignupRole = 'CREATOR' | 'FREELANCER';
 
@@ -136,7 +136,7 @@ export default function LoginScreen() {
             <LinearGradient colors={['#000000', '#201242']} style={StyleSheet.absoluteFill} />
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
-                    
+
                     {step === 1 ? (
                         <View style={styles.contentCentered}>
                             {/* Back to role selection */}
@@ -158,12 +158,12 @@ export default function LoginScreen() {
                                     <View style={styles.chevronPart2b} />
                                 </View>
                             </View>
-                            
+
                             <Text style={styles.titleCentered}>Login</Text>
                             <Text style={styles.subtitleCentered}>
                                 Enter your mobile number and we'll send you a verification code to get started
                             </Text>
- 
+
                             <View style={[styles.inputContainer, phoneError ? styles.inputContainerError : null]}>
                                 <View style={styles.countryCode}>
                                     <View style={styles.flagCircle}>
@@ -202,7 +202,7 @@ export default function LoginScreen() {
                                 <Text style={styles.termsHighlight}>Terms & Conditions</Text> and{' '}
                                 <Text style={styles.termsHighlight}>Privacy Policy</Text>
                             </Text>
-                            
+
                             <TouchableOpacity style={styles.skipButton} onPress={() => { loginAsGuest(); router.replace('/(tabs)'); }}>
                                 <Text style={styles.skipText}>Skip for now</Text>
                             </TouchableOpacity>
@@ -269,8 +269,8 @@ export default function LoginScreen() {
                                 <GradientButton title="Next" onPress={handleVerifyOtp} containerStyle={styles.buttonContainer} />
                             )}
 
-                            <TouchableOpacity 
-                                style={[styles.resendButton, countdown > 0 && { opacity: 0.5 }]} 
+                            <TouchableOpacity
+                                style={[styles.resendButton, countdown > 0 && { opacity: 0.5 }]}
                                 onPress={handleRequestOtp}
                                 disabled={countdown > 0 || loading}
                             >
@@ -288,7 +288,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000' },
     keyboardView: { flex: 1 },
-    
+
     // Step 1 styling
     contentCentered: { flex: 1, justifyContent: 'center', paddingHorizontal: 30, alignItems: 'center' },
     logoContainer: { height: 120, width: 80, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
@@ -298,10 +298,10 @@ const styles = StyleSheet.create({
     chevronBottomContainer: { transform: [{ rotate: '-135deg' }, { translateX: -10 }, { translateY: -25 }] },
     chevronPart1b: { width: 30, height: 14, backgroundColor: '#D1E61A', borderRadius: 7 },
     chevronPart2b: { width: 14, height: 30, backgroundColor: '#D1E61A', borderRadius: 7, position: 'absolute', right: 0, top: 0 },
-    
+
     titleCentered: { fontSize: 36, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 16 },
     subtitleCentered: { fontSize: 13, color: '#A0A0B0', textAlign: 'center', marginBottom: 36, lineHeight: 20, paddingHorizontal: 10 },
-    
+
     inputContainer: { flexDirection: 'row', backgroundColor: '#34264A', borderRadius: 30, paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center', marginBottom: 8, width: '100%', minHeight: 60 },
     inputContainerError: { borderWidth: 1.5, borderColor: '#EF4444' },
     fieldErrorText: { color: '#EF4444', fontSize: 12, textAlign: 'center', marginBottom: 16, fontWeight: '500' },
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     countryText: { color: '#fff', fontSize: 14, fontWeight: '600', marginRight: 6 },
     dropdownIcon: { color: '#B0A0C0', fontSize: 12, transform: [{ scaleX: 1.5 }, { scaleY: 0.8 }], marginLeft: 4, fontWeight: '900' },
     inputExpanded: { flex: 1, color: '#fff', fontSize: 16, minHeight: 30 },
-    
+
     // Step 2 styling (OTP)
     contentTopAligned: { flex: 1, paddingTop: 40, paddingHorizontal: 24 },
     backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#4d4d63', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
@@ -323,13 +323,13 @@ const styles = StyleSheet.create({
     titleLeft: { fontSize: 30, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
     subtitleLeft: { fontSize: 14, color: '#A0A0B0', marginBottom: 40 },
     boldText: { color: '#fff', fontWeight: 'bold' },
-    
+
     otpRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 30, paddingHorizontal: 10 },
     otpBox: { flex: 1, aspectRatio: 1, borderRadius: 40, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
     otpBoxActive: { borderColor: '#fff' },
     otpText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
     hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-    
+
     devCodeBanner: {
         backgroundColor: 'rgba(195, 206, 33, 0.12)',
         borderWidth: 1,
