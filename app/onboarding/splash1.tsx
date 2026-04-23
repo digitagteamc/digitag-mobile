@@ -1,6 +1,6 @@
 import GradientButton from '@/Components/ui/GradientButton';
 import SplashBackground from '@/Components/ui/SplashBackground';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { BackHandler, Image, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
@@ -99,8 +99,13 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
 
 export default function Splash1() {
   const router = useRouter();
+  const { step } = useLocalSearchParams<{ step?: string }>();
   const { width: screenW, height: screenH } = useWindowDimensions();
-  const [currentStep, setCurrentStep] = useState(0);
+  
+  // Initialize with step from params if valid, otherwise start at 0
+  const initialStep = step ? parseInt(step, 10) : 0;
+  const [currentStep, setCurrentStep] = useState(isNaN(initialStep) ? 0 : Math.min(initialStep, ONBOARDING_STEPS.length - 1));
+  
   const data = ONBOARDING_STEPS[currentStep];
 
   // Responsive decorative sizes: scale with screen width but cap for tablets,
@@ -142,7 +147,7 @@ export default function Splash1() {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.replace('/role-selection');
+      router.push('/role-selection');
     }
   };
 
@@ -150,7 +155,7 @@ export default function Splash1() {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.replace('/role-selection');
+      router.push('/role-selection');
     }
   };
 
@@ -202,15 +207,15 @@ export default function Splash1() {
           </Animated.View>
         )}
 
-        <View className={`flex-1 justify-end items-center ${Platform.OS === 'ios' ? 'pb-8' : 'pb-10'} px-5 z-20`}>
-          <View className="w-full items-center mb-10 relative">
+        <View className={`flex-1 justify-end items-center ${Platform.OS === 'ios' ? 'pb-8' : 'pb-6'} px-5 z-20`}>
+          <View className={`w-full items-center ${isCompact ? 'mb-6' : 'mb-10'} relative`}>
             {/* Text Content */}
             {currentStep > 0 && (
               <Animated.View
                 key={`progress-${currentStep}`}
                 entering={FadeIn}
                 exiting={FadeOut}
-                className="flex-row w-full justify-between items-center mb-[30px] px-4"
+                className={`flex-row w-full justify-between items-center ${isCompact ? 'mb-[20px]' : 'mb-[30px]'} px-4`}
               >
                 <View className="flex-row gap-2 items-center">
                   {[0, 1, 2, 3].map((idx) => (
@@ -236,10 +241,12 @@ export default function Splash1() {
               exiting={FadeOut.duration(600)}
               className="w-full items-center"
             >
-              <View className="items-center mb-5 px-4">
+              <View className={`items-center ${isCompact ? 'mb-3' : 'mb-5'} px-4`}>
                 {data.titles.map((title, i) => (
                   <Text
                     key={i}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
                     className="font-poppins-bold text-white text-center"
                     style={{ fontSize: titleFontSize, lineHeight: titleLineHeight }}
                   >
@@ -268,13 +275,13 @@ export default function Splash1() {
             insetTopColor={data.buttonInsetTopColor}
             insetBottomColor={data.buttonInsetBottomColor}
             textStyle={{ color: data.buttonTextColor || '#FFFFFF' }}
-            className={`${currentStep === 0 ? "w-[250px]" : "w-[250px]"} mb-[30px] z-20 py-2`}
+            className={`${currentStep === 0 ? "w-[250px]" : "w-[250px]"} ${isCompact ? 'mb-[20px]' : 'mb-[30px]'} z-20 py-2`}
           />
 
           {currentStep === 0 && (
             <Animated.Text
               entering={FadeIn}
-              className="font-poppins-extralight text-[18px] text-[#b4b4b4] text-center leading-[24px] mt-[10px] z-20"
+              className={`font-poppins-extralight ${isCompact ? 'text-[15px] leading-[20px]' : 'text-[18px] leading-[24px]'} text-[#b4b4b4] text-center mt-[5px] z-20`}
             >
               By Continuing. You accept our{' '}
               <Text className="text-white underline">Terms and Privacy Policy</Text>

@@ -1,6 +1,6 @@
 import React from 'react';
-import CompleteProfileForm from '../../../Components/ui/CompleteProfileForm';
+import CreatorSignup from '../../signup/creator';
 
-export default function CreatorSignup() {
-    return <CompleteProfileForm role="CREATOR" />;
+export default function CreatorSignupTab() {
+    return <CreatorSignup />;
 }

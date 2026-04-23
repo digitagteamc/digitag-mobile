@@ -1,8 +1,8 @@
 import GradientButton from '@/Components/ui/GradientButton';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, BackHandler, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Image assets mapping
@@ -64,6 +64,15 @@ export default function RoleSelectionScreen() {
     const router = useRouter();
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
+    useEffect(() => {
+        const backAction = () => {
+            router.push('/onboarding/splash1?step=4');
+            return true;
+        };
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => backHandler.remove();
+    }, []);
+
     const handleNext = () => {
         if (!selectedRole) return;
         if (selectedRole === 'brand' || selectedRole === 'agency') {
@@ -77,7 +86,7 @@ export default function RoleSelectionScreen() {
         <SafeAreaView className="flex-1 bg-[#0A0A10]" edges={['top', 'bottom', 'left', 'right']}>
             {/* Header */}
             <View className="flex-row items-center px-4 pt-4 pb-6 mt-4">
-                <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+                <TouchableOpacity onPress={() => router.push('/onboarding/splash1?step=4')} className="mr-3 p-1">
                     <ChevronLeft color="#FFFFFF" size={24} />
                 </TouchableOpacity>
                 <Text className="text-white font-poppins-semibold text-[22px]">Select Your Profile Type</Text>

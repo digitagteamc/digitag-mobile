@@ -1,17 +1,20 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import { ChevronDownIcon, ChevronLeftIcon } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
+    BackHandler,
+    Dimensions,
+    Keyboard,
+    Modal,
     Text,
     TextInput,
     TouchableOpacity,
-    View,
+    useWindowDimensions,
+    View
 } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GradientButton from '../Components/ui/GradientButton';
 import { useAuth } from '../context/AuthContext';
@@ -33,7 +36,23 @@ export default function LoginScreen() {
     const [countdown, setCountdown] = useState(0);
     const otpInputRef = useRef<TextInput>(null);
 
-    React.useEffect(() => {
+    // Inline validation errors
+    const [phoneError, setPhoneError] = useState<string | null>(null);
+    const [otpError, setOtpError] = useState<string | null>(null);
+
+    // Status Modal state
+    const [statusModal, setStatusModal] = useState({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const showStatus = (title: string, message: string) => {
+        setStatusModal({ visible: true, title, message });
+    };
+
+    // Countdown timer
+    useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
         if (countdown > 0) {
             interval = setInterval(() => {
@@ -43,9 +62,57 @@ export default function LoginScreen() {
         return () => clearInterval(interval);
     }, [countdown]);
 
-    const [phoneError, setPhoneError] = useState<string | null>(null);
-    const [otpError, setOtpError] = useState<string | null>(null);
+    // ── Animations ──
+    const logo1Y = useSharedValue(-50);
+    const logo2Y = useSharedValue(50);
 
+    useEffect(() => {
+        logo1Y.value = withTiming(0, { duration: 6000, easing: Easing.out(Easing.exp) });
+        logo2Y.value = withTiming(0, { duration: 6000, easing: Easing.out(Easing.exp) });
+    }, []);
+
+    const logo1AnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: logo1Y.value }],
+    }));
+    const logo2AnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: logo2Y.value }],
+    }));
+
+    const { height: windowHeight } = useWindowDimensions();
+    const screenHeight = Dimensions.get('screen').height;
+    const offScreenY = screenHeight + 100;
+    const otpTranslateY = useSharedValue(offScreenY);
+
+    const animatedSetStep = (newStep: number) => {
+        if (newStep === 2) {
+            setStep(2);
+            otpTranslateY.value = withTiming(0, { duration: 1800, easing: Easing.out(Easing.exp) });
+        } else if (newStep === 1) {
+            otpTranslateY.value = withTiming(offScreenY, { duration: 1800, easing: Easing.inOut(Easing.quad) });
+            setTimeout(() => setStep(1), 1800);
+        }
+    };
+
+    const otpAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ translateY: otpTranslateY.value }],
+    }));
+
+    // Android back button
+    useEffect(() => {
+        const backAction = () => {
+            if (step === 2) {
+                animatedSetStep(1);
+                return true;
+            } else {
+                router.replace('/role-selection');
+                return true;
+            }
+        };
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => backHandler.remove();
+    }, [step, screenHeight]);
+
+    // ── Validation ──
     const validatePhone = (v: string): string | null => {
         const digits = v.replace(/\D/g, '');
         if (!digits) return 'Mobile number is required';
@@ -54,6 +121,7 @@ export default function LoginScreen() {
         return null;
     };
 
+    // ── Handlers ──
     const handleRequestOtp = async () => {
         const err = validatePhone(phoneNumber);
         if (err) { setPhoneError(err); return; }
@@ -64,27 +132,25 @@ export default function LoginScreen() {
         try {
             const res = await requestOtp(phoneNumber.replace(/\s+/g, ''), role);
             if (res.success) {
-                // Backend returns `devCode` in non-production mode for testing.
                 const code = (res as any).devCode as string | undefined;
                 if (code) {
                     setDevCode(code);
-                    setOtp(code); // prefill for convenience
+                    setOtp(code);
                 }
                 setCountdown((res as any).resendCooldownSeconds ?? 30);
-                setStep(2);
+                Keyboard.dismiss();
+                animatedSetStep(2);
             } else {
-                // If the backend told us to back off, keep the OTP step open so
-                // a user who already received a previous code can still enter it.
                 if ('retryAfterSeconds' in res && res.retryAfterSeconds) {
                     setCountdown(res.retryAfterSeconds as number);
-                    setStep(2);
+                    animatedSetStep(2);
                     setOtpError(res.error || 'Please wait before requesting again.');
                 } else {
-                    Alert.alert('Error', res.error || 'Failed to send OTP.');
+                    showStatus('Error', res.error || 'Failed to send OTP.');
                 }
             }
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Something went wrong.');
+            showStatus('Error', error.message || 'Something went wrong.');
         } finally {
             setLoading(false);
         }
@@ -102,15 +168,12 @@ export default function LoginScreen() {
             const res = await verifyOtp(cleanPhone, otp, role);
 
             if (!res.success) {
-                // Surface structured error (attempts remaining, etc.) inline
-                // instead of a noisy alert so the user can try again quickly.
                 setOtpError(res.error || 'Invalid OTP.');
                 return;
             }
 
             const verifiedRole = (res.user?.role as string | undefined) ?? role;
             const userIdFromBackend = res.user?.id;
-
             const profileDone = Boolean(res.isProfileCompleted);
 
             login({
@@ -132,224 +195,228 @@ export default function LoginScreen() {
     };
 
     return (
-        <View style={styles.container}>
-            <LinearGradient colors={['#000000', '#201242']} style={StyleSheet.absoluteFill} />
-            <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardView}>
+        <View className="flex-1 bg-black">
+            <LinearGradient
+                colors={['#000000', '#201242']}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            />
+            <SafeAreaView className="flex-1" edges={['top', 'left', 'right']}>
+                {/* ── STEP 1: Phone ── */}
+                <View className="flex-1 justify-start px-[30px] items-center pt-[15%]">
+                    {/* Back to role selection */}
+                    <TouchableOpacity
+                        className="absolute top-4 left-4 w-11 h-11 rounded-full border border-[#4d4d63] justify-center items-center"
+                        onPress={() => (router.canGoBack() ? router.back() : router.replace('/role-selection'))}
+                    >
+                        <ChevronLeftIcon color="white" size={22} />
+                    </TouchableOpacity>
 
-                    {step === 1 ? (
-                        <View style={styles.contentCentered}>
-                            {/* Back to role selection */}
-                            <TouchableOpacity
-                                style={styles.step1BackButton}
-                                onPress={() => (router.canGoBack() ? router.back() : router.replace('/role-selection'))}
-                            >
-                                <Text style={styles.backButtonIcon}>{'<'}</Text>
-                            </TouchableOpacity>
+                    {/* Logo Mark Images with Animation */}
+                    <View className="flex-row justify-center items-center mb-16 h-[120px]">
+                        <Animated.Image
+                            source={require('../assets/images/logo1.png')}
+                            style={[{ width: 60, height: 100 }, logo1AnimatedStyle]}
+                            resizeMode="contain"
+                        />
+                        <Animated.Image
+                            source={require('../assets/images/logo2.png')}
+                            style={[{ width: 80, height: 130, marginLeft: -15, marginTop: 30 }, logo2AnimatedStyle]}
+                            resizeMode="contain"
+                        />
+                    </View>
 
-                            {/* Visual Logo for Step 1 */}
-                            <View style={styles.logoContainer}>
-                                <View style={styles.chevronTopContainer}>
-                                    <View style={styles.chevronPart1} />
-                                    <View style={styles.chevronPart2} />
-                                </View>
-                                <View style={styles.chevronBottomContainer}>
-                                    <View style={styles.chevronPart1b} />
-                                    <View style={styles.chevronPart2b} />
-                                </View>
+                    <Text className="text-white font-poppins-bold text-[36px] text-center mb-4 mt-10">Login</Text>
+                    <Text className="text-[#A0A0B0] font-poppins-regular text-[13px] text-center mb-9 leading-5 px-3">
+                        Enter your mobile number and we'll send {`\n`}you a verification code to get started
+                    </Text>
+
+                    {/* Phone Input */}
+                    <View
+                        className={`flex-row bg-[#34264A] rounded-full px-5 py-[14px] items-center mb-2 w-full min-h-[60px] ${phoneError ? 'border border-red-500' : ''}`}
+                    >
+                        {/* Country Code */}
+                        <View className="flex-row items-center border-r border-[#4f4066] pr-[10px] mr-[10px]">
+                            <View className="w-7 h-7 rounded-full overflow-hidden mr-2 items-center justify-center bg-white">
+                                <Text style={{ fontSize: 18, lineHeight: 22 }}>🇮🇳</Text>
                             </View>
-
-                            <Text style={styles.titleCentered}>Login</Text>
-                            <Text style={styles.subtitleCentered}>
-                                Enter your mobile number and we'll send you a verification code to get started
-                            </Text>
-
-                            <View style={[styles.inputContainer, phoneError ? styles.inputContainerError : null]}>
-                                <View style={styles.countryCode}>
-                                    <View style={styles.flagCircle}>
-                                        <View style={styles.flagStripeOrange} />
-                                        <View style={styles.flagStripeWhite}><View style={styles.chakra} /></View>
-                                        <View style={styles.flagStripeGreen} />
-                                    </View>
-                                    <Text style={styles.countryText}>India +91</Text>
-                                    <Text style={styles.dropdownIcon}>v</Text>
-                                </View>
-                                <TextInput
-                                    style={styles.inputExpanded}
-                                    placeholder="Enter Mobile Number"
-                                    placeholderTextColor="#888"
-                                    keyboardType="phone-pad"
-                                    value={phoneNumber}
-                                    onChangeText={v => {
-                                        const digits = v.replace(/\D/g, '').slice(0, 10);
-                                        setPhoneNumber(digits);
-                                        if (phoneError) setPhoneError(null);
-                                    }}
-                                    maxLength={10}
-                                    autoFocus
-                                />
-                            </View>
-                            {phoneError ? <Text style={styles.fieldErrorText}>{phoneError}</Text> : null}
-
-                            {loading ? (
-                                <ActivityIndicator color="#C3CE21" style={{ marginVertical: 20 }} />
-                            ) : (
-                                <GradientButton title="Get OTP" onPress={handleRequestOtp} containerStyle={styles.buttonContainer} />
-                            )}
-
-                            <Text style={styles.termsText}>
-                                By continuing, I confirm that i am at least 18 years old, and agree to{' '}
-                                <Text style={styles.termsHighlight}>Terms & Conditions</Text> and{' '}
-                                <Text style={styles.termsHighlight}>Privacy Policy</Text>
-                            </Text>
-
-                            <TouchableOpacity style={styles.skipButton} onPress={() => { loginAsGuest(); router.replace('/(tabs)'); }}>
-                                <Text style={styles.skipText}>Skip for now</Text>
-                            </TouchableOpacity>
+                            <Text className="text-white font-poppins-semibold text-[14px] mr-1">India +91</Text>
+                            <ChevronDownIcon color="white" size={16} />
                         </View>
+                        <TextInput
+                            className="flex-1 text-white text-[16px] min-h-[30px]"
+                            placeholder="Enter Mobile Number"
+                            placeholderTextColor="#888"
+                            keyboardType="phone-pad"
+                            value={phoneNumber}
+                            onChangeText={(v) => {
+                                const digits = v.replace(/\D/g, '').slice(0, 10);
+                                setPhoneNumber(digits);
+                                if (phoneError) setPhoneError(null);
+                            }}
+                            maxLength={10}
+                        />
+                    </View>
+
+                    {/* Phone inline error */}
+                    {phoneError ? (
+                        <Text className="text-red-400 font-poppins-regular text-[12px] text-center mb-3">
+                            {phoneError}
+                        </Text>
+                    ) : <View className="mb-3" />}
+
+                    {loading ? (
+                        <ActivityIndicator color="#C3CE21" className="my-5" />
                     ) : (
-                        <View style={styles.contentTopAligned}>
-                            <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
-                                <Text style={styles.backButtonIcon}>{'<'}</Text>
-                            </TouchableOpacity>
-
-                            <Text style={styles.titleLeft}>Enter the Code</Text>
-                            <Text style={styles.subtitleLeft}>
-                                Enter OTP Received on <Text style={styles.boldText}>+91 {phoneNumber}</Text>
-                            </Text>
-
-                            {devCode && (
-                                <View style={styles.devCodeBanner}>
-                                    <Text style={styles.devCodeLabel}>DEV OTP (no SMS yet)</Text>
-                                    <Text style={styles.devCodeValue}>{devCode}</Text>
-                                </View>
-                            )}
-
-                            {/* 6 Digit OTP Boxes */}
-                            <TouchableOpacity activeOpacity={1} onPress={() => otpInputRef.current?.focus()} style={styles.otpRow}>
-                                {[0, 1, 2, 3, 4, 5].map((index) => {
-                                    const digit = otp[index];
-                                    const isActive = otp.length === index;
-                                    return (
-                                        <View key={index} style={[styles.otpBox, isActive && styles.otpBoxActive]}>
-                                            <Text style={styles.otpText}>{digit || ''}</Text>
-                                        </View>
-                                    );
-                                })}
-                            </TouchableOpacity>
-
-                            {/* Hidden TextInput handling real input */}
-                            <TextInput
-                                ref={otpInputRef}
-                                style={styles.hiddenInput}
-                                value={otp}
-                                onChangeText={setOtp}
-                                keyboardType="number-pad"
-                                maxLength={6}
-                                autoFocus
-                            />
-
-                            {otpError ? (
-                                <Text style={styles.otpErrorText}>{otpError}</Text>
-                            ) : null}
-
-                            {countdown > 0 ? (
-                                <Text style={styles.resendInfo}>
-                                    You can resend the code in {countdown} seconds
-                                </Text>
-                            ) : (
-                                <Text style={styles.resendInfo}>
-                                    Did not receive the code?
-                                </Text>
-                            )}
-
-                            {loading ? (
-                                <ActivityIndicator color="#C3CE21" style={{ marginVertical: 20 }} />
-                            ) : (
-                                <GradientButton title="Next" onPress={handleVerifyOtp} containerStyle={styles.buttonContainer} />
-                            )}
-
-                            <TouchableOpacity
-                                style={[styles.resendButton, countdown > 0 && { opacity: 0.5 }]}
-                                onPress={handleRequestOtp}
-                                disabled={countdown > 0 || loading}
-                            >
-                                <Text style={styles.resendText}>Resend OTP</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <GradientButton title="Get OTP" onPress={handleRequestOtp} className="w-full mb-5" />
                     )}
 
-                </KeyboardAvoidingView>
+                    <Text className="text-[#A0A0B0] font-poppins-regular text-[11px] text-center mt-5 leading-[18px]">
+                        By continuing, I confirm that i am at least 18 years old, and agree to{' '}
+                        <Text className="text-[#D1E61A] font-poppins-bold">Terms &amp; Conditions</Text> and{' '}
+                        <Text className="text-[#D1E61A] font-poppins-bold">Privacy Policy</Text>
+                    </Text>
+
+                    <TouchableOpacity
+                        className="mt-6"
+                        onPress={() => { loginAsGuest(); router.replace('/(tabs)'); }}
+                    >
+                        <Text className="text-[#6A5B80] font-poppins-regular text-[14px] underline">Skip for now</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* ── STEP 2: OTP (Animated Slide-In Overlay) ── */}
+                <Animated.View
+                    style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: '#000000' }, otpAnimatedStyle]}
+                >
+                    <LinearGradient colors={['#000000', '#201242']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+                    <View className="absolute inset-0 pt-10 px-6">
+                        {/* Back Button */}
+                        <TouchableOpacity
+                            className="w-11 h-11 rounded-full border border-[#4d4d63] justify-center items-center mb-[30px] mt-[40px]"
+                            onPress={() => animatedSetStep(1)}
+                        >
+                            <ChevronLeftIcon color="white" size={22} />
+                        </TouchableOpacity>
+
+                        <Text className="text-white font-poppins-semibold text-[26px] mb-[10px]">Enter the Code</Text>
+                        <Text className="text-[#A0A0B0] font-poppins-regular text-[14px] mb-6">
+                            Enter OTP Received on{' '}
+                            <Text className="text-white font-poppins-semibold">+91 {phoneNumber}</Text>
+                        </Text>
+
+                        {/* Dev OTP Banner */}
+                        {devCode && (
+                            <View
+                                style={{
+                                    backgroundColor: 'rgba(195,206,33,0.12)',
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(195,206,33,0.45)',
+                                    borderRadius: 12,
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 10,
+                                    marginBottom: 18,
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <Text style={{ color: '#C3CE21', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>
+                                    DEV OTP (no SMS yet)
+                                </Text>
+                                <Text style={{ color: '#fff', fontSize: 22, fontWeight: '700', letterSpacing: 6, marginTop: 4 }}>
+                                    {devCode}
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* 6-Digit OTP Boxes */}
+                        <TouchableOpacity
+                            activeOpacity={1}
+                            onPress={() => otpInputRef.current?.focus()}
+                            className="flex-row justify-between gap-[8px] mb-[20px] px-[4px]"
+                        >
+                            {[0, 1, 2, 3, 4, 5].map((index) => {
+                                const digit = otp[index];
+                                const isActive = otp.length === index;
+                                return (
+                                    <View
+                                        key={index}
+                                        className={`flex-1 aspect-square rounded-[18px] border justify-center items-center ${isActive ? 'border-white' : 'border-white/10'}`}
+                                    >
+                                        <Text className="text-white text-[22px] font-poppins-semibold">{digit || ''}</Text>
+                                    </View>
+                                );
+                            })}
+                        </TouchableOpacity>
+
+                        {/* Hidden real input — editable only when OTP screen is active */}
+                        <TextInput
+                            ref={otpInputRef}
+                            className="absolute w-[1px] h-[1px] opacity-0"
+                            value={otp}
+                            onChangeText={setOtp}
+                            keyboardType="number-pad"
+                            maxLength={6}
+                            editable={step === 2}
+                        />
+
+                        {/* OTP inline error */}
+                        {otpError ? (
+                            <Text className="text-red-400 font-poppins-regular text-[13px] text-center mb-4">
+                                {otpError}
+                            </Text>
+                        ) : null}
+
+                        {/* Countdown / resend info */}
+                        {countdown > 0 ? (
+                            <Text className="text-[#D4D4D4] font-poppins-regular text-[14px] text-center mb-8">
+                                You can resend the code in {countdown} seconds
+                            </Text>
+                        ) : (
+                            <Text className="text-[#D4D4D4] font-poppins-regular text-[14px] text-center mb-8">
+                                Did not receive the code?
+                            </Text>
+                        )}
+
+                        {loading ? (
+                            <ActivityIndicator color="#C3CE21" className="my-5" />
+                        ) : (
+                            <GradientButton title="Next" onPress={handleVerifyOtp} className="w-full mb-5" />
+                        )}
+
+                        <TouchableOpacity
+                            className="mt-6 items-center"
+                            onPress={handleRequestOtp}
+                            disabled={countdown > 0 || loading}
+                            style={{ opacity: countdown > 0 ? 0.5 : 1 }}
+                        >
+                            <Text className="text-[#A58BFF] font-poppins-semibold text-[16px]">Resend OTP</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
             </SafeAreaView>
+
+            {/* ── Custom Status Modal ── */}
+            <Modal
+                visible={statusModal.visible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setStatusModal({ ...statusModal, visible: false })}
+            >
+                <View className="flex-1 bg-black/60 justify-center items-center px-6">
+                    <View className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-[30px] p-8 w-full max-w-[340px] items-center">
+                        <Text className="text-white font-poppins-semibold text-[22px] text-center mb-2">
+                            {statusModal.title}
+                        </Text>
+                        <Text className="text-[#A0A0B0] font-poppins-regular text-[14px] text-center mb-8 leading-6">
+                            {statusModal.message}
+                        </Text>
+                        <GradientButton
+                            title="Okay"
+                            onPress={() => setStatusModal({ ...statusModal, visible: false })}
+                            className="w-full h-[54px]"
+                        />
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#000' },
-    keyboardView: { flex: 1 },
-
-    // Step 1 styling
-    contentCentered: { flex: 1, justifyContent: 'center', paddingHorizontal: 30, alignItems: 'center' },
-    logoContainer: { height: 120, width: 80, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
-    chevronTopContainer: { transform: [{ rotate: '45deg' }, { translateX: -10 }, { translateY: 0 }] },
-    chevronPart1: { width: 30, height: 14, backgroundColor: '#D1E61A', borderRadius: 7 },
-    chevronPart2: { width: 14, height: 30, backgroundColor: '#D1E61A', borderRadius: 7, position: 'absolute', right: 0, top: 0 },
-    chevronBottomContainer: { transform: [{ rotate: '-135deg' }, { translateX: -10 }, { translateY: -25 }] },
-    chevronPart1b: { width: 30, height: 14, backgroundColor: '#D1E61A', borderRadius: 7 },
-    chevronPart2b: { width: 14, height: 30, backgroundColor: '#D1E61A', borderRadius: 7, position: 'absolute', right: 0, top: 0 },
-
-    titleCentered: { fontSize: 36, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 16 },
-    subtitleCentered: { fontSize: 13, color: '#A0A0B0', textAlign: 'center', marginBottom: 36, lineHeight: 20, paddingHorizontal: 10 },
-
-    inputContainer: { flexDirection: 'row', backgroundColor: '#34264A', borderRadius: 30, paddingHorizontal: 20, paddingVertical: 14, alignItems: 'center', marginBottom: 8, width: '100%', minHeight: 60 },
-    inputContainerError: { borderWidth: 1.5, borderColor: '#EF4444' },
-    fieldErrorText: { color: '#EF4444', fontSize: 12, textAlign: 'center', marginBottom: 16, fontWeight: '500' },
-    countryCode: { flexDirection: 'row', alignItems: 'center', borderRightWidth: 1, borderRightColor: '#4f4066', paddingRight: 10, marginRight: 10 },
-    flagCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', overflow: 'hidden', marginRight: 8 },
-    flagStripeOrange: { flex: 1, backgroundColor: '#FF9933' },
-    flagStripeWhite: { flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-    flagStripeGreen: { flex: 1, backgroundColor: '#138808' },
-    chakra: { width: 6, height: 6, borderRadius: 3, borderWidth: 1, borderColor: '#000080' },
-    countryText: { color: '#fff', fontSize: 14, fontWeight: '600', marginRight: 6 },
-    dropdownIcon: { color: '#B0A0C0', fontSize: 12, transform: [{ scaleX: 1.5 }, { scaleY: 0.8 }], marginLeft: 4, fontWeight: '900' },
-    inputExpanded: { flex: 1, color: '#fff', fontSize: 16, minHeight: 30 },
-
-    // Step 2 styling (OTP)
-    contentTopAligned: { flex: 1, paddingTop: 40, paddingHorizontal: 24 },
-    backButton: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#4d4d63', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
-    step1BackButton: { position: 'absolute', top: 16, left: 16, width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#4d4d63', justifyContent: 'center', alignItems: 'center' },
-    backButtonIcon: { color: '#fff', fontSize: 18, fontWeight: '600', paddingBottom: 2 },
-    titleLeft: { fontSize: 30, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
-    subtitleLeft: { fontSize: 14, color: '#A0A0B0', marginBottom: 40 },
-    boldText: { color: '#fff', fontWeight: 'bold' },
-
-    otpRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 30, paddingHorizontal: 10 },
-    otpBox: { flex: 1, aspectRatio: 1, borderRadius: 40, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center' },
-    otpBoxActive: { borderColor: '#fff' },
-    otpText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-    hiddenInput: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-
-    devCodeBanner: {
-        backgroundColor: 'rgba(195, 206, 33, 0.12)',
-        borderWidth: 1,
-        borderColor: 'rgba(195, 206, 33, 0.45)',
-        borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        marginBottom: 18,
-        alignItems: 'center',
-    },
-    devCodeLabel: { color: '#C3CE21', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-    devCodeValue: { color: '#fff', fontSize: 22, fontWeight: '700', letterSpacing: 6, marginTop: 4 },
-    otpErrorText: { color: '#EF4444', fontSize: 13, textAlign: 'center', marginBottom: 14, fontWeight: '500' },
-    resendInfo: { color: '#D4D4D4', fontSize: 14, textAlign: 'center', marginBottom: 40 },
-    resendButton: { marginTop: 24, alignItems: 'center' },
-    resendText: { color: '#A58BFF', fontSize: 16, fontWeight: '600' },
-
-    buttonContainer: { width: '100%', marginBottom: 20 },
-    termsText: { color: '#A0A0B0', fontSize: 11, textAlign: 'center', marginTop: 20, lineHeight: 18 },
-    termsHighlight: { color: '#D1E61A', fontWeight: 'bold' },
-    skipButton: { marginTop: 24 },
-    skipText: { color: '#6A5B80', fontSize: 14, textDecorationLine: 'underline' }
-});

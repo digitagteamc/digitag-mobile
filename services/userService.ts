@@ -1,7 +1,10 @@
 const RAW_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim().replace(/\s+/g, '');
-const API_BASE_URL = RAW_BASE && !/\/api\/v\d+\/?$/.test(RAW_BASE)
-    ? `${RAW_BASE.replace(/\/+$/, '')}/api/v1`
-    : RAW_BASE.replace(/\/+$/, '');
+// const API_BASE_URL = RAW_BASE && !/\/api\/v\d+\/?$/.test(RAW_BASE)
+//     ? `${RAW_BASE.replace(/\/+$/, '')}/api/v1`
+//     : RAW_BASE.replace(/\/+$/, '');
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
 
 if (!RAW_BASE) {
     console.warn('EXPO_PUBLIC_API_BASE_URL is not defined in .env');
@@ -55,7 +58,7 @@ export const requestOtp = async (
         });
         return { success: true, ...(body?.data ?? {}) };
     } catch (error: any) {
-        console.error('❌ requestOtp error:', error.message);
+        console.warn('❌ requestOtp error:', error.message);
         const details = error instanceof ApiRequestError ? error.details : null;
         return {
             success: false,
@@ -93,7 +96,7 @@ export const verifyOtp = async (
             isProfileCompleted: data?.isProfileCompleted,
         };
     } catch (error: any) {
-        console.error('❌ verifyOtp error:', error.message);
+        console.warn('❌ verifyOtp error:', error.message);
         const details = error instanceof ApiRequestError ? error.details : null;
         return {
             success: false,
@@ -283,7 +286,7 @@ export const submitCreatorApplication = async (formData: any, token: string) => 
         console.log('✅ Creator profile created');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        console.error('❌ submitCreatorApplication error:', error.message);
+        console.warn('❌ submitCreatorApplication error:', error.message);
         return { success: false, error: error.message };
     }
 };
