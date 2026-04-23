@@ -3,7 +3,7 @@
  * from here (or via `useRoleTheme`) rather than hard-coding hex values.
  *
  * Role themes:
- *   - Creator    → purple
+ *   - Creator    → pink/magenta
  *   - Freelancer → orange
  *
  * Role-agnostic surfaces (backgrounds, typography, borders, semantic colors)
@@ -17,17 +17,19 @@ export interface RolePalette {
     hover: string;       // darker action for pressed/hover
     soft: string;        // tinted background (translucent)
     softStrong: string;  // tinted background (opaque-ish)
+    light: string;       // solid light version of the color
     border: string;      // translucent border tint
     onPrimary: string;   // text color on primary surface
 }
 
 export const rolePalettes: Record<Role, RolePalette> = {
     CREATOR: {
-        primary: '#7352DD',
-        hover: '#5C3DC4',
-        soft: 'rgba(115, 82, 221, 0.12)',
-        softStrong: 'rgba(115, 82, 221, 0.20)',
-        border: 'rgba(115, 82, 221, 0.55)',
+        primary: '#E91E8C',
+        hover: '#C4176F',
+        soft: 'rgba(233, 30, 140, 0.12)',
+        softStrong: 'rgba(233, 30, 140, 0.20)',
+        light: '#FFD6ED',
+        border: 'rgba(233, 30, 140, 0.55)',
         onPrimary: '#FFFFFF',
     },
     FREELANCER: {
@@ -35,6 +37,7 @@ export const rolePalettes: Record<Role, RolePalette> = {
         hover: '#DE5518',
         soft: 'rgba(242, 105, 48, 0.12)',
         softStrong: 'rgba(242, 105, 48, 0.20)',
+        light: '#FFE2D6',
         border: 'rgba(242, 105, 48, 0.55)',
         onPrimary: '#FFFFFF',
     },
@@ -92,5 +95,5 @@ export const radii = {
 };
 
 /** Default viewer role theme when no profile is visible (home, explore, messages, etc.).
- *  We pick purple as the neutral app accent. */
+ *  We pick pink (Creator) as the neutral app accent. */
 export const DEFAULT_ROLE: Role = 'CREATOR';

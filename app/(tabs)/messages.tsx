@@ -79,24 +79,18 @@ export default function MessagesTab() {
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+            <View style={styles.bgBlob} />
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.headerIconBtn}
                     onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
                 >
-                    <Ionicons name="chevron-back" size={20} color="#fff" />
+                    <Ionicons name="arrow-back" size={20} color="#fff" />
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.title}>Messages</Text>
                     <Text style={styles.subtitle}>Your Collab Conversations</Text>
                 </View>
-                <TouchableOpacity
-                    style={styles.headerIconBtn}
-                    onPress={() => router.push('/notifications' as any)}
-                    accessibilityLabel="Open notifications"
-                >
-                    <Ionicons name="notifications-outline" size={20} color="#fff" />
-                </TouchableOpacity>
             </View>
 
             <View style={styles.searchWrap}>
@@ -170,37 +164,63 @@ export default function MessagesTab() {
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#0A0A10' },
 
+    bgBlob: {
+        position: 'absolute',
+        width: 405,
+        height: 400,
+        borderRadius: 340,
+        backgroundColor: 'rgba(237, 42, 145, 0.15)',
+        filter: 'blur(65px)',
+    },
+
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 10,
         gap: 10,
+        marginTop: 20
     },
     headerIconBtn: {
         width: 36,
         height: 36,
-        borderRadius: 18,
-        backgroundColor: '#1A1A22',
+        paddingBottom: 18,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    title: { color: '#fff', fontSize: 22, fontFamily: 'Poppins_600SemiBold' },
-    subtitle: { color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2 },
+    title: { color: '#fff', fontSize: 24, fontFamily: 'Poppins_500Regular', lineHeight: 33, },
+    subtitle: { color: '#E2E2E2', fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2, lineHeight: 18 },
 
-    searchWrap: { paddingHorizontal: 16, paddingBottom: 14 },
+    searchWrap: { paddingHorizontal: 16, paddingBottom: 14, borderRadius: 12, marginTop: 15 },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        backgroundColor: '#1A1A22',
+        backgroundColor: "rgba(167, 167, 167, 0.14)",
+        boxShadow: "0 -3px 3px 0 rgba(255, 255, 255, 0.25) inset, 0 3px 3px 0 rgba(255, 255, 255, 0.25) inset, -42px 103px 31px 0 rgba(145, 145, 145, 0.00), -27px 66px 29px 0 rgba(145, 145, 145, 0.01), -15px 37px 24px 0 rgba(145, 145, 145, 0.03), -7px 17px 18px 0 rgba(145, 145, 145, 0.04), -2px 4px 10px 0 rgba(145, 145, 145, 0.05)",
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 10,
-    },
-    searchInput: { flex: 1, color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular' },
+        borderColor: "rgba(156, 156, 156, 0.50)",
+        borderWidth: 1,
+        backdropFilter: 'blur(10px)',
+        width: 385,
+        height: 56,
 
-    centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+
+    },
+    searchInput: {
+        flex: 1,
+        color: '#fff',
+        fontSize: 14,
+        fontFamily: 'Poppins_400Regular',
+
+        textAlignVertical: 'center', // ✅ Android
+        paddingVertical: 0,          // ✅ removes extra space
+        includeFontPadding: false,   // 🔥 Android perfect centering
+    },
+    centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', },
 
     emptyBox: {
         flex: 1,
@@ -219,20 +239,20 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         gap: 12,
     },
-    avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#2A2A32' },
+    avatar: { width: 52, height: 52, borderRadius: 52, backgroundColor: '#2A2A32' },
     initialsAvatar: { alignItems: 'center', justifyContent: 'center' },
     initialsText: { color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
 
     rowBody: { flex: 1 },
-    rowName: { color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold' },
+    rowName: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_400Regular', lineHeight: 20, letterSpacing: -0.50 },
     rowPreview: { color: '#8A8A99', fontSize: 13, fontFamily: 'Poppins_400Regular', marginTop: 3 },
 
     rowRight: { alignItems: 'flex-end', gap: 6 },
-    rowTime: { color: '#8A8A99', fontSize: 11, fontFamily: 'Poppins_400Regular' },
+    rowTime: { color: '#FFF', fontSize: 12, fontFamily: 'Poppins_400Regular', letterSpacing: -0.50 },
     unreadBadge: {
-        minWidth: 22,
-        height: 22,
-        borderRadius: 11,
+        minWidth: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: ACCENT,
         alignItems: 'center',
         justifyContent: 'center',

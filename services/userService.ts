@@ -1,7 +1,10 @@
 const RAW_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim().replace(/\s+/g, '');
-const API_BASE_URL = RAW_BASE && !/\/api\/v\d+\/?$/.test(RAW_BASE)
-    ? `${RAW_BASE.replace(/\/+$/, '')}/api/v1`
-    : RAW_BASE.replace(/\/+$/, '');
+// const API_BASE_URL = RAW_BASE && !/\/api\/v\d+\/?$/.test(RAW_BASE)
+//     ? `${RAW_BASE.replace(/\/+$/, '')}/api/v1`
+//     : RAW_BASE.replace(/\/+$/, '');
+const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || '')
+    .trim()
+    .replace(/\/+$/, '');
 
 if (!RAW_BASE) {
     console.warn('EXPO_PUBLIC_API_BASE_URL is not defined in .env');
