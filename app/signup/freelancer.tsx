@@ -28,7 +28,12 @@ import {
 } from '../../services/userService';
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
-const LEVELS = ['Beginner', 'Intermediate', 'Pro'];
+const LEVELS = [
+    { key: 'BEGINNER', label: 'Beginner' },
+    { key: 'INTERMEDIATE', label: 'Intermediate' },
+    { key: 'ADVANCED', label: 'Advanced' },
+    { key: 'EXPERT', label: 'Expert' }
+];
 const AVAILABILITY_OPTIONS = [
     { key: 'AVAILABLE', label: 'Available' },
     { key: 'BUSY', label: 'Busy' },
@@ -271,7 +276,7 @@ export default function FreelancerSignup() {
     const [form, setForm] = useState({
         name: '',
         email: '',
-        language: '',
+        languages: [] as string[],
         categoryIds: [] as string[],
         bio: '',
         portfolioUrl: '',
@@ -313,8 +318,8 @@ export default function FreelancerSignup() {
                         ...prev,
                         name: p.name || '',
                         email: p.email || '',
-                        categoryIds: p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : [],
-                        language: p.language || '',
+                        categoryIds: p.categories?.length > 0 ? p.categories : (p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : []),
+                        languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : []),
                         bio: p.bio || '',
                         location: p.location || '',
                         profilePicture: p.profilePicture || null,
@@ -338,6 +343,12 @@ export default function FreelancerSignup() {
             if (!cancelled) setPrefilling(false);
         })();
 
+        return () => {
+            cancelled = true;
+        };
+    }, [token]);
+
+    useEffect(() => {
         const backAction = () => {
             if (step === 2) {
                 setStep(1);
@@ -345,27 +356,18 @@ export default function FreelancerSignup() {
             }
             return false;
         };
-
         const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-        return () => {
-            cancelled = true;
-            backHandler.remove();
-        };
-    }, [step, token]);
+        return () => backHandler.remove();
+    }, [step]);
 
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
             form.email.trim() !== '' &&
-            form.language !== '' &&
+            form.languages.length > 0 &&
             form.categoryIds.length > 0 &&
             form.bio.trim() !== '' &&
-            form.portfolioUrl.trim() !== '' &&
-            form.instagramHandle.trim() !== '' &&
-            form.youtubeHandle.trim() !== '' &&
-            form.facebookHandle.trim() !== '' &&
-            form.twitterHandle.trim() !== '' &&
-            form.snapchatHandle.trim() !== ''
+            form.portfolioUrl.trim() !== ''
         );
     }, [form]);
 
@@ -400,9 +402,8 @@ export default function FreelancerSignup() {
     const stripHandle = (v: string) => v.trim().replace(/^@/, '');
 
     const handleNext = () => {
-        if (!form.name || !form.email || !form.language || form.categoryIds.length === 0 || !form.bio || !form.portfolioUrl ||
-            !form.instagramHandle || !form.youtubeHandle || !form.facebookHandle || !form.twitterHandle || !form.snapchatHandle) {
-            Alert.alert('Incomplete Form', 'Please fill in all required fields including bio, portfolio, and all social media handles.');
+        if (!form.name || !form.email || form.languages.length === 0 || form.categoryIds.length === 0 || !form.bio || !form.portfolioUrl) {
+            Alert.alert('Incomplete Form', 'Please fill in all required fields including bio and portfolio.');
             return;
         }
         setStep(2);
@@ -421,8 +422,8 @@ export default function FreelancerSignup() {
             const payload: any = {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
-                categoryId: form.categoryIds.join(', '),
-                language: form.language,
+                categories: form.categoryIds,
+                languages: form.languages,
                 bio: form.bio.trim(),
                 location: form.location.trim(),
                 profilePicture: form.profilePicture,
@@ -542,10 +543,11 @@ export default function FreelancerSignup() {
                             <SelectField
                                 label="Language"
                                 required
-                                placeholder="Select Language"
+                                placeholder="Select Language(s)"
                                 options={LANGUAGES}
-                                selected={form.language}
-                                onSelect={(v: string) => setForm({ ...form, language: v })}
+                                selected={form.languages}
+                                onSelect={(v: string[]) => setForm({ ...form, languages: v })}
+                                multiSelect
                             />
                             <SelectField
                                 label="Category"
@@ -671,6 +673,8 @@ export default function FreelancerSignup() {
                                 options={LEVELS}
                                 selected={form.experienceLevel}
                                 onSelect={(v: string) => setForm({ ...form, experienceLevel: v })}
+                                itemKey={(i: any) => i.key}
+                                itemLabel={(i: any) => i.label}
                             />
 
                             <SelectField

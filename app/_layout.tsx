@@ -1,20 +1,20 @@
 import { AuthProvider } from '@/context/AuthContext';
-import { Stack } from 'expo-router';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { 
-  useFonts,
-  Poppins_200ExtraLight,
-  Poppins_400Regular,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-  Poppins_800ExtraBold 
-} from '@expo-google-fonts/poppins';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import {
+    Poppins_200ExtraLight,
+    Poppins_400Regular,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
+    useFonts
+} from '@expo-google-fonts/poppins';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
-import '../global.css';
 
 export default function RootLayout() {
     const [loaded, error] = useFonts({
@@ -40,12 +40,12 @@ export default function RootLayout() {
     return (
         <SafeAreaProvider>
             <AuthProvider>
-                <Stack 
-                    screenOptions={{ 
-                        headerShown: false, 
+                <Stack
+                    screenOptions={{
+                        headerShown: false,
                         animation: 'slide_from_right',
                         contentStyle: { backgroundColor: '#000000' }
-                    }} 
+                    }}
                     initialRouteName="index"
                 >
                     <Stack.Screen name="index" />

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -29,6 +29,7 @@ interface ProfileData {
   profilePicture?: string | null;
   bio?: string | null;
   category?: string | null;
+  categories?: string[] | null;
   // Creator-specific
   instagramHandle?: string | null;
   instagramFollowers?: number | null;
@@ -47,11 +48,11 @@ interface ProfileData {
 }
 
 const MENU_ITEMS = [
-  { id: 'edit_profile', icon: 'create-outline' as const,           label: 'Edit Profile' },
-  { id: 'saved',        icon: 'heart-outline' as const,            label: 'Saved Posts' },
-  { id: 'settings',    icon: 'settings-outline' as const,          label: 'Settings' },
-  { id: 'help',         icon: 'help-circle-outline' as const,      label: 'Help & Support' },
-  { id: 'about',        icon: 'information-circle-outline' as const,label: 'About Digitag' },
+  { id: 'edit_profile', icon: 'create-outline' as const, label: 'Edit Profile' },
+  { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts' },
+  { id: 'settings', icon: 'settings-outline' as const, label: 'Settings' },
+  { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support' },
+  { id: 'about', icon: 'information-circle-outline' as const, label: 'About Digitag' },
 ];
 
 export default function ProfileScreen() {
@@ -68,91 +69,94 @@ export default function ProfileScreen() {
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [myCollabs, setMyCollabs] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (isGuest || !token) {
-        setProfile({
-          name: 'Guest',
-          phone: userPhone || '',
-          role: 'GUEST',
-        });
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const res = await getFullProfile(token);
-        // Hydrate dual-role profile map so the role-switcher screen has the
-        // freshest state without an extra round-trip.
-        if (res.success && res.data?.profiles) {
-          setProfiles(res.data.profiles);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchProfile = async () => {
+        if (isGuest || !token) {
+          setProfile({
+            name: 'Guest',
+            phone: userPhone || '',
+            role: 'GUEST',
+          });
+          setLoading(false);
+          return;
         }
-        // Fetch counts, posts and collabs in parallel
-        const [countRes, postsRes, collabsRes] = await Promise.all([
+
+        try {
+          const res = await getFullProfile(token);
+          // Hydrate dual-role profile map so the role-switcher screen has the
+          // freshest state without an extra round-trip.
+          if (res.success && res.data?.profiles) {
+            setProfiles(res.data.profiles);
+          }
+          // Fetch counts, posts and collabs in parallel
+          const [countRes, postsRes, collabsRes] = await Promise.all([
             getUserStats(token),
             getMyPosts(token, { limit: '20' }),
             listCollaborations(token, { status: 'ACCEPTED', direction: 'all' }),
-        ]);
-        if (countRes.success && countRes.data) {
-          setFollowerCount(countRes.data.followerCount ?? 0);
-          setFollowingCount(countRes.data.followingCount ?? 0);
-          setCollabCount(countRes.data.collabCount ?? 0);
-        }
-        if (postsRes.success) setMyPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
-        if (collabsRes.success) setMyCollabs(Array.isArray(collabsRes.data) ? collabsRes.data : []);
-        if (res.success && res.data?.profile) {
-          const p = res.data.profile;
-          const role = res.data.role || userRole || 'USER';
-          const base: ProfileData = {
-            name: p.name || 'User',
-            phone: userPhone || '',
-            role,
-            profilePicture: p.profilePicture || null,
-            bio: p.bio || null,
-            category: p.category?.name || null,
-          };
-          if (role === 'CREATOR') {
-            Object.assign(base, {
-              instagramHandle: p.instagramHandle || null,
-              instagramFollowers: p.instagramFollowers ?? null,
-              youtubeHandle: p.youtubeHandle || null,
-              youtubeFollowers: p.youtubeFollowers ?? null,
-              twitterHandle: p.twitterHandle || null,
-              twitterFollowers: p.twitterFollowers ?? null,
-              preferredCollabType: p.preferredCollabType || null,
-              isAvailableForCollab: p.isAvailableForCollab ?? true,
-            });
+          ]);
+          if (countRes.success && countRes.data) {
+            setFollowerCount(countRes.data.followerCount ?? 0);
+            setFollowingCount(countRes.data.followingCount ?? 0);
+            setCollabCount(countRes.data.collabCount ?? 0);
+          }
+          if (postsRes.success) setMyPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
+          if (collabsRes.success) setMyCollabs(Array.isArray(collabsRes.data) ? collabsRes.data : []);
+          if (res.success && res.data?.profile) {
+            const p = res.data.profile;
+            const role = res.data.role || userRole || 'USER';
+            const base: ProfileData = {
+              name: p.name || 'User',
+              phone: userPhone || '',
+              role,
+              profilePicture: p.profilePicture || null,
+              bio: p.bio || null,
+              category: p.category?.name || null,
+              categories: p.categories && p.categories.length > 0 ? p.categories : null,
+            };
+            if (role === 'CREATOR') {
+              Object.assign(base, {
+                instagramHandle: p.instagramHandle || null,
+                instagramFollowers: p.instagramFollowers ?? null,
+                youtubeHandle: p.youtubeHandle || null,
+                youtubeFollowers: p.youtubeFollowers ?? null,
+                twitterHandle: p.twitterHandle || null,
+                twitterFollowers: p.twitterFollowers ?? null,
+                preferredCollabType: p.preferredCollabType || null,
+                isAvailableForCollab: p.isAvailableForCollab ?? true,
+              });
+            } else {
+              Object.assign(base, {
+                skills: Array.isArray(p.skills) ? p.skills : null,
+                hourlyRate: p.hourlyRate ? Number(p.hourlyRate) : null,
+                experienceLevel: p.experienceLevel || null,
+                portfolioUrl: p.portfolioUrl || null,
+                availability: p.availability || 'AVAILABLE',
+              });
+            }
+            setProfile(base);
           } else {
-            Object.assign(base, {
-              skills: Array.isArray(p.skills) ? p.skills : null,
-              hourlyRate: p.hourlyRate ? Number(p.hourlyRate) : null,
-              experienceLevel: p.experienceLevel || null,
-              portfolioUrl: p.portfolioUrl || null,
-              availability: p.availability || 'AVAILABLE',
+            setProfile({
+              name: 'User',
+              phone: userPhone || '',
+              role: userRole || 'USER',
             });
           }
-          setProfile(base);
-        } else {
+        } catch (e) {
+          console.error('Profile fetch error:', e);
           setProfile({
             name: 'User',
             phone: userPhone || '',
             role: userRole || 'USER',
           });
+        } finally {
+          setLoading(false);
         }
-      } catch (e) {
-        console.error('Profile fetch error:', e);
-        setProfile({
-          name: 'User',
-          phone: userPhone || '',
-          role: userRole || 'USER',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      };
 
-    fetchProfile();
-  }, [token, isGuest]);
+      fetchProfile();
+    }, [token, isGuest])
+  );
 
   const handleMenuPress = (id: string) => {
     if (id === 'edit_profile') {
@@ -180,7 +184,7 @@ export default function ProfileScreen() {
   };
 
   const openLink = (url: string | null | undefined) => {
-    if (url) Linking.openURL(url).catch(() => {});
+    if (url) Linking.openURL(url).catch(() => { });
   };
 
   const fmtCount = (n?: number | null) => {
@@ -282,7 +286,11 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Category + location */}
-                {profile?.category ? (
+                {(profile?.categories && profile.categories.length > 0) ? (
+                  <Text style={[styles.categoryText, { color: theme.primary }]} numberOfLines={1}>
+                    {profile.categories.map(c => `#${c}`).join(' ')}
+                  </Text>
+                ) : profile?.category ? (
                   <Text style={[styles.categoryText, { color: theme.primary }]}>#{profile.category}</Text>
                 ) : null}
               </View>
@@ -357,12 +365,14 @@ export default function ProfileScreen() {
           {profile && profile.role === 'FREELANCER' && (
             <View style={styles.statsCard}>
               <View style={styles.badgeRow}>
-                {(() => { const c = availColor(profile.availability); return (
-                  <View style={[styles.availBadge, { backgroundColor: c.bg }]}>
-                    <View style={[styles.availDot, { backgroundColor: c.dot }]} />
-                    <Text style={[styles.availText, { color: c.text }]}>{fmtAvailability(profile.availability)}</Text>
-                  </View>
-                ); })()}
+                {(() => {
+                  const c = availColor(profile.availability); return (
+                    <View style={[styles.availBadge, { backgroundColor: c.bg }]}>
+                      <View style={[styles.availDot, { backgroundColor: c.dot }]} />
+                      <Text style={[styles.availText, { color: c.text }]}>{fmtAvailability(profile.availability)}</Text>
+                    </View>
+                  );
+                })()}
                 {profile.experienceLevel && (
                   <View style={[styles.expBadge, { backgroundColor: theme.soft, borderColor: theme.border }]}>
                     <Text style={[styles.expText, { color: theme.primary }]}>{profile.experienceLevel}</Text>
@@ -466,20 +476,21 @@ export default function ProfileScreen() {
 
             {MENU_ITEMS.map((item, index) => {
               return (
-              <React.Fragment key={item.id}>
-                <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
-                  {/* Icon pill */}
-                  <View style={[styles.menuIconPill, { borderColor: theme.border }]}>
-                    <Ionicons name={item.icon} size={16} color={theme.primary} />
-                  </View>
-                  <Text style={styles.menuLabel}>{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#9a9a9a" />
-                </TouchableOpacity>
+                <React.Fragment key={item.id}>
+                  <TouchableOpacity style={styles.menuRow} activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
+                    {/* Icon pill */}
+                    <View style={[styles.menuIconPill, { borderColor: theme.border }]}>
+                      <Ionicons name={item.icon} size={16} color={theme.primary} />
+                    </View>
+                    <Text style={styles.menuLabel}>{item.label}</Text>
+                    <Ionicons name="chevron-forward" size={14} color="#9a9a9a" />
+                  </TouchableOpacity>
 
-                {/* Divider (not after last item) */}
-                {index < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
-              </React.Fragment>
-            )})}
+                  {/* Divider (not after last item) */}
+                  {index < MENU_ITEMS.length - 1 && <View style={styles.menuDivider} />}
+                </React.Fragment>
+              )
+            })}
           </View>
 
           {/* ══════════ LOGOUT BUTTON ══════════ */}

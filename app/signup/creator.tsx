@@ -281,7 +281,7 @@ export default function CreatorSignup() {
     const [form, setForm] = useState({
         name: '',
         email: '',
-        language: '',
+        languages: [] as string[],
         categoryIds: [] as string[],
         bio: '',
         portfolio: '',
@@ -312,10 +312,12 @@ export default function CreatorSignup() {
                         ...prev,
                         name: p.name || '',
                         email: p.email || '',
-                        categoryIds: p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : [],
-                        language: p.language || '',
+                        categoryIds: p.categories?.length > 0 ? p.categories : (p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : []),
+                        languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : []),
                         bio: p.bio || '',
                         profilePicture: p.profilePicture || null,
+                        portfolio: p.portfolioUrl || '',
+                        experienceLevel: p.experienceLevel || '',
                         instagramHandle: p.instagramHandle || '',
                         instagramFollowers: p.instagramFollowers?.toString() || '',
                         youtubeHandle: p.youtubeHandle || '',
@@ -332,6 +334,12 @@ export default function CreatorSignup() {
             if (!cancelled) setPrefilling(false);
         })();
 
+        return () => {
+            cancelled = true;
+        };
+    }, [token]);
+
+    useEffect(() => {
         const backAction = () => {
             if (step === 2) {
                 setStep(1);
@@ -339,27 +347,18 @@ export default function CreatorSignup() {
             }
             return false;
         };
-
         const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-        return () => {
-            cancelled = true;
-            backHandler.remove();
-        };
-    }, [step, token]);
+        return () => backHandler.remove();
+    }, [step]);
 
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
             form.email.trim() !== '' &&
-            form.language !== '' &&
+            form.languages.length > 0 &&
             form.categoryIds.length > 0 &&
             form.bio.trim() !== '' &&
-            form.portfolio.trim() !== '' &&
-            form.instagramHandle.trim() !== '' &&
-            form.youtubeHandle.trim() !== '' &&
-            form.facebookHandle.trim() !== '' &&
-            form.twitterHandle.trim() !== '' &&
-            form.snapchatHandle.trim() !== ''
+            form.portfolio.trim() !== ''
         );
     }, [form]);
 
@@ -391,9 +390,8 @@ export default function CreatorSignup() {
     const stripHandle = (v: string) => v.trim().replace(/^@/, '');
 
     const handleNext = () => {
-        if (!form.name || !form.email || !form.language || form.categoryIds.length === 0 || !form.bio || !form.portfolio ||
-            !form.instagramHandle || !form.youtubeHandle || !form.facebookHandle || !form.twitterHandle || !form.snapchatHandle) {
-            Alert.alert('Incomplete Form', 'Please fill in all required fields including bio, portfolio, and all social media handles.');
+        if (!form.name || !form.email || form.languages.length === 0 || form.categoryIds.length === 0 || !form.bio || !form.portfolio) {
+            Alert.alert('Incomplete Form', 'Please fill in all required fields including bio and portfolio.');
             return;
         }
         setStep(2);
@@ -406,10 +404,12 @@ export default function CreatorSignup() {
             const payload: any = {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
-                categoryId: form.categoryIds.join(', '),
-                language: form.language,
+                categories: form.categoryIds,
+                languages: form.languages,
                 bio: form.bio.trim(),
                 profilePicture: form.profilePicture,
+                portfolioUrl: form.portfolio.trim(),
+                experienceLevel: form.experienceLevel,
             };
 
             const ig = stripHandle(form.instagramHandle);
@@ -444,7 +444,11 @@ export default function CreatorSignup() {
             if (result.success) {
                 setProfileCompleted(true);
                 setProfiles({ CREATOR: true });
-                router.replace('/signup/pending');
+                if (mode === 'update') {
+                    router.replace('/(tabs)');
+                } else {
+                    router.replace('/signup/pending');
+                }
             } else {
                 Alert.alert('Error', result.error || 'Failed to save profile');
             }
@@ -525,10 +529,11 @@ export default function CreatorSignup() {
                             <SelectField
                                 label="Language"
                                 required
-                                placeholder="Select Language"
+                                placeholder="Select Language(s)"
                                 options={LANGUAGES}
-                                selected={form.language}
-                                onSelect={(v: string) => setForm({ ...form, language: v })}
+                                selected={form.languages}
+                                onSelect={(v: string[]) => setForm({ ...form, languages: v })}
+                                multiSelect
                             />
                             <SelectField
                                 label="Category"
