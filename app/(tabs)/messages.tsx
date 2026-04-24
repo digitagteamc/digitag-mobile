@@ -43,7 +43,7 @@ function formatTime(dateStr: string | null | undefined) {
 
 export default function MessagesTab() {
     const router = useRouter();
-    const { token, isGuest } = useAuth();
+    const { token, isGuest, userRole } = useAuth();
 
     const [conversations, setConversations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,9 +77,14 @@ export default function MessagesTab() {
         router.push({ pathname: '/chat/[id]', params: { id: conv.id } } as any);
     };
 
+    // UI colors based on viewer's role
+    const isFreelancer = userRole === 'FREELANCER';
+    const blobColor = isFreelancer ? 'rgba(237, 42, 145, 0.15)' : 'rgba(242, 105, 48, 0.15)';
+    const accentColor = isFreelancer ? '#E91E8C' : '#F26930';
+
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-            <View style={styles.bgBlob} />
+            <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.headerIconBtn}
@@ -109,7 +114,7 @@ export default function MessagesTab() {
 
             {loading ? (
                 <View style={styles.centerWrap}>
-                    <ActivityIndicator color={ACCENT} size="large" />
+                    <ActivityIndicator color={accentColor} size="large" />
                 </View>
             ) : filtered.length === 0 ? (
                 <View style={styles.emptyBox}>
@@ -123,7 +128,7 @@ export default function MessagesTab() {
                 <FlatList
                     data={filtered}
                     keyExtractor={(c) => c.id}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ACCENT} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accentColor} />}
                     contentContainerStyle={{ paddingBottom: 120 }}
                     renderItem={({ item }) => {
                         const name = item.other?.name || (item.other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
@@ -147,7 +152,10 @@ export default function MessagesTab() {
                                 <View style={styles.rowRight}>
                                     <Text style={styles.rowTime}>{when}</Text>
                                     {unread > 0 ? (
-                                        <View style={styles.unreadBadge}>
+                                        <View style={[
+                                            styles.unreadBadge,
+                                            { backgroundColor: item.other?.role === 'CREATOR' ? '#E91E8C' : '#F26930' }
+                                        ]}>
                                             <Text style={styles.unreadText}>{unread}</Text>
                                         </View>
                                     ) : null}
@@ -253,7 +261,6 @@ const styles = StyleSheet.create({
         minWidth: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: ACCENT,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 6,

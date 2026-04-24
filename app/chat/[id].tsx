@@ -17,12 +17,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import {
+    sendMessage as apiSendMessage,
     getConversation,
     listMessages,
-    sendMessage as apiSendMessage,
 } from '../../services/userService';
 
-const ACCENT = '#7352DD';
+const DARK_BUBBLE = '#1C1C1C';
 
 function getInitials(name: string | null | undefined) {
     if (!name) return 'U';
@@ -48,7 +48,7 @@ function formatTime(dateStr: string | null | undefined) {
 export default function ChatScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
-    const { token, userId } = useAuth();
+    const { token, userId, userRole } = useAuth();
 
     const [other, setOther] = useState<any>(null);
     const [messages, setMessages] = useState<any[]>([]);
@@ -112,17 +112,25 @@ export default function ChatScreen() {
 
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     const pic = other?.profilePicture || null;
+    
+    // Dynamic colors based on role
+    const otherColor = other?.role === 'FREELANCER' ? '#F26930' : '#E91E8C';
+    const myAccent = userRole === 'FREELANCER' ? '#E91E8C' : '#F26930';
+    const blobColor = userRole === 'FREELANCER' ? 'rgba(237, 42, 145, 0.15)' : 'rgba(242, 105, 48, 0.15)';
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+            <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
+            
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
-                    style={styles.headerIconBtn}
+                    style={styles.headerBackBtn}
                     onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/messages'))}
                 >
-                    <Ionicons name="chevron-back" size={20} color="#fff" />
+                    <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
+                
                 <View style={styles.headerMid}>
                     {pic ? (
                         <Image source={{ uri: pic }} style={styles.headerAvatar} />
@@ -133,20 +141,23 @@ export default function ChatScreen() {
                     )}
                     <View>
                         <Text style={styles.headerName}>{name}</Text>
-                        <Text style={styles.headerRole}>{other?.role || ''}</Text>
+                        <Text style={styles.headerStatus}>Last Seen at 11:30am</Text>
                     </View>
                 </View>
-                <TouchableOpacity
-                    style={styles.headerIconBtn}
-                    onPress={() => Alert.alert('Coming Soon', 'In-app calling is not yet wired up.')}
-                >
-                    <Ionicons name="call" size={18} color="#fff" />
-                </TouchableOpacity>
+
+                <View style={styles.headerRight}>
+                    <TouchableOpacity style={styles.headerIconBtn}>
+                        <Ionicons name="videocam-outline" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.headerIconBtn}>
+                        <Ionicons name="call-outline" size={22} color="#fff" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {loading ? (
                 <View style={styles.centerWrap}>
-                    <ActivityIndicator color={ACCENT} size="large" />
+                    <ActivityIndicator color={myAccent} size="large" />
                 </View>
             ) : (
                 <KeyboardAvoidingView
@@ -160,18 +171,29 @@ export default function ChatScreen() {
                         keyExtractor={(m) => m.id}
                         contentContainerStyle={styles.messagesContent}
                         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+                        ListHeaderComponent={
+                            <View style={styles.dateSeparator}>
+                                <Text style={styles.dateText}>Today</Text>
+                            </View>
+                        }
                         renderItem={({ item }) => {
                             const mine = item.senderId === userId;
                             return (
-                                <View style={[styles.bubbleRow, mine ? styles.rowRight : styles.rowLeft]}>
-                                    <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
-                                        <Text style={mine ? styles.bubbleTextMine : styles.bubbleTextTheirs}>
+                                <View style={[styles.bubbleWrapper, mine ? styles.rowRight : styles.rowLeft]}>
+                                    <View style={[
+                                        styles.bubble, 
+                                        mine ? styles.bubbleMine : { ...styles.bubbleTheirs, backgroundColor: otherColor }
+                                    ]}>
+                                        <Text style={styles.bubbleText}>
                                             {item.content}
                                         </Text>
-                                        <Text style={[styles.bubbleTime, mine ? styles.timeMine : styles.timeTheirs]}>
-                                            {formatTime(item.createdAt)}{item.pending ? '  ·  sending…' : ''}
-                                        </Text>
                                     </View>
+                                    {mine && (
+                                        <View style={styles.mineMeta}>
+                                            <Text style={styles.mineTime}>{formatTime(item.createdAt)}</Text>
+                                            <Ionicons name="checkmark-done" size={16} color="#fff" style={{ marginLeft: 4 }} />
+                                        </View>
+                                    )}
                                 </View>
                             );
                         }}
@@ -183,27 +205,38 @@ export default function ChatScreen() {
                         }
                     />
 
-                    <View style={styles.composer}>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Type a message…"
-                            placeholderTextColor="#6B6B7A"
-                            value={input}
-                            onChangeText={setInput}
-                            multiline
-                            maxLength={4000}
-                        />
-                        <TouchableOpacity
-                            style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
-                            onPress={handleSend}
-                            disabled={!input.trim() || sending}
-                        >
-                            {sending ? (
-                                <ActivityIndicator color="#fff" size="small" />
-                            ) : (
-                                <Ionicons name="paper-plane" size={18} color="#fff" />
-                            )}
-                        </TouchableOpacity>
+                    <View style={styles.composerWrapper}>
+                        <View style={styles.composer}>
+                            <TouchableOpacity style={[styles.composerCircleBtn, { backgroundColor: myAccent }]}>
+                                <Ionicons name="camera" size={20} color="#fff" />
+                            </TouchableOpacity>
+                            
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Type a Message..."
+                                placeholderTextColor="#8A8A99"
+                                value={input}
+                                onChangeText={setInput}
+                                multiline
+                                maxLength={4000}
+                            />
+
+                            <TouchableOpacity style={styles.attachBtn}>
+                                <Ionicons name="attach" size={24} color="#fff" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.composerCircleBtn, { backgroundColor: myAccent }, (!input.trim() || sending) && styles.sendBtnDisabled]}
+                                onPress={handleSend}
+                                disabled={!input.trim() || sending}
+                            >
+                                {sending ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <Ionicons name="paper-plane" size={18} color="#fff" />
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </KeyboardAvoidingView>
             )}
@@ -212,89 +245,180 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#0A0A10' },
+    safe: { flex: 1, backgroundColor: '#060606' },
+
+    bgBlob: {
+        position: 'absolute',
+        top: -50,
+        right: -50,
+        width: 405,
+        height: 400,
+        borderRadius: 340,
+        backgroundColor: 'rgba(237, 42, 145, 0.15)',
+        filter: 'blur(65px)',
+    },
 
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 14,
+        paddingHorizontal: 16,
         paddingVertical: 12,
-        gap: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#1C1C24',
+        borderBottomColor: 'rgba(255,255,255,0.1)',
+        marginTop: Platform.OS === 'android' ? 10 : 0,
     },
-    headerIconBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#1A1A22',
+    headerBackBtn: {
+        paddingRight: 12,
+    },
+    headerMid: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#2A2A32',
+    },
+    headerInitialsAvatar: {
         alignItems: 'center',
         justifyContent: 'center',
     },
-    headerMid: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-    headerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A32' },
-    headerInitialsAvatar: { alignItems: 'center', justifyContent: 'center' },
-    headerInitialsText: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_600SemiBold' },
-    headerName: { color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold' },
-    headerRole: { color: '#8A8A99', fontSize: 11, fontFamily: 'Poppins_400Regular' },
+    headerInitialsText: {
+        color: '#fff',
+        fontSize: 16,
+        fontFamily: 'Poppins_600SemiBold',
+    },
+    headerName: {
+        color: '#fff',
+        fontSize: 18,
+        fontFamily: 'Poppins_600SemiBold',
+        lineHeight: 24,
+    },
+    headerStatus: {
+        color: '#8A8A99',
+        fontSize: 12,
+        fontFamily: 'Poppins_400Regular',
+    },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    headerIconBtn: {
+        padding: 4,
+    },
 
-    centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    centerWrap: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 
     messagesContent: {
-        paddingHorizontal: 12,
+        paddingHorizontal: 16,
         paddingVertical: 16,
-        gap: 8,
         flexGrow: 1,
     },
-    bubbleRow: { flexDirection: 'row' },
-    rowRight: { justifyContent: 'flex-end' },
-    rowLeft: { justifyContent: 'flex-start' },
-    bubble: {
-        maxWidth: '78%',
-        paddingHorizontal: 14,
-        paddingVertical: 9,
-        borderRadius: 18,
+    dateSeparator: {
+        alignItems: 'center',
+        marginVertical: 20,
     },
-    bubbleMine: { backgroundColor: ACCENT, borderBottomRightRadius: 4 },
-    bubbleTheirs: { backgroundColor: '#1C1C24', borderBottomLeftRadius: 4 },
-    bubbleTextMine: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 20 },
-    bubbleTextTheirs: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 20 },
-    bubbleTime: { fontSize: 10, marginTop: 4, fontFamily: 'Poppins_400Regular' },
-    timeMine: { color: 'rgba(255,255,255,0.7)', alignSelf: 'flex-end' },
-    timeTheirs: { color: '#6B6B7A', alignSelf: 'flex-start' },
-
-    emptyBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 8 },
-    emptyText: { color: '#6B6B7A', fontSize: 13, fontFamily: 'Poppins_400Regular' },
-
-    composer: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderTopWidth: 1,
-        borderTopColor: '#1C1C24',
-        gap: 10,
-        backgroundColor: '#0A0A10',
-    },
-    input: {
-        flex: 1,
-        minHeight: 42,
-        maxHeight: 120,
-        backgroundColor: '#1C1C24',
-        borderRadius: 20,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        color: '#fff',
+    dateText: {
+        color: '#8A8A99',
         fontSize: 14,
         fontFamily: 'Poppins_400Regular',
     },
-    sendBtn: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        backgroundColor: ACCENT,
+
+    bubbleWrapper: {
+        marginBottom: 16,
+    },
+    rowRight: {
+        alignItems: 'flex-end',
+    },
+    rowLeft: {
+        alignItems: 'flex-start',
+    },
+    bubble: {
+        maxWidth: '85%',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 12,
+    },
+    bubbleMine: {
+        backgroundColor: DARK_BUBBLE,
+        borderBottomRightRadius: 2,
+    },
+    bubbleTheirs: {
+        borderBottomLeftRadius: 2,
+    },
+    bubbleText: {
+        color: '#fff',
+        fontSize: 15,
+        fontFamily: 'Poppins_400Regular',
+        lineHeight: 22,
+    },
+    mineMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+    },
+    mineTime: {
+        color: '#fff',
+        fontSize: 12,
+        fontFamily: 'Poppins_400Regular',
+    },
+
+    emptyBox: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 100,
+        gap: 12,
+    },
+    emptyText: {
+        color: '#6B6B7A',
+        fontSize: 14,
+        fontFamily: 'Poppins_400Regular',
+    },
+
+    composerWrapper: {
+        paddingHorizontal: 16,
+        paddingBottom: Platform.OS === 'ios' ? 0 : 16,
+        backgroundColor: 'transparent',
+        marginBottom:20
+    },
+    composer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 30,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
+        gap: 8,
+    },
+    composerCircleBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    sendBtnDisabled: { opacity: 0.5 },
+    input: {
+        flex: 1,
+        color: '#fff',
+        fontSize: 15,
+        fontFamily: 'Poppins_400Regular',
+        maxHeight: 100,
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+    },
+    attachBtn: {
+        padding: 4,
+    },
+    sendBtnDisabled: {
+        opacity: 0.6,
+    },
 });
