@@ -1,93 +1,211 @@
+/**
+ * AppBottomNav — exact Figma match (node 644-2812)
+ *
+ * Creator   → solid pink pill (#E91E8C) + pink FAB
+ * Freelancer → solid orange pill + no FAB
+ *
+ * Transition: pill opens from the icon side (left → right) using
+ * width animation + overflow:hidden. No bounce, no jump.
+ * All 4 tabs are persistent (never unmount) so there is zero layout jump.
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { fonts, palette } from '../../theme/colors';
+import React, { useEffect } from 'react';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, {
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
+} from 'react-native-reanimated';
+import { useAuth } from '../../context/AuthContext';
+import { fonts } from '../../theme/colors';
 import { useRoleTheme } from '../../theme/useRoleTheme';
+
+// ─── Types & constants ────────────────────────────────────────────────────────
 
 interface TabItem {
     key: string;
     label: string;
     icon: keyof typeof Ionicons.glyphMap;
-    route: string;
 }
 
 const TABS: TabItem[] = [
-    { key: 'home', label: 'Home', icon: 'home', route: '/(tabs)' },
-    { key: 'explore', label: 'Explore', icon: 'compass', route: '/(tabs)/explore' },
-    { key: 'messages', label: 'Messages', icon: 'chatbubble-ellipses', route: '/(tabs)/messages' },
-    { key: 'profile', label: 'Profile', icon: 'person', route: '/(tabs)/profile' },
+    { key: 'home', label: 'Home', icon: 'home' },
+    { key: 'explore', label: 'Explore', icon: 'compass' },
+    { key: 'messages', label: 'Messages', icon: 'chatbubble-ellipses' },
+    { key: 'profile', label: 'Profile', icon: 'person' },
 ];
 
 /**
- * Persistent bottom nav. Rendered via the (tabs)/_layout.tsx custom tabBar so
- * it stays mounted across tab switches and feels consistent app-wide.
- *
- * Props intentionally match the react-navigation BottomTabBar signature so
- * expo-router's Tabs can drop it in.
+ * Width when pill is collapsed to icon only.
  */
+const PILL_CLOSED = 48;
+
+/**
+ * Full expanded width per tab (collapsed + gap + label).
+ * Measured from Figma, tweak ±4px if needed.
+ */
+const PILL_OPEN: Record<string, number> = {
+    home: 116,
+    explore: 124,
+    messages: 140,
+    profile: 114,
+};
+
+const OPEN_MS = 220;
+const CLOSE_MS = 180;
+const EASE_OUT = Easing.out(Easing.cubic);
+const EASE_IN = Easing.in(Easing.cubic);
+
+const FAB_SIZE = 56;
+
+// ─── TabButton (persistent – never unmounts) ──────────────────────────────────
+
+function TabButton({
+    tab,
+    isActive,
+    theme,
+    onPress,
+}: {
+    tab: TabItem;
+    isActive: boolean;
+    theme: any; // Use RolePalette type if available
+    onPress: () => void;
+}) {
+    const pillWidth = useSharedValue(isActive ? (PILL_OPEN[tab.key] ?? 120) : PILL_CLOSED);
+    const bgOpacity = useSharedValue(isActive ? 1 : 0);
+    const labelOpacity = useSharedValue(isActive ? 1 : 0);
+
+    useEffect(() => {
+        if (isActive) {
+            pillWidth.value = withTiming(PILL_OPEN[tab.key] ?? 120, { duration: OPEN_MS, easing: EASE_OUT });
+            bgOpacity.value = withTiming(1, { duration: OPEN_MS, easing: EASE_OUT });
+            labelOpacity.value = withTiming(1, { duration: OPEN_MS, easing: EASE_OUT });
+        } else {
+            pillWidth.value = withTiming(PILL_CLOSED, { duration: CLOSE_MS, easing: EASE_IN });
+            bgOpacity.value = withTiming(0, { duration: CLOSE_MS, easing: EASE_IN });
+            labelOpacity.value = withTiming(0, { duration: 100, easing: EASE_IN });
+        }
+    }, [isActive]);
+
+    const wrapStyle = useAnimatedStyle(() => ({ width: pillWidth.value }));
+    const bgStyle = useAnimatedStyle(() => ({ opacity: bgOpacity.value }));
+    const lblStyle = useAnimatedStyle(() => ({ opacity: labelOpacity.value }));
+
+    // Active: primary color | Inactive: muted white
+    const iconName = isActive
+        ? tab.icon
+        : (`${tab.icon}-outline` as keyof typeof Ionicons.glyphMap);
+    const iconColor = isActive ? theme.primary : 'rgba(255,255,255,0.45)';
+
+    return (
+        <TouchableOpacity activeOpacity={0.75} onPress={onPress} style={styles.touch}>
+            <Animated.View style={[styles.pill, wrapStyle]}>
+
+                {/* Pill solid background — animates opacity. Using light solid color */}
+                <Animated.View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        styles.pillBg,
+                        { backgroundColor: theme.light },
+                        bgStyle,
+                    ]}
+                />
+
+                {/* Icon — color changes to primary when active */}
+                <View style={styles.iconWrapper}>
+                    <Ionicons name={iconName} size={22} color={iconColor} />
+                </View>
+
+                {/* Label — revealed by overflow:hidden. Using primary color for text. */}
+                <Animated.Text style={[styles.label, { color: theme.primary }, lblStyle]}>
+                    {tab.label}
+                </Animated.Text>
+            </Animated.View>
+        </TouchableOpacity>
+    );
+}
+
+// ─── FAB ─────────────────────────────────────────────────────────────────────
+
+function FabButton({
+    primaryColor,
+    hoverColor,
+    onPress,
+}: {
+    primaryColor: string;
+    hoverColor: string;
+    onPress: () => void;
+}) {
+    return (
+        <View style={[styles.fab, { shadowColor: primaryColor }]}>
+            <TouchableOpacity
+                activeOpacity={0.82}
+                style={styles.fabTouchable}
+                onPress={onPress}
+            >
+                <LinearGradient
+                    colors={['#FF6EC7', primaryColor]}
+                    start={{ x: 0.2, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.fabGradient}
+                >
+                    <Ionicons name="add" size={28} color="#fff" />
+                </LinearGradient>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export interface AppBottomNavProps {
     activeKey: string;
     onTabPress: (tab: TabItem) => void;
     onFabPress?: () => void;
 }
 
-export default function AppBottomNav({ activeKey, onTabPress, onFabPress }: AppBottomNavProps) {
+export default function AppBottomNav({
+    activeKey,
+    onTabPress,
+    onFabPress,
+}: AppBottomNavProps) {
     const theme = useRoleTheme();
+    const { userRole } = useAuth();
+    const isCreator = userRole?.toUpperCase() === 'CREATOR';
+    const showFab = isCreator && !!onFabPress;
 
     return (
         <View style={styles.wrap}>
-            <View style={styles.bar}>
-                {TABS.map((tab) => {
-                    const active = tab.key === activeKey;
-                    if (active) {
-                        return (
-                            <TouchableOpacity
-                                key={tab.key}
-                                activeOpacity={0.85}
-                                style={[styles.activePill, { backgroundColor: theme.soft, borderColor: theme.border }]}
-                                onPress={() => onTabPress(tab)}
-                            >
-                                <Ionicons name={tab.icon} size={20} color={theme.primary} />
-                                <Text style={[styles.activeLabel, { color: theme.primary }]}>{tab.label}</Text>
-                            </TouchableOpacity>
-                        );
-                    }
-                    return (
-                        <TouchableOpacity
-                            key={tab.key}
-                            activeOpacity={0.7}
-                            style={styles.tabBtn}
-                            onPress={() => onTabPress(tab)}
-                        >
-                            <Ionicons name={`${tab.icon}-outline` as any} size={24} color={palette.textMuted} />
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
+            {/* Creator FAB — floats above bar top-right */}
+            {showFab && (
+                <FabButton
+                    primaryColor={theme.primary}
+                    hoverColor={theme.hover}
+                    onPress={onFabPress!}
+                />
+            )}
 
-            {onFabPress ? (
-                <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={[styles.fab, { shadowColor: theme.primary }]}
-                    onPress={onFabPress}
-                >
-                    <LinearGradient
-                        colors={[theme.primary, theme.hover]}
-                        start={{ x: 0.2, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.fabInner}
-                    >
-                        <Ionicons name="add" size={26} color="#fff" />
-                    </LinearGradient>
-                </TouchableOpacity>
-            ) : null}
+            {/* Nav bar */}
+            <View style={styles.bar}>
+                {TABS.map((tab) => (
+                    <TabButton
+                        key={tab.key}
+                        tab={tab}
+                        isActive={tab.key === activeKey}
+                        theme={theme}
+                        onPress={() => onTabPress(tab)}
+                    />
+                ))}
+            </View>
         </View>
     );
 }
 
-/** Ordered tab definitions, exposed for the tabs layout. */
 export const APP_TABS = TABS;
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
     wrap: {
@@ -96,6 +214,8 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
     },
+
+    /* ── Bar: Figma #1E1E24, radius-tl/tr 20, FIXED 80px height */
     bar: {
         backgroundColor: '#1E1E24',
         borderTopLeftRadius: 20,
@@ -104,35 +224,76 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-around',
         paddingHorizontal: 8,
-        paddingTop: 12,
-        paddingBottom: Platform.OS === 'ios' ? 30 : 16,
+        /* Fixed height — never changes when switching tabs */
+        height: Platform.OS === 'ios' ? 110 : 80,  // 80px + 30px iOS home indicator
         borderTopWidth: 1,
-        borderTopColor: palette.borderSoft,
+        borderTopColor: 'rgba(255,255,255,0.06)',
     },
-    tabBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 30 },
-    activePill: {
+
+    /* Touchable wrapper — left-anchored so pill grows rightward */
+    touch: {
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+    },
+
+    /* Animated width container — overflow:hidden reveals the label */
+    pill: {
         flexDirection: 'row',
         alignItems: 'center',
+        overflow: 'hidden',
+        paddingHorizontal: 12,
+        height: 48, // Fixed height for all tabs
+        borderRadius: 999,
         gap: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 30,
-        borderWidth: 1,
     },
-    activeLabel: { fontSize: 13, fontFamily: fonts.semibold },
 
+    /* Absolute fill background (opacity animated separately) */
+    pillBg: {
+        borderRadius: 999,
+    },
+
+    /* Icon container inside the pill */
+    iconWrapper: {
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+
+    label: {
+        fontSize: 14,
+        fontFamily: fonts.semibold,
+        color: '#fff',
+        letterSpacing: -0.3,
+        flexShrink: 0,
+        marginRight: 4,
+    },
+
+    /* ── FAB: 56px circle, top-right, pink gradient glow */
     fab: {
         position: 'absolute',
-        right: 16,
-        bottom: Platform.OS === 'ios' ? 70 : 60,
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        overflow: 'hidden',
+        right: 20,
+        bottom: Platform.OS === 'ios' ? 74 : 62,
+        width: FAB_SIZE,
+        height: FAB_SIZE,
+        borderRadius: FAB_SIZE / 2,
         shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.45,
+        shadowOpacity: 0.6,
         shadowRadius: 14,
-        elevation: 14,
+        elevation: 18,
     },
-    fabInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    fabTouchable: {
+        width: FAB_SIZE,
+        height: FAB_SIZE,
+        borderRadius: FAB_SIZE / 2,
+        overflow: 'hidden',
+    },
+
+    fabGradient: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });
