@@ -130,28 +130,29 @@ function TabButton({
 // ─── FAB ─────────────────────────────────────────────────────────────────────
 
 function FabButton({
-    primaryColor,
-    hoverColor,
+    isFreelancer,
     onPress,
 }: {
-    primaryColor: string;
-    hoverColor: string;
+    isFreelancer: boolean;
     onPress: () => void;
 }) {
+    const creatorColors = ['#F15DAB', '#E91E8C'] as const; // rgba(241, 93, 171, 1) + shade
+    const freelancerColors = ['rgba(255, 131, 42, 1)', 'rgba(203, 104, 50, 1)'] as const;
+
     return (
-        <View style={[styles.fab, { shadowColor: primaryColor }]}>
+        <View style={[styles.fab, { shadowColor: isFreelancer ? 'rgba(255, 87, 0, 0.4)' : 'rgba(241, 93, 171, 0.4)' }]}>
             <TouchableOpacity
                 activeOpacity={0.82}
                 style={styles.fabTouchable}
                 onPress={onPress}
             >
                 <LinearGradient
-                    colors={['#FF6EC7', primaryColor]}
-                    start={{ x: 0.2, y: 0 }}
+                    colors={isFreelancer ? freelancerColors : creatorColors}
+                    start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={styles.fabGradient}
+                    style={styles.fabBackground}
                 >
-                    <Ionicons name="add" size={28} color="#fff" />
+                    <Ionicons name="add" size={32} color="#fff" />
                 </LinearGradient>
             </TouchableOpacity>
         </View>
@@ -173,16 +174,18 @@ export default function AppBottomNav({
 }: AppBottomNavProps) {
     const theme = useRoleTheme();
     const { userRole } = useAuth();
-    const isCreator = userRole?.toUpperCase() === 'CREATOR';
-    const showFab = isCreator && !!onFabPress;
+
+    // FAB is visible only on Home and Explore tabs
+    const isHomeOrExplore = activeKey === 'home' || activeKey === 'explore';
+    const showFab = isHomeOrExplore && !!onFabPress;
+    const isFreelancer = userRole === 'FREELANCER';
 
     return (
         <View style={styles.wrap}>
-            {/* Creator FAB — floats above bar top-right */}
+            {/* Create Post FAB — floats above bar top-right */}
             {showFab && (
                 <FabButton
-                    primaryColor={theme.primary}
-                    hoverColor={theme.hover}
+                    isFreelancer={isFreelancer}
                     onPress={onFabPress!}
                 />
             )}
@@ -270,11 +273,11 @@ const styles = StyleSheet.create({
         marginRight: 4,
     },
 
-    /* ── FAB: 56px circle, top-right, pink gradient glow */
+    /* ── FAB: 56px circle, top-right, floats above the bar */
     fab: {
         position: 'absolute',
         right: 20,
-        bottom: Platform.OS === 'ios' ? 74 : 62,
+        bottom: Platform.OS === 'ios' ? 125 : 95, // Increased to float above the bar
         width: FAB_SIZE,
         height: FAB_SIZE,
         borderRadius: FAB_SIZE / 2,
@@ -291,9 +294,13 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
 
-    fabGradient: {
+    fabBackground: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 4.5, // Thick white border as per image
+        borderColor: '#fff',
+        borderRadius: FAB_SIZE / 2,
+        
     },
 });

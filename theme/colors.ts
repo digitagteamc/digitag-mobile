@@ -24,12 +24,12 @@ export interface RolePalette {
 
 export const rolePalettes: Record<Role, RolePalette> = {
     CREATOR: {
-        primary: '#E91E8C',
-        hover: '#C4176F',
-        soft: 'rgba(233, 30, 140, 0.12)',
-        softStrong: 'rgba(233, 30, 140, 0.20)',
-        light: '#FFD6ED',
-        border: 'rgba(233, 30, 140, 0.55)',
+        primary: '#ED2A91',
+        hover: '#C21E74',
+        soft: 'rgba(237, 42, 145, 0.12)',
+        softStrong: 'rgba(237, 42, 145, 0.20)',
+        light: '#FFD6EB',
+        border: 'rgba(237, 42, 145, 0.55)',
         onPrimary: '#FFFFFF',
     },
     FREELANCER: {
@@ -70,6 +70,7 @@ export const palette = {
 
 /** Font family tokens. */
 export const fonts = {
+    small: 'Poppins_300Light',
     regular: 'Poppins_400Regular',
     medium: 'Poppins_600SemiBold',
     semibold: 'Poppins_600SemiBold',

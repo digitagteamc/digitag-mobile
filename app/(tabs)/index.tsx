@@ -1,4 +1,5 @@
-import { Feather, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -280,8 +281,14 @@ export default function Homepage() {
           {/* ══════════════ SEARCH BAR ══════════════ */}
           {/* Figma: glassmorphic h-56, rounded-12, border rgba(156,156,156,0.5) */}
           <View style={styles.searchBar}>
-            {/* Inner blur tint */}
-            <View style={styles.searchBarBlur} />
+            <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
+            
+            {/* Simulated Figma Inset Shadows (Top/Bottom highlights) */}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
+              style={StyleSheet.absoluteFill}
+            />
+
             <View style={styles.searchBarInner}>
               {/* Search icon */}
               <Feather name="search" size={18} color="#d6d6d6" />
@@ -311,9 +318,9 @@ export default function Homepage() {
                       <View style={styles.bannerTextBlock}>
                         <Text style={styles.bannerTitle}>{item.title}</Text>
                         <Text style={styles.bannerDesc}>{item.desc}</Text>
-                        <TouchableOpacity style={styles.exploreBtn} activeOpacity={0.85}>
+                        {/* <TouchableOpacity style={styles.exploreBtn} activeOpacity={0.85}>
                           <Text style={styles.exploreBtnText}>Explore Now</Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
                       </View>
                       <Image
                         source={item.image}
@@ -382,85 +389,79 @@ export default function Homepage() {
               <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
             ) : (
               cards.map((item) => {
-                const postColor = getRoleTheme(item.ownerRole).primary;
+                const postTheme = getRoleTheme(item.ownerRole);
+                const postColor = postTheme.primary;
+
                 return (
-                  <TouchableOpacity key={item.id} style={styles.card} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
-
-                    {/* ── Top hero image */}
-                    <View style={styles.cardHero}>
-                      <Image source={{ uri: item.bannerUri }} style={styles.cardBannerImg} resizeMode="cover" />
-                      <View style={styles.cardHeroOverlay} />
-
-                      {/* Top-right: share + bookmark */}
-                      <View style={styles.cardTopIcons}>
-                        <TouchableOpacity style={styles.heroIconBtn}>
-                          <Ionicons name="share-social-outline" size={15} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.heroIconBtn} onPress={() => handleBookmark(item.id)}>
-                          <Ionicons name="bookmark-outline" size={15} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Profile row — bottom-left */}
-                      <View style={styles.cardProfile}>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.card}
+                    activeOpacity={0.9}
+                    onPress={() => handlePostTap(item.id, item.ownerId)}
+                  >
+                    {/* ── Header: Avatar, Name, See Portfolio, Share */}
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardHeaderLeft}>
                         {item.isInitials ? (
-                          <View style={styles.initialsCircle}>
-                            <Text style={styles.initialsText}>{(item as any).initials}</Text>
+                          <View style={[styles.avatarCircle, { backgroundColor: postColor + '33' }]}>
+                            <Text style={[styles.initialsText, { color: postColor }]}>{(item as any).initials}</Text>
                           </View>
                         ) : (
                           <View style={styles.avatarCircle}>
-                            <Image source={{ uri: (item as any).avatarUri }} style={styles.cardAvatar} resizeMode="cover" />
+                            <Image source={{ uri: (item as any).avatarUri }} style={styles.cardAvatarImg} resizeMode="cover" />
                           </View>
                         )}
-                        <View style={styles.cardNameBlock}>
+                        <View style={styles.headerNameBlock}>
                           <Text style={styles.cardName}>{item.name}</Text>
-                          <Text style={styles.cardRole}>{item.role}</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* ── Card body */}
-                    <View style={styles.cardBody}>
-                      <Text style={styles.cardDesc} numberOfLines={2}>{item.desc}</Text>
-
-                      {/* Price + Time row */}
-                      <View style={styles.cardMetaRow}>
-                        <Text style={styles.cardPrice}>
-                          {item.price === 'Paid Collab' ? '₹40K–50K/Month' : 'Free Collab'}
-                        </Text>
-                        <View style={styles.timeRow}>
-                          <Ionicons name="time-outline" size={12} color="#7a7a8a" />
-                          <Text style={styles.cardTime}> {item.time}</Text>
+                          <Text style={styles.cardCategory}>{item.role}</Text>
                         </View>
                       </View>
 
-                      {/* Action buttons — color from post owner's role */}
-                      <View style={styles.cardActions}>
-                        <TouchableOpacity style={[styles.btnChat, { borderColor: postColor }]} activeOpacity={0.8}>
-                          <MaterialIcons name="chat-bubble-outline" size={16} color={postColor} />
+                      <View style={styles.cardHeaderRight}>
+                        <TouchableOpacity style={[styles.portfolioBtn, { backgroundColor: postColor }]}>
+                          <Text style={styles.portfolioBtnText}>See Portfolio</Text>
                         </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.btnAction, { backgroundColor: postColor }]}
-                          activeOpacity={0.8}
-                          onPress={() => handlePostTap(item.id, item.ownerId)}
-                        >
-                          <Ionicons name="call-outline" size={14} color="#fff" />
-                          <Text style={styles.btnActionText}>Call directly</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={[styles.btnAction, { backgroundColor: postColor }]}
-                          activeOpacity={0.8}
-                          onPress={() => handlePostTap(item.id, item.ownerId)}
-                        >
-                          <Text style={styles.btnActionText}>See Portfolio</Text>
-                          <Ionicons name="chevron-down" size={14} color="#fff" />
+                        <TouchableOpacity style={styles.shareBtn}>
+                          <Ionicons name="share-social-outline" size={18} color="#fff" />
                         </TouchableOpacity>
                       </View>
                     </View>
 
-                    <View style={styles.cardInsetOverlay} pointerEvents="none" />
+                    {/* ── Description */}
+                    <Text style={styles.cardDesc} numberOfLines={2}>{item.desc}</Text>
+
+                    {/* ── Meta: Price + Time */}
+                    <View style={styles.cardMetaRow}>
+                      <Text style={[styles.cardPrice, { color: 'rgba(0, 164, 1, 1)' }]}>
+                        {item.price === 'Paid Collab' ? '₹40K–50K/Month' : 'Free Collab'}
+                      </Text>
+                      <View style={styles.cardTimeRow}>
+                        <Ionicons name="time-outline" size={14} color="#8A8A99" />
+                        <Text style={styles.cardTime}>{item.time || '4h ago'}</Text>
+                      </View>
+                    </View>
+
+                    {/* ── Banner Image with Floating Actions */}
+                    <View style={styles.cardBannerContainer}>
+                      <Image source={{ uri: item.bannerUri }} style={styles.cardBanner} resizeMode="cover" />
+                      <View style={styles.bannerOverlay} />
+
+                      {/* Floating Actions */}
+                      <View style={styles.bannerActionsLeft}>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]}>
+                          <Ionicons name="call-outline" size={16} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.bannerActionsRight}>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={() => handleBookmark(item.id)}>
+                          <Ionicons name="bookmark-outline" size={16} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 );
               }))}
@@ -503,6 +504,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     position: 'absolute',
+    opacity: 0.4
   },
 
   heroOverlay: {
@@ -591,21 +593,24 @@ const styles = StyleSheet.create({
   // ── Search bar (Figma: border rgba(156,156,156,0.5), bg rgba(240,240,240,0.1))
   searchBar: {
     height: 56,
-    borderRadius: 12,
+    borderRadius: 14, // slightly smoother
     borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.5)',
-    backgroundColor: 'rgba(240, 240, 240, 0.10)',
-    boxShadow: ' 0 -5px 4px 0 rgba(255, 255, 255, 0.25) inset, 0 4px 4px 0 rgba(255, 255, 255, 0.25) inset, -42px 103px 31px 0 rgba(145, 145, 145, 0.00), -27px 66px 29px 0 rgba(145, 145, 145, 0.01), -15px 37px 24px 0 rgba(145, 145, 145, 0.03), -7px 17px 18px 0 rgba(145, 145, 145, 0.04), -2px 4px 10px 0 rgba(145, 145, 145, 0.05)',
+    borderColor: 'rgba(156, 156, 156, 0.40)',
+    backgroundColor: 'rgba(70, 70, 70, 0.15)', // darker base for better contrast
     marginBottom: 20,
-    backdropFilter: 'blur(10px)',
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-  },
-  searchBarBlur: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(240,240,240,0.1)',
+    
+    // Figma shadows
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 40,
+    elevation: 10,
+       
+
   },
   searchBarInner: {
     flex: 1,
@@ -637,7 +642,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(156, 156, 156, 0.50)',
     overflow: 'hidden',
-    marginBottom: 28,
+    marginBottom: 16,
     position: 'relative',
     backdropFilter: 'blur(10px)',
     boxShadow: ' 0 -5px 4px 0 rgba(255, 255, 255, 0.25) inset, 0 4px 4px 0 rgba(255, 255, 255, 0.25) inset, -42px 103px 31px 0 rgba(145, 145, 145, 0.00), -27px 66px 29px 0 rgba(145, 145, 145, 0.01), -15px 37px 24px 0 rgba(145, 145, 145, 0.03), -7px 17px 18px 0 rgba(145, 145, 145, 0.04), -2px 4px 10px 0 rgba(145, 145, 145, 0.05)',
@@ -666,14 +671,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: -0.5,
-    marginBottom: 2,
+    marginBottom: 4,
     fontFamily: 'Poppins_600SemiBold',
   },
   bannerDesc: {
     color: '#000',
     fontSize: 12,
     lineHeight: 18,
-    marginBottom: 12,
+    marginBottom: 8,
     width: 212,
     fontFamily: 'Poppins_500SemiBold',
 
@@ -717,7 +722,7 @@ const styles = StyleSheet.create({
   // ── Categories
   catRow: {
     flexDirection: 'row',
-    paddingHorizontal: 4,
+    paddingHorizontal: 1,
     gap: 12, // spacing between cards
   },
   catItem: {
@@ -772,19 +777,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 14,
-    marginTop: 12,
+    marginTop: 26,
   },
   sectionTitle: {
     // Figma: Poppins SemiBold 20px white
     color: '#fff',
     fontSize: 20,
-    fontWeight: '700',
     lineHeight: 28,
+    fontFamily: 'Poppins_600SemiBold',
   },
   viewAll: {
     // color is applied dynamically via theme.primary
     fontSize: 14,
-    fontWeight: '500',
+    lineHeight: 20,
+    fontFamily: 'Poppins_500regular',
   },
 
   // ── Cards list
@@ -792,190 +798,161 @@ const styles = StyleSheet.create({
     gap: 20,
   },
 
-  // ── Individual card (Figma: 408×290, bg #1e1e24, border rgba(156,156,156,0.5), rounded-20)
+  // ── Individual card (Figma: 408×392, bg #1E1E24, border rgba(156,156,156,0.5), rounded-24)
   card: {
     width: CARD_WIDTH,
-    borderRadius: 20,
+    height: 392,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.5)',
-    overflow: 'hidden',
-    backgroundColor: '#1e1e24',
-    position: 'relative',
-  },
-
-  // Card hero section (152px tall)
-  cardHero: {
-    height: 152,
-    width: '100%',
-    position: 'relative',
-    backgroundColor: '#fff',
+    borderColor: 'rgba(156, 156, 156, 0.50)',
+    backgroundColor: 'rgba(30, 30, 36, 1)',
+    padding: 16,
+    marginBottom: 20,
     overflow: 'hidden',
   },
-  cardBannerImg: {
-    width: '100%',
-    height: 177,
-    position: 'absolute',
-    top: -13,
-    left: 0,
-  },
-  cardHeroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
-
-  // Top-right icons (share + bookmark)
-  cardTopIcons: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  heroIconBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Profile row in hero
-  cardProfile: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  initialsCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(30,30,36,0.75)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.25)',
-    justifyContent: 'center',
+  cardHeaderLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  initialsText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: -0.3,
+    gap: 12,
   },
   avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#efefef',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  cardAvatar: {
+  cardAvatarImg: {
     width: '100%',
     height: '100%',
   },
-  cardNameBlock: {
+  initialsText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  headerNameBlock: {
     gap: 2,
   },
   cardName: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    lineHeight: 17,
-    textShadowColor: 'rgba(0,0,0,0.6)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontSize: 16,
+    fontFamily: 'manrope-600semibold',
+    lineHeight: 14,
+    letterSpacing: -0.5
   },
-  cardRole: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 11,
-    fontWeight: '500',
-    letterSpacing: -0.2,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+  cardCategory: {
+    color: '#A0A0A0',
+    fontSize: 12,
+    fontFamily: 'poppins-500Medium',
+    lineHeight: 14,
+    letterSpacing: -0.5
   },
-
-  // Card body
-  cardBody: {
-    paddingHorizontal: 13,
-    paddingTop: 13,
-    // paddingBottom: 14,
+  cardHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  portfolioBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    width: 86,
+    height: 30,
+    alignItems: "center"
+  },
+  portfolioBtnText: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'inter_500Medium',
+    lineHeight: 12,
+    letterSpacing: -0.5
+  },
+  shareBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardDesc: {
-    color: '#e0e0e0',
-    fontSize: 12,
-    lineHeight: 17,
-    marginBottom: 10,
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'poppins_400Regular',
+    lineHeight: 20,
+    marginBottom: 12,
   },
   cardMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   cardPrice: {
-    color: '#2ec75a',
     fontSize: 12,
-    fontWeight: '600',
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  cardTime: {
-    color: '#888',
-    fontSize: 10,
-    fontWeight: '500',
-  },
+    fontFamily: 'poppins-500Medium',
+    lineHeight: 14,
 
-  // Action buttons row
-  cardActions: {
+  },
+  cardTimeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  // Chat icon button — borderColor applied inline
-  btnChat: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // "Call directly" / "See Portfolio" — backgroundColor applied inline
-  btnAction: {
-    flex: 1,
-    height: 40,
-    borderRadius: 99,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
   },
-  btnActionText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: -0.3,
+  cardTime: {
+    color: '#8A8A99',
+    fontSize: 10,
+    fontFamily: 'inter-500Medium',
   },
-
-  cardInsetOverlay: {
+  cardBannerContainer: {
+    flex: 1,
+    width: '100%',
+    borderRadius: 30,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  cardBanner: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
-    borderWidth: 0,
-    shadowColor: '#323232',
-    shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
-
+  bannerActionsLeft: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  bannerActionsRight: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    backgroundColor: 'rgba(242, 105, 48, 1)'
+  },
 });
