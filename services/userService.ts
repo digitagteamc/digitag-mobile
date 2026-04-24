@@ -38,9 +38,13 @@ async function request(path: string, options: RequestInit = {}) {
     return json;
 }
 
-function authHeaders(token: string): Headers {
-    return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
+export const authHeaders = (token: string): Headers => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+});
 
 /* ─────────────────────────── AUTH ─────────────────────────── */
 
@@ -58,7 +62,7 @@ export const requestOtp = async (
         });
         return { success: true, ...(body?.data ?? {}) };
     } catch (error: any) {
-        console.error('❌ requestOtp error:', error.message);
+        console.warn('❌ requestOtp error:', error.message);
         const details = error instanceof ApiRequestError ? error.details : null;
         return {
             success: false,
@@ -96,7 +100,7 @@ export const verifyOtp = async (
             isProfileCompleted: data?.isProfileCompleted,
         };
     } catch (error: any) {
-        console.error('❌ verifyOtp error:', error.message);
+        console.warn('❌ verifyOtp error:', error.message);
         const details = error instanceof ApiRequestError ? error.details : null;
         return {
             success: false,
@@ -286,22 +290,27 @@ export const submitCreatorApplication = async (formData: any, token: string) => 
         console.log('✅ Creator profile created');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        console.error('❌ submitCreatorApplication error:', error.message);
-        return { success: false, error: error.message };
+        const details = error instanceof ApiRequestError ? error.details : null;
+        console.warn('❌ submitCreatorApplication error:', error.message, details);
+        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
     }
 };
 
 /** PUT /creators/profile */
 export const updateCreatorProfile = async (data: any, token: string) => {
+    console.log('🚀 Updating Creator Profile... Payload:', JSON.stringify(data, null, 2));
     try {
         const body = await request('/creators/profile', {
             method: 'PUT',
             headers: authHeaders(token),
             body: JSON.stringify(data),
         });
+        console.log('✅ Creator Profile updated successfully');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const details = error instanceof ApiRequestError ? error.details : null;
+        console.warn('❌ updateCreatorProfile error:', error.message, details);
+        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
     }
 };
 
@@ -343,21 +352,26 @@ export const createFreelancerProfile = async (data: any, token: string) => {
         });
         return { success: true, data: body?.data };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const details = error instanceof ApiRequestError ? error.details : null;
+        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
     }
 };
 
 /** PUT /freelancers/profile */
 export const updateFreelancerProfile = async (data: any, token: string) => {
+    console.log('🚀 Updating Freelancer Profile... Payload:', JSON.stringify(data, null, 2));
     try {
         const body = await request('/freelancers/profile', {
             method: 'PUT',
             headers: authHeaders(token),
             body: JSON.stringify(data),
         });
+        console.log('✅ Freelancer Profile updated successfully');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        const details = error instanceof ApiRequestError ? error.details : null;
+        console.warn('❌ updateFreelancerProfile error:', error.message, details);
+        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
     }
 };
 
