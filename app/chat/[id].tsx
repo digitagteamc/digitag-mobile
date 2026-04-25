@@ -112,7 +112,7 @@ export default function ChatScreen() {
 
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     const pic = other?.profilePicture || null;
-    
+
     // Dynamic colors based on role
     const otherColor = other?.role === 'FREELANCER' ? '#F26930' : '#E91E8C';
     const myAccent = userRole === 'FREELANCER' ? '#E91E8C' : '#F26930';
@@ -121,7 +121,7 @@ export default function ChatScreen() {
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
             <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
-            
+
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
@@ -130,7 +130,7 @@ export default function ChatScreen() {
                 >
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                
+
                 <View style={styles.headerMid}>
                     {pic ? (
                         <Image source={{ uri: pic }} style={styles.headerAvatar} />
@@ -181,7 +181,7 @@ export default function ChatScreen() {
                             return (
                                 <View style={[styles.bubbleWrapper, mine ? styles.rowRight : styles.rowLeft]}>
                                     <View style={[
-                                        styles.bubble, 
+                                        styles.bubble,
                                         mine ? styles.bubbleMine : { ...styles.bubbleTheirs, backgroundColor: otherColor }
                                     ]}>
                                         <Text style={styles.bubbleText}>
@@ -210,7 +210,7 @@ export default function ChatScreen() {
                             <TouchableOpacity style={[styles.composerCircleBtn, { backgroundColor: myAccent }]}>
                                 <Ionicons name="camera" size={20} color="#fff" />
                             </TouchableOpacity>
-                            
+
                             <TextInput
                                 style={styles.input}
                                 placeholder="Type a Message..."
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingBottom: Platform.OS === 'ios' ? 0 : 16,
         backgroundColor: 'transparent',
-        marginBottom:20
+        marginBottom: 20
     },
     composer: {
         flexDirection: 'row',

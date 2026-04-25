@@ -19,11 +19,11 @@ import {
 import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../../Components/ui/CustomAlert';
+import ExpandableText from '../../Components/ui/ExpandableText';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
 import { getFeed, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
-import ExpandableText from '../../Components/ui/ExpandableText';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -93,6 +93,7 @@ export default function Homepage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>('');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [alertConfig, setAlertConfig] = useState({
@@ -135,8 +136,10 @@ export default function Homepage() {
       if (res.success && res.data?.profile) {
         const p = res.data.profile;
         setUserName(p.name || 'User');
+        setUserAvatar(p.profilePicture || null);
       } else {
         setUserName('User');
+        setUserAvatar(null);
       }
     };
 
@@ -291,11 +294,19 @@ export default function Homepage() {
             {/* Avatar + greeting */}
             <View style={styles.headerLeft}>
               <View style={styles.avatarWrap}>
-                <Image
-                  source={{ uri: imgChatGptImageMar272026104242Am1 }}
-                  style={styles.avatar}
-                  resizeMode="cover"
-                />
+                {userAvatar ? (
+                  <Image
+                    source={{ uri: userAvatar }}
+                    style={styles.avatar}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.avatar, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
+                      {userName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
               </View>
               <View>
                 <Text style={styles.hiText}>{userName}</Text>
@@ -442,7 +453,7 @@ export default function Homepage() {
                   >
                     {/* ── Header: Avatar, Name, See Portfolio, Share */}
                     <View style={styles.cardHeader}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.cardHeaderLeft}
                         activeOpacity={0.7}
                         onPress={() => handlePostTap(item.id, item.ownerId)}
@@ -858,7 +869,7 @@ const styles = StyleSheet.create({
   // ── Individual card (Figma: 408×392, bg #1E1E24, border rgba(156,156,156,0.5), rounded-24)
   card: {
     width: CARD_WIDTH,
-    height: 392,
+    minHeight: 392,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(156, 156, 156, 0.50)',
@@ -909,7 +920,7 @@ const styles = StyleSheet.create({
   cardCategory: {
     color: '#A0A0A0',
     fontSize: 12,
-    fontFamily: 'poppins-500Medium',
+    fontFamily: 'poppins-400Regular',
     lineHeight: 14,
     letterSpacing: -0.5
   },
@@ -973,7 +984,7 @@ const styles = StyleSheet.create({
     fontFamily: 'inter-500Medium',
   },
   cardBannerContainer: {
-    flex: 1,
+    height: 220,
     width: '100%',
     borderRadius: 30,
     overflow: 'hidden',

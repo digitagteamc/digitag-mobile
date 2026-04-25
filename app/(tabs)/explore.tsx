@@ -318,27 +318,31 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#060606',
+    
   },
   safeArea: {
     flex: 1,
   },
+  
   exploreHeader: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 24,
+  marginTop:50
   },
   exploreTitle: {
     color: '#fff',
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.5,
+    fontSize: 24,
+     
+    fontFamily:'Poppins_500Medium'
   },
   exploreSubtitle: {
-    color: '#AAA',
-    fontSize: 13,
+    color: '#E2E2E2',
+    fontSize: 12,
     marginTop: 4,
-    fontWeight: '500',
-  },
+    fontFamily:'Poppins_400Regular',
+    lineHeight:18,
+   },
   scroll: {
     flex: 1,
   },
@@ -350,14 +354,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   searchBar: {
+    height: 56,
+    borderRadius: 14, // slightly smoother
+    borderWidth: 1,
+    borderColor: 'rgba(156, 156, 156, 0.40)',
+    backgroundColor: 'rgba(70, 70, 70, 0.15)', // darker base for better contrast
+    marginBottom: 20,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C21',
-    borderRadius: 14,
     paddingHorizontal: 16,
-    height: 56,
-    borderWidth: 1,
-    borderColor: '#2D2D33',
+
+    // Figma shadows
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 1,
+    shadowRadius: 40,
+    elevation: 10,
   },
   searchInput: {
     flex: 1,
@@ -367,7 +380,7 @@ const styles = StyleSheet.create({
   },
   pillsRow: {
     paddingLeft: 20,
-    marginBottom: 24,
+    marginBottom: 35,
   },
   pillsContent: {
     paddingRight: 20,
@@ -375,20 +388,22 @@ const styles = StyleSheet.create({
   },
   pill: {
     paddingHorizontal: 20,
-    backgroundColor: '#1E1E24',
+    backgroundColor:'#24221eff',
     borderRadius: 20,
     justifyContent: 'center',
+    minWidth:117,
     height: 40,
     borderWidth: 1,
     borderColor: '#333',
+    alignItems:'center'
   },
   pillActive: {
-    backgroundColor: '#333',
+    backgroundColor: 'rgba(242, 105, 48, 1)',
   },
   pillText: {
     color: '#888',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 12,
+    fontFamily:'Poppins_400Regular'
   },
   pillTextActive: {
     color: '#fff',
@@ -419,7 +434,7 @@ const styles = StyleSheet.create({
   // ── Individual card (Figma: 408×392, bg #1E1E24, border rgba(156,156,156,0.5), rounded-24)
   card: {
     width: CARD_WIDTH,
-    height: 392,
+    minHeight: 392,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(156, 156, 156, 0.50)',
@@ -534,7 +549,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
   },
   cardBannerContainer: {
-    flex: 1,
+    height: 220,
     width: '100%',
     borderRadius: 30,
     overflow: 'hidden',

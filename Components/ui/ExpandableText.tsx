@@ -30,12 +30,14 @@ const ExpandableText = ({ text, style, numberOfLines = 2 }: any) => {
 
   // Measure layer
   const measureLayer = !measured ? (
-    <Text 
-      style={[style, { position: 'absolute', opacity: 0 }]} 
-      onTextLayout={onTextLayout}
-    >
-      {text}
-    </Text>
+    <View style={{ position: 'absolute', left: 0, right: 0, opacity: 0 }}>
+      <Text 
+        style={style} 
+        onTextLayout={onTextLayout}
+      >
+        {text}
+      </Text>
+    </View>
   ) : null;
 
   if (!measured) {
@@ -50,19 +52,20 @@ const ExpandableText = ({ text, style, numberOfLines = 2 }: any) => {
   if (isExpanded || !isTruncated) {
     return (
       <View>
-        <Text style={style}>
+        <Text 
+          style={style} 
+          onPress={isTruncated ? () => setIsExpanded(false) : undefined}
+          suppressHighlighting={true}
+        >
           {text}
         </Text>
-        {isTruncated && (
-          <Text style={[style, { color: '#A0A0B0', fontWeight: '600', marginTop: 2 }]} onPress={() => setIsExpanded(false)}>
-            Show less
-          </Text>
-        )}
       </View>
     );
   }
 
-  const truncatedText = text.slice(0, Math.max(0, length - 15)).trim();
+  // Fallback if measurement failed or returned weird values
+  const sliceEnd = length > 20 ? length - 15 : 60;
+  const truncatedText = text.slice(0, Math.max(0, sliceEnd)).trim();
 
   return (
     <View>
