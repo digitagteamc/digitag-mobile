@@ -4,8 +4,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Dimensions,
     Image,
+    Linking,
     ScrollView,
     StyleSheet,
     Text,
@@ -25,6 +27,7 @@ import {
 } from '../services/userService';
 import { fonts } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
+import CustomAlert from '../Components/ui/CustomAlert';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -50,6 +53,15 @@ export default function CreatorDetails() {
     const [isFollowing, setIsFollowing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        title: '',
+        message: '',
+    });
+
+    const showAlert = (title: string, message: string) => {
+        setAlertConfig({ visible: true, title, message });
+    };
 
     const theme = useRoleTheme();
 
@@ -102,7 +114,18 @@ export default function CreatorDetails() {
         const res = await openConversationWith(token, resolvedUserId);
         if (res.success && res.data?.id) {
             router.push({ pathname: '/chat/[id]', params: { id: res.data.id } } as any);
+        } else {
+            showAlert('Chat Error', res.error || 'Could not open conversation.');
         }
+    };
+
+    const handleCall = () => {
+        const phone = profile?.mobileNumber || profile?.phone || profile?.freelancerProfile?.phone || profile?.creatorProfile?.phone;
+        if (!phone) {
+            showAlert('Contact Error', 'This user has not shared their mobile number.');
+            return;
+        }
+        Linking.openURL(`tel:${phone}`);
     };
 
     if (loading) {
@@ -171,7 +194,7 @@ export default function CreatorDetails() {
                             <Ionicons name="arrow-back" size={24} color="#fff" />
                         </TouchableOpacity>
                         <View style={styles.topBarRight}>
-                            <TouchableOpacity style={styles.topIconBtn}>
+                            <TouchableOpacity style={styles.topIconBtn} onPress={handleCall}>
                                 <Ionicons name="call-outline" size={24} color="#fff" />
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.topIconBtn}>
@@ -265,6 +288,13 @@ export default function CreatorDetails() {
                     <View style={{ height: 100 }} />
                 </ScrollView>
             </SafeAreaView>
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+                role={profile?.role as any}
+            />
         </View>
     );
 }

@@ -17,6 +17,7 @@ import {
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GradientButton from '../Components/ui/GradientButton';
+import CustomAlert from '../Components/ui/CustomAlert';
 import { useAuth } from '../context/AuthContext';
 import { requestOtp, verifyOtp } from '../services/userService';
 
@@ -206,7 +207,7 @@ export default function LoginScreen() {
                     {/* Back to role selection */}
                     <TouchableOpacity
                         className="absolute top-4 left-4 w-11 h-11 rounded-full border border-[#4d4d63] justify-center items-center"
-                        onPress={() => (router.canGoBack() ? router.back() : router.replace('/role-selection'))}
+                        onPress={() => router.replace('/role-selection')}
                     >
                         <ChevronLeftIcon color="white" size={22} />
                     </TouchableOpacity>
@@ -395,28 +396,13 @@ export default function LoginScreen() {
             </SafeAreaView>
 
             {/* ── Custom Status Modal ── */}
-            <Modal
+            <CustomAlert
                 visible={statusModal.visible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setStatusModal({ ...statusModal, visible: false })}
-            >
-                <View className="flex-1 bg-black/60 justify-center items-center px-6">
-                    <View className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-[30px] p-8 w-full max-w-[340px] items-center">
-                        <Text className="text-white font-poppins-semibold text-[22px] text-center mb-2">
-                            {statusModal.title}
-                        </Text>
-                        <Text className="text-[#A0A0B0] font-poppins-regular text-[14px] text-center mb-8 leading-6">
-                            {statusModal.message}
-                        </Text>
-                        <GradientButton
-                            title="Okay"
-                            onPress={() => setStatusModal({ ...statusModal, visible: false })}
-                            className="w-full h-[54px]"
-                        />
-                    </View>
-                </View>
-            </Modal>
+                title={statusModal.title}
+                message={statusModal.message}
+                onClose={() => setStatusModal({ ...statusModal, visible: false })}
+                role={role as any}
+            />
         </View>
     );
 }

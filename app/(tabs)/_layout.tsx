@@ -19,6 +19,7 @@ export default function TabsLayout() {
                 tabBarStyle: { display: 'none' },
                 sceneStyle: { backgroundColor: palette.background },
             }}
+            backBehavior="initialRoute"
             tabBar={(props) => {
                 const activeRouteName = props.state.routes[props.state.index]?.name ?? 'index';
                 const activeKey = routeToTabKey(activeRouteName);

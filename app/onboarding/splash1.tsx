@@ -147,7 +147,7 @@ export default function Splash1() {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.push('/role-selection');
+      router.replace('/role-selection');
     }
   };
 
@@ -155,7 +155,7 @@ export default function Splash1() {
     if (currentStep < ONBOARDING_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      router.push('/role-selection');
+      router.replace('/role-selection');
     }
   };
 

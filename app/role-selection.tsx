@@ -66,7 +66,7 @@ export default function RoleSelectionScreen() {
 
     useEffect(() => {
         const backAction = () => {
-            router.push('/onboarding/splash1?step=4');
+            router.replace('/onboarding/splash1?step=4');
             return true;
         };
         const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
@@ -79,14 +79,14 @@ export default function RoleSelectionScreen() {
             Alert.alert('Coming Soon', 'Brand and Agency flows are not yet available. Please choose Creator or Freelancer.');
             return;
         }
-        router.push({ pathname: '/login', params: { role: selectedRole.toUpperCase() } });
+        router.replace({ pathname: '/login', params: { role: selectedRole.toUpperCase() } });
     };
 
     return (
         <SafeAreaView className="flex-1 bg-[#0A0A10]" edges={['top', 'bottom', 'left', 'right']}>
             {/* Header */}
             <View className="flex-row items-center px-4 pt-4 pb-6 mt-4">
-                <TouchableOpacity onPress={() => router.push('/onboarding/splash1?step=4')} className="mr-3 p-1">
+                <TouchableOpacity onPress={() => router.replace('/onboarding/splash1?step=4')} className="mr-3 p-1">
                     <ChevronLeft color="#FFFFFF" size={24} />
                 </TouchableOpacity>
                 <Text className="text-white font-poppins-semibold text-[22px]">Select Your Profile Type</Text>
