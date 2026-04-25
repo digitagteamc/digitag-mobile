@@ -1,5 +1,5 @@
-import { BlurView } from 'expo-blur';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -7,20 +7,23 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  Linking,
   Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
-import { getFeed, getFullProfile, listCollaborations } from '../../services/userService';
+import { getFeed, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
+import ExpandableText from '../../Components/ui/ExpandableText';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -28,6 +31,7 @@ const CARD_WIDTH = width - 32;
 // ─── Figma asset URLs from the localhost dev server (Figma MCP)
 const imgChatGptImageMar272026104242Am1 = 'http://localhost:3845/assets/433440489db1bc86b19d2fe2e382e541dbd1c6b3.png';
 const imgJamieStreetUnsplash1 = 'http://localhost:3845/assets/e163a7a55d7383a4547aa41778d291b7bd50a5ef.png';
+const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 const imgJamieStreetUnsplash2 = 'http://localhost:3845/assets/c7d3d3c46f542d3105102566c8c4d6e4fdce83d1.png';
 const imgJamieStreetUnsplash3 = 'http://localhost:3845/assets/068c225fbf028e84247785426f0eb10a6d9d2ed9.png';
 const imgFrame427318958 = 'http://localhost:3845/assets/eed7dba5ea152c5e0e3e2b490b42b92b946dcb5d.png';
@@ -91,6 +95,15 @@ export default function Homepage() {
   const [userName, setUserName] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [alertConfig, setAlertConfig] = useState({
+    visible: false,
+    title: '',
+    message: '',
+  });
+
+  const showAlert = (title: string, message: string) => {
+    setAlertConfig({ visible: true, title, message });
+  };
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -171,6 +184,35 @@ export default function Homepage() {
     router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
   };
 
+  const handleMessage = async (ownerId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('message this user')) return;
+    if (!ownerId) return;
+
+    try {
+      const res = await openConversationWith(token, ownerId);
+      if (res.success && res.data?.id) {
+        router.push(`/chat/${res.data.id}` as any);
+      } else {
+        showAlert('Chat Error', res.error || 'Could not open conversation. Make sure you have an active collaboration or try again.');
+      }
+    } catch (err) {
+      console.error('Chat redirect error:', err);
+      showAlert('Error', 'Failed to open chat.');
+    }
+  };
+
+  const handleCall = (owner?: any) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('call this user')) return;
+    const phone = owner?.mobileNumber || owner?.phone;
+    if (!phone) {
+      showAlert('Contact Error', 'This user has not shared their mobile number.');
+      return;
+    }
+    Linking.openURL(`tel:${phone}`);
+  };
+
   // Category keyword map for loose filtering against post descriptions / owner category
   const CATEGORY_KEYWORDS: Record<string, string[]> = {
     '1': ['video', 'editor', 'editing', 'motion', 'reel'],
@@ -200,9 +242,10 @@ export default function Homepage() {
       : 'User';
     return {
       id: post.id,
+      owner: owner,
       ownerId: owner.id as string | undefined,
       ownerRole: owner.role as string | undefined,
-      bannerUri: post.imageUrl || imgJamieStreetUnsplash1,
+      bannerUri: post.imageUrl || FALLBACK_BANNER,
       isInitials: !pic,
       initials: name.slice(0, 2).toUpperCase(),
       avatarUri: pic,
@@ -260,13 +303,13 @@ export default function Homepage() {
               </View>
             </View>
 
-            {/* Icons right */}
             <View style={styles.headerRight}>
-              {/* Chart icon */}
-              <TouchableOpacity style={styles.iconCircle}>
+              <TouchableOpacity
+                style={styles.iconCircle}
+                onPress={() => router.push('/analytics' as any)}
+              >
                 <Ionicons name="bar-chart-outline" size={16} color="#fff" />
               </TouchableOpacity>
-              {/* Notification bell */}
               <TouchableOpacity style={styles.iconCircle} onPress={() => router.push('/notifications' as any)}>
                 <Ionicons name="notifications-outline" size={16} color="#fff" />
                 {pendingCount > 0 && (
@@ -282,7 +325,7 @@ export default function Homepage() {
           {/* Figma: glassmorphic h-56, rounded-12, border rgba(156,156,156,0.5) */}
           <View style={styles.searchBar}>
             <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
-            
+
             {/* Simulated Figma Inset Shadows (Top/Bottom highlights) */}
             <LinearGradient
               colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
@@ -393,15 +436,17 @@ export default function Homepage() {
                 const postColor = postTheme.primary;
 
                 return (
-                  <TouchableOpacity
+                  <View
                     key={item.id}
                     style={styles.card}
-                    activeOpacity={0.9}
-                    onPress={() => handlePostTap(item.id, item.ownerId)}
                   >
                     {/* ── Header: Avatar, Name, See Portfolio, Share */}
                     <View style={styles.cardHeader}>
-                      <View style={styles.cardHeaderLeft}>
+                      <TouchableOpacity 
+                        style={styles.cardHeaderLeft}
+                        activeOpacity={0.7}
+                        onPress={() => handlePostTap(item.id, item.ownerId)}
+                      >
                         {item.isInitials ? (
                           <View style={[styles.avatarCircle, { backgroundColor: postColor + '33' }]}>
                             <Text style={[styles.initialsText, { color: postColor }]}>{(item as any).initials}</Text>
@@ -415,7 +460,7 @@ export default function Homepage() {
                           <Text style={styles.cardName}>{item.name}</Text>
                           <Text style={styles.cardCategory}>{item.role}</Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
 
                       <View style={styles.cardHeaderRight}>
                         <TouchableOpacity style={[styles.portfolioBtn, { backgroundColor: postColor }]}>
@@ -428,7 +473,7 @@ export default function Homepage() {
                     </View>
 
                     {/* ── Description */}
-                    <Text style={styles.cardDesc} numberOfLines={2}>{item.desc}</Text>
+                    <ExpandableText text={item.desc} style={styles.cardDesc} numberOfLines={2} />
 
                     {/* ── Meta: Price + Time */}
                     <View style={styles.cardMetaRow}>
@@ -448,10 +493,16 @@ export default function Homepage() {
 
                       {/* Floating Actions */}
                       <View style={styles.bannerActionsLeft}>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]}>
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: postColor }]}
+                          onPress={() => handleMessage(item.ownerId)}
+                        >
                           <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]}>
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: postColor }]}
+                          onPress={() => handleCall((item as any).owner)}
+                        >
                           <Ionicons name="call-outline" size={16} color="#fff" />
                         </TouchableOpacity>
                       </View>
@@ -462,7 +513,7 @@ export default function Homepage() {
                         </TouchableOpacity>
                       </View>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 );
               }))}
           </View>
@@ -472,7 +523,13 @@ export default function Homepage() {
         </ScrollView>
       </SafeAreaView>
 
-      {/* Bottom nav + FAB are rendered globally by (tabs)/_layout.tsx. */}
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+        role={userRole as any}
+      />
     </View>
   );
 }
@@ -602,14 +659,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    
+
     // Figma shadows
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
     shadowRadius: 40,
     elevation: 10,
-       
+
 
   },
   searchBarInner: {
