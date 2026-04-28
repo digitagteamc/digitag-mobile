@@ -278,7 +278,7 @@ export default function RoleSelectionScreen() {
     const handleNext = () => {
         if (!selectedRole) return;
         if (selectedRole === 'brand' || selectedRole === 'agency') {
-            Alert.alert('Coming Soon', 'Brand and Agency flows are not yet available. Please choose Creator or Freelancer.');
+            router.push('/coming-soon');
             return;
         }
         router.replace({ pathname: '/login', params: { role: selectedRole.toUpperCase() } });

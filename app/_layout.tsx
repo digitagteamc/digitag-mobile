@@ -57,6 +57,7 @@ export default function RootLayout() {
                     <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: '#060606' } }} />
                     <Stack.Screen name="signup" />
                     <Stack.Screen name="role-selection" />
+                    <Stack.Screen name="coming-soon" />
                     <Stack.Screen name="creator-details" />
                     <Stack.Screen name="settings" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#060606' } }} />
                     <Stack.Screen name="notifications" />
