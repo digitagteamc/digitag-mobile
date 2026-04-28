@@ -7,7 +7,9 @@ module.exports = {
     extend: {
       fontFamily: {
         'poppins-extralight': ['Poppins_200ExtraLight'],
+        'poppins-light': ['Poppins_300Light'],
         'poppins-regular': ['Poppins_400Regular'],
+        'poppins-medium': ['Poppins_500Medium'],
         'poppins-semibold': ['Poppins_600SemiBold'],
         'poppins-bold': ['Poppins_700Bold'],
         'poppins-extrabold': ['Poppins_800ExtraBold'],

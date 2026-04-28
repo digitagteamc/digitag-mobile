@@ -2,7 +2,9 @@ import { AuthProvider } from '@/context/AuthContext';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import {
     Poppins_200ExtraLight,
+    Poppins_300Light,
     Poppins_400Regular,
+    Poppins_500Medium,
     Poppins_600SemiBold,
     Poppins_700Bold,
     Poppins_800ExtraBold,
@@ -19,7 +21,9 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
     const [loaded, error] = useFonts({
         Poppins_200ExtraLight,
+        Poppins_300Light,
         Poppins_400Regular,
+        Poppins_500Medium,
         Poppins_600SemiBold,
         Poppins_700Bold,
         Poppins_800ExtraBold,
@@ -44,16 +48,17 @@ export default function RootLayout() {
                     screenOptions={{
                         headerShown: false,
                         animation: 'slide_from_right',
-                        contentStyle: { backgroundColor: '#000000' }
+                        contentStyle: { backgroundColor: '#060606' }
                     }}
                     initialRouteName="index"
                 >
                     <Stack.Screen name="index" />
                     <Stack.Screen name="login" />
-                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: '#060606' } }} />
                     <Stack.Screen name="signup" />
                     <Stack.Screen name="role-selection" />
                     <Stack.Screen name="creator-details" />
+                    <Stack.Screen name="settings" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#060606' } }} />
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="chat/[id]" />
                     <Stack.Screen name="switch-role" />

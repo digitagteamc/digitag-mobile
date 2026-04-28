@@ -1,26 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Animated,
   Linking,
   Platform,
   ScrollView,
   StatusBar,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-// ── Contact options
-interface ContactItem {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  action: () => void;
-}
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // ── FAQ item
 interface FaqItem {
@@ -60,27 +51,28 @@ function FaqAccordion({ item }: { item: FaqItem }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <View style={styles.faqCard}>
-      <View style={styles.cardBlur} />
+    <View className="mb-3 bg-[#121212] border border-[#2A2A2A] rounded-[24px] overflow-hidden">
       <TouchableOpacity
-        style={styles.faqRow}
+        className="px-5 py-4 flex-row items-center justify-between"
         activeOpacity={0.8}
         onPress={() => setExpanded(prev => !prev)}
       >
-        <Text style={styles.faqQuestion} numberOfLines={expanded ? undefined : 1}>
+        <Text className="text-white text-[15px] font-poppins-regular flex-1 mr-4">
           {item.question}
         </Text>
         <Ionicons
           name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={18}
-          color="#9a9a9a"
+          size={20}
+          color="#fff"
         />
       </TouchableOpacity>
 
       {expanded && (
-        <View style={styles.faqAnswer}>
-          <View style={styles.faqDivider} />
-          <Text style={styles.faqAnswerText}>{item.answer}</Text>
+        <View className="px-5 pb-5 pt-1">
+          <View className="h-[1px] bg-[#2A2A2A] mb-4" />
+          <Text className="text-[#8A8A8A] text-[14px] font-poppins-regular leading-6">
+            {item.answer}
+          </Text>
         </View>
       )}
     </View>
@@ -89,298 +81,116 @@ function FaqAccordion({ item }: { item: FaqItem }) {
 
 export default function HelpSupportScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
-  const CONTACT_ITEMS: ContactItem[] = [
+  const CONTACT_ITEMS = [
     {
       id: 'email',
-      icon: 'mail-outline',
+      icon: 'mail-outline' as const,
       label: 'Email',
       action: () => Linking.openURL('mailto:support@digitag.in').catch(() => {}),
     },
     {
       id: 'call',
-      icon: 'call-outline',
+      icon: 'call-outline' as const,
       label: 'Call',
       action: () => Linking.openURL('tel:+911800000000').catch(() => {}),
     },
     {
       id: 'chat',
-      icon: 'chatbubble-outline',
+      icon: 'chatbubble-outline' as const,
       label: 'Chat',
       action: () => {},
     },
   ];
 
   return (
-    <View style={styles.root}>
+    <View className="flex-1 bg-[#0A0A0A]">
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-      <SafeAreaView style={styles.safe}>
+      {/* Top purple glow gradient */}
+      <LinearGradient
+        colors={['rgba(98, 50, 255, 0.15)', 'transparent']}
+        className="absolute top-0 left-0 right-0 h-[250px]"
+      />
+
+      <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
+        
+        {/* ── STICKY HEADER ── */}
+        <View 
+          className="px-5 mb-6"
+          style={{ paddingTop: Math.max(insets.top, statusBarHeight) + 16 }}
+        >
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text className="text-white text-[22px] font-poppins-semibold tracking-wide">Help & Support</Text>
+          </View>
+        </View>
+
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: statusBarHeight }]}
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* ── HEADER ── */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Help &amp; Support</Text>
-            <View style={{ width: 36 }} />
-          </View>
-
           {/* ── CONTACT US ── */}
-          <Text style={styles.sectionTitle}>Contact Us</Text>
-
-          <View style={styles.contactCard}>
-            <View style={styles.cardBlur} />
-
-            {CONTACT_ITEMS.map((item, index) => (
-              <React.Fragment key={item.id}>
-                <TouchableOpacity
-                  style={styles.contactRow}
-                  activeOpacity={0.7}
-                  onPress={item.action}
-                >
-                  <View style={styles.iconPill}>
-                    <Ionicons name={item.icon} size={18} color="#F26930" />
-                  </View>
-                  <Text style={styles.contactLabel}>{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#9a9a9a" />
-                </TouchableOpacity>
-
-                {index < CONTACT_ITEMS.length - 1 && <View style={styles.divider} />}
-              </React.Fragment>
-            ))}
+          <View className="px-5 mb-8">
+            <Text className="text-white text-[17px] font-poppins-semibold mb-4 ml-1">Contact Us</Text>
+            <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
+              {CONTACT_ITEMS.map((item, index) => (
+                <React.Fragment key={item.id}>
+                  <TouchableOpacity
+                    className="flex-row items-center py-3.5 px-3"
+                    activeOpacity={0.7}
+                    onPress={item.action}
+                  >
+                    <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
+                      <Ionicons name={item.icon} size={20} color="#E0E0E0" />
+                    </View>
+                    <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium flex-1">{item.label}</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#fff" />
+                  </TouchableOpacity>
+                  {index < CONTACT_ITEMS.length - 1 && (
+                    <View className="h-[1px] bg-[#2A2A2A] mx-3" />
+                  )}
+                </React.Fragment>
+              ))}
+            </View>
           </View>
 
           {/* ── FAQ ── */}
-          <Text style={[styles.sectionTitle, { marginTop: 32 }]}>
-            Frequently Asked Questions
-          </Text>
-
-          <View style={styles.faqList}>
-            {FAQ_ITEMS.map(item => (
-              <FaqAccordion key={item.id} item={item} />
-            ))}
+          <View className="px-5 mb-8">
+            <Text className="text-white text-[17px] font-poppins-semibold mb-4 ml-1">
+              Frequently Asked Questions
+            </Text>
+            <View>
+              {FAQ_ITEMS.map(item => (
+                <FaqAccordion key={item.id} item={item} />
+              ))}
+            </View>
           </View>
 
           {/* ── STILL NEED HELP ── */}
-          <View style={styles.helpCard}>
-            <View style={styles.helpCardBlur} />
-            <Text style={styles.helpTitle}>Still Need Help?</Text>
-            <Text style={styles.helpSubtitle}>
-              Our support team is available 24/7 to assist you
-            </Text>
-            <TouchableOpacity
-              style={styles.contactSupportBtn}
-              activeOpacity={0.85}
-              onPress={() => Linking.openURL('mailto:support@digitag.in').catch(() => {})}
-            >
-              <Text style={styles.contactSupportText}>Contact Support</Text>
-            </TouchableOpacity>
+          <View className="px-5 mb-8">
+            <View className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-5 items-center">
+              <Text className="text-white text-[18px] font-poppins-semibold mb-2 w-full text-left">Still Need Help?</Text>
+              <Text className="text-[#8A8A8A] text-[13px] font-poppins-regular mb-5 w-full text-left">
+                Our support team is available 24/7 to assist you
+              </Text>
+              <TouchableOpacity
+                className="bg-[#7C5DFA] w-full py-4 rounded-full items-center shadow-lg shadow-[#7C5DFA]/30"
+                activeOpacity={0.8}
+                onPress={() => Linking.openURL('mailto:support@digitag.in').catch(() => {})}
+              >
+                <Text className="text-white text-[16px] font-poppins-bold">Contact Support</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#060606',
-  },
-  safe: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-  },
-
-  // ── Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 32,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '500',
-    letterSpacing: -0.3,
-  },
-
-  // ── Section title
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '500',
-    marginBottom: 16,
-  },
-
-  // ── Shared card blur
-  cardBlur: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 20,
-  },
-
-  // ── Contact card
-  contactCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.5)',
-    overflow: 'hidden',
-    position: 'relative',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    shadowColor: '#323232',
-    shadowOffset: { width: -7, height: 17 },
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
-    elevation: 4,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-  },
-  iconPill: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(50,50,50,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(242,105,48,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  contactLabel: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '400',
-    flex: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(156,156,156,0.25)',
-  },
-
-  // ── FAQ list
-  faqList: {
-    gap: 10,
-  },
-  faqCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.5)',
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#323232',
-    shadowOffset: { width: -7, height: 17 },
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
-    elevation: 3,
-  },
-  faqRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 8,
-  },
-  faqQuestion: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '400',
-    flex: 1,
-    lineHeight: 22,
-  },
-  faqAnswer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  faqDivider: {
-    height: 1,
-    backgroundColor: 'rgba(156,156,156,0.25)',
-    marginBottom: 12,
-  },
-  faqAnswerText: {
-    color: '#9a9a9a',
-    fontSize: 13,
-    fontWeight: '400',
-    lineHeight: 20,
-  },
-
-  // ── Still need help card
-  helpCard: {
-    marginTop: 32,
-    borderRadius: 15,
-    overflow: 'hidden',
-    backgroundColor: '#171717',
-    padding: 24,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  helpCardBlur: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#171717',
-  },
-  helpTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  helpSubtitle: {
-    color: '#e1e1e1',
-    fontSize: 12,
-    fontWeight: '400',
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  contactSupportBtn: {
-    backgroundColor: '#7352DD',
-    height: 56,
-    borderRadius: 99,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  contactSupportText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '500',
-    letterSpacing: -0.2,
-  },
-});

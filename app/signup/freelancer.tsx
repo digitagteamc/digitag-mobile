@@ -268,6 +268,7 @@ export default function FreelancerSignup() {
     const router = useRouter();
     const { userPhone, token, setProfileCompleted, setProfiles } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [prefilling, setPrefilling] = useState(true);
     const [step, setStep] = useState(1);
     const [mode, setMode] = useState<'create' | 'update'>('create');
@@ -466,7 +467,7 @@ export default function FreelancerSignup() {
             if (result.success) {
                 setProfileCompleted(true);
                 setProfiles({ FREELANCER: true });
-                router.replace('/(tabs)');
+                setShowSuccessModal(true);
             } else {
                 Alert.alert('Error', result.error || 'Failed to save profile');
             }
@@ -483,6 +484,11 @@ export default function FreelancerSignup() {
         } else {
             router.back();
         }
+    };
+
+    const handleSuccessClose = () => {
+        setShowSuccessModal(false);
+        router.replace('/(tabs)');
     };
 
     if (prefilling) {
@@ -720,6 +726,55 @@ export default function FreelancerSignup() {
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
+            <SuccessModal visible={showSuccessModal} onClose={handleSuccessClose} />
         </SafeAreaView>
     );
 }
+
+const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+    useEffect(() => {
+        if (visible) {
+            const timer = setTimeout(() => {
+                onClose();
+            }, 1400);
+            return () => clearTimeout(timer);
+        }
+    }, [visible, onClose]);
+
+    return (
+        <Modal visible={visible} transparent animationType="fade">
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={onClose}
+                className="flex-1 bg-black/80 items-center justify-center px-6"
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    className="bg-[#1A1A1A] w-full rounded-[32px] p-8 items-center border border-white/10"
+                >
+                    <View className="w-56 h-56 mb-2 items-center justify-center">
+                        <Image
+                            source={require('../../assets/images/success.gif')}
+                            className="w-full h-full"
+                            resizeMode="contain"
+                        />
+                    </View>
+
+                    <Text className="text-white font-poppins-bold text-[32px] mb-2 text-center leading-tight">
+                        You're all set!
+                    </Text>
+
+                    <Text className="text-white/60 font-poppins-regular text-center text-[16px] mb-8">
+                        You are ready to collaborate as
+                    </Text>
+
+                    <View
+                        className="bg-[#F9D1C5] px-8 py-2 rounded-full"
+                    >
+                        <Text className="text-[#F26930] font-poppins-semibold text-lg">Freelancer</Text>
+                    </View>
+                </TouchableOpacity>
+            </TouchableOpacity>
+        </Modal>
+    );
+};

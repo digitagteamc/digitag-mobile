@@ -33,14 +33,32 @@ export default function GradientButton({
   textStyle,
   className
 }: Props) {
+  const isTransparent = colors[0] === 'transparent' || colors[0] === 'rgba(0,0,0,0)';
+  const isSolidColor = colors.length >= 2 && colors[0] === colors[1];
+  const isSolidBorder = borderColors && borderColors.length >= 2 && borderColors[0] === borderColors[1];
+
   const content = (
-    <LinearGradient
-      colors={colors}
-      locations={locations}
-      start={start}
-      end={end}
-      style={{ height: 60, paddingHorizontal: 16, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 999, width: '100%' }}
-    >
+    <View style={{
+      height: 60,
+      width: '100%',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999,
+      overflow: 'hidden',
+      backgroundColor: isTransparent ? 'transparent' : (isSolidColor ? colors[0] : 'transparent')
+    }}>
+      {!isTransparent && !isSolidColor && (
+        <LinearGradient
+          colors={colors}
+          locations={locations}
+          start={start}
+          end={end}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+
       {/* Top-Left Inset Shadow Simulation */}
       {insetTopColor && (
         <LinearGradient
@@ -69,7 +87,7 @@ export default function GradientButton({
       >
         {title}
       </Text>
-    </LinearGradient>
+    </View>
   );
 
   return (
@@ -78,28 +96,41 @@ export default function GradientButton({
       activeOpacity={0.8}
       style={[
         {
-          shadowColor,
+          shadowColor: isTransparent ? 'transparent' : shadowColor,
           shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.15,
+          shadowOpacity: isTransparent ? 0 : 0.15,
           shadowRadius: 4,
-          elevation: 4,
+          elevation: isTransparent ? 0 : 4,
         },
         containerStyle,
       ]}
       className={`rounded-full ${className || ''}`}
     >
       {borderColors ? (
-        <View style={{ padding: 0.5, borderRadius: 999, overflow: 'hidden' }}>
-          <LinearGradient
-            colors={borderColors}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-          {content}
-        </View>
+        isSolidBorder ? (
+          <View style={{
+            borderWidth: 1.5,
+            borderColor: borderColors[0],
+            borderRadius: 999,
+            width: '100%'
+          }}>
+            {content}
+          </View>
+        ) : (
+          <View style={{ padding: 1.5, borderRadius: 999, overflow: 'hidden', width: '100%' }}>
+            <LinearGradient
+              colors={borderColors}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={{ backgroundColor: isTransparent ? 'transparent' : 'white', borderRadius: 999, width: '100%' }}>
+              {content}
+            </View>
+          </View>
+        )
       ) : (
-        <View className="overflow-hidden rounded-full">{content}</View>
+        content
       )}
     </TouchableOpacity>
   );

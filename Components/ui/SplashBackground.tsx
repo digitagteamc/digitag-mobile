@@ -18,7 +18,7 @@ export default function SplashBackground({
 }) {
   const { height: screenH } = useWindowDimensions();
   const isSmall = screenH < 750;
-  
+
   // 1.2x screen width to ensure circles wrap nicely and scale proportionally
   // On small screens, reduce the BASE size to ensure circles don't reach the text area
   const BASE = isSmall ? width * 0.85 : width * 1;
@@ -39,15 +39,15 @@ export default function SplashBackground({
       >
         <View
           style={{ width: BASE, height: BASE, borderRadius: BASE / 2, borderWidth: BASE * 0.12 }}
-          className="absolute border-white/[0.12]"
+          className="absolute border-white/[0.07]"
         />
         <View
           style={{ width: BASE * 0.65, height: BASE * 0.65, borderRadius: (BASE * 0.65) / 2, borderWidth: BASE * 0.10 }}
-          className="absolute border-white/[0.15]"
+          className="absolute border-white/[0.07]"
         />
         <View
           style={{ width: BASE * 0.35, height: BASE * 0.35, borderRadius: (BASE * 0.35) / 2, borderWidth: BASE * 0.08 }}
-          className="absolute border-white/[0.18]"
+          className="absolute border-white/[0.07]"
         />
       </View>
 

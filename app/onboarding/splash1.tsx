@@ -33,66 +33,57 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     titles: ["Your beauty × brand", "collaboration", "platform."],
     subtitle: "DigiTag",
     buttonText: "Get Started",
+    buttonColors: ['transparent', 'transparent'],
+    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
+    buttonShadowColor: 'transparent',
   },
   {
-    gradientColors: ['#000000', '#1C265C'],
+    gradientColors: ['#000000', '#253477'],
     titles: ["Discover Top", "Brands"],
     subtitle: "Connect with fashion labels, beauty \nbrands, and lifestyle companies ready to collaborate.",
     buttonText: "Next",
     dotColor: "#405BFF",
     stepLabel: "Step 1 of 4",
     activeIndex: 0,
-    buttonColors: ['#253477', '#9198C6', '#253477'],
-    buttonLocations: [0.1108, 0.4204, 0.959],
-    buttonBorderColors: ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.08)'],
-    buttonShadowColor: '#5C69AE',
-    buttonInsetTopColor: '#5C69AE6E',
-    buttonInsetBottomColor: '#253E9352',
+    buttonColors: ['transparent', 'transparent'],
+    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
+    buttonShadowColor: 'transparent',
   },
   {
-    gradientColors: ['#000000', '#B01E68'],
+    gradientColors: ['#000000', '#ED2A91'],
     titles: ["Book Expert", "Creators"],
     subtitle: "Find makeup artists, hair stylists, photographers, editors & more for\nevery occasion.",
     buttonText: "Next",
     dotColor: "#E01E79",
     stepLabel: "Step 2 of 4",
     activeIndex: 1,
-    buttonColors: ['#ED2A91', '#F15DAB', '#ED2A91'],
-    buttonLocations: [0.1108, 0.4204, 0.959],
-    buttonBorderColors: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'],
-    buttonShadowColor: '#ED2A91',
-    buttonInsetTopColor: '#F15DAB6E',
-    buttonInsetBottomColor: '#ED2A9152',
+    buttonColors: ['transparent', 'transparent'],
+    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
+    buttonShadowColor: 'transparent',
   },
   {
-    gradientColors: ['#000000', '#B33E1A'],
+    gradientColors: ['#000000', '#BD562C'],
     titles: ["Grow & Earn", "Together"],
     subtitle: "Launch campaigns, track\nperformance, and turn your\ncreativity into a thriving business.",
     buttonText: "Next",
     dotColor: "#FF6B35",
     stepLabel: "Step 3 of 4",
     activeIndex: 2,
-    buttonColors: ['#B33E1A', '#FF6B35', '#B33E1A'],
-    buttonLocations: [0.1108, 0.4204, 0.959],
-    buttonBorderColors: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'],
-    buttonShadowColor: '#FF6B35',
-    buttonInsetTopColor: '#FF6B356E',
-    buttonInsetBottomColor: '#B33E1A52',
+    buttonColors: ['transparent', 'transparent'],
+    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
+    buttonShadowColor: 'transparent',
   },
   {
-    gradientColors: ['#000000', '#566B00'],
+    gradientColors: ['#000000', '#E2F20F'],
     titles: ["Scale Your", "Agency Faster"],
     subtitle: "Handle clients, campaigns, and\nanalytics—all in one powerful\nplatform.",
     buttonText: "Get Started",
     dotColor: "#C1E300",
     stepLabel: "Step 4 of 4",
     activeIndex: 3,
-    buttonColors: ['#566B00', '#C1E300', '#566B00'],
-    buttonLocations: [0.1108, 0.4204, 0.959],
-    buttonBorderColors: ['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.1)'],
-    buttonShadowColor: '#C1E300',
-    buttonInsetTopColor: '#C1E3006E',
-    buttonInsetBottomColor: '#566B0052',
+    buttonColors: ['transparent', 'transparent'],
+    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
+    buttonShadowColor: 'transparent',
     buttonTextColor: '#000000',
   },
 ];
@@ -101,11 +92,11 @@ export default function Splash1() {
   const router = useRouter();
   const { step } = useLocalSearchParams<{ step?: string }>();
   const { width: screenW, height: screenH } = useWindowDimensions();
-  
+
   // Initialize with step from params if valid, otherwise start at 0
   const initialStep = step ? parseInt(step, 10) : 0;
   const [currentStep, setCurrentStep] = useState(isNaN(initialStep) ? 0 : Math.min(initialStep, ONBOARDING_STEPS.length - 1));
-  
+
   const data = ONBOARDING_STEPS[currentStep];
 
   // Responsive decorative sizes: scale with screen width but cap for tablets,
@@ -281,10 +272,10 @@ export default function Splash1() {
           {currentStep === 0 && (
             <Animated.Text
               entering={FadeIn}
-              className={`font-poppins-extralight ${isCompact ? 'text-[15px] leading-[20px]' : 'text-[18px] leading-[24px]'} text-[#b4b4b4] text-center mt-[5px] z-20`}
+              className={`font-poppins-light ${isCompact ? 'text-[15px] leading-[20px]' : 'text-[18px] leading-[24px]'} text-[#b4b4b4] text-center mt-[5px] z-20`}
             >
               By Continuing. You accept our{' '}
-              <Text className="text-white underline">Terms and Privacy Policy</Text>
+              <Text className="text-white underline font-poppins-medium">Terms{'\n'} and Privacy Policy</Text>
             </Animated.Text>
           )}
         </View>

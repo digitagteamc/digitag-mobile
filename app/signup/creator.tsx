@@ -267,12 +267,61 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
     </View>
 );
 
+const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+    useEffect(() => {
+        if (visible) {
+            const timer = setTimeout(() => {
+                onClose();
+            }, 1400); // 1.4 seconds total (1s GIF play + 0.4s wait)
+            return () => clearTimeout(timer);
+        }
+    }, [visible, onClose]);
+
+    return (
+        <Modal visible={visible} transparent animationType="fade">
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={onClose}
+                className="flex-1 bg-black/80 items-center justify-center px-6"
+            >
+                <TouchableOpacity
+                    activeOpacity={1}
+                    className="bg-[#1A1A1A] w-full rounded-[32px] p-8 items-center border border-white/10"
+                >
+                    <View className="w-56 h-56 mb-2 items-center justify-center">
+                        <Image
+                            source={require('../../assets/images/success.gif')}
+                            className="w-full h-full"
+                            resizeMode="contain"
+                        />
+                    </View>
+
+                    <Text className="text-white font-poppins-bold text-[32px] mb-2 text-center leading-tight">
+                        You're all set!
+                    </Text>
+
+                    <Text className="text-white/60 font-poppins-regular text-center text-[16px] mb-8">
+                        You are ready to collaborate as
+                    </Text>
+
+                    <View
+                        className="bg-[#F7C2DE] px-8 py-2 rounded-full"
+                    >
+                        <Text className="text-[#D01E7E] font-poppins-semibold text-lg">Creator</Text>
+                    </View>
+                </TouchableOpacity>
+            </TouchableOpacity>
+        </Modal>
+    );
+};
+
 // --- Main Component ---
 
 export default function CreatorSignup() {
     const router = useRouter();
     const { userPhone, token, setProfileCompleted, setProfiles } = useAuth();
     const [loading, setLoading] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [prefilling, setPrefilling] = useState(true);
     const [step, setStep] = useState(1);
     const [mode, setMode] = useState<'create' | 'update'>('create');
@@ -444,11 +493,7 @@ export default function CreatorSignup() {
             if (result.success) {
                 setProfileCompleted(true);
                 setProfiles({ CREATOR: true });
-                if (mode === 'update') {
-                    router.replace('/(tabs)');
-                } else {
-                    router.replace('/signup/pending');
-                }
+                setShowSuccessModal(true);
             } else {
                 Alert.alert('Error', result.error || 'Failed to save profile');
             }
@@ -464,6 +509,15 @@ export default function CreatorSignup() {
             setStep(1);
         } else {
             router.back();
+        }
+    };
+
+    const handleSuccessClose = () => {
+        setShowSuccessModal(false);
+        if (mode === 'update') {
+            router.replace('/(tabs)');
+        } else {
+            router.replace('/signup/pending');
         }
     };
 
@@ -678,6 +732,7 @@ export default function CreatorSignup() {
                     )}
                 </ScrollView>
             </KeyboardAvoidingView>
+            <SuccessModal visible={showSuccessModal} onClose={handleSuccessClose} />
         </SafeAreaView>
     );
 }
