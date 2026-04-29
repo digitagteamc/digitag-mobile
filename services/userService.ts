@@ -110,6 +110,43 @@ export const verifyOtp = async (
     }
 };
 
+/** POST /auth/verify-firebase — backend returns profile map + active role using Firebase idToken. */
+export const verifyFirebaseToken = async (
+    idToken: string,
+    role: 'CREATOR' | 'FREELANCER' = 'CREATOR',
+) => {
+    try {
+        console.log(`🔐 Verifying Firebase token for role ${role}...`);
+        const body = await request('/auth/verify-firebase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken, role }),
+        });
+        const data = body?.data ?? {};
+        const token = data?.tokens?.accessToken ?? '';
+        console.log(`✅ Firebase OTP verified. Token: ${token ? 'yes' : 'NOT PROVIDED'}`);
+        return {
+            success: true,
+            token,
+            refreshToken: data?.tokens?.refreshToken,
+            user: data?.user,
+            isNewUser: data?.isNewUser,
+            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | undefined,
+            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean } | undefined,
+            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER'>,
+            isProfileCompleted: data?.isProfileCompleted,
+        };
+    } catch (error: any) {
+        console.warn('❌ verifyFirebaseToken error:', error.message);
+        const details = error instanceof ApiRequestError ? error.details : null;
+        return {
+            success: false,
+            error: error.message,
+            attemptsRemaining: details?.attemptsRemaining as number | undefined,
+        };
+    }
+};
+
 /** POST /auth/switch-role — change the active role for the current account. */
 export const switchRole = async (token: string, role: 'CREATOR' | 'FREELANCER') => {
     try {
@@ -779,5 +816,21 @@ export const getFollowSuggestions = async (token: string, limit: number = 20) =>
         return { success: true, data: body?.data ?? [] };
     } catch (error: any) {
         return { success: false, error: error.message };
+    }
+};
+
+/* ───────────────────────── SEARCH ─────────────────────────── */
+
+/** GET /search?q=<query>&limit=20 */
+export const searchProfiles = async (token: string, q: string, limit: number = 20) => {
+    try {
+        const qs = new URLSearchParams({ q, limit: String(limit) });
+        const body = await request(`/search?${qs}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] };
     }
 };

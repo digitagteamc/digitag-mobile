@@ -19,7 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import GradientButton from '../Components/ui/GradientButton';
 import CustomAlert from '../Components/ui/CustomAlert';
 import { useAuth } from '../context/AuthContext';
-import { requestOtp, verifyOtp } from '../services/userService';
+import { verifyFirebaseToken } from '../services/userService';
+import auth from '@react-native-firebase/auth';
 
 type SignupRole = 'CREATOR' | 'FREELANCER';
 
@@ -31,6 +32,7 @@ export default function LoginScreen() {
     const { login, loginAsGuest } = useAuth();
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');
+    const [confirm, setConfirm] = useState<any>(null);
     const [devCode, setDevCode] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState(1); // 1: Phone, 2: OTP
@@ -131,27 +133,14 @@ export default function LoginScreen() {
         setLoading(true);
         setOtpError(null);
         try {
-            const res = await requestOtp(phoneNumber.replace(/\s+/g, ''), role);
-            if (res.success) {
-                const code = (res as any).devCode as string | undefined;
-                if (code) {
-                    setDevCode(code);
-                    setOtp(code);
-                }
-                setCountdown((res as any).resendCooldownSeconds ?? 30);
-                Keyboard.dismiss();
-                animatedSetStep(2);
-            } else {
-                if ('retryAfterSeconds' in res && res.retryAfterSeconds) {
-                    setCountdown(res.retryAfterSeconds as number);
-                    animatedSetStep(2);
-                    setOtpError(res.error || 'Please wait before requesting again.');
-                } else {
-                    showStatus('Error', res.error || 'Failed to send OTP.');
-                }
-            }
+            const cleanPhone = phoneNumber.replace(/\s+/g, '');
+            const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
+            setConfirm(confirmation);
+            setCountdown(60);
+            Keyboard.dismiss();
+            animatedSetStep(2);
         } catch (error: any) {
-            showStatus('Error', error.message || 'Something went wrong.');
+            showStatus('Error', error.message || 'Failed to send OTP.');
         } finally {
             setLoading(false);
         }
@@ -165,8 +154,18 @@ export default function LoginScreen() {
         setLoading(true);
         setOtpError(null);
         try {
+            if (!confirm) {
+                setOtpError('Session expired. Request OTP again.');
+                return;
+            }
+
+            await confirm.confirm(otp);
+            const currentUser = auth().currentUser;
+            if (!currentUser) throw new Error("Verification failed.");
+            
+            const idToken = await currentUser.getIdToken();
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
-            const res = await verifyOtp(cleanPhone, otp, role);
+            const res = await verifyFirebaseToken(idToken, role);
 
             if (!res.success) {
                 setOtpError(res.error || 'Invalid OTP.');

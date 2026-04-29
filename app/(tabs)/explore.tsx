@@ -1,11 +1,11 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/useProfileGate';
-import { getFeed } from '@/services/userService';
+import { getFeed, searchProfiles } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import ExpandableText from '@/Components/ui/ExpandableText';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -65,6 +65,9 @@ export default function ExploreTab() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPosts = useCallback(async () => {
     if (!token) { setPosts([]); setLoading(false); return; }
@@ -83,23 +86,29 @@ export default function ExploreTab() {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
+  useEffect(() => {
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (!search.trim()) { setSearchResults([]); setSearchLoading(false); return; }
+    setSearchLoading(true);
+    searchDebounce.current = setTimeout(async () => {
+      if (!token) { setSearchLoading(false); return; }
+      const res = await searchProfiles(token, search.trim());
+      setSearchResults(res.success ? res.data : []);
+      setSearchLoading(false);
+    }, 350);
+    return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
+  }, [search, token]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);
   };
 
-  // Client-side view filters. Backend already filters by opposite role, so
-  // "Creators" / "Freelancers" pills narrow within the already-opposite set.
   const filteredPosts = posts.filter((p) => {
     if (activeFilter === 'creators' && p.owner?.role !== 'CREATOR') return false;
     if (activeFilter === 'freelancers' && p.owner?.role !== 'FREELANCER') return false;
     if (activeFilter === 'paid' && p.collaborationType !== 'PAID') return false;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      const haystack = [p.description, p.location, p.owner?.name].filter(Boolean).join(' ').toLowerCase();
-      if (!haystack.includes(q)) return false;
-    }
     return true;
   });
 
@@ -181,43 +190,90 @@ export default function ExploreTab() {
               <Ionicons name="search-outline" size={20} color="#888" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search here for Animator"
+                placeholder="Search creators & freelancers..."
                 placeholderTextColor="#666"
                 value={search}
                 onChangeText={setSearch}
                 autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
               />
-              <Ionicons name="mic-outline" size={22} color="#888" />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={16} color="#888" />
+                </TouchableOpacity>
+              )}
             </View>
+
+            {/* PROFILE SEARCH RESULTS */}
+            {search.length > 0 && (
+              <View style={styles.searchResultsPanel}>
+                {searchLoading ? (
+                  <ActivityIndicator size="small" color="#F26930" style={{ paddingVertical: 16 }} />
+                ) : searchResults.length === 0 ? (
+                  <Text style={styles.noResultsText}>No profiles found for "{search}"</Text>
+                ) : (
+                  searchResults.map((item) => (
+                    <TouchableOpacity
+                      key={`${item.role}-${item.userId}`}
+                      style={styles.searchResultItem}
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        if (isGuest || !token) { router.push('/role-selection'); return; }
+                        setSearch('');
+                        router.push({ pathname: '/creator-details', params: { userId: item.userId } } as any);
+                      }}
+                    >
+                      {item.profilePicture ? (
+                        <Image source={{ uri: item.profilePicture }} style={styles.searchResultAvatar} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.searchResultAvatar, styles.searchResultAvatarFallback]}>
+                          <Text style={styles.searchResultInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
+                        </View>
+                      )}
+                      <View style={styles.searchResultText}>
+                        <Text style={styles.searchResultName}>{item.name}</Text>
+                        <Text style={styles.searchResultMeta}>
+                          {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
+                          {item.category ? ` · ${item.category}` : ''}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            )}
           </View>
 
-          {/* FILTER PILLS */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pillsContent}>
-            {FILTER_TABS.map((tab) => {
-              const active = tab.id === activeFilter;
-              return (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[styles.pill, active && styles.pillActive]}
-                  onPress={() => setActiveFilter(tab.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, active && styles.pillTextActive]}>{tab.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          {/* FILTER PILLS — hidden while searching */}
+          {!search.trim() && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pillsContent}>
+              {FILTER_TABS.map((tab) => {
+                const active = tab.id === activeFilter;
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    style={[styles.pill, active && styles.pillActive]}
+                    onPress={() => setActiveFilter(tab.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.pillText, active && styles.pillTextActive]}>{tab.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
-          {/* FEED LIST */}
-          {loading ? (
+          {/* FEED LIST — hidden while searching */}
+          {!search.trim() && (loading ? (
             <ActivityIndicator size="large" color="#ED2A91" style={{ marginTop: 40 }} />
           ) : cards.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="compass-outline" size={48} color="#3A3A47" />
               <Text style={styles.emptyTitle}>Nothing to explore yet</Text>
               <Text style={styles.emptySubtitle}>
-                {search.trim() || activeFilter !== 'all'
-                  ? 'No posts match your filters. Try a different search.'
+                {activeFilter !== 'all'
+                  ? 'No posts match your filters. Try a different filter.'
                   : 'Pull down to refresh — new posts will appear here as people share them.'}
               </Text>
             </View>
@@ -303,7 +359,7 @@ export default function ExploreTab() {
                 );
               })}
             </View>
-          )}
+          ))}
 
           <View style={{ height: 120 }} />
         </ScrollView>
@@ -375,8 +431,64 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     marginLeft: 12,
+    height: 40,
+    paddingVertical: 0,
+  },
+  searchResultsPanel: {
+    backgroundColor: '#1a1a22',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(156,156,156,0.3)',
+    marginTop: -12,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  searchResultAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+  },
+  searchResultAvatarFallback: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchResultInitial: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultName: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  searchResultMeta: {
+    color: '#9a9a9a',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    marginTop: 1,
+  },
+  noResultsText: {
+    color: '#9a9a9a',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
   pillsRow: {
     paddingLeft: 20,

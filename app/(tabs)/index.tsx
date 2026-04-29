@@ -2,7 +2,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -13,17 +13,17 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import ExpandableText from '../../Components/ui/ExpandableText';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
-import { getFeed, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
+import { getFeed, getFullProfile, listCollaborations, openConversationWith, searchProfiles } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -103,6 +103,11 @@ export default function Homepage() {
     message: '',
   });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showAlert = (title: string, message: string) => {
     setAlertConfig({ visible: true, title, message });
   };
@@ -157,34 +162,25 @@ export default function Homepage() {
     fetchPendingCount();
   }, [token, isGuest, userRole]);
 
-  // Animated Placeholder Logic
-  const words = ['Animator', 'Editors', 'Content Writer', 'And More'];
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const translateY = useSharedValue(0);
-
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Step to next word
-      const nextIndex = (currentIndex + 1) % (words.length + 1);
-      
-      translateY.value = withTiming(-nextIndex * 20, { duration: 600 }, (finished) => {
-        if (finished) {
-          if (nextIndex === words.length) {
-            // Snap back to first word without animation
-            translateY.value = 0;
-            runOnJS(setCurrentIndex)(0);
-          } else {
-            runOnJS(setCurrentIndex)(nextIndex);
-          }
-        }
-      });
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [currentIndex]);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    searchDebounce.current = setTimeout(async () => {
+      if (!token) { setSearchLoading(false); return; }
+      const res = await searchProfiles(token, searchQuery.trim());
+      setSearchResults(res.success ? res.data : []);
+      setSearchLoading(false);
+    }, 350);
+    return () => {
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    };
+  }, [searchQuery, token]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
 
   // Backend `shapePost` already flattens the author → { id, role, name,
   // profilePicture, location } on `post.owner`. `name` falls back to the
@@ -363,33 +359,70 @@ export default function Homepage() {
           </View>
 
           {/* ══════════════ SEARCH BAR ══════════════ */}
-          {/* Figma: glassmorphic h-56, rounded-12, border rgba(156,156,156,0.5) */}
           <View style={styles.searchBar}>
             <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
-
-            {/* Simulated Figma Inset Shadows (Top/Bottom highlights) */}
             <LinearGradient
               colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
               style={StyleSheet.absoluteFill}
             />
-
             <View style={styles.searchBarInner}>
-              {/* Search icon */}
               <Feather name="search" size={18} color="#d6d6d6" />
-              <Text style={styles.searchGray}>Search here for </Text>
-              <View style={{ height: 20, overflow: 'hidden' }}>
-                <Animated.View style={animatedStyle}>
-                  {words.map((word, idx) => (
-                    <Text key={idx} style={[styles.searchWhite, { height: 20, lineHeight: 20 }]}>{word}</Text>
-                  ))}
-                  {/* Append first word at the end for seamless loop */}
-                  <Text style={[styles.searchWhite, { height: 20, lineHeight: 20 }]}>{words[0]}</Text>
-                </Animated.View>
-              </View>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search creators & freelancers..."
+                placeholderTextColor="#9a9a9a"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={16} color="#d6d6d6" />
+                </TouchableOpacity>
+              )}
             </View>
-            {/* Mic icon right */}
-            <Ionicons name="mic-outline" size={18} color="#d6d6d6" style={styles.micIcon} />
           </View>
+
+          {/* ══════════════ SEARCH RESULTS ══════════════ */}
+          {searchQuery.length > 0 && (
+            <View style={styles.searchResultsPanel}>
+              {searchLoading ? (
+                <ActivityIndicator size="small" color={theme.primary} style={{ paddingVertical: 16 }} />
+              ) : searchResults.length === 0 ? (
+                <Text style={styles.noResultsText}>No profiles found for "{searchQuery}"</Text>
+              ) : (
+                searchResults.map((item) => (
+                  <TouchableOpacity
+                    key={`${item.role}-${item.userId}`}
+                    style={styles.searchResultItem}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      if (isGuest || !token) { router.push('/role-selection'); return; }
+                      setSearchQuery('');
+                      router.push({ pathname: '/creator-details', params: { userId: item.userId } } as any);
+                    }}
+                  >
+                    {item.profilePicture ? (
+                      <Image source={{ uri: item.profilePicture }} style={styles.searchResultAvatar} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.searchResultAvatar, styles.searchResultAvatarFallback]}>
+                        <Text style={styles.searchResultInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
+                      </View>
+                    )}
+                    <View style={styles.searchResultText}>
+                      <Text style={styles.searchResultName}>{item.name}</Text>
+                      <Text style={styles.searchResultMeta}>
+                        {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
+                        {item.category ? ` · ${item.category}` : ''}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
 
           {/* ══════════════ BANNER CAROUSEL ══════════════ */}
           {/* Figma: glassmorphic rgba(240,240,240,0.3) with border rgba(64,64,64,0.5) */}
@@ -467,7 +500,7 @@ export default function Homepage() {
           {/* ══════════════ RECENTLY UPDATED HEADER ══════════════ */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recently Updated</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/explore')}>
               <Text style={[styles.viewAll, { color: theme.primary }]}>View all</Text>
             </TouchableOpacity>
           </View>
@@ -722,23 +755,70 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
-  searchGray: {
-    color: '#d6d6d6',
-    fontSize: 12,
-    marginLeft: 4,
-    fontFamily: 'Poppins_400Medium',
-    textAlign: 'center',
-  },
-  searchWhite: {
+  searchInput: {
+    flex: 1,
     color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    fontFamily: 'Inter_500Medium',
+    fontSize: 13,
+    fontFamily: 'Poppins_400Medium',
+    paddingVertical: 0,
+    height: 40,
   },
-  micIcon: {
-    marginLeft: 8,
+  searchResultsPanel: {
+    backgroundColor: '#1a1a22',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(156,156,156,0.3)',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  searchResultAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+  },
+  searchResultAvatarFallback: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchResultInitial: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  searchResultMeta: {
+    color: '#9a9a9a',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Medium',
+    marginTop: 1,
+  },
+  noResultsText: {
+    color: '#9a9a9a',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
   },
 
   // ── Banner (Figma: glassmorphic 152×409, bg rgba(240,240,240,0.3), border rgba(64,64,64,0.5))

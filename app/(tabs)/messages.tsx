@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { listConversations } from '../../services/userService';
+import { listConversations, openConversationWith, searchProfiles } from '../../services/userService';
 
 const ACCENT = '#F26930';
 
@@ -49,6 +49,9 @@ export default function MessagesTab() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [search, setSearch] = useState('');
+    const [profileResults, setProfileResults] = useState<any[]>([]);
+    const [profileLoading, setProfileLoading] = useState(false);
+    const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const load = useCallback(async () => {
         if (!token || isGuest) { setConversations([]); setLoading(false); return; }
@@ -58,6 +61,19 @@ export default function MessagesTab() {
     }, [token, isGuest]);
 
     useEffect(() => { load(); }, [load]);
+
+    useEffect(() => {
+        if (searchDebounce.current) clearTimeout(searchDebounce.current);
+        if (!search.trim()) { setProfileResults([]); setProfileLoading(false); return; }
+        setProfileLoading(true);
+        searchDebounce.current = setTimeout(async () => {
+            if (!token) { setProfileLoading(false); return; }
+            const res = await searchProfiles(token, search.trim());
+            setProfileResults(res.success ? res.data : []);
+            setProfileLoading(false);
+        }, 350);
+        return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
+    }, [search, token]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -103,13 +119,64 @@ export default function MessagesTab() {
                     <Ionicons name="search-outline" size={18} color="#6B6B7A" />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Search here"
+                        placeholder="Search chats or find people..."
                         placeholderTextColor="#6B6B7A"
                         value={search}
                         onChangeText={setSearch}
                         autoCapitalize="none"
+                        autoCorrect={false}
+                        returnKeyType="search"
                     />
+                    {search.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <Feather name="x" size={16} color="#6B6B7A" />
+                        </TouchableOpacity>
+                    )}
                 </View>
+
+                {/* PROFILE SEARCH RESULTS */}
+                {search.trim().length > 0 && (
+                    <View style={styles.profileResultsPanel}>
+                        <Text style={styles.profileResultsLabel}>People</Text>
+                        {profileLoading ? (
+                            <ActivityIndicator size="small" color={accentColor} style={{ paddingVertical: 14 }} />
+                        ) : profileResults.length === 0 ? (
+                            <Text style={styles.noResultsText}>No profiles found for "{search}"</Text>
+                        ) : (
+                            profileResults.map((item) => (
+                                <TouchableOpacity
+                                    key={`${item.role}-${item.userId}`}
+                                    style={styles.profileResultItem}
+                                    activeOpacity={0.75}
+                                    onPress={async () => {
+                                        if (!token) return;
+                                        setSearch('');
+                                        const res = await openConversationWith(token, item.userId);
+                                        if (res.success && res.data?.id) {
+                                            router.push(`/chat/${res.data.id}` as any);
+                                        }
+                                    }}
+                                >
+                                    {item.profilePicture ? (
+                                        <Image source={{ uri: item.profilePicture }} style={styles.profileResultAvatar} resizeMode="cover" />
+                                    ) : (
+                                        <View style={[styles.profileResultAvatar, styles.profileResultAvatarFallback]}>
+                                            <Text style={styles.profileResultInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
+                                        </View>
+                                    )}
+                                    <View style={styles.profileResultText}>
+                                        <Text style={styles.profileResultName}>{item.name}</Text>
+                                        <Text style={styles.profileResultMeta}>
+                                            {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
+                                            {item.category ? ` · ${item.category}` : ''}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name="chatbubble-ellipses-outline" size={18} color={accentColor} />
+                                </TouchableOpacity>
+                            ))
+                        )}
+                    </View>
+                )}
             </View>
 
             {loading ? (
@@ -266,4 +333,69 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     unreadText: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold' },
+
+    profileResultsPanel: {
+        backgroundColor: '#13131A',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(156,156,156,0.2)',
+        marginTop: 10,
+        overflow: 'hidden',
+        paddingTop: 4,
+    },
+    profileResultsLabel: {
+        color: '#6B6B7A',
+        fontSize: 11,
+        fontFamily: 'Poppins_600SemiBold',
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        paddingHorizontal: 14,
+        paddingTop: 10,
+        paddingBottom: 6,
+    },
+    profileResultItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        gap: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(255,255,255,0.06)',
+    },
+    profileResultAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    profileResultAvatarFallback: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    profileResultInitial: {
+        color: '#fff',
+        fontSize: 16,
+        fontFamily: 'Poppins_600SemiBold',
+    },
+    profileResultText: { flex: 1 },
+    profileResultName: {
+        color: '#fff',
+        fontSize: 14,
+        fontFamily: 'Poppins_600SemiBold',
+    },
+    profileResultMeta: {
+        color: '#6B6B7A',
+        fontSize: 12,
+        fontFamily: 'Poppins_400Regular',
+        marginTop: 1,
+    },
+    noResultsText: {
+        color: '#6B6B7A',
+        fontSize: 13,
+        textAlign: 'center',
+        paddingVertical: 18,
+        paddingHorizontal: 16,
+        fontFamily: 'Poppins_400Regular',
+    },
 });
