@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Role = 'CREATOR' | 'BRAND';
 
@@ -23,55 +23,61 @@ export default function RoleSelectionScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.content}>
-                <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/')}>
-                    <Text style={styles.closeText}>✕</Text>
-                </TouchableOpacity>
-
-                <Text style={styles.title}>Who are you?</Text>
-                <Text style={styles.subtitle}>
-                    Choose your role. Your account will be created when you submit your details.
-                </Text>
-
-                <View style={styles.optionsContainer}>
-                    <TouchableOpacity
-                        style={[styles.optionCard, selectedRole === 'CREATOR' && styles.optionSelected]}
-                        onPress={() => setSelectedRole('CREATOR')}
-                    >
-                        <Text style={styles.optionIcon}>🎨</Text>
-                        <Text style={styles.optionTitle}>Creator</Text>
-                        <Text style={styles.optionDesc}>
-                            Apply to get listed. Submit your details for admin approval.
-                        </Text>
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.content}>
+                    <TouchableOpacity style={styles.closeButton} onPress={() => router.replace('/')}>
+                        <Text style={styles.closeText}>✕</Text>
                     </TouchableOpacity>
 
+                    <Text style={styles.title}>Who are you?</Text>
+                    <Text style={styles.subtitle}>
+                        Choose your role. Your account will be created when you submit your details.
+                    </Text>
+
+                    <View style={styles.optionsContainer}>
+                        <TouchableOpacity
+                            style={[styles.optionCard, selectedRole === 'CREATOR' && styles.optionSelected]}
+                            onPress={() => setSelectedRole('CREATOR')}
+                        >
+                            <Text style={styles.optionIcon}>🎨</Text>
+                            <Text style={styles.optionTitle}>Creator</Text>
+                            <Text style={styles.optionDesc}>
+                                Apply to get listed. Submit your details for admin approval.
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.optionCard, selectedRole === 'BRAND' && styles.optionSelected]}
+                            onPress={() => setSelectedRole('BRAND')}
+                        >
+                            <Text style={styles.optionIcon}>🏢</Text>
+                            <Text style={styles.optionTitle}>Brand</Text>
+                            <Text style={styles.optionDesc}>
+                                Register your brand with KYC details for admin approval.
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
-                        style={[styles.optionCard, selectedRole === 'BRAND' && styles.optionSelected]}
-                        onPress={() => setSelectedRole('BRAND')}
+                        style={[styles.continueButton, !selectedRole && styles.disabledButton]}
+                        onPress={handleContinue}
+                        disabled={!selectedRole}
                     >
-                        <Text style={styles.optionIcon}>🏢</Text>
-                        <Text style={styles.optionTitle}>Brand</Text>
-                        <Text style={styles.optionDesc}>
-                            Register your brand with KYC details for admin approval.
-                        </Text>
+                        <Text style={styles.continueText}>Continue →</Text>
                     </TouchableOpacity>
                 </View>
-
-                <TouchableOpacity
-                    style={[styles.continueButton, !selectedRole && styles.disabledButton]}
-                    onPress={handleContinue}
-                    disabled={!selectedRole}
-                >
-                    <Text style={styles.continueText}>Continue →</Text>
-                </TouchableOpacity>
-            </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#0b0b14' },
-    content: { flex: 1, padding: 24, justifyContent: 'center' },
+    scrollContent: { flexGrow: 1 },
+    content: { flex: 1, padding: 24, justifyContent: 'center', paddingBottom: 40 },
     closeButton: { position: 'absolute', top: 50, right: 20, padding: 10 },
     closeText: { color: '#fff', fontSize: 24 },
     title: { fontSize: 30, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
