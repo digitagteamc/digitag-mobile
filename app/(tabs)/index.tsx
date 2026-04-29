@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../../Components/ui/CustomAlert';
@@ -155,6 +156,35 @@ export default function Homepage() {
     fetchUser();
     fetchPendingCount();
   }, [token, isGuest, userRole]);
+
+  // Animated Placeholder Logic
+  const words = ['Animator', 'Editors', 'Content Writer', 'And More'];
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Step to next word
+      const nextIndex = (currentIndex + 1) % (words.length + 1);
+      
+      translateY.value = withTiming(-nextIndex * 20, { duration: 600 }, (finished) => {
+        if (finished) {
+          if (nextIndex === words.length) {
+            // Snap back to first word without animation
+            translateY.value = 0;
+            runOnJS(setCurrentIndex)(0);
+          } else {
+            runOnJS(setCurrentIndex)(nextIndex);
+          }
+        }
+      });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [currentIndex]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   // Backend `shapePost` already flattens the author → { id, role, name,
   // profilePicture, location } on `post.owner`. `name` falls back to the
@@ -347,7 +377,15 @@ export default function Homepage() {
               {/* Search icon */}
               <Feather name="search" size={18} color="#d6d6d6" />
               <Text style={styles.searchGray}>Search here for </Text>
-              <Text style={styles.searchWhite}>Animator</Text>
+              <View style={{ height: 20, overflow: 'hidden' }}>
+                <Animated.View style={animatedStyle}>
+                  {words.map((word, idx) => (
+                    <Text key={idx} style={[styles.searchWhite, { height: 20, lineHeight: 20 }]}>{word}</Text>
+                  ))}
+                  {/* Append first word at the end for seamless loop */}
+                  <Text style={[styles.searchWhite, { height: 20, lineHeight: 20 }]}>{words[0]}</Text>
+                </Animated.View>
+              </View>
             </View>
             {/* Mic icon right */}
             <Ionicons name="mic-outline" size={18} color="#d6d6d6" style={styles.micIcon} />

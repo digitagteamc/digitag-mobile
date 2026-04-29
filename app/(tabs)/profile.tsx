@@ -244,7 +244,7 @@ export default function ProfileScreen() {
       <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 50 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ══════════ HERO HEADER ══════════ */}

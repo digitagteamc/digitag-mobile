@@ -56,7 +56,7 @@ export default function ComingSoonScreen() {
                             fill="#0A0A10"
                         />
                     </Svg>
-                    
+
                     {/* Coming Soon Text - Styled to look like the script in the image */}
                     <View style={styles.comingSoonTextContainer}>
                         <Text style={styles.comingText}>Coming</Text>
@@ -126,8 +126,8 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     subtext: {
-        color: '#88889D',
-        fontSize: 16,
+        color: '#FFFFFF',
+        fontSize: 20,
         textAlign: 'center',
         fontFamily: 'Poppins_400Regular',
         lineHeight: 24,

@@ -1,8 +1,9 @@
 import GradientButton from '@/Components/ui/GradientButton';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, BackHandler, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -286,32 +287,88 @@ export default function RoleSelectionScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-[#0A0A10]" edges={['top', 'bottom', 'left', 'right']}>
+            <LinearGradient
+                colors={['rgba(115, 82, 221, 0.35)', 'rgba(115, 82, 221, 0.1)', 'transparent']}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400 }}
+                pointerEvents="none"
+            />
 
-            {/* Header */}
-            <View className="flex-row items-center px-4 pt-4 pb-6 mt-4">
+            {/* Header - Back Button Only */}
+            <View className="px-4 pt-4 pb-2 mt-2">
                 <TouchableOpacity
                     onPress={() => router.replace('/onboarding/splash1?step=4')}
-                    className="mr-3 p-1"
+                    className="p-1 w-10"
                 >
-                    <ChevronLeft color="#FFFFFF" size={24} />
+                    <ChevronLeft color="#FFFFFF" size={28} />
                 </TouchableOpacity>
-                <Text className="text-white font-poppins-semibold text-[22px]">
-                    Select Your Profile Type
-                </Text>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                <View className="px-5 pb-10">
+            <View className="flex-1">
+                <View className="px-5 pb-0">
 
-                    {/* Sub-header */}
-                    <View className="mb-4 mt-0">
-                        <Text className="text-[#88889D] font-poppins-regular text-[13px] leading-5">
-                            Tell us about yourself to get the right experience.
+                    {/* Big Header Section */}
+                    <View className="mb-2 mt-0 gap-[2px]">
+                        <Text className="text-white font-poppins-bold text-[26px] leading-[30px]">
+                            One Platform.
+                        </Text>
+                        <Text className="text-[#7352DD] font-poppins-bold text-[26px] leading-[30px]">
+                            Endless Opportunities.
+                        </Text>
+                        <Text className="text-[#88889D] font-poppins-regular text-[12px] mt-3 mb-3 leading-5">
+                            Discover, connect & collaborate — everything you need to grow {'\n'}your brand, skills, or audience.
                         </Text>
                     </View>
 
+                    {/* Feature Cards Row */}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        className="mb-4"
+                        contentContainerStyle={{ paddingRight: 20 }}
+                    >
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                            {[
+                                { title: 'Grow Brand', desc: 'Expand your reach', emoji: '🌐', color: '#8F38FF', bg: 'rgba(143, 56, 255, 0.15)' },
+                                { title: 'Collaborate', desc: 'Work with top pros', emoji: '🤝', color: '#FF618C', bg: 'rgba(255, 97, 140, 0.15)' },
+                                { title: 'Monetize', desc: 'Earn from your skills', emoji: '💰', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
+                            ].map((feature, idx) => (
+                                <View
+                                    key={idx}
+                                    style={{ backgroundColor: feature.bg, borderColor: `${feature.color}44` }}
+                                    className="w-[120px] rounded-[14px] p-2 border-[1.1px]"
+                                >
+                                    <View className="mb-1 bg-black/20 w-7 h-7 rounded-[7px] items-center justify-center relative">
+                                        {feature.title === 'Grow Brand' && (
+                                            <View className="absolute w-4 h-4 bg-white rounded-full" />
+                                        )}
+                                        <Text className="text-[14px]">{feature.emoji}</Text>
+                                    </View>
+                                    <Text
+                                        className="font-poppins-semibold text-[16px]"
+                                        style={{ color: feature.color }}
+                                    >
+                                        {feature.title}
+                                    </Text>
+                                    <Text className="text-[#F2F2F2] font-poppins-regular text-[10px] mt-0.5 leading-[12px]">
+                                        {feature.desc}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+
+                    {/* Profile Type Selection Header */}
+                    <View className="mb-0 mt-[20px]">
+                        <Text className="text-white font-poppins-bold text-[18px] mb-0">
+                            Select Your Profile Type
+                        </Text>
+                        {/* <Text className="text-[#88889D] font-poppins-regular text-[13px] leading-5">
+                            Tell us about yourself to get the right experience.
+                        </Text> */}
+                    </View>
+
                     {/* 2x2 Grid */}
-                    <View className="flex-row flex-wrap justify-between gap-y-4">
+                    <View className="flex-row flex-wrap justify-between gap-y-[0px] -mt-6">
                         {roles.map((role) => {
                             const isSelected = selectedRole === role.id;
                             const size = cardSizes[role.id];
@@ -342,33 +399,23 @@ export default function RoleSelectionScreen() {
                                                 }));
                                             }}
                                             style={{
-                                                borderRadius: 20,
-                                                paddingBottom: 16,
-                                                paddingTop: 85,
-                                                paddingHorizontal: 12,
-                                                alignItems: 'center',
                                                 backgroundColor: isSelected ? role.selectedBg : '#FFFFFF0F',
-                                                // Layered shadows matching Figma filter
                                                 shadowColor: '#000',
                                                 shadowOffset: { width: -3, height: 11 },
                                                 shadowOpacity: 0.07,
                                                 shadowRadius: 11,
                                                 elevation: 6,
                                             }}
+                                            className="rounded-[20px] pb-4 pt-[85px] px-3 items-center"
                                         >
                                             <Text
                                                 className="font-poppins-bold text-[18px] mb-1 text-center"
-                                                style={{
-                                                    color: role.primaryColor,
-                                                }}
+                                                style={{ color: role.primaryColor }}
                                             >
                                                 {role.title}
                                             </Text>
                                             <Text
-                                                className="font-poppins-regular text-[11px] text-center leading-[15px]"
-                                                style={{
-                                                    color: isSelected ? '#FFFFFF' : '#88889D',
-                                                }}
+                                                className={`font-poppins-regular text-[11px] text-center leading-[15px] ${isSelected ? 'text-white' : 'text-[#88889D]'}`}
                                                 numberOfLines={3}
                                             >
                                                 {role.desc}
@@ -390,10 +437,10 @@ export default function RoleSelectionScreen() {
                         })}
                     </View>
                 </View>
-            </ScrollView>
+            </View>
 
             {/* Bottom Actions */}
-            <View className="px-5 pb-[40px] pt-4 bg-[#0A0A10]">
+            <View className="px-5 pb-[14px] pt-2 bg-[#0A0A10]">
                 {selectedRole ? (
                     <GradientButton title="Next" onPress={handleNext} />
                 ) : (

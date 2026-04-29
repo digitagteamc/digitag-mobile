@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    title: { color: '#fff', fontSize: 24, fontFamily: 'Poppins_500Regular', lineHeight: 33, },
+    title: { color: '#fff', fontSize: 24, fontFamily: 'Poppins_600SemiBold', lineHeight: 33, },
     subtitle: { color: '#E2E2E2', fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2, lineHeight: 18 },
 
     searchWrap: { paddingHorizontal: 16, paddingBottom: 14, borderRadius: 12, marginTop: 15 },

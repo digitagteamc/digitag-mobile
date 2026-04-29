@@ -6,6 +6,7 @@ import {
     Alert,
     FlatList,
     Image,
+    ImageBackground,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -21,6 +22,8 @@ import {
     getConversation,
     listMessages,
 } from '../../services/userService';
+
+const chatBg = require('../../assets/images/chatbg.png');
 
 const DARK_BUBBLE = '#1C1C1C';
 
@@ -120,8 +123,6 @@ export default function ChatScreen() {
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-            <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
-
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity
@@ -154,6 +155,9 @@ export default function ChatScreen() {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <ImageBackground source={chatBg} style={styles.chatBackground} resizeMode="cover">
+            <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
 
             {loading ? (
                 <View style={styles.centerWrap}>
@@ -240,12 +244,16 @@ export default function ChatScreen() {
                     </View>
                 </KeyboardAvoidingView>
             )}
+            </ImageBackground>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#060606' },
+    chatBackground: {
+        flex: 1,
+    },
 
     bgBlob: {
         position: 'absolute',
@@ -393,7 +401,7 @@ const styles = StyleSheet.create({
     composer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: '#323232',
         borderRadius: 30,
         paddingHorizontal: 8,
         paddingVertical: 8,
