@@ -68,7 +68,7 @@ export default function NotificationItem({
             <View style={styles.body}>
                 {onNamePress ? (
                     <TouchableOpacity onPress={onNamePress} activeOpacity={0.7}>
-                        <Text style={[styles.name, { textDecorationLine: 'underline' }]} numberOfLines={1}>{name}</Text>
+                        <Text style={styles.name} numberOfLines={1}>{name}</Text>
                     </TouchableOpacity>
                 ) : (
                     <Text style={styles.name} numberOfLines={1}>{name}</Text>

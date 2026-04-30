@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDownIcon, ChevronLeftIcon, ImageIcon } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -319,11 +319,14 @@ const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => v
 
 export default function CreatorSignup() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const initialStep = params.step ? parseInt(params.step as string) : 1;
+
     const { userPhone, token, setProfileCompleted, setProfiles } = useAuth();
     const [loading, setLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [prefilling, setPrefilling] = useState(true);
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
     const [categories] = useState<{ id: string; name: string }[]>(CREATOR_CATEGORIES);
 
@@ -345,6 +348,7 @@ export default function CreatorSignup() {
         twitterHandle: '',
         twitterFollowers: '',
         experienceLevel: '',
+        location: '',
         profilePicture: null as string | null,
     });
 
@@ -365,6 +369,7 @@ export default function CreatorSignup() {
                         languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : []),
                         bio: p.bio || '',
                         profilePicture: p.profilePicture || null,
+                        location: p.location || '',
                         portfolio: p.portfolioUrl || '',
                         experienceLevel: p.experienceLevel || '',
                         instagramHandle: p.instagramHandle || '',
@@ -414,7 +419,8 @@ export default function CreatorSignup() {
     const isStep2Valid = useMemo(() => {
         return (
             form.profilePicture !== null &&
-            form.experienceLevel !== ''
+            form.experienceLevel !== '' &&
+            form.location.trim() !== ''
         );
     }, [form]);
 
@@ -459,6 +465,7 @@ export default function CreatorSignup() {
                 profilePicture: form.profilePicture,
                 portfolioUrl: form.portfolio.trim(),
                 experienceLevel: form.experienceLevel,
+                location: form.location.trim(),
             };
 
             const ig = stripHandle(form.instagramHandle);
@@ -713,6 +720,12 @@ export default function CreatorSignup() {
                                 options={LEVELS}
                                 selected={form.experienceLevel}
                                 onSelect={(v: string) => setForm({ ...form, experienceLevel: v })}
+                            />
+                            <FormField
+                                label="Location"
+                                placeholder="City, Country"
+                                value={form.location}
+                                onChangeText={(v: string) => setForm({ ...form, location: v })}
                             />
                             <TouchableOpacity
                                 onPress={handleSignup}

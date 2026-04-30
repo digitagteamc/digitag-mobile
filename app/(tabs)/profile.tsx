@@ -73,6 +73,7 @@ export default function ProfileScreen() {
   const [collabCount, setCollabCount] = useState(0);
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [myCollabs, setMyCollabs] = useState<any[]>([]);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -273,7 +274,11 @@ export default function ProfileScreen() {
             {/* Avatar + Name block */}
             <View className="flex-row items-start px-4 gap-4">
               {/* Avatar */}
-              <View className="w-[72px] h-[72px] rounded-full border-2 border-white/40 overflow-hidden bg-[#333]">
+              <TouchableOpacity
+                onPress={() => setIsPhotoModalOpen(true)}
+                activeOpacity={0.9}
+                className="w-[72px] h-[72px] rounded-full border-2 border-white/40 overflow-hidden bg-[#333]"
+              >
                 {profile?.profilePicture ? (
                   <Image
                     source={{ uri: profile.profilePicture }}
@@ -290,7 +295,7 @@ export default function ProfileScreen() {
                     </Text>
                   </LinearGradient>
                 )}
-              </View>
+              </TouchableOpacity>
 
               {/* Name, phone, role + social */}
               <View className="flex-1 gap-[3px]">
@@ -661,6 +666,59 @@ export default function ProfileScreen() {
                 <Ionicons name="log-out-outline" size={18} color="#fff" />
               </View>
               <Text className="text-[#E30000] text-[15px] font-medium" style={{ fontFamily: 'Poppins_600SemiBold' }}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ══════════ PHOTO PREVIEW MODAL ══════════ */}
+      <Modal visible={isPhotoModalOpen} transparent animationType="fade">
+        <TouchableOpacity
+          className="flex-1 bg-black/90 items-center justify-center p-6"
+          activeOpacity={1}
+          onPress={() => setIsPhotoModalOpen(false)}
+        >
+          <View className="items-center gap-8">
+            {/* Circle Image */}
+            <View className="w-[280px] h-[280px] rounded-full overflow-hidden border-4 border-white/20 bg-[#222]">
+              {profile?.profilePicture ? (
+                <Image
+                  source={{ uri: profile.profilePicture }}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
+              ) : (
+                <LinearGradient
+                  colors={[theme.softStrong, theme.primary] as [string, string]}
+                  className="w-full h-full justify-center items-center"
+                >
+                  <Text className="text-white text-6xl font-bold" style={{ fontFamily: 'Poppins_700Bold' }}>
+                    {initials(profile?.name || 'U')}
+                  </Text>
+                </LinearGradient>
+              )}
+            </View>
+ 
+            {/* Edit Button */}
+            <TouchableOpacity
+              onPress={() => {
+                setIsPhotoModalOpen(false);
+                const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+                router.push({ pathname: editPath, params: { step: '2' } } as any);
+              }}
+              style={{
+                backgroundColor: profile?.role?.toUpperCase() === 'FREELANCER' ? '#F26930' : '#ED2A91',
+                paddingHorizontal: 40,
+                paddingVertical: 14,
+                borderRadius: 30,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 6
+              }}
+            >
+              <Text className="text-white text-lg font-bold" style={{ fontFamily: 'Poppins_700Bold' }}>Edit</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
