@@ -100,14 +100,7 @@ const roles: RoleData[] = [
     },
 ];
 
-/**
- * Renders the exact Figma angular gradient border.
- *
- * Strategy: draw each of the 4 sides + 4 corners as separate SVG <Path> elements,
- * each with its own LinearGradient matching the Figma angular gradient at that segment.
- *
- * This gives pixel-perfect angular gradient borders identical to Figma's conic-gradient border-image.
- */
+ 
 function FigmaConicBorder({
     width,
     height,
@@ -303,9 +296,8 @@ export default function RoleSelectionScreen() {
                 </TouchableOpacity>
             </View>
 
-            <View className="flex-1">
-                <View className="px-5 pb-0">
-
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                <View className="px-5 pb-8">
                     {/* Big Header Section */}
                     <View className="mb-2 mt-0 gap-[2px]">
                         <Text className="text-white font-poppins-bold text-[26px] leading-[30px]">
@@ -362,9 +354,6 @@ export default function RoleSelectionScreen() {
                         <Text className="text-white font-poppins-bold text-[18px] mb-0">
                             Select Your Profile Type
                         </Text>
-                        {/* <Text className="text-[#88889D] font-poppins-regular text-[13px] leading-5">
-                            Tell us about yourself to get the right experience.
-                        </Text> */}
                     </View>
 
                     {/* 2x2 Grid */}
@@ -381,7 +370,6 @@ export default function RoleSelectionScreen() {
                                     className="w-[48%]"
                                 >
                                     <View className="relative pt-[70px]">
-
                                         {/* Floating image */}
                                         <Image
                                             source={role.image}
@@ -437,7 +425,7 @@ export default function RoleSelectionScreen() {
                         })}
                     </View>
                 </View>
-            </View>
+            </ScrollView>
 
             {/* Bottom Actions */}
             <View className="px-5 pb-[14px] pt-2 bg-[#0A0A10]">
