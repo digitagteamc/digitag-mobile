@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDownIcon, ChevronLeftIcon, ImageIcon } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -266,11 +266,14 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
 
 export default function FreelancerSignup() {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const initialStep = params.step ? parseInt(params.step as string) : 1;
+
     const { userPhone, token, setProfileCompleted, setProfiles } = useAuth();
     const [loading, setLoading] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [prefilling, setPrefilling] = useState(true);
-    const [step, setStep] = useState(1);
+    const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
     const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 

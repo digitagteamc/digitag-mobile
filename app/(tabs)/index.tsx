@@ -5,15 +5,18 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Animated,
   Dimensions,
   Image,
   Linking,
+  Modal,
   Platform,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -23,7 +26,7 @@ import CustomAlert from '../../Components/ui/CustomAlert';
 import ExpandableText from '../../Components/ui/ExpandableText';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
-import { getFeed, getFullProfile, listCollaborations, openConversationWith, searchProfiles } from '../../services/userService';
+import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -103,10 +106,31 @@ export default function Homepage() {
     message: '',
   });
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
+  const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+
+  const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
+  const translateY = useRef(new Animated.Value(0)).current;
+  const currentIndex = useRef(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      currentIndex.current += 1;
+
+      Animated.timing(translateY, {
+        toValue: -(currentIndex.current * 20),
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        if (currentIndex.current === words.length - 1) {
+          translateY.setValue(0);
+          currentIndex.current = 0;
+        }
+      });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [translateY]);
 
   const showAlert = (title: string, message: string) => {
     setAlertConfig({ visible: true, title, message });
@@ -162,26 +186,6 @@ export default function Homepage() {
     fetchPendingCount();
   }, [token, isGuest, userRole]);
 
-  useEffect(() => {
-    if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      return;
-    }
-    setSearchLoading(true);
-    searchDebounce.current = setTimeout(async () => {
-      if (!token) { setSearchLoading(false); return; }
-      const res = await searchProfiles(token, searchQuery.trim());
-      setSearchResults(res.success ? res.data : []);
-      setSearchLoading(false);
-    }, 350);
-    return () => {
-      if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    };
-  }, [searchQuery, token]);
-
-
   // Backend `shapePost` already flattens the author → { id, role, name,
   // profilePicture, location } on `post.owner`. `name` falls back to the
   // role label when the user hasn't completed their profile yet.
@@ -205,6 +209,20 @@ export default function Homepage() {
   const handleBookmark = async (postId: string) => {
     // Backend save/unsave endpoints not implemented yet — reconnect when
     // /posts/:id/save is added.
+  };
+
+  const handleShare = async (postId: string) => {
+    try {
+      const url = `https://digitag.ai/post/${postId}`;
+      await Share.share({
+        message: `Check out this post on Digitag: ${url}`,
+        url: url,
+        title: 'Digitag Post',
+      });
+    } catch (error: any) {
+      // Alert is already imported
+      Alert.alert('Error', error.message);
+    }
   };
 
   const handlePostTap = (postId: string, ownerId?: string) => {
@@ -240,6 +258,32 @@ export default function Homepage() {
       return;
     }
     Linking.openURL(`tel:${phone}`);
+  };
+
+  const handleSeePortfolio = async (ownerId?: string, ownerRole?: string) => {
+    setSelectedPortfolioLink(null);
+    setPortfolioLoading(true);
+    setPortfolioModalVisible(true);
+    try {
+      if (!token || !ownerId) { setPortfolioLoading(false); return; }
+      let profileData: any = null;
+      if (ownerRole === 'FREELANCER') {
+        const res = await getFreelancerById(ownerId, token);
+        profileData = res.success ? res.data : null;
+      } else {
+        const res = await getCreatorById(ownerId, token);
+        profileData = res.success ? res.data : null;
+      }
+      const link = profileData?.portfolioUrl
+        || profileData?.portfolio
+        || profileData?.portfolioLink
+        || null;
+      setSelectedPortfolioLink(link);
+    } catch (e) {
+      setSelectedPortfolioLink(null);
+    } finally {
+      setPortfolioLoading(false);
+    }
   };
 
   // Category keyword map for loose filtering against post descriptions / owner category
@@ -283,6 +327,7 @@ export default function Homepage() {
       desc: post.description,
       price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       time: getTimeAgo(post.createdAt),
+      portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
     };
   });
 
@@ -359,7 +404,11 @@ export default function Homepage() {
           </View>
 
           {/* ══════════════ SEARCH BAR ══════════════ */}
-          <View style={styles.searchBar}>
+          <TouchableOpacity
+            style={styles.searchBar}
+            activeOpacity={0.8}
+            onPress={() => router.push('/searchbar' as any)}
+          >
             <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
             <LinearGradient
               colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
@@ -367,62 +416,37 @@ export default function Homepage() {
             />
             <View style={styles.searchBarInner}>
               <Feather name="search" size={18} color="#d6d6d6" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search creators & freelancers..."
-                placeholderTextColor="#9a9a9a"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                returnKeyType="search"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Feather name="x" size={16} color="#d6d6d6" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* ══════════════ SEARCH RESULTS ══════════════ */}
-          {searchQuery.length > 0 && (
-            <View style={styles.searchResultsPanel}>
-              {searchLoading ? (
-                <ActivityIndicator size="small" color={theme.primary} style={{ paddingVertical: 16 }} />
-              ) : searchResults.length === 0 ? (
-                <Text style={styles.noResultsText}>No profiles found for "{searchQuery}"</Text>
-              ) : (
-                searchResults.map((item) => (
-                  <TouchableOpacity
-                    key={`${item.role}-${item.userId}`}
-                    style={styles.searchResultItem}
-                    activeOpacity={0.75}
-                    onPress={() => {
-                      if (isGuest || !token) { router.push('/role-selection'); return; }
-                      setSearchQuery('');
-                      router.push({ pathname: '/creator-details', params: { userId: item.userId } } as any);
-                    }}
-                  >
-                    {item.profilePicture ? (
-                      <Image source={{ uri: item.profilePicture }} style={styles.searchResultAvatar} resizeMode="cover" />
-                    ) : (
-                      <View style={[styles.searchResultAvatar, styles.searchResultAvatarFallback]}>
-                        <Text style={styles.searchResultInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
-                      </View>
-                    )}
-                    <View style={styles.searchResultText}>
-                      <Text style={styles.searchResultName}>{item.name}</Text>
-                      <Text style={styles.searchResultMeta}>
-                        {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
-                        {item.category ? ` · ${item.category}` : ''}
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{
+                  fontFamily: 'Poppins_400Regular',
+                  fontSize: 13,
+                  color: '#9a9a9a',
+                  height: 20,
+                  lineHeight: 20
+                }}>
+                  Search here for{' '}
+                </Text>
+                <View style={{ height: 20, overflow: 'hidden' }}>
+                  <Animated.View style={{ transform: [{ translateY }] }}>
+                    {words.map((word, idx) => (
+                      <Text
+                        key={idx}
+                        style={{
+                          fontFamily: 'Poppins_400Regular',
+                          fontSize: 13,
+                          color: '#fff',
+                          height: 20,
+                          lineHeight: 20
+                        }}
+                      >
+                        {word}
                       </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
+                    ))}
+                  </Animated.View>
+                </View>
+              </View>
             </View>
-          )}
+          </TouchableOpacity>
 
           {/* ══════════════ BANNER CAROUSEL ══════════════ */}
           {/* Figma: glassmorphic rgba(240,240,240,0.3) with border rgba(64,64,64,0.5) */}
@@ -545,10 +569,13 @@ export default function Homepage() {
                       </TouchableOpacity>
 
                       <View style={styles.cardHeaderRight}>
-                        <TouchableOpacity style={[styles.portfolioBtn, { backgroundColor: postColor }]}>
+                        <TouchableOpacity
+                          style={[styles.portfolioBtn, { backgroundColor: postColor }]}
+                          onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
+                        >
                           <Text style={styles.portfolioBtnText}>See Portfolio</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.shareBtn}>
+                        <TouchableOpacity style={styles.shareBtn} onPress={() => handleShare(item.id)}>
                           <Ionicons name="share-social-outline" size={18} color="#fff" />
                         </TouchableOpacity>
                       </View>
@@ -604,6 +631,56 @@ export default function Homepage() {
           <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* ══════════════ PORTFOLIO MODAL ══════════════ */}
+      <Modal
+        visible={portfolioModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setPortfolioModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalDismissArea}
+            activeOpacity={1}
+            onPress={() => setPortfolioModalVisible(false)}
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderLeft}>
+                <Feather name="link" size={20} color="#fff" />
+                <Text style={styles.modalTitle}>Portfolio Links</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setPortfolioModalVisible(false)}
+              >
+                <Feather name="x" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {portfolioLoading ? (
+              <ActivityIndicator color="#A78BFA" style={{ marginTop: 16 }} />
+            ) : selectedPortfolioLink ? (
+              <TouchableOpacity
+                style={styles.portfolioLinkContainer}
+                onPress={() => {
+                  let url = selectedPortfolioLink;
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = 'https://' + url;
+                  }
+                  Linking.openURL(url);
+                }}
+              >
+                <Text style={styles.portfolioLinkText}>{selectedPortfolioLink}</Text>
+                <Feather name="arrow-up-right" size={20} color="#A78BFA" />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.noPortfolioText}>No portfolio link provided.</Text>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       <CustomAlert
         visible={alertConfig.visible}
@@ -757,70 +834,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: 'Poppins_400Medium',
-    paddingVertical: 0,
-    height: 40,
-  },
-  searchResultsPanel: {
-    backgroundColor: '#1a1a22',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.3)',
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
-  },
-  searchResultAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    overflow: 'hidden',
-  },
-  searchResultAvatarFallback: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchResultInitial: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  searchResultText: {
-    flex: 1,
-  },
-  searchResultName: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  searchResultMeta: {
-    color: '#9a9a9a',
-    fontSize: 12,
-    fontFamily: 'Poppins_400Medium',
-    marginTop: 1,
-  },
-  noResultsText: {
-    color: '#9a9a9a',
-    fontSize: 13,
-    textAlign: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-
   // ── Banner (Figma: glassmorphic 152×409, bg rgba(240,240,240,0.3), border rgba(64,64,64,0.5))
   bannerOuter: {
     height: 148,
@@ -1048,19 +1061,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   portfolioBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
-    width: 86,
-    height: 30,
-    alignItems: "center"
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
   },
   portfolioBtnText: {
     color: '#fff',
-    fontSize: 10,
-    fontFamily: 'inter_500Medium',
-    lineHeight: 12,
-    letterSpacing: -0.5
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    lineHeight: 16,
   },
   shareBtn: {
     width: 36,
@@ -1140,5 +1152,62 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     backgroundColor: 'rgba(242, 105, 48, 1)'
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalDismissArea: {
+    flex: 1,
+  },
+  modalContent: {
+    height: '30%',
+    backgroundColor: '#1E1E24',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 24,
+    borderTopWidth: 1,
+    borderColor: 'rgba(156,156,156,0.3)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  portfolioLinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  portfolioLinkText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_500Medium',
+  },
+  noPortfolioText: {
+    color: '#8A8A99',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    marginTop: 10,
   },
 });

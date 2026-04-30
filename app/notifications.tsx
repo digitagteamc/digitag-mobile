@@ -249,9 +249,11 @@ export default function NotificationsScreen() {
                                 <>
                                     <View style={styles.sectionHeaderRow}>
                                         <Text style={styles.sectionTitle}>Suggested for you</Text>
-                                        <Text style={[styles.seeAll, { color: theme.primary }]}>See all</Text>
+                                        <TouchableOpacity onPress={() => router.push('/suggestions')}>
+                                            <Text style={[styles.seeAll, { color: theme.primary }]}>See all</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                    {suggestions.map((s) => (
+                                    {suggestions.slice(0, 10).map((s) => (
                                         <NotificationItem
                                             key={s.id}
                                             name={s.name || (s.role === 'FREELANCER' ? 'Freelancer' : 'Creator')}
