@@ -7,6 +7,7 @@ import {
     FlatList,
     Image,
     ImageBackground,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -15,7 +16,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import {
     sendMessage as apiSendMessage,
@@ -52,6 +53,7 @@ export default function ChatScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
     const { token, userId, userRole } = useAuth();
+    const insets = useSafeAreaInsets();
 
     const [other, setOther] = useState<any>(null);
     const [messages, setMessages] = useState<any[]>([]);
@@ -147,16 +149,119 @@ export default function ChatScreen() {
                 </View>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity style={styles.headerIconBtn}>
+                    {/* <TouchableOpacity style={styles.headerIconBtn}>
                         <Ionicons name="videocam-outline" size={24} color="#fff" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     <TouchableOpacity style={styles.headerIconBtn}>
                         <Ionicons name="call-outline" size={22} color="#fff" />
                     </TouchableOpacity>
                 </View>
             </View>
+            {Platform.OS === 'ios' ? (
+                <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={80} style={{ flex: 1 }}>
+                    <ChatContent />
+                </KeyboardAvoidingView>
+            ) : (
+                <View style={{ flex: 1 }}>
+                    <ChatContent />
+                </View>
+            )}
+        </SafeAreaView>
+    );
+}
 
-            <ImageBackground source={chatBg} style={styles.chatBackground} resizeMode="cover">
+function ChatContent() {
+    const { id } = useLocalSearchParams<{ id: string }>();
+    const { token, userId, userRole } = useAuth();
+    const insets = useSafeAreaInsets();
+
+    const [other, setOther] = useState<any>(null);
+    const [messages, setMessages] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [sending, setSending] = useState(false);
+    const [input, setInput] = useState('');
+    const listRef = useRef<FlatList<any> | null>(null);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+    const load = useCallback(async () => {
+        if (!token || !id) return;
+        const [convRes, msgsRes] = await Promise.all([
+            getConversation(token, String(id)),
+            listMessages(token, String(id), { limit: 50 }),
+        ]);
+        if (convRes.success) setOther(convRes.data?.other || null);
+        if (msgsRes.success) setMessages(msgsRes.data || []);
+        setLoading(false);
+    }, [token, id]);
+
+    useEffect(() => { load(); }, [load]);
+
+    // Keyboard listener for Android to prevent stuck gap and lift input
+    useEffect(() => {
+        if (Platform.OS === 'android') {
+            const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+                setKeyboardHeight(e.endCoordinates.height);
+            });
+            const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+                setKeyboardHeight(0);
+            });
+            return () => {
+                showSub.remove();
+                hideSub.remove();
+            };
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!token || !id) return;
+        const interval = setInterval(async () => {
+            const res = await listMessages(token, String(id), { limit: 50 });
+            if (res.success) setMessages(res.data || []);
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [token, id]);
+
+    const handleSend = async () => {
+        const text = input.trim();
+        if (!text || !token || !id) return;
+        setSending(true);
+        const optimistic = {
+            id: `tmp-${Date.now()}`,
+            conversationId: id,
+            senderId: userId,
+            content: text,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            pending: true,
+        };
+        setMessages((prev) => [...prev, optimistic]);
+        setInput('');
+        try {
+            const res = await apiSendMessage(token, String(id), text);
+            if (!res.success) {
+                Alert.alert('Send Failed', res.error || 'Could not send message');
+                setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+                setInput(text);
+                return;
+            }
+            setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? res.data : m)));
+        } finally {
+            setSending(false);
+            setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 50);
+        }
+    };
+
+    const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
+    const pic = other?.profilePicture || null;
+
+    const otherColor = other?.role === 'FREELANCER' ? '#F26930' : '#E91E8C';
+    const myAccent = userRole === 'FREELANCER' ? '#E91E8C' : '#F26930';
+    const blobColor = userRole === 'FREELANCER' ? 'rgba(237, 42, 145, 0.15)' : 'rgba(242, 105, 48, 0.15)';
+
+    const reversedMessages = [...messages].reverse();
+
+    return (
+        <ImageBackground source={chatBg} style={styles.chatBackground} resizeMode="cover">
             <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
 
             {loading ? (
@@ -164,18 +269,14 @@ export default function ChatScreen() {
                     <ActivityIndicator color={myAccent} size="large" />
                 </View>
             ) : (
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-                    style={{ flex: 1 }}
-                >
+                <>
                     <FlatList
                         ref={listRef}
-                        data={messages}
+                        inverted
+                        data={reversedMessages}
                         keyExtractor={(m) => m.id}
                         contentContainerStyle={styles.messagesContent}
-                        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-                        ListHeaderComponent={
+                        ListFooterComponent={
                             <View style={styles.dateSeparator}>
                                 <Text style={styles.dateText}>Today</Text>
                             </View>
@@ -209,7 +310,7 @@ export default function ChatScreen() {
                         }
                     />
 
-                    <View style={styles.composerWrapper}>
+                    <View style={[styles.composerWrapper, { paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 4) : 10 }]}>
                         <View style={styles.composer}>
                             <TouchableOpacity style={[styles.composerCircleBtn, { backgroundColor: myAccent }]}>
                                 <Ionicons name="camera" size={20} color="#fff" />
@@ -242,10 +343,12 @@ export default function ChatScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                </KeyboardAvoidingView>
+                    {Platform.OS === 'android' && keyboardHeight > 0 && (
+                        <View style={{ height: keyboardHeight + 6 }} />
+                    )}
+                </>
             )}
-            </ImageBackground>
-        </SafeAreaView>
+        </ImageBackground>
     );
 }
 
@@ -341,7 +444,7 @@ const styles = StyleSheet.create({
     },
 
     bubbleWrapper: {
-        marginBottom: 16,
+        marginBottom: 6,
     },
     rowRight: {
         alignItems: 'flex-end',
@@ -393,18 +496,18 @@ const styles = StyleSheet.create({
     },
 
     composerWrapper: {
-        paddingHorizontal: 16,
-        paddingBottom: Platform.OS === 'ios' ? 0 : 16,
+        paddingHorizontal: 6,
         backgroundColor: 'transparent',
-        marginBottom: 20
+        marginBottom: 16,
+
     },
     composer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#323232',
+        backgroundColor: '#251b1bff',
         borderRadius: 30,
         paddingHorizontal: 8,
-        paddingVertical: 8,
+        paddingVertical: 6,
         gap: 8,
     },
     composerCircleBtn: {

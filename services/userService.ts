@@ -806,6 +806,34 @@ export const getFollowStatus = async (token: string, userId: string) => {
     }
 };
 
+/** GET /users/:id/followers */
+export const getFollowers = async (token: string, userId?: string) => {
+    try {
+        const path = userId ? `/users/${userId}/followers` : '/users/me/followers';
+        const body = await request(path, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] };
+    }
+};
+
+/** GET /users/:id/following */
+export const getFollowing = async (token: string, userId?: string) => {
+    try {
+        const path = userId ? `/users/${userId}/following` : '/users/me/following';
+        const body = await request(path, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] };
+    }
+};
+
 /** GET /follows/suggestions?limit=20 */
 export const getFollowSuggestions = async (token: string, limit: number = 20) => {
     try {

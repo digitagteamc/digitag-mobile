@@ -18,8 +18,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAuth } from '../../context/AuthContext';
 import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
+import PostCard from '../../Components/PostCard';
 
-
+const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
 interface ProfileData {
   name: string;
@@ -52,6 +53,8 @@ interface ProfileData {
 const MENU_ITEMS = [
   { id: 'my_profile', icon: 'person-outline' as const, label: 'My Profile' },
   { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts' },
+  { id: 'my_posts', icon: 'images-outline' as const, label: 'My Posts' },
+  { id: 'my_collabs', icon: 'people-outline' as const, label: 'My Collabs' },
   { id: 'settings', icon: 'settings-outline' as const, label: 'Settings' },
   { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support' },
   { id: 'about', icon: 'information-circle-outline' as const, label: 'About Digitag' },
@@ -173,6 +176,8 @@ export default function ProfileScreen() {
       router.push(editPath as any);
     }
     if (id === 'my_profile') setViewMode('details');
+    if (id === 'my_posts') router.push('/my-posts');
+    if (id === 'my_collabs') router.push('/my-collabs');
     if (id === 'about') router.push('/about-digitag');
     if (id === 'help') router.push('/help-support' as any);
     if (id === 'saved') router.push('/saved-posts');
@@ -191,6 +196,13 @@ export default function ProfileScreen() {
       case 'FREELANCER': return 'Freelancer';
       default: return role;
     }
+  };
+
+  const getOwnerName = (owner: any) => {
+    if (owner?.name) return owner.name;
+    if (owner?.role === 'CREATOR') return 'Creator';
+    if (owner?.role === 'FREELANCER') return 'Freelancer';
+    return 'User';
   };
 
   const openLink = (url: string | null | undefined) => {
@@ -324,20 +336,20 @@ export default function ProfileScreen() {
             <>
               {/* ══════════ FOLLOW / COLLAB COUNTS ══════════ */}
               <View className="flex-row items-center justify-center bg-[#14141C] rounded-2xl mx-4 -mt-[1px] mb-3 py-3.5 border border-[#1E1E2A]">
-                <View className="flex-1 items-center">
+                <TouchableOpacity className="flex-1 items-center" onPress={() => router.push('/followers')} activeOpacity={0.7}>
                   <Text className="text-xl font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>{followerCount}</Text>
                   <Text className="text-[#8A8A99] text-xs mt-[2px]" style={{ fontFamily: 'Poppins_400Regular' }}>Followers</Text>
-                </View>
+                </TouchableOpacity>
                 <View className="w-[1px] h-8 bg-[#2A2A36]" />
-                <View className="flex-1 items-center">
+                <TouchableOpacity className="flex-1 items-center" onPress={() => router.push('/following')} activeOpacity={0.7}>
                   <Text className="text-xl font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>{followingCount}</Text>
                   <Text className="text-[#8A8A99] text-xs mt-[2px]" style={{ fontFamily: 'Poppins_400Regular' }}>Following</Text>
-                </View>
+                </TouchableOpacity>
                 <View className="w-[1px] h-8 bg-[#2A2A36]" />
-                <View className="flex-1 items-center">
+                <TouchableOpacity className="flex-1 items-center" onPress={() => router.push('/my-collabs')} activeOpacity={0.7}>
                   <Text className="text-xl font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>{collabCount}</Text>
                   <Text className="text-[#8A8A99] text-xs mt-[2px]" style={{ fontFamily: 'Poppins_400Regular' }}>Collabs</Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               {/* ══════════ ROLE STATS CARD ══════════ */}
@@ -426,71 +438,6 @@ export default function ProfileScreen() {
                 </View>
               )} */}
 
-              {/* ══════════ MY POSTS ══════════ */}
-              {myPosts.length > 0 && (
-                <View className="mx-4 mt-5">
-                  <Text className="text-white text-base font-bold mb-3" style={{ fontFamily: 'Poppins_700Bold' }}>My Posts</Text>
-                  {myPosts.map(post => (
-                    <View key={post.id} className="flex-row gap-3 mb-3 bg-white/5 rounded-xl border border-white/10 p-2.5">
-                      {post.imageUrl ? (
-                        <Image source={{ uri: post.imageUrl }} className="w-[60px] h-[60px] rounded-lg bg-[#1C1C24]" />
-                      ) : (
-                        <View className="w-[60px] h-[60px] rounded-lg bg-[#1C1C24] items-center justify-center">
-                          <Ionicons name="image-outline" size={20} color="#555" />
-                        </View>
-                      )}
-                      <View className="flex-1 justify-between">
-                        <Text className="text-white text-[13px] leading-[18px]" numberOfLines={2} style={{ fontFamily: 'Poppins_400Regular' }}>{post.description}</Text>
-                        <View className="flex-row items-center gap-2 mt-1">
-                          <View className="rounded-full border px-2 py-0.5" style={{ backgroundColor: theme.soft, borderColor: theme.border }}>
-                            <Text className="text-[11px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold', color: theme.primary }}>
-                              {post.collaborationType === 'PAID' ? 'Paid' : 'Free'}
-                            </Text>
-                          </View>
-                          <Text className="text-[#8A8A99] text-[11px]" style={{ fontFamily: 'Poppins_400Regular' }}>{timeAgo(post.createdAt)}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* ══════════ MY COLLABS ══════════ */}
-              {myCollabs.length > 0 && (
-                <View className="mx-4 mt-5">
-                  <Text className="text-white text-base font-bold mb-3" style={{ fontFamily: 'Poppins_700Bold' }}>My Collabs</Text>
-                  {myCollabs.map(collab => {
-                    const other = collab.sender?.id === userId ? collab.receiver : collab.sender;
-                    const otherProfile = other?.creatorProfile || other?.freelancerProfile;
-                    const otherName = otherProfile?.name || other?.role || 'User';
-                    const description = collab.post?.description || collab.message || '';
-                    return (
-                      <TouchableOpacity
-                        key={collab.id}
-                        className="flex-row items-center gap-3 mb-2.5 bg-white/5 rounded-xl border border-white/10 p-3"
-                        activeOpacity={0.8}
-                        onPress={() => other?.id && router.push({ pathname: '/creator-details', params: { userId: other.id } } as any)}
-                      >
-                        <View className="w-[42px] h-[42px] rounded-full border items-center justify-center" style={{ backgroundColor: theme.soft, borderColor: theme.border }}>
-                          <Text className="text-sm font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>
-                            {otherName.slice(0, 2).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-white text-sm font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{otherName}</Text>
-                          <Text className="text-[#8A8A99] text-xs mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{other?.role?.toLowerCase() || ''}</Text>
-                          {description ? (
-                            <Text className="text-[#8A8A99] text-xs mt-[3px] leading-4" numberOfLines={2} style={{ fontFamily: 'Poppins_400Regular' }}>{description}</Text>
-                          ) : null}
-                        </View>
-                        <View className="rounded-full border px-2 py-[3px] bg-[#10B981]/12 border-[#10B981]/30">
-                          <Text className="text-[#10B981] text-[11px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>Accepted</Text>
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
 
               {/* ══════════ MENU CARD ══════════ */}
               <View className="mx-4 mt-5 rounded-2xl border border-[#9C9C9C]/50 overflow-hidden relative px-4 py-2">
@@ -589,7 +536,7 @@ export default function ProfileScreen() {
               </View>
 
               {/* Posts Button */}
-              <TouchableOpacity className="mt-6 bg-[#1A1A1A] border border-[#222] rounded-[24px] p-4 flex-row justify-between items-center shadow-lg shadow-black/20" activeOpacity={0.8} onPress={() => setViewMode('main')}>
+              <TouchableOpacity className="mt-6 bg-[#1A1A1A] border border-[#222] rounded-[24px] p-4 flex-row justify-between items-center shadow-lg shadow-black/20" activeOpacity={0.8} onPress={() => router.push('/my-posts')}>
                 <View className="flex-row items-center gap-4">
                   <View className={`w-10 h-10 rounded-full bg-[#111] items-center justify-center border ${iconBorderClass}`}>
                     <Ionicons name="aperture-outline" size={18} color="#FFF" />
@@ -600,7 +547,7 @@ export default function ProfileScreen() {
               </TouchableOpacity>
 
               {/* Collab Button */}
-              <TouchableOpacity className="mt-4 bg-[#1A1A1A] border border-[#222] rounded-[24px] p-4 flex-row justify-between items-center shadow-lg shadow-black/20" activeOpacity={0.8} onPress={() => setViewMode('main')}>
+              <TouchableOpacity className="mt-4 bg-[#1A1A1A] border border-[#222] rounded-[24px] p-4 flex-row justify-between items-center shadow-lg shadow-black/20" activeOpacity={0.8} onPress={() => router.push('/my-collabs')}>
                 <View className="flex-row items-center gap-4">
                   <View className={`w-10 h-10 rounded-full bg-[#111] items-center justify-center border ${iconBorderClass}`}>
                     <Ionicons name="people-outline" size={18} color="#FFF" />
