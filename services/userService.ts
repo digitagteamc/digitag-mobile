@@ -899,3 +899,52 @@ export const getInstagramVerificationStatus = async (token: string, id: string) 
         return { success: false, error: error.message, data: null };
     }
 };
+
+/* ───────────────────────── CALLS ─────────────────────────── */
+
+export const registerFcmToken = async (token: string, fcmToken: string) => {
+    try {
+        await request('/calls/fcm-token', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ fcmToken }),
+        });
+    } catch {}
+};
+
+export const initiateCall = async (token: string, calleeId: string) => {
+    try {
+        const body = await request('/calls/initiate', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ calleeId }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+export const acceptCall = async (token: string, callId: string) => {
+    try {
+        const body = await request(`/calls/${callId}/accept`, {
+            method: 'POST',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+export const declineCall = async (token: string, callId: string) => {
+    try {
+        await request(`/calls/${callId}/decline`, { method: 'POST', headers: authHeaders(token) });
+    } catch {}
+};
+
+export const endCall = async (token: string, callId: string) => {
+    try {
+        await request(`/calls/${callId}/end`, { method: 'POST', headers: authHeaders(token) });
+    } catch {}
+};

@@ -1,4 +1,4 @@
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import {
     Poppins_200ExtraLight,
@@ -10,13 +10,82 @@ import {
     Poppins_800ExtraBold,
     useFonts
 } from '@expo-google-fonts/poppins';
-import { Stack } from 'expo-router';
+import messaging from '@react-native-firebase/messaging';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { registerFcmToken } from '../services/userService';
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
+
+function NotificationHandler() {
+    const router = useRouter();
+    const { token } = useAuth();
+
+    useEffect(() => {
+        // Register FCM token with backend when logged in
+        if (!token) return;
+        messaging().getToken().then(fcmToken => {
+            if (fcmToken) registerFcmToken(token, fcmToken);
+        }).catch(() => {});
+
+        // Foreground messages
+        const unsubscribe = messaging().onMessage(async remoteMessage => {
+            const data = remoteMessage.data as Record<string, string> | undefined;
+            if (data?.type === 'INCOMING_CALL') {
+                router.push({
+                    pathname: '/call',
+                    params: {
+                        mode: 'incoming',
+                        callId: data.callId,
+                        remoteName: data.callerName,
+                    },
+                });
+            } else if (data?.type === 'CALL_ENDED' || data?.type === 'CALL_DECLINED') {
+                router.back();
+            }
+        });
+
+        return unsubscribe;
+    }, [token]);
+
+    // Handle notification tap when app was in background
+    useEffect(() => {
+        messaging().onNotificationOpenedApp(remoteMessage => {
+            const data = remoteMessage.data as Record<string, string> | undefined;
+            if (data?.type === 'INCOMING_CALL') {
+                router.push({
+                    pathname: '/call',
+                    params: {
+                        mode: 'incoming',
+                        callId: data.callId,
+                        remoteName: data.callerName,
+                    },
+                });
+            }
+        });
+
+        // App opened from quit state via notification
+        messaging().getInitialNotification().then(remoteMessage => {
+            if (!remoteMessage) return;
+            const data = remoteMessage.data as Record<string, string> | undefined;
+            if (data?.type === 'INCOMING_CALL') {
+                router.push({
+                    pathname: '/call',
+                    params: {
+                        mode: 'incoming',
+                        callId: data.callId,
+                        remoteName: data.callerName,
+                    },
+                });
+            }
+        });
+    }, []);
+
+    return null;
+}
 
 export default function RootLayout() {
     const [loaded, error] = useFonts({
@@ -44,6 +113,7 @@ export default function RootLayout() {
     return (
         <SafeAreaProvider>
             <AuthProvider>
+                <NotificationHandler />
                 <Stack
                     screenOptions={{
                         headerShown: false,
@@ -63,6 +133,7 @@ export default function RootLayout() {
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="chat/[id]" />
                     <Stack.Screen name="switch-role" />
+                    <Stack.Screen name="call" options={{ animation: 'fade', gestureEnabled: false }} />
                 </Stack>
             </AuthProvider>
         </SafeAreaProvider>

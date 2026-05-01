@@ -1,3 +1,4 @@
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,6 +10,7 @@ import {
     BackHandler,
     Image,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     Platform,
     ScrollView,
@@ -446,17 +448,21 @@ const IgVerifyModal = ({
                                 </Text>
                             </View>
 
-                            <View style={{ backgroundColor: '#1c1c1c', borderRadius: 12, padding: 14, marginBottom: 24 }}>
-                                <Text style={{ color: '#aaa', fontSize: 12, lineHeight: 18 }}>
-                                    1. Open Instagram app{'\n'}
-                                    2. Search for{' '}
-                                    <Text style={{ color: '#F02C8C' }}>@{digiTagInstagram}</Text>
-                                    {'\n'}
-                                    3. Send a DM with code <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold' }}>{code}</Text>
-                                    {'\n'}
-                                    4. This page will update automatically
+                            {/* Open Instagram button */}
+                            <TouchableOpacity
+                                onPress={async () => {
+                                    await Clipboard.setStringAsync(code);
+                                    Linking.openURL(`https://ig.me/m/${digiTagInstagram}`);
+                                }}
+                                style={{ backgroundColor: '#F02C8C', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold' }}>
+                                    Open Instagram DM
                                 </Text>
-                            </View>
+                            </TouchableOpacity>
+                            <Text style={{ color: '#888', fontSize: 11, textAlign: 'center', marginBottom: 12 }}>
+                                Code <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold' }}>{code}</Text> is copied — just paste and send
+                            </Text>
 
                             <TouchableOpacity
                                 onPress={onClose}
@@ -757,9 +763,11 @@ export default function CreatorSignup() {
                             clearInterval(igPollRef.current!);
                             igPollRef.current = null;
                             setIgVerified(true);
+                            setIgVerifyModalVisible(true); // reopen modal to show success screen
                         } else if (s === 'EXPIRED' || s === 'FAILED') {
                             clearInterval(igPollRef.current!);
                             igPollRef.current = null;
+                            setIgVerifyModalVisible(true); // reopen modal to show expired screen
                         }
                     }
                 }, 4000);
@@ -772,10 +780,8 @@ export default function CreatorSignup() {
     };
 
     const handleIgModalClose = () => {
-        if (igPollRef.current) {
-            clearInterval(igPollRef.current);
-            igPollRef.current = null;
-        }
+        // Don't stop polling — user may close modal to go send the DM in Instagram
+        // Polling continues in background until VERIFIED or EXPIRED
         setIgVerifyModalVisible(false);
     };
 

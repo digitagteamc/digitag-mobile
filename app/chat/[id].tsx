@@ -21,6 +21,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
     sendMessage as apiSendMessage,
     getConversation,
+    initiateCall,
     listMessages,
 } from '../../services/userService';
 
@@ -149,10 +150,28 @@ export default function ChatScreen() {
                 </View>
 
                 <View style={styles.headerRight}>
-                    {/* <TouchableOpacity style={styles.headerIconBtn}>
-                        <Ionicons name="videocam-outline" size={24} color="#fff" />
-                    </TouchableOpacity> */}
-                    <TouchableOpacity style={styles.headerIconBtn}>
+                    <TouchableOpacity
+                        style={styles.headerIconBtn}
+                        onPress={async () => {
+                            if (!token || !other?.id) return;
+                            const res = await initiateCall(token, other.id);
+                            if (res.success && res.data) {
+                                router.push({
+                                    pathname: '/call',
+                                    params: {
+                                        mode: 'outgoing',
+                                        callId: res.data.callId,
+                                        channelName: res.data.channelName,
+                                        agoraToken: res.data.token,
+                                        appId: res.data.appId,
+                                        remoteName: name,
+                                    },
+                                });
+                            } else {
+                                Alert.alert('Error', res.error || 'Could not start call');
+                            }
+                        }}
+                    >
                         <Ionicons name="call-outline" size={22} color="#fff" />
                     </TouchableOpacity>
                 </View>
