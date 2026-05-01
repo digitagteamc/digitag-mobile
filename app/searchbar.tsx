@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  ActivityIndicator,
   Animated,
   Image,
   ScrollView,
@@ -18,13 +17,12 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
 export default function SearchbarScreen() {
   const router = useRouter();
-  const { token, isGuest } = useAuth();
+  const { token, isGuest, userRole } = useAuth();
   const theme = useRoleTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
