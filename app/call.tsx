@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, PermissionsAndroid, Platform, Text, TouchableOpacity, View } from 'react-native';
 import {
     ChannelProfileType,
     ClientRoleType,
@@ -9,6 +9,21 @@ import {
 } from 'react-native-agora';
 import { useAuth } from '../context/AuthContext';
 import { acceptCall, declineCall, endCall } from '../services/userService';
+
+async function requestAudioPermission(): Promise<boolean> {
+    if (Platform.OS !== 'android') return true;
+    try {
+        const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+            PermissionsAndroid.PERMISSIONS.MODIFY_AUDIO_SETTINGS,
+        ]);
+        return (
+            granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED
+        );
+    } catch {
+        return false;
+    }
+}
 
 type CallMode = 'outgoing' | 'incoming' | 'active';
 
@@ -41,6 +56,12 @@ export default function CallScreen() {
 
     const joinChannel = useCallback(async (tkn: string, channel: string, appId: string) => {
         try {
+            const hasPermission = await requestAudioPermission();
+            if (!hasPermission) {
+                Alert.alert('Permission Denied', 'Microphone access is required for calls.');
+                router.back();
+                return;
+            }
             const engine = createAgoraRtcEngine();
             engineRef.current = engine;
             engine.initialize({ appId });
