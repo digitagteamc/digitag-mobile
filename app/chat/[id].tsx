@@ -10,6 +10,7 @@ import {
     Keyboard,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     StyleSheet,
     Text,
     TextInput,
@@ -150,30 +151,34 @@ export default function ChatScreen() {
                 </View>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity
-                        style={styles.headerIconBtn}
-                        onPress={async () => {
-                            if (!token || !other?.id) return;
-                            const res = await initiateCall(token, other.id);
-                            if (res.success && res.data) {
-                                router.push({
-                                    pathname: '/call',
-                                    params: {
-                                        mode: 'outgoing',
-                                        callId: res.data.callId,
-                                        channelName: res.data.channelName,
-                                        agoraToken: res.data.token,
-                                        appId: res.data.appId,
-                                        remoteName: name,
-                                    },
-                                });
-                            } else {
-                                Alert.alert('Error', res.error || 'Could not start call');
-                            }
+                    <Pressable
+                        hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                        style={({ pressed }) => [styles.headerIconBtn, { opacity: pressed ? 0.6 : 1 }]}
+                        onPress={() => {
+                            Alert.alert('Debug', `token=${!!token} otherId=${other?.id}`);
+                            if (!token) { Alert.alert('Error', 'Not logged in'); return; }
+                            if (!other?.id) { Alert.alert('Error', 'Loading...'); return; }
+                            initiateCall(token, other.id).then((res) => {
+                                if (res.success && res.data) {
+                                    router.push({
+                                        pathname: '/call',
+                                        params: {
+                                            mode: 'outgoing',
+                                            callId: res.data.callId,
+                                            channelName: res.data.channelName,
+                                            agoraToken: res.data.token,
+                                            appId: res.data.appId,
+                                            remoteName: name,
+                                        },
+                                    });
+                                } else {
+                                    Alert.alert('Error', res.error || 'Could not start call');
+                                }
+                            });
                         }}
                     >
                         <Ionicons name="call-outline" size={22} color="#fff" />
-                    </TouchableOpacity>
+                    </Pressable>
                 </View>
             </View>
             {Platform.OS === 'ios' ? (
