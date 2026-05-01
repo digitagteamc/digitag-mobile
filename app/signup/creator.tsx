@@ -22,6 +22,8 @@ import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import {
     getMyCreatorProfile,
+    getInstagramVerificationStatus,
+    startInstagramVerification,
     submitCreatorApplication,
     updateCreatorProfile
 } from '../../services/userService';
@@ -267,6 +269,209 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
     </View>
 );
 
+// ── Instagram Verification ─────────────────────────────────────
+type IgVerifyProps = {
+    value: string;
+    followersValue: string;
+    onValueChange: (v: string) => void;
+    onFollowersChange: (v: string) => void;
+    verified: boolean;
+    onVerifyPress: () => void;
+    verifying: boolean;
+};
+
+const InstagramVerifyRow = ({
+    value,
+    followersValue,
+    onValueChange,
+    onFollowersChange,
+    verified,
+    onVerifyPress,
+    verifying,
+}: IgVerifyProps) => (
+    <View className="mb-4">
+        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+            Instagram <Text className="text-red-500">*</Text>
+        </Text>
+        <View className="flex-row gap-2 mb-2">
+            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
+                <TextInput
+                    placeholder="instagram.com/username or @handle"
+                    placeholderTextColor="#555"
+                    value={value}
+                    onChangeText={onValueChange}
+                    className="text-white font-poppins-regular"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!verified}
+                />
+            </View>
+            <View className="flex-1 bg-[#1A1A1A] h-[56px] px-3 rounded-[12px] justify-center items-center">
+                <TextInput
+                    placeholder="Followers"
+                    placeholderTextColor="#555"
+                    keyboardType="numeric"
+                    value={followersValue}
+                    onChangeText={onFollowersChange}
+                    className="text-white font-poppins-regular text-[12px] text-center"
+                />
+            </View>
+        </View>
+        <TouchableOpacity
+            onPress={onVerifyPress}
+            disabled={verified || verifying || !value.trim()}
+            activeOpacity={0.8}
+            style={{
+                backgroundColor: verified ? '#16a34a' : verifying ? '#374151' : '#F02C8C',
+                borderRadius: 10,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 6,
+                opacity: !value.trim() && !verified ? 0.4 : 1,
+            }}
+        >
+            {verifying ? (
+                <ActivityIndicator size="small" color="#fff" />
+            ) : (
+                <Text className="text-white font-poppins-semibold text-[13px]">
+                    {verified ? '✓ Verified' : 'Verify via Instagram DM'}
+                </Text>
+            )}
+        </TouchableOpacity>
+    </View>
+);
+
+// ── Instagram DM Code Modal ────────────────────────────────────
+type IgModalProps = {
+    visible: boolean;
+    code: string;
+    instagramUsername: string;
+    digiTagInstagram: string;
+    expiresAt: string | null;
+    status: 'PENDING' | 'VERIFIED' | 'EXPIRED' | 'FAILED' | null;
+    onClose: () => void;
+};
+
+const IgVerifyModal = ({
+    visible,
+    code,
+    instagramUsername,
+    digiTagInstagram,
+    expiresAt,
+    status,
+    onClose,
+}: IgModalProps) => {
+    const [secondsLeft, setSecondsLeft] = React.useState(0);
+
+    React.useEffect(() => {
+        if (!visible || !expiresAt) return;
+        const update = () => {
+            const diff = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+            setSecondsLeft(diff);
+        };
+        update();
+        const t = setInterval(update, 1000);
+        return () => clearInterval(t);
+    }, [visible, expiresAt]);
+
+    const mins = Math.floor(secondsLeft / 60);
+    const secs = secondsLeft % 60;
+    const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
+
+    return (
+        <Modal visible={visible} transparent animationType="slide">
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
+                <View style={{ backgroundColor: '#111', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 40 }}>
+                    {status === 'VERIFIED' ? (
+                        <>
+                            <Text style={{ color: '#16a34a', fontSize: 48, textAlign: 'center', marginBottom: 8 }}>✓</Text>
+                            <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Poppins_700Bold', textAlign: 'center', marginBottom: 8 }}>
+                                Instagram Verified!
+                            </Text>
+                            <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+                                @{instagramUsername} has been successfully verified.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={onClose}
+                                style={{ backgroundColor: '#16a34a', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>Continue</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : status === 'EXPIRED' ? (
+                        <>
+                            <Text style={{ color: '#ef4444', fontSize: 36, textAlign: 'center', marginBottom: 8 }}>⏱</Text>
+                            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', textAlign: 'center', marginBottom: 8 }}>
+                                Code Expired
+                            </Text>
+                            <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+                                The code has expired. Please close and try again.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={onClose}
+                                style={{ backgroundColor: '#374151', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>Close</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <Text style={{ color: '#F02C8C', fontSize: 13, fontFamily: 'Poppins_600SemiBold', letterSpacing: 1, marginBottom: 4 }}>
+                                INSTAGRAM VERIFICATION
+                            </Text>
+                            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', marginBottom: 6 }}>
+                                DM this code to us
+                            </Text>
+                            <Text style={{ color: '#aaa', fontSize: 13, lineHeight: 20, marginBottom: 20 }}>
+                                Open Instagram and send a DM from{' '}
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold' }}>@{instagramUsername}</Text>
+                                {' '}to{' '}
+                                <Text style={{ color: '#F02C8C', fontFamily: 'Poppins_600SemiBold' }}>@{digiTagInstagram}</Text>
+                                {' '}with exactly this code:
+                            </Text>
+
+                            {/* Code display */}
+                            <View style={{ backgroundColor: '#1A1A2E', borderRadius: 16, paddingVertical: 20, alignItems: 'center', marginBottom: 20, borderWidth: 1, borderColor: '#F02C8C44' }}>
+                                <Text style={{ color: '#F02C8C', fontSize: 11, letterSpacing: 2, marginBottom: 6 }}>YOUR VERIFICATION CODE</Text>
+                                <Text style={{ color: '#fff', fontSize: 40, fontFamily: 'Poppins_700Bold', letterSpacing: 10 }}>{code}</Text>
+                            </View>
+
+                            {/* Countdown */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 20 }}>
+                                <Text style={{ color: secondsLeft < 60 ? '#ef4444' : '#aaa', fontSize: 13 }}>
+                                    Code expires in{' '}
+                                    <Text style={{ fontFamily: 'Poppins_600SemiBold' }}>{timeStr}</Text>
+                                </Text>
+                            </View>
+
+                            <View style={{ backgroundColor: '#1c1c1c', borderRadius: 12, padding: 14, marginBottom: 24 }}>
+                                <Text style={{ color: '#aaa', fontSize: 12, lineHeight: 18 }}>
+                                    1. Open Instagram app{'\n'}
+                                    2. Search for{' '}
+                                    <Text style={{ color: '#F02C8C' }}>@{digiTagInstagram}</Text>
+                                    {'\n'}
+                                    3. Send a DM with code <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold' }}>{code}</Text>
+                                    {'\n'}
+                                    4. This page will update automatically
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={onClose}
+                                style={{ backgroundColor: '#1f1f1f', borderRadius: 14, height: 48, alignItems: 'center', justifyContent: 'center' }}
+                            >
+                                <Text style={{ color: '#888', fontSize: 14 }}>Cancel</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
 const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
     useEffect(() => {
         if (visible) {
@@ -329,6 +534,20 @@ export default function CreatorSignup() {
     const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
     const [categories] = useState<{ id: string; name: string }[]>(CREATOR_CATEGORIES);
+
+    // Instagram verification state
+    const [igVerified, setIgVerified] = useState(false);
+    const [igVerifying, setIgVerifying] = useState(false);
+    const [igVerifyModalVisible, setIgVerifyModalVisible] = useState(false);
+    const [igVerification, setIgVerification] = useState<{
+        id: string;
+        code: string;
+        instagramUsername: string;
+        digiTagInstagram: string;
+        expiresAt: string;
+        status: 'PENDING' | 'VERIFIED' | 'EXPIRED' | 'FAILED';
+    } | null>(null);
+    const igPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const [form, setForm] = useState({
         name: '',
@@ -511,6 +730,62 @@ export default function CreatorSignup() {
         }
     };
 
+    // ── Instagram DM verification ──
+    const handleIgVerify = async () => {
+        if (!token || !form.instagramHandle.trim()) return;
+        setIgVerifying(true);
+        try {
+            const res = await startInstagramVerification(token, form.instagramHandle.trim());
+            if (res.success && res.data) {
+                setIgVerification({
+                    id: res.data.id,
+                    code: res.data.code,
+                    instagramUsername: res.data.instagramUsername,
+                    digiTagInstagram: res.data.digiTagInstagram,
+                    expiresAt: res.data.expiresAt,
+                    status: 'PENDING',
+                });
+                setIgVerifyModalVisible(true);
+                // Start polling every 4 seconds
+                igPollRef.current = setInterval(async () => {
+                    if (!token || !res.data?.id) return;
+                    const statusRes = await getInstagramVerificationStatus(token, res.data.id);
+                    if (statusRes.success && statusRes.data) {
+                        const s = statusRes.data.status as 'PENDING' | 'VERIFIED' | 'EXPIRED' | 'FAILED';
+                        setIgVerification((prev) => prev ? { ...prev, status: s } : prev);
+                        if (s === 'VERIFIED') {
+                            clearInterval(igPollRef.current!);
+                            igPollRef.current = null;
+                            setIgVerified(true);
+                        } else if (s === 'EXPIRED' || s === 'FAILED') {
+                            clearInterval(igPollRef.current!);
+                            igPollRef.current = null;
+                        }
+                    }
+                }, 4000);
+            } else {
+                Alert.alert('Error', res.error || 'Could not start verification');
+            }
+        } finally {
+            setIgVerifying(false);
+        }
+    };
+
+    const handleIgModalClose = () => {
+        if (igPollRef.current) {
+            clearInterval(igPollRef.current);
+            igPollRef.current = null;
+        }
+        setIgVerifyModalVisible(false);
+    };
+
+    // Clean up poll on unmount
+    useEffect(() => {
+        return () => {
+            if (igPollRef.current) clearInterval(igPollRef.current);
+        };
+    }, []);
+
     const handleBack = () => {
         if (step === 2) {
             setStep(1);
@@ -627,12 +902,17 @@ export default function CreatorSignup() {
                             <View className="mt-4 mb-8">
                                 <Text className="text-white font-poppins-bold text-xl mb-6">Social Media Presence</Text>
 
-                                <SocialRow
-                                    platform="Instagram"
-                                    linkValue={form.instagramHandle}
+                                <InstagramVerifyRow
+                                    value={form.instagramHandle}
                                     followersValue={form.instagramFollowers}
-                                    onLinkChange={(v: string) => setForm({ ...form, instagramHandle: v })}
+                                    onValueChange={(v: string) => {
+                                        setForm({ ...form, instagramHandle: v });
+                                        if (igVerified) setIgVerified(false);
+                                    }}
                                     onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
+                                    verified={igVerified}
+                                    onVerifyPress={handleIgVerify}
+                                    verifying={igVerifying}
                                 />
                                 <SocialRow
                                     platform="YouTube"
@@ -746,6 +1026,17 @@ export default function CreatorSignup() {
                 </ScrollView>
             </KeyboardAvoidingView>
             <SuccessModal visible={showSuccessModal} onClose={handleSuccessClose} />
+            {igVerification && (
+                <IgVerifyModal
+                    visible={igVerifyModalVisible}
+                    code={igVerification.code}
+                    instagramUsername={igVerification.instagramUsername}
+                    digiTagInstagram={igVerification.digiTagInstagram}
+                    expiresAt={igVerification.expiresAt}
+                    status={igVerification.status}
+                    onClose={handleIgModalClose}
+                />
+            )}
         </SafeAreaView>
     );
 }

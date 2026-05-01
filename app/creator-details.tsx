@@ -18,11 +18,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import {
     followUser,
+    getCollaborationWith,
     getFollowStatus,
     getPostById,
     getUserById,
     getUserStats,
     openConversationWith,
+    sendCollaboration,
     unfollowUser,
 } from '../services/userService';
 import { fonts } from '../theme/colors';
@@ -53,6 +55,9 @@ export default function CreatorDetails() {
     const [isFollowing, setIsFollowing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
+    const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
+    const [collabSent, setCollabSent] = useState(false);
+    const [collabBusy, setCollabBusy] = useState(false);
     const [alertConfig, setAlertConfig] = useState({
         visible: false,
         title: '',
@@ -81,14 +86,20 @@ export default function CreatorDetails() {
             if (!uid) { setLoading(false); return; }
             setResolvedUserId(uid);
 
-            const [userRes, followRes, statsRes] = await Promise.all([
+            const [userRes, followRes, statsRes, collabRes] = await Promise.all([
                 getUserById(uid, token),
                 getFollowStatus(token, uid),
                 getUserStats(token, uid),
+                getCollaborationWith(token, uid),
             ]);
             if (userRes.success) setProfile(userRes.data || null);
             if (followRes.success) setIsFollowing(Boolean(followRes.data?.isFollowing));
             if (statsRes.success) setStats(statsRes.data || null);
+            if (collabRes.success) {
+                const status = collabRes.data?.status ?? 'NONE';
+                setCollabStatus(status as any);
+                if (status === 'ACCEPTED') setCollabSent(true);
+            }
         } finally {
             setLoading(false);
         }
@@ -106,6 +117,23 @@ export default function CreatorDetails() {
             if (res.success) setIsFollowing(!isFollowing);
         } finally {
             setFollowBusy(false);
+        }
+    };
+
+    const handleCollab = async () => {
+        if (!token || !resolvedUserId || collabBusy || collabSent) return;
+        setCollabBusy(true);
+        try {
+            const res = await sendCollaboration(token, { receiverId: resolvedUserId });
+            if (res.success) {
+                setCollabSent(true);
+                setCollabStatus('PENDING');
+                showAlert('Request Sent!', 'Your collaboration request has been sent. You will be notified when they respond.');
+            } else {
+                showAlert('Request Failed', (res as any).error || 'Could not send collaboration request.');
+            }
+        } finally {
+            setCollabBusy(false);
         }
     };
 
@@ -213,13 +241,16 @@ export default function CreatorDetails() {
                                 </View>
                             )}
                             <View style={styles.headerButtons}>
-                                <TouchableOpacity style={[styles.messageBtn, { backgroundColor: accentColor }]} onPress={openChat}>
-                                    <Ionicons name="paper-plane-outline" size={12} color="#fff" />
-                                    <Text style={styles.messageBtnText}>Message</Text>
-                                </TouchableOpacity>
+                                {collabStatus === 'ACCEPTED' ? (
+                                    <TouchableOpacity style={[styles.messageBtn, { backgroundColor: accentColor }]} onPress={openChat}>
+                                        <Ionicons name="chatbubble-ellipses-outline" size={12} color="#fff" />
+                                        <Text style={styles.messageBtnText}>Message</Text>
+                                    </TouchableOpacity>
+                                ) : null}
                                 <TouchableOpacity
                                     style={[styles.followBtn, { borderColor: accentColor }, isFollowing && { backgroundColor: accentColor + '33' }]}
                                     onPress={handleFollow}
+                                    disabled={followBusy}
                                 >
                                     <Ionicons name={isFollowing ? "checkmark" : "add"} size={14} color={accentColor} />
                                     <Text style={[styles.followBtnText, { color: accentColor }]}>{isFollowing ? 'Following' : 'Follow'}</Text>
@@ -254,6 +285,30 @@ export default function CreatorDetails() {
                             <Text style={styles.aboutBio}>{bio}</Text>
                         </View>
                     </View>
+
+                    {/* ── Collaborate / Message CTA */}
+                    {resolvedUserId !== myId && collabStatus !== 'ACCEPTED' && (
+                        <TouchableOpacity
+                            style={[
+                                styles.collabBtn,
+                                collabStatus === 'PENDING'
+                                    ? { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)' }
+                                    : { borderColor: accentColor },
+                            ]}
+                            onPress={handleCollab}
+                            disabled={collabBusy || collabStatus === 'PENDING'}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons
+                                name={collabStatus === 'PENDING' ? "time-outline" : "people-outline"}
+                                size={16}
+                                color={collabStatus === 'PENDING' ? '#f59e0b' : accentColor}
+                            />
+                            <Text style={[styles.collabBtnText, { color: collabStatus === 'PENDING' ? '#f59e0b' : accentColor }]}>
+                                {collabBusy ? 'Sending…' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
 
                     {/* Stats Card */}
                     <View style={styles.statsCard}>
@@ -480,6 +535,23 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 18,
         fontFamily: fonts.regular,
+    },
+    collabBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginHorizontal: 20,
+        marginBottom: 16,
+        paddingVertical: 13,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        backgroundColor: 'transparent',
+    },
+    collabBtnText: {
+        fontSize: 14,
+        fontFamily: fonts.semibold,
+        letterSpacing: -0.3,
     },
     statsCard: {
         backgroundColor: 'rgba(243, 243, 243, 0.1)',

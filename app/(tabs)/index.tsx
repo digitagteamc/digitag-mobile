@@ -26,7 +26,7 @@ import CustomAlert from '../../Components/ui/CustomAlert';
 import ExpandableText from '../../Components/ui/ExpandableText';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
-import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
+import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith, sendCollaboration } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -211,6 +211,29 @@ export default function Homepage() {
     // /posts/:id/save is added.
   };
 
+  const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
+
+  const handleCollab = async (postId: string, ownerId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('send a collaboration request')) return;
+    if (!ownerId) return;
+    if (collabSentIds.has(postId)) {
+      showAlert('Already Sent', 'You already sent a collaboration request for this post.');
+      return;
+    }
+    try {
+      const res = await sendCollaboration(token, { receiverId: ownerId, postId });
+      if (res.success) {
+        setCollabSentIds(prev => new Set(prev).add(postId));
+        showAlert('Request Sent!', 'Your collaboration request has been sent. You will be notified when they respond.');
+      } else {
+        showAlert('Request Failed', res.error || 'Could not send collaboration request.');
+      }
+    } catch {
+      showAlert('Error', 'Something went wrong. Please try again.');
+    }
+  };
+
   const handleShare = async (postId: string) => {
     try {
       const url = `https://digitag.ai/post/${postId}`;
@@ -381,7 +404,9 @@ export default function Homepage() {
               </View>
               <View>
                 <Text style={styles.hiText}>{userName}</Text>
-                <Text style={styles.welcomeText}>Discover Freelancers for Creators</Text>
+                <Text style={styles.welcomeText}>
+                  {userRole === 'FREELANCER' ? 'Discover Creators for Freelancers' : 'Discover Freelancers for Creators'}
+                </Text>
               </View>
             </View>
 
@@ -595,32 +620,30 @@ export default function Homepage() {
                       </View>
                     </View>
 
-                    {/* ── Banner Image with Floating Actions */}
+                    {/* ── Banner Image */}
                     <View style={styles.cardBannerContainer}>
                       <Image source={{ uri: item.bannerUri }} style={styles.cardBanner} resizeMode="cover" />
                       <View style={styles.bannerOverlay} />
-
-                      {/* Floating Actions */}
-                      <View style={styles.bannerActionsLeft}>
-                        <TouchableOpacity
-                          style={[styles.actionBtn, { backgroundColor: postColor }]}
-                          onPress={() => handleMessage(item.ownerId)}
-                        >
-                          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.actionBtn, { backgroundColor: postColor }]}
-                          onPress={() => handleCall((item as any).owner)}
-                        >
-                          <Ionicons name="call-outline" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
 
                       <View style={styles.bannerActionsRight}>
                         <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={() => handleBookmark(item.id)}>
                           <Ionicons name="bookmark-outline" size={16} color="#fff" />
                         </TouchableOpacity>
                       </View>
+                    </View>
+
+                    {/* ── Collaborate row */}
+                    <View style={styles.cardActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.collabBtn, collabSentIds.has(item.id) ? { backgroundColor: '#22c55e', borderColor: '#22c55e' } : { borderColor: postColor }]}
+                        onPress={() => handleCollab(item.id, item.ownerId)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name={collabSentIds.has(item.id) ? "checkmark-circle-outline" : "people-outline"} size={15} color={collabSentIds.has(item.id) ? '#fff' : postColor} />
+                        <Text style={[styles.collabBtnText, { color: collabSentIds.has(item.id) ? '#fff' : postColor }]}>
+                          {collabSentIds.has(item.id) ? 'Request Sent' : 'Collaborate'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
@@ -1128,12 +1151,41 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.1)',
   },
-  bannerActionsLeft: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
+  cardActionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
+    marginTop: 12,
+  },
+  collabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+  },
+  collabBtnText: {
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    lineHeight: 16,
+  },
+  msgBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  msgBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    lineHeight: 16,
   },
   bannerActionsRight: {
     position: 'absolute',

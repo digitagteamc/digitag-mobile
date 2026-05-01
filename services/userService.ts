@@ -834,3 +834,40 @@ export const searchProfiles = async (token: string, q: string, limit: number = 2
         return { success: false, error: error.message, data: [] };
     }
 };
+
+/* ───────────────────────── INSTAGRAM VERIFICATION ─────────────────────────── */
+
+/**
+ * POST /instagram/start-verification
+ * Starts an Instagram DM verification session.
+ * Returns { id, code, instagramUsername, expiresAt, digiTagInstagram }
+ */
+export const startInstagramVerification = async (token: string, instagramUrl: string) => {
+    try {
+        const body = await request('/instagram/start-verification', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ instagramUrl }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+/**
+ * GET /instagram/verification-status/:id
+ * Polls the verification status. Returns { id, status, verifiedAt, instagramUsername }
+ * status is one of: PENDING | VERIFIED | EXPIRED | FAILED
+ */
+export const getInstagramVerificationStatus = async (token: string, id: string) => {
+    try {
+        const body = await request(`/instagram/verification-status/${id}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};

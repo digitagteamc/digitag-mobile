@@ -129,20 +129,21 @@ export default function LoginScreen() {
         const err = validatePhone(phoneNumber);
         if (err) { setPhoneError(err); return; }
         setPhoneError(null);
-
-        setLoading(true);
         setOtpError(null);
+
+        // Navigate to OTP screen immediately — no loading spinner shown
+        Keyboard.dismiss();
+        animatedSetStep(2);
+
         try {
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
             setConfirm(confirmation);
             setCountdown(60);
-            Keyboard.dismiss();
-            animatedSetStep(2);
         } catch (error: any) {
+            // If Firebase fails, slide back to phone screen and surface the error
+            animatedSetStep(1);
             showStatus('Error', error.message || 'Failed to send OTP.');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -239,7 +240,7 @@ export default function LoginScreen() {
                             <View className="w-7 h-7 rounded-full overflow-hidden mr-2 items-center justify-center bg-white">
                                 <Text style={{ fontSize: 18, lineHeight: 22 }}>🇮🇳</Text>
                             </View>
-                            <Text className="text-white font-poppins-semibold text-[14px] mr-1">India +91</Text>
+                            <Text className="text-white font-poppins-semibold text-[14px] mr-1">+91</Text>
                             <ChevronDownIcon color="white" size={16} />
                         </View>
                         <TextInput

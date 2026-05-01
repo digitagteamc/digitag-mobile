@@ -4,7 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -13,15 +15,26 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { searchProfiles } from '../services/userService';
+import { getRoleTheme } from '../theme/useRoleTheme';
 
 export default function SearchbarScreen() {
   const router = useRouter();
+  const { userRole, token } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const recentSearches = ['Video graphers', 'Content Creator', 'Editors', 'Cameraman'];
   const recentTags = ['Influencer', 'Video Grapher', 'Content', 'Reel'];
-  const filterPills = ['All Feed', 'Video Graphers', 'Influencers', 'Content Creator'];
+  
+  const filterPills = [
+    'All Feed',
+    ...(userRole === 'FREELANCER' ? ['Creators', 'Brands'] : ['Freelancers', 'Agencies']),
+    'Paid Collab'
+  ];
 
   const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
   const translateY = useRef(new Animated.Value(0)).current;
@@ -45,6 +58,32 @@ export default function SearchbarScreen() {
     return () => clearInterval(interval);
   }, [translateY]);
 
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (!searchQuery.trim() || !token) {
+        setResults([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await searchProfiles(token, searchQuery);
+        if (res.success) {
+          setResults(res.data);
+        }
+      } catch (e) {
+        console.error('Search error:', e);
+      } finally {
+        setLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, token]);
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
@@ -57,6 +96,7 @@ export default function SearchbarScreen() {
         >
           <Feather name="chevron-left" size={24} color="#fff" />
         </TouchableOpacity>
+        <Text className="text-white text-lg ml-4 font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>Search</Text>
       </View>
 
       {/* Search Bar & Filter */}
@@ -128,7 +168,7 @@ export default function SearchbarScreen() {
       </View>
 
       {/* Horizontal Filter Pills */}
-      <View className="mb-8">
+      <View className="mb-4">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
           {filterPills.map((pill, idx) => (
             <TouchableOpacity key={idx} className="px-5 py-2.5 rounded-full border border-white/30 bg-transparent">
@@ -139,30 +179,70 @@ export default function SearchbarScreen() {
       </View>
 
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-        {/* Recent Searches */}
-        <View className="mb-8">
-          <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Searches</Text>
-          <View className="flex-row flex-wrap gap-3">
-            {recentSearches.map((item, idx) => (
-              <TouchableOpacity key={idx} className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-[#d1d4f9]">
-                <Feather name="clock" size={15} color="#000" />
-                <Text className="text-black text-[13px]" style={{ fontFamily: 'Poppins_500Medium' }}>{item}</Text>
-              </TouchableOpacity>
-            ))}
+        {loading && <ActivityIndicator color="#ED2A91" style={{ marginTop: 20 }} />}
+        
+        {searchQuery.length > 0 && !loading && (
+          <View className="mt-4">
+            {results.length > 0 ? (
+              results.map((item) => {
+                const roleTheme = getRoleTheme(item.role);
+                return (
+                  <TouchableOpacity
+                    key={item.profileId}
+                    className="flex-row items-center gap-3 p-4 mb-3 rounded-2xl bg-[#1E1E24] border border-white/10"
+                    onPress={() => router.push({ pathname: '/creator-details', params: { userId: item.userId } } as any)}
+                  >
+                    {item.profilePicture ? (
+                      <Image source={{ uri: item.profilePicture }} className="w-12 h-12 rounded-full" />
+                    ) : (
+                      <View className="w-12 h-12 rounded-full bg-white/10 items-center justify-center">
+                        <Text className="text-white font-bold">{getInitials(item.name)}</Text>
+                      </View>
+                    )}
+                    <View className="flex-1">
+                      <Text className="text-white font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{item.name}</Text>
+                      <Text className="text-white/60 text-xs" style={{ fontFamily: 'Poppins_400Regular' }}>{item.category || item.role}</Text>
+                    </View>
+                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: roleTheme.light }}>
+                      <Text style={{ color: roleTheme.primary, fontSize: 10, fontWeight: 'bold' }}>{item.role}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <Text className="text-white/40 text-center mt-10">No {userRole === 'CREATOR' ? 'Freelancers' : 'Creators'} found.</Text>
+            )}
           </View>
-        </View>
+        )}
 
-        {/* Recent Tags */}
-        <View className="mb-8">
-          <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Tags</Text>
-          <View className="flex-row flex-wrap gap-3">
-            {recentTags.map((item, idx) => (
-              <TouchableOpacity key={idx} className="px-5 py-2.5 rounded-full border border-white/20 bg-white/5">
-                <Text className="text-white text-[13px]" style={{ fontFamily: 'Poppins_400Medium' }}># {item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        {searchQuery.length === 0 && (
+          <>
+            {/* Recent Searches */}
+            <View className="mb-8 mt-4">
+              <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Searches</Text>
+              <View className="flex-row flex-wrap gap-3">
+                {recentSearches.map((item, idx) => (
+                  <TouchableOpacity key={idx} className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-[#d1d4f9]">
+                    <Feather name="clock" size={15} color="#000" />
+                    <Text className="text-black text-[13px]" style={{ fontFamily: 'Poppins_500Medium' }}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Recent Tags */}
+            <View className="mb-8">
+              <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Tags</Text>
+              <View className="flex-row flex-wrap gap-3">
+                {recentTags.map((item, idx) => (
+                  <TouchableOpacity key={idx} className="px-5 py-2.5 rounded-full border border-white/20 bg-white/5">
+                    <Text className="text-white text-[13px]" style={{ fontFamily: 'Poppins_400Medium' }}># {item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

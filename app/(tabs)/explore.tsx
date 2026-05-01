@@ -1,6 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/useProfileGate';
-import { getFeed, getCreatorById, getFreelancerById, searchProfiles } from '@/services/userService';
+import { getFeed, getCreatorById, getFreelancerById, sendCollaboration } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import ExpandableText from '@/Components/ui/ExpandableText';
 import { BlurView } from 'expo-blur';
@@ -64,7 +64,7 @@ function timeAgo(dateStr: string | null | undefined) {
 
 export default function ExploreTab() {
   const router = useRouter();
-  const { token, isGuest } = useAuth();
+  const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +74,7 @@ export default function ExploreTab() {
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
 
   const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
   const translateY = useRef(new Animated.Value(0)).current;
@@ -155,16 +156,6 @@ export default function ExploreTab() {
     router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
   };
 
-  const handleChat = () => {
-    if (!requireProfile('start a chat')) return;
-    Alert.alert('Coming Soon', 'Chat is not yet available.');
-  };
-
-  const handleCall = () => {
-    if (!requireProfile('call directly')) return;
-    Alert.alert('Coming Soon', 'Direct calling is not yet available.');
-  };
-
   const handlePortfolio = async (ownerId?: string, ownerRole?: string) => {
     setSelectedPortfolioLink(null);
     setPortfolioLoading(true);
@@ -191,9 +182,25 @@ export default function ExploreTab() {
     }
   };
 
-  const handleSendRequest = () => {
-    if (!requireProfile('send a request')) return;
-    Alert.alert('Coming Soon', 'Collaboration requests are not yet available.');
+  const handleCollab = async (postId: string, ownerId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('send a collaboration request')) return;
+    if (!ownerId) return;
+    if (collabSentIds.has(postId)) {
+      Alert.alert('Already Sent', 'You already sent a collaboration request for this post.');
+      return;
+    }
+    try {
+      const res = await sendCollaboration(token, { receiverId: ownerId, postId });
+      if (res.success) {
+        setCollabSentIds(prev => new Set(prev).add(postId));
+        Alert.alert('Request Sent!', 'Your collaboration request has been sent. You will be notified when they respond.');
+      } else {
+        Alert.alert('Request Failed', (res as any).error || 'Could not send collaboration request.');
+      }
+    } catch {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
   };
 
   const handleBookmark = () => {
@@ -279,7 +286,11 @@ export default function ExploreTab() {
 
           {/* FILTER PILLS */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pillsContent}>
-            {FILTER_TABS.map((tab) => {
+            {FILTER_TABS.filter(tab => {
+              if (userRole === 'CREATOR' && tab.id === 'creators') return false;
+              if (userRole === 'FREELANCER' && tab.id === 'freelancers') return false;
+              return true;
+            }).map((tab) => {
               const active = tab.id === activeFilter;
               return (
                 <TouchableOpacity
@@ -367,26 +378,30 @@ export default function ExploreTab() {
                       </View>
                     </View>
 
-                    {/* ── Banner Image with Floating Actions */}
+                    {/* ── Banner Image */}
                     <View style={styles.cardBannerContainer}>
                       <Image source={{ uri: item.bannerUri }} style={styles.cardBanner} resizeMode="cover" />
                       <View style={styles.bannerOverlay} />
-
-                      {/* Floating Actions */}
-                      <View style={styles.bannerActionsLeft}>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={handleChat}>
-                          <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={handleCall}>
-                          <Ionicons name="call-outline" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
 
                       <View style={styles.bannerActionsRight}>
                         <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={() => handleBookmark()}>
                           <Ionicons name="bookmark-outline" size={16} color="#fff" />
                         </TouchableOpacity>
                       </View>
+                    </View>
+
+                    {/* ── Collaborate row */}
+                    <View style={styles.cardActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.collabBtn, collabSentIds.has(item.id) ? { backgroundColor: '#22c55e', borderColor: '#22c55e' } : { borderColor: postColor }]}
+                        onPress={() => handleCollab(item.id, item.ownerId)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name={collabSentIds.has(item.id) ? "checkmark-circle-outline" : "people-outline"} size={15} color={collabSentIds.has(item.id) ? '#fff' : postColor} />
+                        <Text style={[styles.collabBtnText, { color: collabSentIds.has(item.id) ? '#fff' : postColor }]}>
+                          {collabSentIds.has(item.id) ? 'Request Sent' : 'Collaborate'}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 );
@@ -819,12 +834,26 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.1)',
   },
-  bannerActionsLeft: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
+  cardActionsRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
+    marginTop: 12,
+  },
+  collabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+  },
+  collabBtnText: {
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
+    lineHeight: 16,
   },
   bannerActionsRight: {
     position: 'absolute',
