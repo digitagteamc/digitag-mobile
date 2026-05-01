@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  ActivityIndicator,
   Animated,
   Image,
   ScrollView,
@@ -17,15 +18,18 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/userService';
-import { getRoleTheme } from '../theme/useRoleTheme';
+import { useRoleTheme } from '../theme/useRoleTheme';
 
 export default function SearchbarScreen() {
   const router = useRouter();
-  const { userRole, token } = useAuth();
+  const { token, isGuest } = useAuth();
+  const theme = useRoleTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const recentSearches = ['Video graphers', 'Content Creator', 'Editors', 'Cameraman'];
   const recentTags = ['Influencer', 'Video Grapher', 'Content', 'Reel'];
@@ -43,7 +47,7 @@ export default function SearchbarScreen() {
   useEffect(() => {
     const interval = setInterval(() => {
       currentIndex.current += 1;
-      
+
       Animated.timing(translateY, {
         toValue: -(currentIndex.current * 20),
         duration: 400,
@@ -58,31 +62,24 @@ export default function SearchbarScreen() {
     return () => clearInterval(interval);
   }, [translateY]);
 
-  // Debounced search
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (!searchQuery.trim() || !token) {
-        setResults([]);
-        return;
-      }
-      setLoading(true);
-      try {
-        const res = await searchProfiles(token, searchQuery);
-        if (res.success) {
-          setResults(res.data);
-        }
-      } catch (e) {
-        console.error('Search error:', e);
-      } finally {
-        setLoading(false);
-      }
-    }, 500);
-    return () => clearTimeout(timer);
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    searchDebounce.current = setTimeout(async () => {
+      if (!token) { setSearchLoading(false); return; }
+      const res = await searchProfiles(token, searchQuery.trim());
+      setSearchResults(res.success ? res.data : []);
+      setSearchLoading(false);
+    }, 350);
+    return () => {
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    };
   }, [searchQuery, token]);
-
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>
@@ -122,9 +119,9 @@ export default function SearchbarScreen() {
             />
             {searchQuery.length === 0 && (
               <View style={styles.placeholderContainer} pointerEvents="none">
-                <Text style={{ 
-                  fontFamily: 'Poppins_400Regular', 
-                  fontSize: 13, 
+                <Text style={{
+                  fontFamily: 'Poppins_400Regular',
+                  fontSize: 13,
                   color: '#9a9a9a',
                   height: 20,
                   lineHeight: 20
@@ -134,14 +131,14 @@ export default function SearchbarScreen() {
                 <View style={{ height: 20, overflow: 'hidden' }}>
                   <Animated.View style={{ transform: [{ translateY }] }}>
                     {words.map((word, idx) => (
-                      <Text 
-                        key={idx} 
-                        style={{ 
-                          fontFamily: 'Poppins_400Regular', 
-                          fontSize: 13, 
-                          color: '#fff', 
-                          height: 20, 
-                          lineHeight: 20 
+                      <Text
+                        key={idx}
+                        style={{
+                          fontFamily: 'Poppins_400Regular',
+                          fontSize: 13,
+                          color: '#fff',
+                          height: 20,
+                          lineHeight: 20
                         }}
                       >
                         {word}
@@ -179,50 +176,54 @@ export default function SearchbarScreen() {
       </View>
 
       <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-        {loading && <ActivityIndicator color="#ED2A91" style={{ marginTop: 20 }} />}
-        
-        {searchQuery.length > 0 && !loading && (
-          <View className="mt-4">
-            {results.length > 0 ? (
-              results.map((item) => {
-                const roleTheme = getRoleTheme(item.role);
-                return (
-                  <TouchableOpacity
-                    key={item.profileId}
-                    className="flex-row items-center gap-3 p-4 mb-3 rounded-2xl bg-[#1E1E24] border border-white/10"
-                    onPress={() => router.push({ pathname: '/creator-details', params: { userId: item.userId } } as any)}
-                  >
-                    {item.profilePicture ? (
-                      <Image source={{ uri: item.profilePicture }} className="w-12 h-12 rounded-full" />
-                    ) : (
-                      <View className="w-12 h-12 rounded-full bg-white/10 items-center justify-center">
-                        <Text className="text-white font-bold">{getInitials(item.name)}</Text>
-                      </View>
-                    )}
-                    <View className="flex-1">
-                      <Text className="text-white font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{item.name}</Text>
-                      <Text className="text-white/60 text-xs" style={{ fontFamily: 'Poppins_400Regular' }}>{item.category || item.role}</Text>
-                    </View>
-                    <View className="px-3 py-1 rounded-full" style={{ backgroundColor: roleTheme.light }}>
-                      <Text style={{ color: roleTheme.primary, fontSize: 10, fontWeight: 'bold' }}>{item.role}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
+        {searchQuery.trim().length > 0 ? (
+          <View className="mb-8">
+            <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Search Results</Text>
+            {searchLoading ? (
+              <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 20 }} />
+            ) : searchResults.length === 0 ? (
+              <Text style={styles.noResultsText}>No profiles found for "{searchQuery}"</Text>
             ) : (
-              <Text className="text-white/40 text-center mt-10">No {userRole === 'CREATOR' ? 'Freelancers' : 'Creators'} found.</Text>
+              searchResults.map((item) => (
+                <TouchableOpacity
+                  key={`${item.role}-${item.userId}`}
+                  style={styles.searchResultItem}
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    if (isGuest || !token) { router.push('/role-selection'); return; }
+                    router.push({ pathname: '/creator-details', params: { userId: item.userId } } as any);
+                  }}
+                >
+                  {item.profilePicture ? (
+                    <Image source={{ uri: item.profilePicture }} style={styles.searchResultAvatar} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.searchResultAvatar, styles.searchResultAvatarFallback]}>
+                      <Text style={styles.searchResultInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={styles.searchResultText}>
+                    <Text style={styles.searchResultName}>{item.name}</Text>
+                    <Text style={styles.searchResultMeta}>
+                      {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
+                      {item.category ? ` · ${item.category}` : ''}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
             )}
           </View>
-        )}
-
-        {searchQuery.length === 0 && (
+        ) : (
           <>
             {/* Recent Searches */}
-            <View className="mb-8 mt-4">
+            <View className="mb-8">
               <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Searches</Text>
               <View className="flex-row flex-wrap gap-3">
                 {recentSearches.map((item, idx) => (
-                  <TouchableOpacity key={idx} className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-[#d1d4f9]">
+                  <TouchableOpacity
+                    key={idx}
+                    className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-[#d1d4f9]"
+                    onPress={() => setSearchQuery(item)}
+                  >
                     <Feather name="clock" size={15} color="#000" />
                     <Text className="text-black text-[13px]" style={{ fontFamily: 'Poppins_500Medium' }}>{item}</Text>
                   </TouchableOpacity>
@@ -231,16 +232,20 @@ export default function SearchbarScreen() {
             </View>
 
             {/* Recent Tags */}
-            <View className="mb-8">
+            {/* <View className="mb-8">
               <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Tags</Text>
               <View className="flex-row flex-wrap gap-3">
                 {recentTags.map((item, idx) => (
-                  <TouchableOpacity key={idx} className="px-5 py-2.5 rounded-full border border-white/20 bg-white/5">
-                    <Text className="text-white text-[13px]" style={{ fontFamily: 'Poppins_400Medium' }}># {item}</Text>
+                  <TouchableOpacity 
+                    key={idx} 
+                    className="px-5 py-2.5 rounded-full border border-white/20 bg-white/5"
+                    onPress={() => setSearchQuery(item)}
+                  >
+                    <Text className="text-white text-[13px]" style={{ fontFamily: 'Poppins_500Medium' }}># {item}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            </View> */}
           </>
         )}
       </ScrollView>
@@ -287,5 +292,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 40,
     elevation: 10,
-  }
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  searchResultAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+  },
+  searchResultAvatarFallback: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchResultInitial: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  searchResultText: {
+    flex: 1,
+  },
+  searchResultName: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  searchResultMeta: {
+    color: '#9a9a9a',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    marginTop: 1,
+  },
+  noResultsText: {
+    color: '#9a9a9a',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
 });

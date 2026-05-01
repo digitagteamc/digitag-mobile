@@ -95,8 +95,20 @@ export default function SettingsScreen() {
     {
       id: 'terms',
       icon: 'document-text-outline',
-      label: 'Terms of Service',
+      label: 'Terms & Conditions',
       onPress: () => Linking.openURL('https://digitag.in/terms').catch(() => { }),
+    },
+    {
+      id: 'about',
+      icon: 'information-circle-outline',
+      label: 'About Digitag',
+      onPress: () => Linking.openURL('https://digitag.in/about').catch(() => { }),
+    },
+    {
+      id: 'privacy policy',
+      icon: 'reader-outline',
+      label: 'Privacy Policy',
+      onPress: () => Linking.openURL('https://digitag.in/privacy-policy').catch(() => { }),
     },
   ];
 

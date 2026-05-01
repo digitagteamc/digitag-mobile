@@ -107,7 +107,7 @@ export default function PrivacySettingsScreen() {
                             </View>
 
                             {/* Location Tracking */}
-                            <View className="flex-row items-center py-3.5 px-3 border-b border-[#2A2A2A]">
+                            {/* <View className="flex-row items-center py-3.5 px-3 border-b border-[#2A2A2A]">
                                 <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
                                     <Ionicons name="location-outline" size={20} color="#E0E0E0" />
                                 </View>
@@ -116,7 +116,7 @@ export default function PrivacySettingsScreen() {
                                     <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Allow location tracking for personalized recommendations</Text>
                                 </View>
                                 <CustomSwitch value={locationTracking} onValueChange={setLocationTracking} />
-                            </View>
+                            </View> */}
 
                             {/* Online Status */}
                             <View className="flex-row items-center py-3.5 px-3">
