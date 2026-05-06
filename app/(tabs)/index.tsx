@@ -113,9 +113,11 @@ const CAT_BORDER_COLORS = [
   ['rgba(52, 52, 52, 1)', 'rgba(250, 71, 0, 0.5)'],
 ];
 
-const GradientHeading = ({ text, style }: { text: string, style?: any }) => {
+const GradientHeading = ({ text, style, role }: { text: string, style?: any, role?: string }) => {
   const fontSize = style?.fontSize || 28;
   const fontFamily = style?.fontFamily || 'Poppins_600SemiBold';
+  const isFreelancer = role === 'FREELANCER';
+  const accentColor = isFreelancer ? '#f26930' : '#ed2a91';
 
   // Use a tighter multiplier to reduce extra space
   const widthVal = text.length * fontSize * 0.58;
@@ -126,7 +128,7 @@ const GradientHeading = ({ text, style }: { text: string, style?: any }) => {
         <Defs>
           <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
-            <Stop offset="1" stopColor="#FF6AB9" stopOpacity="1" />
+            <Stop offset="1" stopColor={accentColor} stopOpacity="1" />
           </SvgGradient>
         </Defs>
         <SvgText
@@ -599,7 +601,7 @@ export default function Homepage() {
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
           {/* ══════════════ FREELANCERS BY CATEGORY ══════════════ */}
           <View style={{ marginBottom: 20 }}>
-            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} />
+            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole} />
           </View>
           <View style={styles.catCarouselContainer}>
             <Animated.FlatList
@@ -670,7 +672,7 @@ export default function Homepage() {
 
         {/* ══════════════ RECENT UPDATES ══════════════ */}
         <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
-          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} />
+          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
         </View>
 
         {loading ? (
@@ -679,7 +681,7 @@ export default function Homepage() {
           <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
         ) : (
           <LinearGradient
-            colors={['transparent', 'rgba(177, 81, 124, 0.25)', 'rgba(164, 82, 119, 0.25)', 'transparent']}
+            colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', 'transparent']}
             locations={[0, 0.3, 0.7, 1]}
             style={{ paddingVertical: 50 }}
           >
@@ -729,14 +731,17 @@ export default function Homepage() {
         )}
 
         <View style={{ paddingHorizontal: 16 }}>
-          <TouchableOpacity style={styles.exploreNowBtn} onPress={() => router.push('/explore')}>
+          <TouchableOpacity 
+            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]} 
+            onPress={() => router.push('/explore')}
+          >
             <Text style={styles.exploreNowBtnText}>Explore now</Text>
           </TouchableOpacity>
 
           {/* ══════════════ CREATE POST ══════════════ */}
           <View style={{ marginTop: 20, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <GradientHeading text="Create Post" style={styles.gradientHeadingText} />
+              <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
               <Image
                 source={imgStars}
                 style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
@@ -825,10 +830,14 @@ export default function Homepage() {
           <Text style={styles.bharatSubtitle}>This is only the start</Text>
 
           <View style={styles.bharatBtnRow}>
-            <TouchableOpacity style={styles.bharatPinkBtn}>
+            <TouchableOpacity 
+              style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+            >
               <Text style={styles.bharatPinkBtnText}>The TeamC_official</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.bharatOutlineBtn}>
+            <TouchableOpacity 
+              style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+            >
               <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
               <Text style={styles.bharatOutlineBtnText}> Let's Talk</Text>
             </TouchableOpacity>
@@ -1200,7 +1209,7 @@ const styles = StyleSheet.create({
   },
 
   exploreNowBtn: {
-    backgroundColor: '#ed2a91', // primary color
+    backgroundColor: '#f26930', // orange color
     borderRadius: 99,
     paddingVertical: 16,
     alignItems: 'center',
@@ -1282,7 +1291,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   bharatPinkBtn: {
-    backgroundColor: '#ed2a91',
+    backgroundColor: '#f26930',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 12,
@@ -1296,7 +1305,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ed2a91',
+    borderColor: '#f26930',
     paddingHorizontal: 18,
     paddingVertical: 9,
     borderRadius: 12,
