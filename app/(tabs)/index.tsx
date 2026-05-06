@@ -11,7 +11,6 @@ import {
   Image,
   Linking,
   Modal,
-  Platform,
   ScrollView,
   Share,
   StatusBar,
@@ -21,84 +20,282 @@ import {
   View
 } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
-import ExpandableText from '../../Components/ui/ExpandableText';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/useProfileGate';
-import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith, sendCollaboration } from '../../services/userService';
+import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - 32;
 
-// ─── Figma asset URLs from the localhost dev server (Figma MCP)
-const imgChatGptImageMar272026104242Am1 = 'http://localhost:3845/assets/433440489db1bc86b19d2fe2e382e541dbd1c6b3.png';
-const imgJamieStreetUnsplash1 = 'http://localhost:3845/assets/e163a7a55d7383a4547aa41778d291b7bd50a5ef.png';
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
-const imgJamieStreetUnsplash2 = 'http://localhost:3845/assets/c7d3d3c46f542d3105102566c8c4d6e4fdce83d1.png';
-const imgJamieStreetUnsplash3 = 'http://localhost:3845/assets/068c225fbf028e84247785426f0eb10a6d9d2ed9.png';
-const imgFrame427318958 = 'http://localhost:3845/assets/eed7dba5ea152c5e0e3e2b490b42b92b946dcb5d.png';
-const imgFrame427318959 = 'http://localhost:3845/assets/231da894fd13807579f8de9d2a586e7dc00b1696.png';
-const imgVideoEditors = require('../../assets/categories/video-editor.png');
-const imgEditor = require('../../assets/categories/editor.png');
-const imgPhotographer = require('../../assets/categories/photographer.png');
-const imgFashion = require('../../assets/categories/fashion.png');
-const heroBg = require('../../assets/images/profile_hero_bg.jpg');
+const imgPhotography = require('../../assets/categories/Photography.gif');
+const imgEditor = require('../../assets/categories/editor.gif');
+const imgVideography = require('../../assets/categories/Videography.gif');
+const imgGrowth = require('../../assets/categories/growth spcielist.gif');
+const imgScriptWriters = require('../../assets/categories/script-writing.gif');
+const imgStyling = require('../../assets/categories/Styling-makeup.gif');
+const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
+const imgProperty = require('../../assets/categories/property-rental.gif');
+const imgStars = require('../../assets/categories/stars.gif');
+const imgPost = require('../../assets/categories/post.gif');
+const imgLove = require('../../assets/categories/love.gif');
+const imgTargetNew = require('../../assets/categories/targetnew.png');
+const slide1 = require('../../assets/slides/slide1.png');
+const slide2 = require('../../assets/slides/slide2.png');
+const slide3 = require('../../assets/slides/slide3.png');
+const slide4 = require('../../assets/slides/slide4.png');
+
 const CAROUSEL_DATA = [
   {
     id: '1',
-    title: 'Discover Top Brands',
-    desc: 'Connect with fashion, beauty &\nlifestyle brands.',
-    image: require('../../assets/images/banner.png'),
+    titleLine1: 'Book',
+    titleLine2: 'Expert',
+    titleLine3: 'Creators',
+    desc1: 'Find makeup, hair & creative  ',
+    desc2: ' professionals. ',
+    image: slide1,
+    gradient: ['rgba(6,6,6,0.2)', '#ed2a91'],
   },
   {
     id: '2',
-    title: 'Book Expert Creators',
-    desc: 'Find makeup, hair & creative\nprofessionals.',
-    image: require('../../assets/images/creator.png'),
+    titleLine1: 'Hire',
+    titleLine2: 'Expert',
+    titleLine3: 'Freelancers',
+    desc1: 'Find makeup, hair & creative  ',
+    desc2: ' professionals. ',
+    image: slide2,
+    gradient: ['rgba(0,0,0,0.2)', '#f26930'],
   },
   {
     id: '3',
-    title: 'Grow & Earn Together',
-    desc: 'Launch, track, and grow your\nbusiness.',
-    image: require('../../assets/images/freelancer.png'),
+    titleLine1: 'Discover',
+    titleLine2: 'Trusted',
+    titleLine3: 'Brands',
+    desc1: 'Find makeup, hair & creative  ',
+    desc2: ' professionals. ',
+    image: slide3,
+    gradient: ['rgba(0,0,0,0.6)', '#253e93'],
   },
   {
     id: '4',
-    title: 'Scale Your Agency Faster',
-    desc: 'Manage clients, campaigns &\nanalytics in one place.',
-    image: require('../../assets/images/agency.png'),
+    titleLine1: 'Connect',
+    titleLine2: 'With',
+    titleLine3: 'Agencies',
+    desc1: 'Find makeup, hair & creative  ',
+    desc2: ' professionals. ',
+    image: slide4,
+    gradient: ['rgba(0,0,0,0.6)', '#e2f20f'],
   },
-
-
 ];
 
-// ─── Category data exactly from Figma
 const CATEGORIES = [
-  { id: '1', label: ' Styling & Makeup', bg: '#e9f5f7', image: imgVideoEditors, imgSize: 60, imgTop: 3, shadowColor: 'rgba(47,122,134,0.25)' },
-  { id: '2', label: 'Editors', bg: '#fdf1dd', image: imgEditor, imgSize: 60, imgTop: 5, shadowColor: '#dcc196' },
-  { id: '3', label: 'Fashion', bg: '#e1eefb', image: imgFashion, imgSize: 60, imgTop: 5, shadowColor: '#93b9df' },
-  { id: '4', label: 'Photographer', bg: '#ebe5f0', image: imgPhotographer, imgSize: 60, imgTop: 5, shadowColor: '#c8a7e3' },
-  { id: '5', label: 'Styling & Makeup', bg: '#e9f5f7', image: imgVideoEditors, imgSize: 60, imgTop: 5, shadowColor: 'rgba(47,122,134,0.25)' },
-  { id: '6', label: 'Fashion & Beauty', bg: '#fdf1dd', image: imgEditor, imgSize: 60, imgTop: 5, shadowColor: '#dcc196' },
-  { id: '7', label: 'Photographer', bg: '#ebe5f0', image: imgPhotographer, imgSize: 60, imgTop: 5, shadowColor: '#c8a7e3' },
-  { id: '8', label: 'Fashion', bg: '#e1eefb', image: imgFashion, imgSize: 60, imgTop: 8, shadowColor: '#93b9df' },
-
+  { id: '1', label: 'Photography', image: imgPhotography, icon: 'camera-outline' as const },
+  { id: '2', label: 'Editors', image: imgEditor, icon: 'desktop-outline' as const },
+  { id: '3', label: 'Videography', image: imgVideography, icon: 'videocam-outline' as const },
+  { id: '4', label: 'Growth\nSpecialist', image: imgGrowth, icon: 'trending-up-outline' as const },
+  { id: '5', label: 'Script Writers', image: imgScriptWriters, icon: 'document-text-outline' as const },
+  { id: '6', label: 'Styling &\nmakeup', image: imgStyling, icon: 'color-palette-outline' as const },
+  { id: '7', label: 'Fashion\nDesigners', image: imgFashion, icon: 'shirt-outline' as const },
+  { id: '8', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
 ];
+
+const CAT_BORDER_COLORS = [
+  ['rgba(52, 52, 52, 1)', 'rgba(255, 51, 0, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(0, 183, 255, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(255, 238, 1, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(1, 255, 35, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(12, 62, 179, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(143, 12, 229, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(240, 0, 160, 0.5)'],
+  ['rgba(52, 52, 52, 1)', 'rgba(250, 71, 0, 0.5)'],
+];
+
+const GradientHeading = ({ text, style }: { text: string, style?: any }) => {
+  const fontSize = style?.fontSize || 28;
+  const fontFamily = style?.fontFamily || 'Poppins_600SemiBold';
+
+  // Use a tighter multiplier to reduce extra space
+  const widthVal = text.length * fontSize * 0.58;
+
+  return (
+    <View style={{ width: widthVal, height: fontSize * 1.4 }}>
+      <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${fontSize * 1.4}`}>
+        <Defs>
+          <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
+            <Stop offset="1" stopColor="#FF6AB9" stopOpacity="1" />
+          </SvgGradient>
+        </Defs>
+        <SvgText
+          fill="url(#grad)"
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          x="0"
+          y={fontSize}
+        >
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
+  );
+};
+
+const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }) => {
+  const fontSize = 38;
+  const fontFamily = 'Poppins_800ExtraBold';
+  const widthVal = width - 32;
+  const heightVal = fontSize * 1.3;
+
+  return (
+    <View style={{ height: heightVal, width: widthVal }}>
+      <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${heightVal}`}>
+        {/* Layer 1: The Stroke (Bottom Layer) */}
+        <SvgText
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth="2"
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          x="2"
+          y={fontSize}
+          fontWeight="800"
+        >
+          {text}
+        </SvgText>
+        {/* Layer 2: The Fill (Top Layer) */}
+        <SvgText
+          fill="#FFFFFF"
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          x="2"
+          y={fontSize}
+          fontWeight="800"
+        >
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
+  );
+};
+
+// Optimization: Memoized Carousel Card component to prevent re-renders
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare }: any) => {
+  const inputRange = [
+    (index - 1) * ITEM_SIZE,
+    index * ITEM_SIZE,
+    (index + 1) * ITEM_SIZE,
+  ];
+
+  const rotateY = scrollX.interpolate({
+    inputRange,
+    outputRange: ['15deg', '0deg', '-15deg'],
+    extrapolate: 'clamp',
+  });
+
+  const scale = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.85, 1, 0.85],
+    extrapolate: 'clamp',
+  });
+
+  const opacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.8, 1, 0.8],
+    extrapolate: 'clamp',
+  });
+
+  const postTheme = getRoleTheme(item.ownerRole);
+  const postColor = postTheme.primary;
+
+  return (
+    <View style={{ width: ITEM_SIZE, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={{
+          width: CARD_WIDTH,
+          transform: [{ perspective: 1000 }, { rotateY }, { scale }],
+          opacity,
+        }}
+      >
+        <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
+          {/* Top Opacity Overlay */}
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
+          />
+          {/* Top Absolute Row */}
+          <View style={styles.figmaCardTopRow}>
+            <View style={styles.figmaCardRoleBadge}>
+              <Text style={styles.figmaCardRoleText}>{item.role}</Text>
+            </View>
+            <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
+              <Ionicons name="bookmark-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Avatar */}
+          <View style={styles.figmaCardAvatarWrap}>
+            {item.isInitials ? (
+              <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
+              </View>
+            ) : (
+              <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
+            )}
+          </View>
+
+          {/* Name & Details */}
+          <Text style={styles.figmaCardName}>{item.name}</Text>
+
+          <View style={styles.figmaCardMetaRow}>
+            <TouchableOpacity
+              style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
+              onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
+            >
+              <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <Ionicons name="time-outline" size={14} color="#a1a2a4" />
+              <Text style={styles.figmaCardTimeText}> {item.time}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
+
+          <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
+
+          {/* Bottom Actions */}
+          <View style={styles.figmaCardActions}>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
+              <Ionicons name="call-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
+              <Ionicons name="share-social-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+});
 
 export default function Homepage() {
   const router = useRouter();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
-  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
+  const insets = useSafeAreaInsets();
 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createPostWidth, setCreatePostWidth] = useState(0);
   const [userName, setUserName] = useState<string>('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -110,27 +307,21 @@ export default function Homepage() {
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
-  const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
-  const translateY = useRef(new Animated.Value(0)).current;
-  const currentIndex = useRef(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  // Group categories into columns (2 items each: one from top row, one from bottom)
+  const categoryColumns = [
+    [CATEGORIES[0], CATEGORIES[4]],
+    [CATEGORIES[1], CATEGORIES[5]],
+    [CATEGORIES[2], CATEGORIES[6]],
+    [CATEGORIES[3], CATEGORIES[7]],
+  ];
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      currentIndex.current += 1;
+  const colWidth = (width - 32 - 28) / 3;
+  const snapInterval = colWidth * 2 + 14 * 2;
 
-      Animated.timing(translateY, {
-        toValue: -(currentIndex.current * 20),
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => {
-        if (currentIndex.current === words.length - 1) {
-          translateY.setValue(0);
-          currentIndex.current = 0;
-        }
-      });
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [translateY]);
+  const scrollXCat = useRef(new Animated.Value(0)).current;
+  const activeCatPage = Animated.divide(scrollXCat, snapInterval);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   const showAlert = (title: string, message: string) => {
     setAlertConfig({ visible: true, title, message });
@@ -141,27 +332,20 @@ export default function Homepage() {
       try {
         if (!token) { setPosts([]); setLoading(false); return; }
         const res = await getFeed(token);
-        // Backend GET /feed already filters by opposite role server-side
-        // (CREATOR → FREELANCER posts, FREELANCER → CREATOR posts) via
-        // OPPOSITE_FEED_ROLE, so no client-side filter is needed.
         const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-        console.log(`📰 Feed loaded: ${allPosts.length} post(s)`);
         setPosts(allPosts);
       } catch (error) {
-        console.error('Error fetching posts:', error);
         setPosts([]);
       } finally {
         setLoading(false);
       }
     };
 
-
     const fetchUser = async () => {
       if (isGuest || !token) {
         setUserName('Guest');
         return;
       }
-
       const res = await getFullProfile(token);
       if (res.success && res.data?.profile) {
         const p = res.data.profile;
@@ -186,9 +370,6 @@ export default function Homepage() {
     fetchPendingCount();
   }, [token, isGuest, userRole]);
 
-  // Backend `shapePost` already flattens the author → { id, role, name,
-  // profilePicture, location } on `post.owner`. `name` falls back to the
-  // role label when the user hasn't completed their profile yet.
   const getOwnerName = (owner: any) => {
     if (owner?.name) return owner.name;
     if (owner?.role === 'CREATOR') return 'Creator';
@@ -206,33 +387,7 @@ export default function Homepage() {
     return `${diffDays}d ago`;
   };
 
-  const handleBookmark = async (postId: string) => {
-    // Backend save/unsave endpoints not implemented yet — reconnect when
-    // /posts/:id/save is added.
-  };
-
-  const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
-
-  const handleCollab = async (postId: string, ownerId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('send a collaboration request')) return;
-    if (!ownerId) return;
-    if (collabSentIds.has(postId)) {
-      showAlert('Already Sent', 'You already sent a collaboration request for this post.');
-      return;
-    }
-    try {
-      const res = await sendCollaboration(token, { receiverId: ownerId, postId });
-      if (res.success) {
-        setCollabSentIds(prev => new Set(prev).add(postId));
-        showAlert('Request Sent!', 'Your collaboration request has been sent. You will be notified when they respond.');
-      } else {
-        showAlert('Request Failed', res.error || 'Could not send collaboration request.');
-      }
-    } catch {
-      showAlert('Error', 'Something went wrong. Please try again.');
-    }
-  };
+  const handleBookmark = async (postId: string) => { };
 
   const handleShare = async (postId: string) => {
     try {
@@ -243,7 +398,6 @@ export default function Homepage() {
         title: 'Digitag Post',
       });
     } catch (error: any) {
-      // Alert is already imported
       Alert.alert('Error', error.message);
     }
   };
@@ -267,7 +421,6 @@ export default function Homepage() {
         showAlert('Chat Error', res.error || 'Could not open conversation. Make sure you have an active collaboration or try again.');
       }
     } catch (err) {
-      console.error('Chat redirect error:', err);
       showAlert('Error', 'Failed to open chat.');
     }
   };
@@ -297,10 +450,7 @@ export default function Homepage() {
         const res = await getCreatorById(ownerId, token);
         profileData = res.success ? res.data : null;
       }
-      const link = profileData?.portfolioUrl
-        || profileData?.portfolio
-        || profileData?.portfolioLink
-        || null;
+      const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
       setSelectedPortfolioLink(link);
     } catch (e) {
       setSelectedPortfolioLink(null);
@@ -309,27 +459,7 @@ export default function Homepage() {
     }
   };
 
-  // Category keyword map for loose filtering against post descriptions / owner category
-  const CATEGORY_KEYWORDS: Record<string, string[]> = {
-    '1': ['video', 'editor', 'editing', 'motion', 'reel'],
-    '2': ['creator', 'influencer', 'content', 'ugc'],
-    '3': ['design', 'graphic', 'illustration', 'branding', 'ui', 'ux'],
-    '4': ['writ', 'copywrite', 'blog', 'content write'],
-  };
-
-  const filteredPosts = selectedCategory
-    ? posts.filter(post => {
-      const keywords = CATEGORY_KEYWORDS[selectedCategory] || [];
-      const searchText = [
-        post.description || '',
-        post.owner?.categoryName || '',
-        post.category?.name || '',
-      ].join(' ').toLowerCase();
-      return keywords.some(kw => searchText.includes(kw));
-    })
-    : posts;
-
-  const cards = filteredPosts.map(post => {
+  const cards = posts.map(post => {
     const owner = post.owner || {};
     const name = getOwnerName(owner);
     const pic = owner.profilePicture || null;
@@ -354,70 +484,107 @@ export default function Homepage() {
     };
   });
 
+  const CARD_WIDTH = 250;
+  const SPACING = 10;
+  const ITEM_SIZE = CARD_WIDTH + SPACING;
+
+  const carouselData = React.useMemo(() =>
+    Array(20).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` })),
+    [cards]
+  );
+
+  const carouselOffsets = React.useMemo(() =>
+    carouselData.map((_, i) => i * ITEM_SIZE),
+    [carouselData, ITEM_SIZE]
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-      {/* Full-screen purple→black gradient (top 264dp area) */}
-      <View style={[styles.topHero, { paddingTop: statusBarHeight }]}>
-        <Image
-          source={heroBg}
-          style={styles.heroBgImage}
-          resizeMode="cover"
-        />
-
-        {/* Dark overlay (important for readability) */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.2)', '#000']}
-          style={styles.heroOverlay}
-        />
-      </View>
-
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: 0 } // 🔥 remove extra space
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-
-          {/* ══════════════ HEADER ══════════════ */}
-          <View style={styles.header}>
-            {/* Avatar + greeting */}
-            <View style={styles.headerLeft}>
-              <View style={styles.avatarWrap}>
-                {userAvatar ? (
-                  <Image
-                    source={{ uri: userAvatar }}
-                    style={styles.avatar}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.avatar, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
-                    <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
-                      {userName.charAt(0).toUpperCase()}
-                    </Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={{ paddingBottom: 65 }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        removeClippedSubviews={true}
+      >
+        {/* ══════════════ HERO CAROUSEL ══════════════ */}
+        <View style={{ height: 432, position: 'relative' }}>
+          <Carousel
+            loop
+            width={width}
+            height={432}
+            autoPlay={true}
+            data={CAROUSEL_DATA}
+            scrollAnimationDuration={1000}
+            onSnapToItem={(index) => setCurrentSlide(index)}
+            renderItem={({ item }) => (
+              <View style={{ flex: 1 }}>
+                <Image
+                  source={item.image}
+                  style={{ position: 'absolute', width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.8)']}
+                  style={StyleSheet.absoluteFillObject}
+                />
+                <View style={{ position: 'absolute', bottom: 25, left: 16 }}>
+                  <View>
+                    <StrokeText text={item.titleLine1} strokeColor={item.gradient[1]} />
+                    <StrokeText text={item.titleLine2} strokeColor={item.gradient[1]} />
+                    <StrokeText text={item.titleLine3} strokeColor={item.gradient[1]} />
                   </View>
-                )}
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={styles.heroDesc}>{item.desc1}</Text>
+                    <Text style={styles.heroDesc}>{item.desc2}</Text>
+                  </View>
+                  <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1] }]} activeOpacity={0.8}>
+                    <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View>
-                <Text style={styles.hiText}>{userName}</Text>
-                <Text style={styles.welcomeText}>
-                  {userRole === 'FREELANCER' ? 'Discover Creators for Freelancers' : 'Discover Freelancers for Creators'}
-                </Text>
-              </View>
-            </View>
+            )}
+          />
+          {/* Pagination Dots */}
+          <View style={styles.paginationContainer}>
+            {CAROUSEL_DATA.map((_, index) => (
+              <View key={index} style={[styles.dot, currentSlide === index ? styles.activeDot : null]} />
+            ))}
+          </View>
 
-            <View style={styles.headerRight}>
-              <TouchableOpacity
-                style={styles.iconCircle}
-                onPress={() => router.push('/analytics' as any)}
-              >
-                <Ionicons name="bar-chart-outline" size={16} color="#fff" />
+          {/* ══════════════ FLOATING HEADER ══════════════ */}
+          <View style={[styles.headerWrapper, { paddingTop: insets.top + 10 }]}>
+            <BlurView intensity={5} tint="light" style={styles.floatingHeader}>
+              <LinearGradient
+                colors={['rgba(255, 255, 255, 0.1)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.floatingHeaderInner}>
+                <View style={styles.headerAvatarWrap}>
+                  {userAvatar ? (
+                    <Image source={{ uri: userAvatar }} style={styles.headerAvatar} />
+                  ) : (
+                    <View style={[styles.headerAvatar, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
+                      <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{userName.charAt(0).toUpperCase()}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={{ marginLeft: 10 }}>
+                  <Text style={styles.headerName}>{userName}</Text>
+                  <Text style={styles.headerTag}>Fashion <Text style={{ fontWeight: '600', color: '#fff' }}>tag: 45600hyd</Text></Text>
+                </View>
+              </View>
+            </BlurView>
+
+            <View style={styles.headerRightIcons}>
+              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/analytics' as any)}>
+                <Ionicons name="stats-chart" size={16} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconCircle} onPress={() => router.push('/notifications' as any)}>
+              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/notifications' as any)}>
                 <Ionicons name="notifications-outline" size={16} color="#fff" />
                 {pendingCount > 0 && (
                   <View style={[styles.badge, { backgroundColor: theme.primary }]}>
@@ -427,233 +594,247 @@ export default function Homepage() {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
 
-          {/* ══════════════ SEARCH BAR ══════════════ */}
-          <TouchableOpacity
-            style={styles.searchBar}
-            activeOpacity={0.8}
-            onPress={() => router.push('/searchbar' as any)}
-          >
-            <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
-            <LinearGradient
-              colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.searchBarInner}>
-              <Feather name="search" size={18} color="#d6d6d6" />
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{
-                  fontFamily: 'Poppins_400Regular',
-                  fontSize: 13,
-                  color: '#9a9a9a',
-                  height: 20,
-                  lineHeight: 20
-                }}>
-                  Search here for{' '}
-                </Text>
-                <View style={{ height: 20, overflow: 'hidden' }}>
-                  <Animated.View style={{ transform: [{ translateY }] }}>
-                    {words.map((word, idx) => (
-                      <Text
-                        key={idx}
-                        style={{
-                          fontFamily: 'Poppins_400Regular',
-                          fontSize: 13,
-                          color: '#fff',
-                          height: 20,
-                          lineHeight: 20
-                        }}
-                      >
-                        {word}
-                      </Text>
-                    ))}
-                  </Animated.View>
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-
-          {/* ══════════════ BANNER CAROUSEL ══════════════ */}
-          {/* Figma: glassmorphic rgba(240,240,240,0.3) with border rgba(64,64,64,0.5) */}
-          <View style={{ marginBottom: 28, borderRadius: 20, marginHorizontal: -8 }}>
-            <Carousel
-              loop
-              width={width - 16}
-              height={152}
-              autoPlay={true}
-              data={CAROUSEL_DATA}
-              scrollAnimationDuration={1000}
-              style={{ overflow: 'visible' }}
-              renderItem={({ item }) => (
-                <View style={{ paddingHorizontal: 8 }}>
-                  <View style={[styles.bannerOuter, { marginBottom: 0 }]}>
-                    <View style={styles.bannerGlass} />
-                    <View style={styles.bannerInner}>
-                      <View style={styles.bannerTextBlock}>
-                        <Text style={styles.bannerTitle}>{item.title}</Text>
-                        <Text style={styles.bannerDesc}>{item.desc}</Text>
-                        {/* <TouchableOpacity style={styles.exploreBtn} activeOpacity={0.85}>
-                          <Text style={styles.exploreBtnText}>Explore Now</Text>
-                        </TouchableOpacity> */}
-                      </View>
-                      <Image
-                        source={item.image}
-                        style={styles.bannerImg}
-                        resizeMode="contain"
-                      />
-                    </View>
-                    <View style={styles.bannerInsetOverlay} pointerEvents="none" />
-                  </View>
+        <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
+          {/* ══════════════ FREELANCERS BY CATEGORY ══════════════ */}
+          <View style={{ marginBottom: 20 }}>
+            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} />
+          </View>
+          <View style={styles.catCarouselContainer}>
+            <Animated.FlatList
+              data={categoryColumns}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={snapInterval}
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingHorizontal: 2, gap: 12 }}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollXCat } } }],
+                { useNativeDriver: true }
+              )}
+              keyExtractor={(_, i) => `col-${i}`}
+              renderItem={({ item: colItems }) => (
+                <View style={styles.catColumn}>
+                  {colItems.map((cat) => {
+                    const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
+                    return (
+                      <TouchableOpacity key={cat.id} style={styles.catGridItem}>
+                        <LinearGradient
+                          colors={CAT_BORDER_COLORS[globalIdx] as [string, string]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.catGradientBorder}
+                        >
+                          <View style={styles.catGridCard}>
+                            {cat.image ? (
+                              <Image source={cat.image} style={styles.catGridImg} resizeMode="contain" />
+                            ) : (
+                              <Ionicons name={cat.icon} size={36} color="#aaa" />
+                            )}
+                            <Text style={styles.catGridLabel}>{cat.label}</Text>
+                          </View>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
             />
+            {/* Pagination Dots */}
+            <View style={styles.catPagination}>
+              {[0, 1].map((i) => {
+                const opacity = activeCatPage.interpolate({
+                  inputRange: [i - 1, i, i + 1],
+                  outputRange: [0.3, 1, 0.3],
+                  extrapolate: 'clamp',
+                });
+                const scale = activeCatPage.interpolate({
+                  inputRange: [i - 1, i, i + 1],
+                  outputRange: [0.8, 1.2, 0.8],
+                  extrapolate: 'clamp',
+                });
+                return (
+                  <Animated.View
+                    key={i}
+                    style={[
+                      styles.catDot,
+                      { opacity, transform: [{ scale }] }
+                    ]}
+                  />
+                );
+              })}
+            </View>
           </View>
+        </View>
 
-          {/* ══════════════ CATEGORIES ══════════════ */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.catRow}
+        {/* ══════════════ RECENT UPDATES ══════════════ */}
+        <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
+          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} />
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
+        ) : cards.length === 0 ? (
+          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
+        ) : (
+          <LinearGradient
+            colors={['transparent', 'rgba(177, 81, 124, 0.25)', 'rgba(164, 82, 119, 0.25)', 'transparent']}
+            locations={[0, 0.3, 0.7, 1]}
+            style={{ paddingVertical: 50 }}
           >
-            {CATEGORIES.map((cat) => {
-              const isActive = selectedCategory === cat.id;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  style={styles.catItem}
-                  activeOpacity={0.8}
-                  onPress={() => setSelectedCategory(isActive ? null : cat.id)}
-                >
-                  <View style={styles.catCardWrap}>
-                    <View style={[
-                      styles.catCard,
-                      { backgroundColor: cat.bg },
-                      isActive && { borderWidth: 2, borderColor: theme.primary },
-                    ]}>
-                      <Text style={styles.catLabel}>{cat.label}</Text>
-                    </View>
+            <Animated.FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={ITEM_SIZE}
+              snapToOffsets={carouselOffsets}
+              decelerationRate="fast"
+              snapToAlignment="center"
+              disableIntervalMomentum={true}
+              scrollEventThrottle={16}
+              windowSize={21}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              removeClippedSubviews={false}
+              contentContainerStyle={{ paddingHorizontal: (width - ITEM_SIZE) / 2 }}
+              data={carouselData}
+              keyExtractor={(item: any) => item._loopId}
+              getItemLayout={(_, index) => ({
+                length: ITEM_SIZE,
+                offset: ITEM_SIZE * index,
+                index,
+              })}
+              initialScrollIndex={cards.length > 0 ? cards.length * 10 : 0}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: true }
+              )}
+              renderItem={({ item, index }) => (
+                <CarouselCard
+                  item={item}
+                  index={index}
+                  scrollX={scrollX}
+                  ITEM_SIZE={ITEM_SIZE}
+                  CARD_WIDTH={CARD_WIDTH}
+                  handlePostTap={handlePostTap}
+                  handleBookmark={handleBookmark}
+                  handleSeePortfolio={handleSeePortfolio}
+                  handleMessage={handleMessage}
+                  handleCall={handleCall}
+                  handleShare={handleShare}
+                />
+              )}
+            />
+          </LinearGradient>
+        )}
 
-                    <Image
-                      source={cat.image}
-                      style={[
-                        styles.catImg,
-                        { width: cat.imgSize, height: cat.imgSize, top: cat.imgTop }
-                      ]}
-                      resizeMode="contain"
+        <View style={{ paddingHorizontal: 16 }}>
+          <TouchableOpacity style={styles.exploreNowBtn} onPress={() => router.push('/explore')}>
+            <Text style={styles.exploreNowBtnText}>Explore now</Text>
+          </TouchableOpacity>
+
+          {/* ══════════════ CREATE POST ══════════════ */}
+          <View style={{ marginTop: 20, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <GradientHeading text="Create Post" style={styles.gradientHeadingText} />
+              <Image
+                source={imgStars}
+                style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
+                resizeMode="contain"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.createPostCard}
+              activeOpacity={0.8}
+              onPress={() => router.push('/create-post' as any)}
+              onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
+            >
+              {createPostWidth > 0 && (
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                  <Svg height="100%" width="100%">
+                    <Defs>
+                      <SvgGradient id="dashedGrad" x1="0" y1="0" x2="1" y2="1">
+                        <Stop offset="0" stopColor="#ed2a91" stopOpacity="1" />
+                        <Stop offset="1" stopColor="#3b82f6" stopOpacity="1" />
+                      </SvgGradient>
+                    </Defs>
+                    <Rect
+                      x="0.5"
+                      y="0.5"
+                      width={createPostWidth - 1.5}
+                      height={178.5}
+                      rx={36}
+                      ry={36}
+                      stroke="url(#dashedGrad)"
+                      strokeWidth="0.4"
+                      strokeDasharray="8, 6"
+                      fill="transparent"
                     />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          {/* ══════════════ RECENTLY UPDATED HEADER ══════════════ */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recently Updated</Text>
-            <TouchableOpacity onPress={() => router.push('/explore')}>
-              <Text style={[styles.viewAll, { color: theme.primary }]}>View all</Text>
+                  </Svg>
+                </View>
+              )}
+              <View style={styles.createPostIconWrap}>
+                <Image source={imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
+              </View>
+              <Text style={styles.createPostText}>Create your first post</Text>
             </TouchableOpacity>
           </View>
 
-          {/* ══════════════ CARDS ══════════════ */}
-          {/* Figma: each card 408×290, glassmorphic bg #1e1e24, border rgba(156,156,156,0.5) */}
-          <View style={styles.cardsList}>
-            {loading ? (
-              <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
-            ) : cards.length === 0 ? (
-              <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
-            ) : (
-              cards.map((item) => {
-                const postTheme = getRoleTheme(item.ownerRole);
-                const postColor = postTheme.primary;
+        </View>
 
-                return (
-                  <View
-                    key={item.id}
-                    style={styles.card}
-                  >
-                    {/* ── Header: Avatar, Name, See Portfolio, Share */}
-                    <View style={styles.cardHeader}>
-                      <TouchableOpacity
-                        style={styles.cardHeaderLeft}
-                        activeOpacity={0.7}
-                        onPress={() => handlePostTap(item.id, item.ownerId)}
-                      >
-                        {item.isInitials ? (
-                          <View style={[styles.avatarCircle, { backgroundColor: postColor + '33' }]}>
-                            <Text style={[styles.initialsText, { color: postColor }]}>{(item as any).initials}</Text>
-                          </View>
-                        ) : (
-                          <View style={styles.avatarCircle}>
-                            <Image source={{ uri: (item as any).avatarUri }} style={styles.cardAvatarImg} resizeMode="cover" />
-                          </View>
-                        )}
-                        <View style={styles.headerNameBlock}>
-                          <Text style={styles.cardName}>{item.name}</Text>
-                          <Text style={styles.cardCategory}>{item.role}</Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      <View style={styles.cardHeaderRight}>
-                        <TouchableOpacity
-                          style={[styles.portfolioBtn, { backgroundColor: postColor }]}
-                          onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
-                        >
-                          <Text style={styles.portfolioBtnText}>See Portfolio</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.shareBtn} onPress={() => handleShare(item.id)}>
-                          <Ionicons name="share-social-outline" size={18} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* ── Description */}
-                    <ExpandableText text={item.desc} style={styles.cardDesc} numberOfLines={2} />
-
-                    {/* ── Meta: Price + Time */}
-                    <View style={styles.cardMetaRow}>
-                      <Text style={[styles.cardPrice, { color: 'rgba(0, 164, 1, 1)' }]}>
-                        {item.price === 'Paid Collab' ? '₹40K–50K/Month' : 'Free Collab'}
-                      </Text>
-                      <View style={styles.cardTimeRow}>
-                        <Ionicons name="time-outline" size={14} color="#8A8A99" />
-                        <Text style={styles.cardTime}>{item.time || '4h ago'}</Text>
-                      </View>
-                    </View>
-
-                    {/* ── Banner Image */}
-                    <View style={styles.cardBannerContainer}>
-                      <Image source={{ uri: item.bannerUri }} style={styles.cardBanner} resizeMode="cover" />
-                      <View style={styles.bannerOverlay} />
-
-                      <View style={styles.bannerActionsRight}>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={() => handleBookmark(item.id)}>
-                          <Ionicons name="bookmark-outline" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* ── Collaborate row */}
-                    <View style={styles.cardActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.collabBtn, collabSentIds.has(item.id) ? { backgroundColor: '#22c55e', borderColor: '#22c55e' } : { borderColor: postColor }]}
-                        onPress={() => handleCollab(item.id, item.ownerId)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name={collabSentIds.has(item.id) ? "checkmark-circle-outline" : "people-outline"} size={15} color={collabSentIds.has(item.id) ? '#fff' : postColor} />
-                        <Text style={[styles.collabBtnText, { color: collabSentIds.has(item.id) ? '#fff' : postColor }]}>
-                          {collabSentIds.has(item.id) ? 'Request Sent' : 'Collaborate'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              }))}
+        {/* ══════════════ BHARAT FIRST SECTION ══════════════ */}
+        <View style={styles.bharatSection}>
+          {/* Background SVG Lines */}
+          <View style={{ position: 'absolute', top: -100, right: -80, bottom: 10, left: 50, opacity: 0.15 }}>
+            <Svg width="100%" height="100%" viewBox="0 0 400 500" fill="none" preserveAspectRatio="none">
+              <Path
+                d="M0.000465703 500.92C0.000465703 500.92 153.908 500.666 210.353 423.461C268.027 344.577 147.742 288.158 206.128 209.733C257.903 140.188 352.938 201.986 395.598 127.761C423.42 79.3532 408.426 0.0919289 408.426 0.0919289"
+                stroke="#F2AF1A"
+                strokeWidth="1"
+                transform="translate(0, 0)"
+              />
+              <Path
+                d="M0.000465703 500.92C0.000465703 500.92 153.908 500.666 210.353 423.461C268.027 344.577 147.742 288.158 206.128 209.733C257.903 140.188 352.938 201.986 395.598 127.761C423.42 79.3532 408.426 0.0919289 408.426 0.0919289"
+                stroke="#48D4A5"
+                strokeWidth="1"
+                transform="translate(25, 25)"
+              />
+              <Path
+                d="M0.000465703 500.92C0.000465703 500.92 153.908 500.666 210.353 423.461C268.027 344.577 147.742 288.158 206.128 209.733C257.903 140.188 352.938 201.986 395.598 127.761C423.42 79.3532 408.426 0.0919289 408.426 0.0919289"
+                stroke="#326CF9"
+                strokeWidth="1"
+                transform="translate(50, 50)"
+              />
+            </Svg>
           </View>
+          <Image source={imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', }}>
+            <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>
+            <Image source={imgTargetNew} style={{ width: 22, height: 22, marginBottom: 10 }} />
+          </View>
+          <View style={{ flexDirection: 'row', marginVertical: 10 }}>
+            <Text style={[styles.bharatDivider, { opacity: 0.6 }]}>----</Text>
+            <Text style={[styles.bharatDivider, { opacity: 0.5 }]}>----</Text>
+            <Text style={[styles.bharatDivider, { opacity: 0.4 }]}>----</Text>
+            <Text style={[styles.bharatDivider, { opacity: 0.3 }]}>----------</Text>
+            <Text style={[styles.bharatDivider, { opacity: 0.2 }]}>----</Text>
+            <Text style={[styles.bharatDivider, { opacity: 0.1 }]}>----</Text>
+            <Text style={[styles.bharatDivider, { opacity: 0 }]}>----</Text>
+          </View>
+          <Text style={styles.bharatSubtitle}>This is only the start</Text>
 
-          {/* Bottom spacer so content doesn't hide behind nav */}
-          <View style={{ height: 100 }} />
-        </ScrollView>
-      </SafeAreaView>
+          <View style={styles.bharatBtnRow}>
+            <TouchableOpacity style={styles.bharatPinkBtn}>
+              <Text style={styles.bharatPinkBtnText}>The TeamC_official</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.bharatOutlineBtn}>
+              <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
+              <Text style={styles.bharatOutlineBtnText}> Let's Talk</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
 
       {/* ══════════════ PORTFOLIO MODAL ══════════════ */}
       <Modal
@@ -663,25 +844,17 @@ export default function Homepage() {
         onRequestClose={() => setPortfolioModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={styles.modalDismissArea}
-            activeOpacity={1}
-            onPress={() => setPortfolioModalVisible(false)}
-          />
+          <TouchableOpacity style={styles.modalDismissArea} activeOpacity={1} onPress={() => setPortfolioModalVisible(false)} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderLeft}>
                 <Feather name="link" size={20} color="#fff" />
                 <Text style={styles.modalTitle}>Portfolio Links</Text>
               </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setPortfolioModalVisible(false)}
-              >
+              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setPortfolioModalVisible(false)}>
                 <Feather name="x" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
-
             {portfolioLoading ? (
               <ActivityIndicator color="#A78BFA" style={{ marginTop: 16 }} />
             ) : selectedPortfolioLink ? (
@@ -689,9 +862,7 @@ export default function Homepage() {
                 style={styles.portfolioLinkContainer}
                 onPress={() => {
                   let url = selectedPortfolioLink;
-                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                    url = 'https://' + url;
-                  }
+                  if (!url.startsWith('http://') && !url.startsWith('https://')) { url = 'https://' + url; }
                   Linking.openURL(url);
                 }}
               >
@@ -721,490 +892,421 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#060606',
   },
-
-  // ── Top gradient band (264px tall in Figma, covers header area)
-  topGradientBand: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280,
-  },
-
-  topHero: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 280, // same as before
-  },
-
-  heroBgImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-    opacity: 0.4
-  },
-
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.20)', // 🔥 important (darkens image)
-  },
-
-  safeArea: {
-    flex: 1,
-  },
   scroll: {
     flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
 
-  // ── Header
-  header: {
+  // HERO & HEADER
+  headerWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    marginTop: 8,
+    alignItems: 'center',
+    zIndex: 10,
+    marginTop: 15,
   },
-  headerLeft: {
+  floatingHeader: {
+    borderRadius: 99,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderWidth: 0.8,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  floatingHeaderInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12, // 🔥 more spacing
   },
-  avatarWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 100, // 🔥 softer rounded like figma
+  headerAvatarWrap: {
+    width: 36,
+    height: 36, // Back to square for a perfect circle
+    borderRadius: 18,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.4)', // glow edge
+    borderWidth: 1,
+    borderColor: '#ed2a91',
+
   },
-  avatar: {
+  headerAvatar: {
     width: '100%',
     height: '100%',
 
   },
-  hiText: {
+  headerName: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    lineHeight: 14,
+    fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
-    paddingBottom: 5,
+    lineHeight: 16,
   },
-  welcomeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    letterSpacing: -0.5,
-    lineHeight: 14,
-    fontFamily: 'Poppins_500Medium',
+  headerTag: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 10,
+    fontFamily: 'Poppins_400Regular',
+    marginTop: 2,
   },
-  headerRight: {
+  headerRightIcons: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
-  iconCircle: {
+  iconCircleDark: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-
-    // 🔥 glass effect
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
   badge: {
     position: 'absolute', top: -4, right: -4,
     minWidth: 16, height: 16, borderRadius: 8,
     alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: 3,
+
   },
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
 
-  // ── Search bar (Figma: border rgba(156,156,156,0.5), bg rgba(240,240,240,0.1))
-  searchBar: {
-    height: 56,
-    borderRadius: 14, // slightly smoother
-    borderWidth: 1,
-    borderColor: 'rgba(156, 156, 156, 0.40)',
-    backgroundColor: 'rgba(70, 70, 70, 0.15)', // darker base for better contrast
-    marginBottom: 20,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-
-    // Figma shadows
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 40,
-    elevation: 10,
-
-
+  heroTitle: {
+    color: '#fff',
+    fontSize: 38,
+    fontFamily: 'Poppins_800ExtraBold',
+    letterSpacing: 0.5,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
-  searchBarInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  // ── Banner (Figma: glassmorphic 152×409, bg rgba(240,240,240,0.3), border rgba(64,64,64,0.5))
-  bannerOuter: {
-    height: 148,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(156, 156, 156, 0.50)',
-    overflow: 'hidden',
-    marginBottom: 16,
-    position: 'relative',
-    backdropFilter: 'blur(10px)',
-    boxShadow: ' 0 -5px 4px 0 rgba(255, 255, 255, 0.25) inset, 0 4px 4px 0 rgba(255, 255, 255, 0.25) inset, -42px 103px 31px 0 rgba(145, 145, 145, 0.00), -27px 66px 29px 0 rgba(145, 145, 145, 0.01), -15px 37px 24px 0 rgba(145, 145, 145, 0.03), -7px 17px 18px 0 rgba(145, 145, 145, 0.04), -2px 4px 10px 0 rgba(145, 145, 145, 0.05)',
-
-  },
-  bannerGlass: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(240, 240, 240, 0.30)',
-
-  },
-  bannerInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 15,
-    paddingRight: 0,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
-  bannerTextBlock: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  bannerTitle: {
-    color: '#000',
-    fontSize: 18,
-    fontWeight: '600',
-    letterSpacing: -0.5,
-    marginBottom: 4,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  bannerDesc: {
-    color: '#000',
+  heroDesc: {
+    color: '#fff',
     fontSize: 12,
-    lineHeight: 18,
-    marginBottom: 8,
-    width: 212,
-    fontFamily: 'Poppins_500SemiBold',
-
-  },
-  exploreBtn: {
-    backgroundColor: '#F26930',
-    borderRadius: 99,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignSelf: 'flex-start',
     fontFamily: 'Poppins_500Medium',
-    letterSpacing: -0.5,
-    fontSize: 14,
+    maxWidth: '70%',
+    lineHeight: 18,
+  },
+  contactBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 99,
+    alignSelf: 'flex-start',
+    marginTop: 20,
 
   },
-  exploreBtnText: {
+  contactBtnText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: -0.5,
-    lineHeight: 14,
+    fontFamily: 'Inter_500Medium',
+
   },
-  bannerImg: {
-    width: 152,
-    height: 128.04,
+  paginationContainer: {
     position: 'absolute',
+    bottom: 20,
+    left: 0,
     right: 0,
-    bottom: 0,
-    top: 12,
-    left: 230,
-  },
-  bannerInsetOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 0,
-  },
-
-  // ── Categories
-  catRow: {
     flexDirection: 'row',
-    paddingHorizontal: 1,
-    gap: 12, // spacing between cards
-  },
-  catItem: {
-    alignItems: 'center',
-  },
-  // Wrapper: relative, height = card(82) + image overflow above(28) = 110
-  catCardWrap: {
-    width: 88,
-    height: 110,
-    position: 'relative',
-    alignItems: 'center',
-  },
-  // Card: absolute at bottom of wrapper, contains the label at its bottom
-  catCard: {
-    position: 'absolute',
-    bottom: 0,
-    width: 88,
-    height: 80,
-    borderRadius: 16,
-
-    justifyContent: 'center',   // 🔥 center vertically
-    alignItems: 'center',       // 🔥 center horizontally
-
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-
-  catImg: {
-    position: 'absolute',
-    top: -6,
-    width: 45,
-    height: 45,
-    zIndex: 2,
-  },
-  catLabel: {
-    color: '#1a1a2e',
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: 18,
-    lineHeight: 14,
-    maxWidth: 70,
-    fontFamily: 'Poppins_400',
-    fontWeight: '700',
-
-  },
-  // ── Section header
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-    marginTop: 26,
-  },
-  sectionTitle: {
-    // Figma: Poppins SemiBold 20px white
-    color: '#fff',
-    fontSize: 20,
-    lineHeight: 28,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  viewAll: {
-    // color is applied dynamically via theme.primary
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: 'Poppins_500regular',
-  },
-
-  // ── Cards list
-  cardsList: {
-    gap: 20,
-  },
-
-  // ── Individual card (Figma: 408×392, bg #1E1E24, border rgba(156,156,156,0.5), rounded-24)
-  card: {
-    width: CARD_WIDTH,
-    minHeight: 392,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(156, 156, 156, 0.50)',
-    backgroundColor: 'rgba(30, 30, 36, 1)',
-    padding: 16,
-    marginBottom: 20,
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 6,
   },
-  cardAvatarImg: {
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  activeDot: {
+    width: 12,
+    backgroundColor: '#000',
+  },
+
+  // CATEGORIES GRID
+  gradientHeadingText: {
+    color: '#ff6ab9',
+    fontSize: 28,
+    fontFamily: 'Poppins_600SemiBold',
+
+  },
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  catCarouselContainer: {
+    height: 275,
+  },
+  catColumn: {
+    gap: 14,
+    width: (width - 32 - 28) / 3,
+  },
+  catGridItem: {
+    width: (width - 32 - 28) / 3,
+    height: 116,
+  },
+  catPagination: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  catDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#f9f4f6ff',
+  },
+  catGradientBorder: {
+    borderRadius: 24,
+    padding: 0.4,
+
+  },
+  catGridCard: {
+    backgroundColor: '#050404',
+    borderRadius: 23.6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     width: '100%',
     height: '100%',
   },
-  initialsText: {
-    fontSize: 16,
-    fontWeight: '700',
+  catGridImg: {
+    width: 51,
+    height: 51,
+    marginBottom: 8,
+  },
+  catGridLabel: {
     color: '#fff',
-  },
-  headerNameBlock: {
-    gap: 2,
-  },
-  cardName: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'manrope-600semibold',
-    lineHeight: 14,
-    letterSpacing: -0.5
-  },
-  cardCategory: {
-    color: '#A0A0A0',
     fontSize: 12,
-    fontFamily: 'poppins-400Regular',
-    lineHeight: 14,
-    letterSpacing: -0.5
+    fontFamily: 'Poppins_400Regular',
+    textAlign: 'center',
+    lineHeight: 20,
   },
-  cardHeaderRight: {
-    flexDirection: 'row',
+
+  // RECENT UPDATES CARDS
+  cardsList: {
+    paddingHorizontal: (width - 280) / 2,
+    gap: 16,
+  },
+  figmaCard: {
+    width: 251,
+    height: 350,
+    backgroundColor: '#1E1E24',
+    borderRadius: 24,
     alignItems: 'center',
-    gap: 12,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  portfolioBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+  figmaCardTopRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  figmaCardRoleBadge: {
+    backgroundColor: '#10151e',
+    borderBottomRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  figmaCardRoleText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+  },
+  figmaCardBookmarkBtn: {
+    padding: 12,
+  },
+  figmaCardAvatarWrap: {
+    marginTop: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#2A2A32',
   },
-  portfolioBtnText: {
+  figmaCardAvatarImg: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: '#1E1E24',
+  },
+  figmaCardName: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 20,
     fontFamily: 'Poppins_500Medium',
+    marginTop: 8,
+  },
+  figmaCardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  figmaCardPortfolioBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 99,
+  },
+  figmaCardPortfolioText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  figmaCardTimeText: {
+    color: '#a1a2a4',
+    fontSize: 10,
+    fontFamily: 'Inter_500Medium',
+  },
+  figmaCardDesc: {
+    color: '#d1d2d4',
+    fontSize: 11,
+    fontFamily: 'Poppins_300Light',
+    textAlign: 'center',
+    marginTop: 12,
+    paddingHorizontal: 16,
     lineHeight: 16,
   },
-  shareBtn: {
+  figmaCardPrice: {
+    color: '#00a401',
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    marginTop: 12,
+  },
+  figmaCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    position: 'absolute',
+    bottom: 20,
+  },
+  figmaCardActionBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0)',
+    borderColor: '#373839',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  cardDesc: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'poppins_400Regular',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  cardMetaRow: {
-    flexDirection: 'row',
+
+  exploreNowBtn: {
+    backgroundColor: '#ed2a91', // primary color
+    borderRadius: 99,
+    paddingVertical: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
+
+    marginBottom: 40,
+    marginHorizontal: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  exploreNowBtnText: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins_500Medium',
+  },
+
+  // CREATE POST
+  createPostCard: {
+    backgroundColor: '#1E1E24',
+    borderRadius: 36,
+    paddingVertical: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 180,
+  },
+  createPostIconWrap: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
-  cardPrice: {
-    fontSize: 12,
-    fontFamily: 'poppins-500Medium',
-    lineHeight: 14,
+  createPostHeartBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+  },
+  createPostText: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+
+  // BHARAT FIRST SECTION
+  bharatSection: {
+    marginTop: 40,
+    backgroundColor: '#1E1E24',
+    paddingHorizontal: 16,
+    paddingTop: 32,
+    paddingBottom: 120,
+    marginBottom: 0,
+  },
+  bharatTitle: {
+    color: '#fff',
+    fontSize: 32,
+    fontFamily: 'Poppins_700Bold',
+    lineHeight: 40,
+    marginBottom: 16,
+    letterSpacing: 0,
+  },
+  bharatSubtitle: {
+    color: '#bbb',
+    fontSize: 16,
+    fontFamily: 'Poppins_400Regular',
 
   },
-  cardTimeRow: {
+  bharatDivider: {
+    color: '#787474ff',
+    fontSize: 14,
+    fontFamily: 'Poppins_300Light',
+    marginBottom: 8,
+  },
+  bharatBtnRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
+    marginTop: 14,
   },
-  cardTime: {
-    color: '#8A8A99',
-    fontSize: 10,
-    fontFamily: 'inter-500Medium',
-  },
-  cardBannerContainer: {
-    height: 220,
-    width: '100%',
-    borderRadius: 30,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  cardBanner: {
-    width: '100%',
-    height: '100%',
-  },
-  bannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  cardActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  collabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    backgroundColor: 'transparent',
-  },
-  collabBtnText: {
-    fontSize: 13,
-    fontFamily: 'Poppins_500Medium',
-    lineHeight: 16,
-  },
-  msgBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+  bharatPinkBtn: {
+    backgroundColor: '#ed2a91',
+    paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 12,
   },
-  msgBtnText: {
+  bharatPinkBtnText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_500Medium',
-    lineHeight: 16,
   },
-  bannerActionsRight: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-  },
-  actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 24,
-    justifyContent: 'center',
+  bharatOutlineBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    backgroundColor: 'rgba(242, 105, 48, 1)'
+    borderWidth: 1,
+    borderColor: '#ed2a91',
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 12,
   },
+  bharatOutlineBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
