@@ -129,6 +129,7 @@ function TabButton({
 
 // ─── FAB ─────────────────────────────────────────────────────────────────────
 
+/*
 function FabButton({
     isFreelancer,
     onPress,
@@ -136,7 +137,7 @@ function FabButton({
     isFreelancer: boolean;
     onPress: () => void;
 }) {
-    const creatorColors = ['#F15DAB', '#E91E8C'] as const; // rgba(241, 93, 171, 1) + shade
+    const creatorColors = ['#F15DAB', '#E91E8C'] as const;
     const freelancerColors = ['rgba(255, 131, 42, 1)', 'rgba(203, 104, 50, 1)'] as const;
 
     return (
@@ -158,6 +159,7 @@ function FabButton({
         </View>
     );
 }
+*/
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -175,20 +177,23 @@ export default function AppBottomNav({
     const theme = useRoleTheme();
     const { userRole } = useAuth();
 
-    // FAB is visible only on Home and Explore tabs
+    /*
     const isHomeOrExplore = activeKey === 'home' || activeKey === 'explore';
     const showFab = isHomeOrExplore && !!onFabPress;
     const isFreelancer = userRole === 'FREELANCER';
+    */
 
     return (
         <View style={styles.wrap}>
             {/* Create Post FAB — floats above bar top-right */}
+            {/* 
             {showFab && (
                 <FabButton
                     isFreelancer={isFreelancer}
                     onPress={onFabPress!}
                 />
             )}
+            */}
 
             {/* Nav bar */}
             <View style={styles.bar}>
@@ -273,11 +278,11 @@ const styles = StyleSheet.create({
         marginRight: 4,
     },
 
-    /* ── FAB: 56px circle, top-right, floats above the bar */
+    /*
     fab: {
         position: 'absolute',
         right: 20,
-        bottom: Platform.OS === 'ios' ? 125 : 95, // Increased to float above the bar
+        bottom: Platform.OS === 'ios' ? 125 : 95, 
         width: FAB_SIZE,
         height: FAB_SIZE,
         borderRadius: FAB_SIZE / 2,
@@ -298,9 +303,9 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 4.5, // Thick white border as per image
+        borderWidth: 4.5, 
         borderColor: '#fff',
         borderRadius: FAB_SIZE / 2,
-        
     },
+    */
 });
