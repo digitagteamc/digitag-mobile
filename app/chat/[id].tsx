@@ -242,10 +242,22 @@ export default function ChatScreen() {
     // ── Call ────────────────────────────────────────────────────────────────────
     const handleCall = () => {
         const peer = otherRef.current;
+        console.log('[Call] handleCall triggered');
+        console.log('[Call] token present:', !!token);
+        console.log('[Call] peer:', JSON.stringify(peer));
+
         if (!token) { Alert.alert('Error', 'Not signed in'); return; }
         if (!peer?.id) { Alert.alert('Still loading', 'Please wait a moment then try again.'); return; }
+
+        console.log('[Call] Calling initiateCall with peer.id:', peer.id);
         initiateCall(token, peer.id).then((res) => {
+            console.log('[Call] initiateCall response:', JSON.stringify(res));
             if (res.success && res.data) {
+                console.log('[Call] Navigating to /call with params:', JSON.stringify({
+                    callId: res.data.callId,
+                    channelName: res.data.channelName,
+                    appId: res.data.appId,
+                }));
                 router.push({
                     pathname: '/call',
                     params: {
@@ -255,9 +267,13 @@ export default function ChatScreen() {
                     },
                 });
             } else {
+                console.warn('[Call] initiateCall failed:', (res as any).error);
                 Alert.alert('Error', (res as any).error || 'Could not start call');
             }
-        }).catch(() => Alert.alert('Error', 'Could not start call'));
+        }).catch((err) => {
+            console.error('[Call] initiateCall threw:', err);
+            Alert.alert('Error', 'Could not start call');
+        });
     };
 
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
@@ -296,12 +312,12 @@ export default function ChatScreen() {
                 </View>
 
                 <TouchableOpacity
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                    style={[styles.callBtn, { backgroundColor: myTheme.soft }]}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={[styles.callBtn, { backgroundColor: other?.role === 'FREELANCER' ? '#F26930' : '#E91E8C' }]}
                     onPress={handleCall}
-                    activeOpacity={0.6}
+                    activeOpacity={0.75}
                 >
-                    <Ionicons name="call" size={18} color={myTheme.primary} />
+                    <Ionicons name="call" size={20} color="#fff" />
                 </TouchableOpacity>
             </View>
 

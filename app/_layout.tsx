@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ProfileGateProvider } from '@/context/ProfileGateContext';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
@@ -115,6 +116,7 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
             <AuthProvider>
+                <ProfileGateProvider>
                 <NotificationHandler />
                 <Stack
                     screenOptions={{
@@ -139,6 +141,7 @@ export default function RootLayout() {
                     <Stack.Screen name="switch-role" />
                     <Stack.Screen name="call" options={{ animation: 'fade', gestureEnabled: false }} />
                 </Stack>
+                </ProfileGateProvider>
             </AuthProvider>
         </SafeAreaProvider>
         </GestureHandlerRootView>

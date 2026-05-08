@@ -208,6 +208,14 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                             className="absolute inset-0"
                         />
                         <View className="bg-white/10 p-2 flex-1">
+                            {/* Close button */}
+                            <TouchableOpacity
+                                onPress={() => setModalVisible(false)}
+                                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/10 items-center justify-center"
+                                activeOpacity={0.7}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
+                            </TouchableOpacity>
                             <ScrollView showsVerticalScrollIndicator={true} persistentScrollbar={true} className="py-2" indicatorStyle="white">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
@@ -559,7 +567,8 @@ export default function CreatorSignup() {
     const [form, setForm] = useState({
         name: '',
         email: '',
-        languages: [] as string[],
+        primaryLanguage: '',
+        otherLanguages: [] as string[],
         categoryIds: [] as string[],
         bio: '',
         portfolio: '',
@@ -592,7 +601,10 @@ export default function CreatorSignup() {
                         name: p.name || '',
                         email: p.email || '',
                         categoryIds: p.categories?.length > 0 ? p.categories : (p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : []),
-                        languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : []),
+                        primaryLanguage: p.language || p.languages?.[0] || '',
+                        otherLanguages: p.language
+                            ? (p.languages || []).filter((l: string) => l !== p.language)
+                            : (p.languages?.slice(1) || []),
                         bio: p.bio || '',
                         profilePicture: p.profilePicture || null,
                         location: p.location || '',
@@ -635,10 +647,9 @@ export default function CreatorSignup() {
         return (
             form.name.trim() !== '' &&
             form.email.trim() !== '' &&
-            form.languages.length > 0 &&
+            form.primaryLanguage !== '' &&
             form.categoryIds.length > 0 &&
-            form.bio.trim() !== '' &&
-            form.portfolio.trim() !== ''
+            form.bio.trim() !== ''
         );
     }, [form]);
 
@@ -651,21 +662,50 @@ export default function CreatorSignup() {
     }, [form]);
 
     const pickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 1,
-        });
-
-        if (!result.canceled) {
-            setForm({ ...form, profilePicture: result.assets[0].uri });
-        }
+        Alert.alert(
+            'Profile Photo',
+            'Choose a source',
+            [
+                {
+                    text: 'Camera',
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
+                            return;
+                        }
+                        const result = await ImagePicker.launchCameraAsync({
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.8,
+                        });
+                        if (!result.canceled && result.assets?.[0]) {
+                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                        }
+                    },
+                },
+                {
+                    text: 'Gallery',
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
+                            return;
+                        }
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.8,
+                        });
+                        if (!result.canceled && result.assets?.[0]) {
+                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                        }
+                    },
+                },
+                { text: 'Cancel', style: 'cancel' },
+            ]
+        );
     };
 
     const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '');
@@ -681,11 +721,9 @@ export default function CreatorSignup() {
         if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
             Alert.alert('Validation', 'Please enter a valid email address.'); return;
         }
-        if (form.languages.length === 0) { Alert.alert('Validation', 'Please select at least one language.'); return; }
+        if (!form.primaryLanguage) { Alert.alert('Validation', 'Please select a primary language.'); return; }
         if (form.categoryIds.length === 0) { Alert.alert('Validation', 'Please select at least one category.'); return; }
         if (!form.bio.trim()) { Alert.alert('Validation', 'Bio is required.'); return; }
-        if (!form.portfolio.trim()) { Alert.alert('Validation', 'Portfolio link is required.'); return; }
-        if (!isValidUrl(form.portfolio.trim())) { Alert.alert('Validation', 'Portfolio must be a valid URL (e.g. https://yoursite.com).'); return; }
         setStep(2);
     };
 
@@ -720,7 +758,10 @@ export default function CreatorSignup() {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
                 categories: form.categoryIds,
-                languages: form.languages,
+                language: form.primaryLanguage,
+                languages: form.primaryLanguage
+                    ? [form.primaryLanguage, ...form.otherLanguages.filter(l => l !== form.primaryLanguage)]
+                    : form.otherLanguages,
                 bio: form.bio.trim(),
                 profilePicture: profilePictureUrl,
                 portfolioUrl: form.portfolio.trim(),
@@ -901,12 +942,19 @@ export default function CreatorSignup() {
                                 onChangeText={(v: string) => setForm({ ...form, email: v })}
                             />
                             <SelectField
-                                label="Language"
+                                label="Primary Language"
                                 required
-                                placeholder="Select Language(s)"
+                                placeholder="Select primary language"
                                 options={LANGUAGES}
-                                selected={form.languages}
-                                onSelect={(v: string[]) => setForm({ ...form, languages: v })}
+                                selected={form.primaryLanguage}
+                                onSelect={(v: string) => setForm({ ...form, primaryLanguage: v, otherLanguages: form.otherLanguages.filter(l => l !== v) })}
+                            />
+                            <SelectField
+                                label="Other Languages"
+                                placeholder="Select other languages (optional)"
+                                options={LANGUAGES.filter(l => l !== form.primaryLanguage)}
+                                selected={form.otherLanguages}
+                                onSelect={(v: string[]) => setForm({ ...form, otherLanguages: v })}
                                 multiSelect
                             />
                             <SelectField
@@ -928,14 +976,6 @@ export default function CreatorSignup() {
                                 value={form.bio}
                                 onChangeText={(v: string) => setForm({ ...form, bio: v })}
                             />
-                            <FormField
-                                label="Portfolio"
-                                required
-                                placeholder="Enter Portfolio"
-                                value={form.portfolio}
-                                onChangeText={(v: string) => setForm({ ...form, portfolio: v })}
-                            />
-
                             {/* Social Media Section */}
                             <View className="mt-4 mb-8">
                                 <Text className="text-white font-poppins-bold text-xl mb-6">Social Media Presence</Text>

@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 import PostCard from '../../Components/PostCard';
+import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
@@ -607,38 +608,17 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* ══════════ COMPLETE PROFILE MODAL ══════════ */}
-      <Modal visible={showCompleteProfileModal} transparent animationType="fade" onRequestClose={() => setShowCompleteProfileModal(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
-          <View style={{ width: '100%', maxWidth: 340, backgroundColor: '#1A1A1A', borderRadius: 32, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-            <LinearGradient colors={['rgba(237,42,145,0.15)', 'transparent']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 }} />
-            <View style={{ padding: 32, alignItems: 'center' }}>
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.primary + '22', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
-                <Ionicons name="person-circle-outline" size={30} color={theme.primary} />
-              </View>
-              <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', textAlign: 'center', marginBottom: 8 }}>Complete Your Profile</Text>
-              <Text style={{ color: '#A0A0B0', fontSize: 13, fontFamily: 'Poppins_400Regular', textAlign: 'center', marginBottom: 28, lineHeight: 20 }}>
-                Please complete your profile first to unlock this feature.
-              </Text>
-              <TouchableOpacity
-                style={{ width: '100%', height: 52, borderRadius: 26, backgroundColor: theme.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
-                onPress={() => {
-                  setShowCompleteProfileModal(false);
-                  const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
-                  router.push(editPath as any);
-                }}
-              >
-                <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold' }}>Complete Now</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ width: '100%', height: 44, justifyContent: 'center', alignItems: 'center' }}
-                onPress={() => setShowCompleteProfileModal(false)}
-              >
-                <Text style={{ color: '#666', fontSize: 14, fontFamily: 'Poppins_400Regular' }}>Later</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <CompleteProfileModal
+        visible={showCompleteProfileModal}
+        role={userRole || 'CREATOR'}
+        action="access this feature"
+        onComplete={() => {
+          setShowCompleteProfileModal(false);
+          const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+          setTimeout(() => router.push(editPath as any), 250);
+        }}
+        onDismiss={() => setShowCompleteProfileModal(false)}
+      />
 
       {/* Bottom nav rendered globally by (tabs)/_layout.tsx. */}
     </View>

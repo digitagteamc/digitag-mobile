@@ -23,8 +23,9 @@ import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
+import LaunchingSoonModal from '../../Components/ui/LaunchingSoonModal';
 import { useAuth } from '../../context/AuthContext';
-import { useProfileGate } from '../../context/useProfileGate';
+import { useProfileGate } from '../../context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith, sendCollaboration } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
@@ -286,7 +287,7 @@ const categoryColumns = [
 
 export default function Homepage() {
   const router = useRouter();
-  const { token, isGuest, userRole } = useAuth();
+  const { token, isGuest, userRole, isProfileCompleted } = useAuth();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
@@ -296,6 +297,7 @@ export default function Homepage() {
   const [createPostWidth, setCreatePostWidth] = useState(0);
   const [userName, setUserName] = useState<string>('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [userTagId, setUserTagId] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -309,6 +311,7 @@ export default function Homepage() {
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
 
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [launchModalVisible, setLaunchModalVisible] = useState(false);
 
   const colWidth = (width - 32 - 28) / 3;
   const snapInterval = colWidth * 2 + 14 * 2;
@@ -344,6 +347,7 @@ export default function Homepage() {
         const p = res.data.profile;
         setUserName(p.name || 'User');
         setUserAvatar(p.profilePicture || null);
+        setUserTagId(p.tagId || null);
       } else {
         setUserName('User');
         setUserAvatar(null);
@@ -530,9 +534,25 @@ export default function Homepage() {
                     <Text style={styles.heroDesc}>{item.desc1}</Text>
                     <Text style={styles.heroDesc}>{item.desc2}</Text>
                   </View>
-                  <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1] }]} activeOpacity={0.8}>
-                    <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
+                    {isGuest && (
+                      <TouchableOpacity
+                        style={[styles.contactBtn, { backgroundColor: item.gradient[1], marginTop: 0 }]}
+                        activeOpacity={0.8}
+                        onPress={() => router.push('/role-selection')}
+                      >
+                        <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Signup</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setLaunchModalVisible(true)}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    >
+                      <Text style={styles.creatorCommunityText}>Creator Community</Text>
+                      <Ionicons name="arrow-forward" size={14} color="#fff" style={{ opacity: 0.9 }} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             )}
@@ -564,8 +584,14 @@ export default function Homepage() {
                   )}
                 </View>
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.headerName}>{userName}</Text>
-                  <Text style={styles.headerTag}>Fashion <Text style={{ fontWeight: '600', color: '#fff' }}>tag: 45600hyd</Text></Text>
+                  <Text style={styles.headerName}>
+                    Hi, {isProfileCompleted ? userName : (userRole ? userRole.charAt(0) + userRole.slice(1).toLowerCase() : 'there')} 👋
+                  </Text>
+                  {userTagId && (
+                    <Text style={styles.headerTag}>
+                      tag: <Text style={{ fontWeight: '600', color: '#fff' }}>{userTagId}</Text>
+                    </Text>
+                  )}
                 </View>
               </View>
             </View>
@@ -863,6 +889,11 @@ export default function Homepage() {
         onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
         role={userRole as any}
       />
+
+      <LaunchingSoonModal
+        visible={launchModalVisible}
+        onClose={() => setLaunchModalVisible(false)}
+      />
     </View>
   );
 }
@@ -967,18 +998,21 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   contactBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 99,
     alignSelf: 'flex-start',
-    marginTop: 20,
-
   },
   contactBtnText: {
     color: '#fff',
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-
+  },
+  creatorCommunityText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Inter_500Medium',
+    opacity: 0.9,
   },
   paginationContainer: {
     position: 'absolute',

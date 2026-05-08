@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { useProfileGate } from '../context/useProfileGate';
+import { useProfileGate } from '../context/ProfileGateContext';
 import { createPost } from '../services/userService';
 
 const DRAFT_KEY = '@digitag_post_draft';

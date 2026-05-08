@@ -1,5 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
-import { useProfileGate } from '@/context/useProfileGate';
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { getFeed, getCreatorById, getFreelancerById, sendCollaboration } from '@/services/userService';
 import { useRoleTheme } from '@/theme/useRoleTheme';
 import ExpandableText from '@/Components/ui/ExpandableText';

@@ -1,4 +1,5 @@
 import { useAuth } from '@/context/AuthContext';
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRoleTheme } from '../theme/useRoleTheme';
 
 interface AccountItem {
   id: string;
@@ -25,6 +27,8 @@ interface AccountItem {
 export default function SettingsScreen() {
   const router = useRouter();
   const { userRole } = useAuth();
+  const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -77,6 +81,7 @@ export default function SettingsScreen() {
       icon: 'person-outline',
       label: 'Edit Profile',
       onPress: () => safeNavigate(() => {
+        if (!requireProfile('edit your profile')) return;
         const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
         router.navigate(editPath as any);
       }),
@@ -105,9 +110,9 @@ export default function SettingsScreen() {
     <View className="flex-1 bg-[#0A0A0A]">
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-      {/* Top purple glow gradient */}
+      {/* Top role-color glow gradient */}
       <LinearGradient
-        colors={['rgba(98, 50, 255, 0.15)', 'transparent']}
+        colors={[theme.soft, 'transparent']}
         className="absolute top-0 left-0 right-0 h-[250px]"
       />
 
@@ -137,10 +142,16 @@ export default function SettingsScreen() {
                     activeOpacity={0.7}
                     onPress={item.onPress}
                   >
-                    <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
+                    <View
+                      className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center mr-4"
+                      style={{ borderWidth: 1, borderColor: theme.primary + '44' }}
+                    >
                       <Ionicons name={item.icon} size={20} color="#E0E0E0" />
                       {item.id === 'edit-profile' && (
-                        <View className="absolute -bottom-1 -right-1 bg-[#6232FF] w-5 h-5 rounded-full items-center justify-center border border-[#121212]">
+                        <View
+                          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full items-center justify-center border border-[#121212]"
+                          style={{ backgroundColor: theme.primary }}
+                        >
                           <Ionicons name="pencil" size={10} color="#fff" />
                         </View>
                       )}
@@ -162,7 +173,10 @@ export default function SettingsScreen() {
             <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
               {/* Notifications row */}
               <View className="flex-row items-center py-3.5 px-3">
-                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
+                <View
+                  className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center mr-4"
+                  style={{ borderWidth: 1, borderColor: theme.primary + '44' }}
+                >
                   <Ionicons name="notifications-outline" size={20} color="#E0E0E0" />
                 </View>
                 <Text className="text-[#E0E0E0] text-[15px] flex-1 font-poppins-medium">Notifications</Text>
