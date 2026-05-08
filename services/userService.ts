@@ -569,6 +569,7 @@ export const getFeed = async (token: string, params: Record<string, string> = {}
 export const uploadImage = async (
     file: { uri: string; name?: string; type?: string },
     token: string,
+    folder: 'profiles' | 'posts' | 'chat' = 'profiles',
 ) => {
     try {
         const form = new FormData();
@@ -577,7 +578,7 @@ export const uploadImage = async (
             name: file.name || 'upload.jpg',
             type: file.type || 'image/jpeg',
         } as any);
-        const res = await fetch(`${API_BASE_URL}/uploads/image`, {
+        const res = await fetch(`${API_BASE_URL}/uploads/image?folder=${folder}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: form,
@@ -735,14 +736,50 @@ export const listMessages = async (
 };
 
 /** POST /conversations/:id/messages */
-export const sendMessage = async (token: string, conversationId: string, content: string) => {
+export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string) => {
     try {
         const body = await request(`/conversations/${conversationId}/messages`, {
             method: 'POST',
             headers: authHeaders(token),
+            body: JSON.stringify({ content: content || '', ...(imageUrl ? { imageUrl } : {}) }),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** PATCH /conversations/:convId/messages/:msgId */
+export const editMessage = async (token: string, conversationId: string, messageId: string, content: string) => {
+    try {
+        const body = await request(`/conversations/${conversationId}/messages/${messageId}`, {
+            method: 'PATCH',
+            headers: authHeaders(token),
             body: JSON.stringify({ content }),
         });
         return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /uploads/image — upload an image for use in chat messages. */
+export const uploadMessageImage = async (token: string, asset: { uri: string; mimeType?: string; fileName?: string }) => {
+    try {
+        const formData = new FormData();
+        formData.append('image', {
+            uri: asset.uri,
+            type: asset.mimeType || 'image/jpeg',
+            name: asset.fileName || `chat_${Date.now()}.jpg`,
+        } as any);
+        const res = await fetch(`${(process.env.EXPO_PUBLIC_API_BASE_URL || '').trim().replace(/\/+$/, '')}/uploads/image?folder=chat`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) return { success: false, error: json?.message || 'Upload failed' };
+        return { success: true, data: json?.data };
     } catch (error: any) {
         return { success: false, error: error.message };
     }

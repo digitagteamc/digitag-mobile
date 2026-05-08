@@ -25,6 +25,7 @@ import {
     getCategories,
     getMyFreelancerProfile,
     updateFreelancerProfile,
+    uploadImage,
 } from '../../services/userService';
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
@@ -422,6 +423,22 @@ export default function FreelancerSignup() {
 
         setLoading(true);
         try {
+            let profilePictureUrl = form.profilePicture;
+            if (profilePictureUrl && !profilePictureUrl.startsWith('http')) {
+                const upRes = await uploadImage(
+                    { uri: profilePictureUrl, name: `profile_${Date.now()}.jpg`, type: 'image/jpeg' },
+                    token,
+                    'profiles',
+                );
+                if (upRes.success && upRes.data?.url) {
+                    profilePictureUrl = upRes.data.url;
+                } else {
+                    Alert.alert('Upload Failed', 'Could not upload profile picture. Please try again.');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const skills = form.skillsInput.split(',').map(s => s.trim()).filter(Boolean);
             const payload: any = {
                 name: form.name.trim(),
@@ -430,7 +447,7 @@ export default function FreelancerSignup() {
                 languages: form.languages,
                 bio: form.bio.trim(),
                 location: form.location.trim(),
-                profilePicture: form.profilePicture,
+                profilePicture: profilePictureUrl,
                 skills,
                 experienceLevel: form.experienceLevel,
                 availability: form.availability,

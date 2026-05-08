@@ -1,7 +1,8 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,6 +19,8 @@ import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/useProfileGate';
 import { createPost } from '../services/userService';
 
+const DRAFT_KEY = '@digitag_post_draft';
+
 type CollabChoice = 'UNPAID' | 'PAID';
 
 export default function CreatePost() {
@@ -32,6 +35,43 @@ export default function CreatePost() {
   const [collab, setCollab] = useState<CollabChoice | null>(null);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(DRAFT_KEY).then(raw => {
+      if (!raw) return;
+      try {
+        const draft = JSON.parse(raw);
+        if (draft.title || draft.body) {
+          Alert.alert(
+            'Restore Draft?',
+            'You have an unsaved draft. Would you like to continue editing it?',
+            [
+              { text: 'Discard', style: 'destructive', onPress: () => AsyncStorage.removeItem(DRAFT_KEY) },
+              {
+                text: 'Restore', onPress: () => {
+                  setTitle(draft.title || '');
+                  setBody(draft.body || '');
+                  setLocation(draft.location || '');
+                  if (draft.collab) setCollab(draft.collab);
+                  setDraftRestored(true);
+                }
+              },
+            ]
+          );
+        }
+      } catch { /* corrupted draft */ }
+    });
+  }, []);
+
+  const saveDraft = async () => {
+    if (!title.trim() && !body.trim()) {
+      Alert.alert('Nothing to save', 'Add some content before saving a draft.');
+      return;
+    }
+    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab }));
+    Alert.alert('Draft Saved', 'Your draft has been saved and will be restored next time you open this screen.');
+  };
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : 'What do you want from creator';
 
@@ -59,7 +99,8 @@ export default function CreatePost() {
         token,
       );
       if (res.success) {
-        Alert.alert('Posted 🎉', 'Your post is now live.', [
+        await AsyncStorage.removeItem(DRAFT_KEY);
+        Alert.alert('Posted!', 'Your post is now live.', [
           { text: 'OK', onPress: () => router.replace('/(tabs)') },
         ]);
       } else {
@@ -72,9 +113,7 @@ export default function CreatePost() {
     }
   };
 
-  const handleDraft = () => {
-    Alert.alert('Drafts', 'Saving drafts locally is not yet implemented.');
-  };
+  const handleDraft = () => saveDraft();
 
   return (
     <SafeAreaView style={styles.safeArea}>

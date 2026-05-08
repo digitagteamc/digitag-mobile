@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Modal,
@@ -57,8 +58,10 @@ const MENU_ITEMS = [
   { id: 'my_collabs', icon: 'people-outline' as const, label: 'My Collabs' },
   { id: 'settings', icon: 'settings-outline' as const, label: 'Settings' },
   { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support' },
-  { id: 'about', icon: 'information-circle-outline' as const, label: 'About Digitag' },
+  { id: 'about', icon: 'information-circle-outline' as const, label: 'About DigiTag' },
 ];
+
+const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_collabs']);
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -71,6 +74,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [collabCount, setCollabCount] = useState(0);
@@ -170,7 +174,16 @@ export default function ProfileScreen() {
     }, [token, isGuest])
   );
 
+  const isProfileIncomplete = () => {
+    if (!profile) return true;
+    return !profile.bio && !profile.category && !(profile.categories?.length);
+  };
+
   const handleMenuPress = (id: string) => {
+    if (PROFILE_REQUIRED_ITEMS.has(id) && isProfileIncomplete()) {
+      setShowCompleteProfileModal(true);
+      return;
+    }
     if (id === 'edit_profile') {
       const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
       router.push(editPath as any);
@@ -178,10 +191,10 @@ export default function ProfileScreen() {
     if (id === 'my_profile') setViewMode('details');
     if (id === 'my_posts') router.push('/my-posts');
     if (id === 'my_collabs') router.push('/my-collabs');
-    if (id === 'about') router.push('/about-digitag');
     if (id === 'help') router.push('/help-support' as any);
     if (id === 'saved') router.push('/saved-posts');
-    if (id === 'settings') router.push('/settings' as any);
+    if (id === 'settings') router.navigate('/settings' as any);
+    if (id === 'about') Linking.openURL('https://digitag.in/about').catch(() => {});
   };
 
   const handleLogout = () => {
@@ -278,9 +291,7 @@ export default function ProfileScreen() {
               }}>
                 <Ionicons name="arrow-back" size={20} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity className="w-[36px] h-[36px] rounded-full justify-center items-center" onPress={() => setIsMenuOpen(true)}>
-                <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
-              </TouchableOpacity>
+              <View style={{ width: 36 }} />
             </View>
 
             {/* Avatar + Name block */}
@@ -535,88 +546,12 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
-              {/* Posts Button */}
-              <TouchableOpacity className="mt-6 bg-[#1A1A1A] border border-[#222] rounded-[24px] p-4 flex-row justify-between items-center shadow-lg shadow-black/20" activeOpacity={0.8} onPress={() => router.push('/my-posts')}>
-                <View className="flex-row items-center gap-4">
-                  <View className={`w-10 h-10 rounded-full bg-[#111] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="aperture-outline" size={18} color="#FFF" />
-                  </View>
-                  <Text className="text-white text-[16px] font-medium" style={{ fontFamily: 'Poppins_600SemiBold' }}>Posts</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#FFF" />
-              </TouchableOpacity>
-
-              {/* Collab Button */}
-              <TouchableOpacity className="mt-4 bg-[#1A1A1A] border border-[#222] rounded-[24px] p-4 flex-row justify-between items-center shadow-lg shadow-black/20" activeOpacity={0.8} onPress={() => router.push('/my-collabs')}>
-                <View className="flex-row items-center gap-4">
-                  <View className={`w-10 h-10 rounded-full bg-[#111] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="people-outline" size={18} color="#FFF" />
-                  </View>
-                  <Text className="text-white text-[16px] font-medium" style={{ fontFamily: 'Poppins_600SemiBold' }}>Collab</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#FFF" />
-              </TouchableOpacity>
-
             </View>
           )}
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
 
-      {/* ══════════ DROPDOWN MENU ══════════ */}
-      <Modal visible={isMenuOpen} transparent animationType="fade">
-        <TouchableOpacity
-          className="flex-1"
-          activeOpacity={1}
-          onPress={() => setIsMenuOpen(false)}
-        >
-          <View
-            className="absolute bg-[#1c1c1c] rounded-3xl w-[230px] p-2"
-            style={{
-              top: Math.max(insets.top, statusBarHeight) + 10,
-              right: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.5,
-              shadowRadius: 15,
-              elevation: 10
-            }}
-          >
-            {/* Edit Profile */}
-            <TouchableOpacity
-              className="flex-row items-center gap-4 p-3 border-b border-[#333]"
-              onPress={() => { setIsMenuOpen(false); handleMenuPress('edit_profile'); }}
-            >
-              <View className="w-11 h-11 rounded-full bg-[#333] items-center justify-center border border-[#444]">
-                <Ionicons name="pencil-outline" size={18} color="#fff" />
-              </View>
-              <Text className="text-white text-[15px] font-medium" style={{ fontFamily: 'Poppins_600SemiBold' }}>Edit Profile</Text>
-            </TouchableOpacity>
-
-            {/* Share Profile */}
-            <TouchableOpacity
-              className="flex-row items-center gap-4 p-3 border-b border-[#333]"
-              onPress={() => { setIsMenuOpen(false); /* implement share */ }}
-            >
-              <View className="w-11 h-11 rounded-full bg-[#333] items-center justify-center border border-[#444]">
-                <Ionicons name="share-social-outline" size={18} color="#fff" />
-              </View>
-              <Text className="text-white text-[15px] font-medium" style={{ fontFamily: 'Poppins_600SemiBold' }}>Share Profile</Text>
-            </TouchableOpacity>
-
-            {/* Logout */}
-            <TouchableOpacity
-              className="flex-row items-center gap-4 p-3"
-              onPress={() => { setIsMenuOpen(false); handleLogout(); }}
-            >
-              <View className="w-11 h-11 rounded-full bg-[#E30000] items-center justify-center">
-                <Ionicons name="log-out-outline" size={18} color="#fff" />
-              </View>
-              <Text className="text-[#E30000] text-[15px] font-medium" style={{ fontFamily: 'Poppins_600SemiBold' }}>Logout</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       {/* ══════════ PHOTO PREVIEW MODAL ══════════ */}
       <Modal visible={isPhotoModalOpen} transparent animationType="fade">
@@ -654,7 +589,7 @@ export default function ProfileScreen() {
                 router.push({ pathname: editPath, params: { step: '2' } } as any);
               }}
               style={{
-                backgroundColor: profile?.role?.toUpperCase() === 'FREELANCER' ? '#F26930' : '#ED2A91',
+                backgroundColor: theme.primary,
                 paddingHorizontal: 40,
                 paddingVertical: 14,
                 borderRadius: 30,
@@ -669,6 +604,40 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* ══════════ COMPLETE PROFILE MODAL ══════════ */}
+      <Modal visible={showCompleteProfileModal} transparent animationType="fade" onRequestClose={() => setShowCompleteProfileModal(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
+          <View style={{ width: '100%', maxWidth: 340, backgroundColor: '#1A1A1A', borderRadius: 32, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+            <LinearGradient colors={['rgba(237,42,145,0.15)', 'transparent']} style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 120 }} />
+            <View style={{ padding: 32, alignItems: 'center' }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.primary + '22', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                <Ionicons name="person-circle-outline" size={30} color={theme.primary} />
+              </View>
+              <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', textAlign: 'center', marginBottom: 8 }}>Complete Your Profile</Text>
+              <Text style={{ color: '#A0A0B0', fontSize: 13, fontFamily: 'Poppins_400Regular', textAlign: 'center', marginBottom: 28, lineHeight: 20 }}>
+                Please complete your profile first to unlock this feature.
+              </Text>
+              <TouchableOpacity
+                style={{ width: '100%', height: 52, borderRadius: 26, backgroundColor: theme.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}
+                onPress={() => {
+                  setShowCompleteProfileModal(false);
+                  const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+                  router.push(editPath as any);
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold' }}>Complete Now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ width: '100%', height: 44, justifyContent: 'center', alignItems: 'center' }}
+                onPress={() => setShowCompleteProfileModal(false)}
+              >
+                <Text style={{ color: '#666', fontSize: 14, fontFamily: 'Poppins_400Regular' }}>Later</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* Bottom nav rendered globally by (tabs)/_layout.tsx. */}

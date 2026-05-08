@@ -15,8 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { listConversations, openConversationWith, searchProfiles } from '../../services/userService';
-
-const ACCENT = '#F26930';
+import { useRoleTheme } from '../../theme/useRoleTheme';
 
 function getInitials(name: string | null | undefined) {
     if (!name) return 'U';
@@ -94,9 +93,9 @@ export default function MessagesTab() {
     };
 
     // UI colors based on viewer's role
-    const isFreelancer = userRole === 'FREELANCER';
-    const blobColor = isFreelancer ? 'rgba(237, 42, 145, 0.15)' : 'rgba(242, 105, 48, 0.15)';
-    const accentColor = isFreelancer ? '#E91E8C' : '#F26930';
+    const theme = useRoleTheme();
+    const blobColor = theme.soft;
+    const accentColor = theme.primary;
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -272,18 +271,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 10,
         backgroundColor: "rgba(167, 167, 167, 0.14)",
-        boxShadow: "0 -3px 3px 0 rgba(255, 255, 255, 0.25) inset, 0 3px 3px 0 rgba(255, 255, 255, 0.25) inset, -42px 103px 31px 0 rgba(145, 145, 145, 0.00), -27px 66px 29px 0 rgba(145, 145, 145, 0.01), -15px 37px 24px 0 rgba(145, 145, 145, 0.03), -7px 17px 18px 0 rgba(145, 145, 145, 0.04), -2px 4px 10px 0 rgba(145, 145, 145, 0.05)",
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 10,
         borderColor: "rgba(156, 156, 156, 0.50)",
         borderWidth: 1,
-        backdropFilter: 'blur(10px)',
-        width: 385,
         height: 56,
-
-
-
     },
     searchInput: {
         flex: 1,

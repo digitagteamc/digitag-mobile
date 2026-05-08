@@ -143,11 +143,7 @@ export default function Splash1() {
   };
 
   const handleSkip = () => {
-    if (currentStep < ONBOARDING_STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      router.replace('/role-selection');
-    }
+    router.replace('/role-selection');
   };
 
   return (
@@ -228,8 +224,8 @@ export default function Splash1() {
             {/* Text Content */}
             <Animated.View
               key={`content-${currentStep}`}
-              entering={FadeIn.duration(600)}
-              exiting={FadeOut.duration(600)}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
               className="w-full items-center"
             >
               <View className={`items-center ${isCompact ? 'mb-3' : 'mb-5'} px-4`}>

@@ -72,8 +72,8 @@ export default function LoginScreen() {
     const logo2Y = useSharedValue(50);
 
     useEffect(() => {
-        logo1Y.value = withTiming(0, { duration: 6000, easing: Easing.out(Easing.exp) });
-        logo2Y.value = withTiming(0, { duration: 6000, easing: Easing.out(Easing.exp) });
+        logo1Y.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) });
+        logo2Y.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) });
     }, []);
 
     const logo1AnimatedStyle = useAnimatedStyle(() => ({
@@ -91,10 +91,10 @@ export default function LoginScreen() {
     const animatedSetStep = (newStep: number) => {
         if (newStep === 2) {
             setStep(2);
-            otpTranslateY.value = withTiming(0, { duration: 1800, easing: Easing.out(Easing.exp) });
+            otpTranslateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
         } else if (newStep === 1) {
-            otpTranslateY.value = withTiming(offScreenY, { duration: 1800, easing: Easing.inOut(Easing.quad) });
-            setTimeout(() => setStep(1), 1800);
+            otpTranslateY.value = withTiming(offScreenY, { duration: 350, easing: Easing.in(Easing.cubic) });
+            setTimeout(() => setStep(1), 350);
         }
     };
 

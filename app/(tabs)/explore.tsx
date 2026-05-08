@@ -1,12 +1,12 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/useProfileGate';
 import { getFeed, getCreatorById, getFreelancerById, sendCollaboration } from '@/services/userService';
-import { getRoleTheme } from '@/theme/useRoleTheme';
+import { useRoleTheme } from '@/theme/useRoleTheme';
 import ExpandableText from '@/Components/ui/ExpandableText';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,12 +33,16 @@ const CARD_WIDTH = width - 32;
 
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
-// ─── Filter pills (UI-only for now — backend does not accept these filters yet)
-const FILTER_TABS = [
-  { id: 'all', label: 'All feed' },
-  { id: 'creators', label: 'Creators' },
-  { id: 'freelancers', label: 'Freelancers' },
-  { id: 'paid', label: 'Paid Collab' },
+const CATEGORY_TABS = [
+  { id: 'all', label: 'All' },
+  { id: 'Photography', label: 'Photography' },
+  { id: 'Editors', label: 'Editors' },
+  { id: 'Videography', label: 'Videography' },
+  { id: 'Growth Specialist', label: 'Growth Specialist' },
+  { id: 'Script Writers', label: 'Script Writers' },
+  { id: 'Styling & makeup', label: 'Styling & Makeup' },
+  { id: 'Fashion Designers', label: 'Fashion Designers' },
+  { id: 'Property Rental', label: 'Property Rental' },
 ];
 
 function getInitials(name: string | null | undefined) {
@@ -66,10 +70,21 @@ export default function ExploreTab() {
   const router = useRouter();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
+  const params = useLocalSearchParams<{ category?: string }>();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>('all');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (params.category) {
+        const matched = CATEGORY_TABS.find(t => t.id === params.category || t.label.toLowerCase() === (params.category as string).toLowerCase());
+        setActiveFilter(matched ? matched.id : 'all');
+      }
+    }, [params.category])
+  );
 
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
@@ -122,10 +137,17 @@ export default function ExploreTab() {
   };
 
   const filteredPosts = posts.filter((p) => {
-    if (activeFilter === 'creators' && p.owner?.role !== 'CREATOR') return false;
-    if (activeFilter === 'freelancers' && p.owner?.role !== 'FREELANCER') return false;
-    if (activeFilter === 'paid' && p.collaborationType !== 'PAID') return false;
-    return true;
+    if (activeFilter === 'all') return true;
+    const filter = activeFilter.toLowerCase();
+    const cats: string[] = [
+      p.owner?.category,
+      ...(Array.isArray(p.owner?.categories) ? p.owner.categories : []),
+      p.category,
+      ...(Array.isArray(p.owner?.skills) ? p.owner.skills : []),
+    ].flat().filter(Boolean).map((c: string) => c.toLowerCase());
+    // Posts without any category data only appear in the "All" filter
+    if (cats.length === 0) return false;
+    return cats.some(c => c.includes(filter) || filter.includes(c));
   });
 
   const cards = filteredPosts.map((p, index) => {
@@ -235,7 +257,7 @@ export default function ExploreTab() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
         >
           {/* SEARCH BAR */}
           <View style={styles.searchContainer}>
@@ -286,16 +308,12 @@ export default function ExploreTab() {
 
           {/* FILTER PILLS */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pillsContent}>
-            {FILTER_TABS.filter(tab => {
-              if (userRole === 'CREATOR' && tab.id === 'creators') return false;
-              if (userRole === 'FREELANCER' && tab.id === 'freelancers') return false;
-              return true;
-            }).map((tab) => {
+            {CATEGORY_TABS.map((tab) => {
               const active = tab.id === activeFilter;
               return (
                 <TouchableOpacity
                   key={tab.id}
-                  style={[styles.pill, active && styles.pillActive]}
+                  style={[styles.pill, active && { backgroundColor: theme.primary, borderColor: theme.primary }]}
                   onPress={() => setActiveFilter(tab.id)}
                   activeOpacity={0.7}
                 >
@@ -307,7 +325,7 @@ export default function ExploreTab() {
 
           {/* FEED LIST */}
           {loading ? (
-            <ActivityIndicator size="large" color="#ED2A91" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
           ) : cards.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="compass-outline" size={48} color="#3A3A47" />
@@ -321,8 +339,7 @@ export default function ExploreTab() {
           ) : (
             <View style={styles.feedList}>
               {cards.map((item) => {
-                const postTheme = getRoleTheme(item.ownerRole);
-                const postColor = postTheme.primary;
+                const postColor = theme.primary;
 
                 return (
                   <View
@@ -671,7 +688,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   pillActive: {
-    backgroundColor: 'rgba(242, 105, 48, 1)',
+    // active color applied inline via theme.primary
   },
   pillText: {
     color: '#888',
