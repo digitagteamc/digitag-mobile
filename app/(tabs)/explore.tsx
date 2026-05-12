@@ -82,6 +82,8 @@ export default function ExploreTab() {
   const insets = useSafeAreaInsets();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
+  const params = useLocalSearchParams<{ category?: string }>();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

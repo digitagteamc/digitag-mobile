@@ -27,15 +27,27 @@ export default function SearchbarScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('All');
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const recentSearches = ['Video graphers', 'Content Creator', 'Editors', 'Cameraman'];
-  const recentTags = ['Influencer', 'Video Grapher', 'Content', 'Reel'];
-  
-  const filterPills = [
-    'All Feed',
-    ...(userRole === 'FREELANCER' ? ['Creators', 'Brands'] : ['Freelancers', 'Agencies']),
-    'Paid Collab'
+  const filteredResults = activeCategory === 'All'
+    ? searchResults
+    : searchResults.filter(item => {
+        const cats: string[] = [item.category, ...(Array.isArray(item.categories) ? item.categories : [])].filter(Boolean).map((c: string) => c.toLowerCase());
+        const filter = activeCategory.toLowerCase();
+        return cats.length === 0 || cats.some(c => c.includes(filter) || filter.includes(c));
+      });
+
+  const categoryPills = [
+    'All',
+    'Photography',
+    'Editors',
+    'Videography',
+    'Growth Specialist',
+    'Script Writers',
+    'Styling & Makeup',
+    'Fashion Designers',
+    'Property Rental',
   ];
 
   const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
@@ -148,28 +160,28 @@ export default function SearchbarScreen() {
             )}
           </View>
         </View>
-
-        <TouchableOpacity
-          className="w-14 overflow-hidden items-center justify-center"
-          style={styles.filterBtn}
-        >
-          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
-          <LinearGradient
-            colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
-            style={StyleSheet.absoluteFill}
-          />
-          <Feather name="filter" size={20} color="#fff" />
-        </TouchableOpacity>
       </View>
 
-      {/* Horizontal Filter Pills */}
+      {/* Category Pills */}
       <View className="mb-4">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
-          {filterPills.map((pill, idx) => (
-            <TouchableOpacity key={idx} className="px-5 py-2.5 rounded-full border border-white/30 bg-transparent">
-              <Text className="text-white text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>{pill}</Text>
-            </TouchableOpacity>
-          ))}
+          {categoryPills.map((pill, idx) => {
+            const active = pill === activeCategory;
+            return (
+              <TouchableOpacity
+                key={idx}
+                onPress={() => setActiveCategory(pill)}
+                style={{
+                  paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: active ? theme.primary : 'rgba(255,255,255,0.3)',
+                  backgroundColor: active ? theme.primary : 'transparent',
+                }}
+              >
+                <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 13, color: '#fff' }}>{pill}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
@@ -179,10 +191,10 @@ export default function SearchbarScreen() {
             <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Search Results</Text>
             {searchLoading ? (
               <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 20 }} />
-            ) : searchResults.length === 0 ? (
+            ) : filteredResults.length === 0 ? (
               <Text style={styles.noResultsText}>No profiles found for "{searchQuery}"</Text>
             ) : (
-              searchResults.map((item) => (
+              filteredResults.map((item) => (
                 <TouchableOpacity
                   key={`${item.role}-${item.userId}`}
                   style={styles.searchResultItem}
@@ -210,42 +222,7 @@ export default function SearchbarScreen() {
               ))
             )}
           </View>
-        ) : (
-          <>
-            {/* Recent Searches */}
-            <View className="mb-8">
-              <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Searches</Text>
-              <View className="flex-row flex-wrap gap-3">
-                {recentSearches.map((item, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    className="flex-row items-center gap-2 px-4 py-2.5 rounded-xl bg-[#d1d4f9]"
-                    onPress={() => setSearchQuery(item)}
-                  >
-                    <Feather name="clock" size={15} color="#000" />
-                    <Text className="text-black text-[13px]" style={{ fontFamily: 'Poppins_500Medium' }}>{item}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Recent Tags */}
-            {/* <View className="mb-8">
-              <Text className="text-white text-[17px] mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Recent Tags</Text>
-              <View className="flex-row flex-wrap gap-3">
-                {recentTags.map((item, idx) => (
-                  <TouchableOpacity 
-                    key={idx} 
-                    className="px-5 py-2.5 rounded-full border border-white/20 bg-white/5"
-                    onPress={() => setSearchQuery(item)}
-                  >
-                    <Text className="text-white text-[13px]" style={{ fontFamily: 'Poppins_500Medium' }}># {item}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View> */}
-          </>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

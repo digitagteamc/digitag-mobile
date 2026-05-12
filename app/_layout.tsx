@@ -1,5 +1,7 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { ProfileGateProvider } from '@/context/ProfileGateContext';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
     Poppins_200ExtraLight,
     Poppins_300Light,
@@ -111,31 +113,37 @@ export default function RootLayout() {
     }
 
     return (
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
             <AuthProvider>
+                <ProfileGateProvider>
                 <NotificationHandler />
                 <Stack
                     screenOptions={{
                         headerShown: false,
                         animation: 'slide_from_right',
+                        animationDuration: 250,
                         contentStyle: { backgroundColor: '#060606' }
                     }}
                     initialRouteName="index"
                 >
                     <Stack.Screen name="index" />
-                    <Stack.Screen name="login" />
-                    <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: '#060606' } }} />
-                    <Stack.Screen name="signup" />
-                    <Stack.Screen name="role-selection" />
+                    <Stack.Screen name="onboarding/splash1" options={{ animation: 'fade', animationDuration: 200 }} />
+                    <Stack.Screen name="login" options={{ animationDuration: 250 }} />
+                    <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 200, contentStyle: { backgroundColor: '#060606' } }} />
+                    <Stack.Screen name="signup" options={{ animationDuration: 280 }} />
+                    <Stack.Screen name="role-selection" options={{ animation: 'fade', animationDuration: 200 }} />
                     <Stack.Screen name="coming-soon" />
                     <Stack.Screen name="creator-details" />
                     <Stack.Screen name="settings" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#060606' } }} />
                     <Stack.Screen name="notifications" />
-                    <Stack.Screen name="chat/[id]" />
+                    <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right', animationDuration: 220 }} />
                     <Stack.Screen name="switch-role" />
                     <Stack.Screen name="call" options={{ animation: 'fade', gestureEnabled: false }} />
                 </Stack>
+                </ProfileGateProvider>
             </AuthProvider>
         </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }

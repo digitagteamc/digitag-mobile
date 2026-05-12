@@ -25,14 +25,14 @@ import {
     getCategories,
     getMyFreelancerProfile,
     updateFreelancerProfile,
+    uploadImage,
 } from '../../services/userService';
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
 const LEVELS = [
-    { key: 'BEGINNER', label: 'Beginner' },
-    { key: 'INTERMEDIATE', label: 'Intermediate' },
-    { key: 'ADVANCED', label: 'Advanced' },
-    { key: 'EXPERT', label: 'Expert' }
+    { key: 'BEGINNER', label: '1-2 yrs exp' },
+    { key: 'INTERMEDIATE', label: '2-5 yrs exp' },
+    { key: 'EXPERT', label: '5+ yrs experience' },
 ];
 const AVAILABILITY_OPTIONS = [
     { key: 'AVAILABLE', label: 'Available' },
@@ -198,6 +198,14 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                             className="absolute inset-0"
                         />
                         <View className="bg-white/10 p-2 flex-1">
+                            {/* Close button */}
+                            <TouchableOpacity
+                                onPress={() => setModalVisible(false)}
+                                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/10 items-center justify-center"
+                                activeOpacity={0.7}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
+                            </TouchableOpacity>
                             <ScrollView showsVerticalScrollIndicator={false} className="py-2">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
@@ -280,7 +288,8 @@ export default function FreelancerSignup() {
     const [form, setForm] = useState({
         name: '',
         email: '',
-        languages: [] as string[],
+        primaryLanguage: '',
+        otherLanguages: [] as string[],
         categoryIds: [] as string[],
         bio: '',
         portfolioUrl: '',
@@ -323,7 +332,10 @@ export default function FreelancerSignup() {
                         name: p.name || '',
                         email: p.email || '',
                         categoryIds: p.categories?.length > 0 ? p.categories : (p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : []),
-                        languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : []),
+                        primaryLanguage: p.language || p.languages?.[0] || '',
+                        otherLanguages: p.language
+                            ? (p.languages || []).filter((l: string) => l !== p.language)
+                            : (p.languages?.slice(1) || []),
                         bio: p.bio || '',
                         location: p.location || '',
                         profilePicture: p.profilePicture || null,
@@ -368,7 +380,7 @@ export default function FreelancerSignup() {
         return (
             form.name.trim() !== '' &&
             form.email.trim() !== '' &&
-            form.languages.length > 0 &&
+            form.primaryLanguage !== '' &&
             form.categoryIds.length > 0 &&
             form.bio.trim() !== '' &&
             form.portfolioUrl.trim() !== ''
@@ -386,28 +398,57 @@ export default function FreelancerSignup() {
     }, [form]);
 
     const pickImage = async () => {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-            Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to make this work!');
-            return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 1,
-        });
-
-        if (!result.canceled) {
-            setForm({ ...form, profilePicture: result.assets[0].uri });
-        }
+        Alert.alert(
+            'Profile Photo',
+            'Choose a source',
+            [
+                {
+                    text: 'Camera',
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
+                            return;
+                        }
+                        const result = await ImagePicker.launchCameraAsync({
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.8,
+                        });
+                        if (!result.canceled && result.assets?.[0]) {
+                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                        }
+                    },
+                },
+                {
+                    text: 'Gallery',
+                    onPress: async () => {
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== 'granted') {
+                            Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
+                            return;
+                        }
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ['images'],
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.8,
+                        });
+                        if (!result.canceled && result.assets?.[0]) {
+                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                        }
+                    },
+                },
+                { text: 'Cancel', style: 'cancel' },
+            ]
+        );
     };
 
     const stripHandle = (v: string) => v.trim().replace(/^@/, '');
 
     const handleNext = () => {
-        if (!form.name || !form.email || form.languages.length === 0 || form.categoryIds.length === 0 || !form.bio || !form.portfolioUrl) {
-            Alert.alert('Incomplete Form', 'Please fill in all required fields including bio and portfolio.');
+        if (!form.name || !form.email || !form.primaryLanguage || form.categoryIds.length === 0 || !form.bio || !form.portfolioUrl) {
+            Alert.alert('Incomplete Form', 'Please fill in all required fields including primary language, bio and portfolio.');
             return;
         }
         setStep(2);
@@ -422,15 +463,34 @@ export default function FreelancerSignup() {
 
         setLoading(true);
         try {
+            let profilePictureUrl = form.profilePicture;
+            if (profilePictureUrl && !profilePictureUrl.startsWith('http')) {
+                const upRes = await uploadImage(
+                    { uri: profilePictureUrl, name: `profile_${Date.now()}.jpg`, type: 'image/jpeg' },
+                    token,
+                    'profiles',
+                );
+                if (upRes.success && upRes.data?.url) {
+                    profilePictureUrl = upRes.data.url;
+                } else {
+                    Alert.alert('Upload Failed', 'Could not upload profile picture. Please try again.');
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const skills = form.skillsInput.split(',').map(s => s.trim()).filter(Boolean);
             const payload: any = {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
                 categories: form.categoryIds,
-                languages: form.languages,
+                language: form.primaryLanguage,
+                languages: form.primaryLanguage
+                    ? [form.primaryLanguage, ...form.otherLanguages.filter(l => l !== form.primaryLanguage)]
+                    : form.otherLanguages,
                 bio: form.bio.trim(),
                 location: form.location.trim(),
-                profilePicture: form.profilePicture,
+                profilePicture: profilePictureUrl,
                 skills,
                 experienceLevel: form.experienceLevel,
                 availability: form.availability,
@@ -550,12 +610,19 @@ export default function FreelancerSignup() {
                                 onChangeText={(v: string) => setForm({ ...form, email: v })}
                             />
                             <SelectField
-                                label="Language"
+                                label="Primary Language"
                                 required
-                                placeholder="Select Language(s)"
+                                placeholder="Select primary language"
                                 options={LANGUAGES}
-                                selected={form.languages}
-                                onSelect={(v: string[]) => setForm({ ...form, languages: v })}
+                                selected={form.primaryLanguage}
+                                onSelect={(v: string) => setForm({ ...form, primaryLanguage: v, otherLanguages: form.otherLanguages.filter(l => l !== v) })}
+                            />
+                            <SelectField
+                                label="Other Languages"
+                                placeholder="Select other languages (optional)"
+                                options={LANGUAGES.filter(l => l !== form.primaryLanguage)}
+                                selected={form.otherLanguages}
+                                onSelect={(v: string[]) => setForm({ ...form, otherLanguages: v })}
                                 multiSelect
                             />
                             <SelectField
