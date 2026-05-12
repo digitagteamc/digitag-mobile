@@ -6,10 +6,10 @@ import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
-const creatorImg = require('../assets/images/creator.png');
-const brandImg = require('../assets/images/brand.png');
-const agencyImg = require('../assets/images/agency.png');
-const freelancerImg = require('../assets/images/freelancer.png');
+const creatorImg = require('../assets/images/creator.webp');
+const brandImg = require('../assets/images/brand.webp');
+const agencyImg = require('../assets/images/agency.webp');
+const freelancerImg = require('../assets/images/freelancer.webp');
 
 export default function Hero() {
   const router = useRouter();

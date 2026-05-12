@@ -1,11 +1,19 @@
 import { useAuth } from '@/context/AuthContext';
-import { useProfileGate } from '@/context/useProfileGate';
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, sendCollaboration } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedScrollHandler, 
+  useAnimatedProps, 
+  withSpring,
+  useDerivedValue,
+  FadeIn,
+  FadeOut
+} from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +31,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
@@ -33,12 +41,76 @@ const imgPhotography = require('../../assets/categories/Photography.gif');
 const imgEditor = require('../../assets/categories/editor.gif');
 const imgVideography = require('../../assets/categories/Videography.gif');
 const imgGrowth = require('../../assets/categories/growth spcielist.gif');
+const imgScriptWriters = require('../../assets/categories/script-writing.gif');
+const imgStyling = require('../../assets/categories/Styling-makeup.gif');
+const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
+const imgProperty = require('../../assets/categories/property-rental.gif');
 
 const CATEGORIES = [
-  { id: 'photography', label: 'Photography', image: imgPhotography, heroLine1: 'Capture', heroLine2: 'Every', heroLine3: 'Beautifully', heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.', gradient: ['rgba(53, 10, 97, 1)', 'rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string, string] },
-  { id: 'editor', label: 'Editor', image: imgEditor, heroLine1: 'Amazing', heroLine2: 'Things', heroLine3: 'Stories', heroDesc: 'High-quality edits designed to make your content stand out across every platform.', gradient: ['#1a0533', '#6e0a5a', '#a6148a'] as [string, string, string] },
-  { id: 'videography', label: 'Videography', image: imgVideography, heroLine1: 'Film', heroLine2: 'Every', heroLine3: 'Moment', heroDesc: 'Capture cinematic stories that bring your vision to life with motion.', gradient: ['#0a1a33', '#0a3b6e', '#145ba6'] as [string, string, string] },
-  { id: 'growth', label: 'Growth\nSpecialist', image: imgGrowth, heroLine1: 'Scale', heroLine2: 'Your', heroLine3: 'Brand', heroDesc: 'Strategic growth solutions to amplify your digital presence and reach.', gradient: ['#331a0a', '#6e3b0a', '#a65b14'] as [string, string, string] },
+  { 
+    id: 'photography', 
+    label: 'Photography', 
+    image: imgPhotography, 
+    heroLine1: 'Every', heroLine2: 'Moment', heroLine3: '', 
+    heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.', 
+    gradient: ['#7C3AED', '#4C1D95'] as [string, string] 
+  },
+  { 
+    id: 'editor', 
+    label: 'Editor', 
+    image: imgEditor, 
+    heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '', 
+    heroDesc: 'High-quality edits designed to make your content stand out across every platform.', 
+    gradient: ['#9D174D', '#831843'] as [string, string] 
+  },
+  { 
+    id: 'videography', 
+    label: 'Videography', 
+    image: imgVideography, 
+    heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '', 
+    heroDesc: 'High-quality edits designed to make your content stand out across every platform.', 
+    gradient: ['#0284C7', '#075985'] as [string, string] 
+  },
+  { 
+    id: 'growth', 
+    label: 'Growth\nSpecialist', 
+    image: imgGrowth, 
+    heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '', 
+    heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.', 
+    gradient: ['#4338CA', '#3730A3'] as [string, string] 
+  },
+  { 
+    id: 'script', 
+    label: 'Script Writers', 
+    image: imgScriptWriters, 
+    heroLine1: 'Crafting Compelling', heroLine2: 'Narratives', heroLine3: '', 
+    heroDesc: 'Engaging scripts that drive your story forward and captivate your audience.', 
+    gradient: ['#1E3A8A', '#1E40AF'] as [string, string] 
+  },
+  { 
+    id: 'styling', 
+    label: 'Styling &\nmakeup', 
+    image: imgStyling, 
+    heroLine1: 'The Art of', heroLine2: 'Visual Style', heroLine3: '', 
+    heroDesc: 'Professional makeup and styling to ensure you look your best on camera.', 
+    gradient: ['#7E22CE', '#6B21A8'] as [string, string] 
+  },
+  { 
+    id: 'fashion', 
+    label: 'Fashion\nDesigners', 
+    image: imgFashion, 
+    heroLine1: 'Innovative', heroLine2: 'Fashion Design', heroLine3: '', 
+    heroDesc: 'Custom clothing and style consulting for high-impact visual productions.', 
+    gradient: ['#BE185D', '#9D174D'] as [string, string] 
+  },
+  { 
+    id: 'property', 
+    label: 'Property\nRental', 
+    image: imgProperty, 
+    heroLine1: 'Perfect Locations', heroLine2: 'for Your Vision', heroLine3: '', 
+    heroDesc: 'Premium properties and studio spaces for rent for any type of production.', 
+    gradient: ['#B45309', '#92400E'] as [string, string] 
+  },
 ];
 
 function getInitials(name: string | null | undefined) {
@@ -77,13 +149,82 @@ const GradientTitle = ({ text }: { text: string }) => {
   );
 };
 
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const FolderBackground = ({ scrollX, activeIndexAnim, width, height, tabWidth, tabHeight, radius, colors }: any) => {
+  const r = radius || 24;
+  const tw = tabWidth || 110;
+  const th = tabHeight || 90;
+  const w = width;
+  const h = height;
+
+  const animatedProps = useAnimatedProps(() => {
+    const tx = Math.max(0, activeIndexAnim.value * 108 - scrollX.value); // 100 inactive width + 8 gap
+
+    const d = `
+      M 0 ${th + r}
+      ${tx > 0 ? `
+        A ${r} ${r} 0 0 1 ${r} ${th}
+        L ${tx - r} ${th}
+        A ${r} ${r} 0 0 0 ${tx} ${th - r}
+        L ${tx} ${r}
+        A ${r} ${r} 0 0 1 ${tx + r} 0
+      ` : `
+        M 0 ${r}
+        A ${r} ${r} 0 0 1 ${r} 0
+      `}
+      L ${tx + tw - r} 0
+      A ${r} ${r} 0 0 1 ${tx + tw} ${r}
+      L ${tx + tw} ${th - r}
+      A ${r} ${r} 0 0 0 ${tx + tw + r} ${th}
+      L ${w - r} ${th}
+      A ${r} ${r} 0 0 1 ${w} ${th + r}
+      L ${w} ${h - r}
+      A ${r} ${r} 0 0 1 ${w - r} ${h}
+      L ${r} ${h}
+      A ${r} ${r} 0 0 1 0 ${h - r}
+      Z
+    `;
+    return { d };
+  });
+
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, width: w, height: h }}>
+      <Svg width={w} height={h}>
+        <Defs>
+          <SvgGradient id="folderGrad" x1="0" y1="0" x2="0.5" y2="1">
+            <Stop offset="0" stopColor={colors[0]} />
+            <Stop offset="1" stopColor={colors[1]} />
+          </SvgGradient>
+        </Defs>
+        <AnimatedPath animatedProps={animatedProps} fill="url(#folderGrad)" />
+      </Svg>
+      {/* Sparkles Overlay */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Sparkles />
+      </View>
+    </View>
+  );
+};
+
+const Sparkles = () => {
+  return (
+    <>
+      <Ionicons name="sparkles" size={16} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', top: 40, left: 80 }} />
+      <Ionicons name="sparkles" size={12} color="rgba(255,255,255,0.1)" style={{ position: 'absolute', top: 120, right: 40 }} />
+      <Ionicons name="sparkles" size={20} color="rgba(255,255,255,0.15)" style={{ position: 'absolute', bottom: 60, left: 30 }} />
+      <View style={[s.sparkleDot, { width: 4, height: 4, top: 100, left: 120, opacity: 0.3 }]} />
+      <View style={[s.sparkleDot, { width: 2, height: 2, top: 150, right: 100, opacity: 0.2 }]} />
+      <View style={[s.sparkleDot, { width: 3, height: 3, bottom: 80, right: 150, opacity: 0.4 }]} />
+    </>
+  );
+};
+
 export default function ExploreTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
-  const theme = useRoleTheme();
-  const params = useLocalSearchParams<{ category?: string }>();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -105,7 +246,43 @@ export default function ExploreTab() {
 
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
-  const activeCat = CATEGORIES.find(c => c.id === activeCategory) || CATEGORIES[0];
+  const availableCategories = useMemo(() => {
+    // If user is a Freelancer, only show the first 4 categories
+    if (userRole === 'FREELANCER') {
+      return CATEGORIES.slice(0, 4);
+    }
+    // Otherwise (Creator or Guest), show all
+    return CATEGORIES;
+  }, [userRole]);
+
+  const activeCat = availableCategories.find(c => c.id === activeCategory) || availableCategories[0];
+  const activeIndex = Math.max(0, availableCategories.findIndex(c => c.id === activeCategory));
+
+  const scrollX = useSharedValue(0);
+  const activeIndexAnim = useSharedValue(activeIndex);
+
+  useEffect(() => {
+    // Instantly snap the folder tab when the active index changes (no effects)
+    activeIndexAnim.value = activeIndex;
+  }, [activeIndex]);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      // Synchronize the scroll position with zero-lag on the UI thread
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
+  useEffect(() => {
+    if (!availableCategories.find(c => c.id === activeCategory)) {
+      setActiveCategory(availableCategories[0].id);
+    }
+  }, [availableCategories]);
+
+  // Constants for tab layout
+  const TAB_ACTIVE_WIDTH = 120;
+  const TAB_INACTIVE_WIDTH = 100;
+  const TAB_GAP = 8;
 
   const allCards = posts.map((p) => {
     const owner = p.owner || {};
@@ -126,14 +303,9 @@ export default function ExploreTab() {
     };
   });
 
-  // Filter cards by active category tab
   const cards = allCards.filter((item) => {
     if (!activeCategory) return true;
-    const keyword = activeCategory.toLowerCase();
-    const desc = (item.desc || '').toLowerCase();
-    const cat = (item.category || '').toLowerCase();
-    const role = (item.role || '').toLowerCase();
-    return desc.includes(keyword) || cat.includes(keyword) || role.includes(keyword) || true; // show all for now, backend doesn't support category filter
+    return true; 
   });
 
   const handleCardTap = (postId: string, ownerId?: string) => {
@@ -156,20 +328,6 @@ export default function ExploreTab() {
       }
       setSelectedPortfolioLink(profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null);
     } catch { setSelectedPortfolioLink(null); } finally { setPortfolioLoading(false); }
-  };
-
-  const handleCollab = async (postId: string, ownerId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('send a collaboration request')) return;
-    if (!ownerId) return;
-    if (collabSentIds.has(postId)) { Alert.alert('Already Sent', 'You already sent a request for this post.'); return; }
-    try {
-      const res = await sendCollaboration(token, { receiverId: ownerId, postId });
-      if (res.success) {
-        setCollabSentIds(prev => new Set(prev).add(postId));
-        Alert.alert('Request Sent!', 'Your collaboration request has been sent.');
-      } else { Alert.alert('Request Failed', (res as any).error || 'Could not send request.'); }
-    } catch { Alert.alert('Error', 'Something went wrong.'); }
   };
 
   const handleShare = async (postId: string) => {
@@ -205,57 +363,49 @@ export default function ExploreTab() {
           <Text style={s.subtitle}>Discover & Connect with the right people</Text>
         </View>
 
-        {/* ═══ HERO SECTION ═══ */}
+        {/* ═══ HERO SECTION (FOLDER STYLE) ═══ */}
         <View style={s.heroWrapper}>
-          {/* Category Tabs Row (on black background) */}
+          <FolderBackground
+            width={width - 32}
+            height={340}
+            scrollX={scrollX}
+            activeIndexAnim={activeIndexAnim}
+            tabWidth={TAB_ACTIVE_WIDTH}
+            tabHeight={95}
+            colors={activeCat.gradient}
+          />
+
+          {/* ═══ CATEGORY TABS ═══ */}
           <View style={s.catTabsContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catTabsRow}>
-              {CATEGORIES.map((cat, index) => {
+            <Animated.ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.catTabsRow}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+            >
+              {availableCategories.map((cat) => {
                 const isActive = cat.id === activeCategory;
                 return (
                   <TouchableOpacity
                     key={cat.id}
                     activeOpacity={0.8}
                     onPress={() => setActiveCategory(cat.id)}
-                    style={{ alignItems: 'center' }}
+                    style={[
+                      isActive ? s.catTabActive : s.catTabInactive,
+                      { width: isActive ? TAB_ACTIVE_WIDTH : TAB_INACTIVE_WIDTH }
+                    ]}
                   >
-                    {isActive ? (
-                      /* Active tab: gradient bg, no bottom radius → merges into hero */
-                      <LinearGradient
-                        colors={[activeCat.gradient[0], activeCat.gradient[1]]}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={s.catTabMerged}
-                      >
-                        <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
-                        <Text style={s.catTabLabelActive}>{cat.label}</Text>
-                      </LinearGradient>
-                    ) : (
-                      /* Inactive tab: black bg, fully rounded */
-                      <View style={s.catTabInactive}>
-                        <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
-                        <Text style={s.catTabLabel}>{cat.label}</Text>
-                      </View>
-                    )}
+                    <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
+                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel}>{cat.label}</Text>
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </Animated.ScrollView>
           </View>
 
-          {/* Hero Gradient Body */}
-          <LinearGradient
-            colors={activeCat.gradient}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={s.heroGradient}
-          >
-            {/* Sparkle dots */}
-            <View style={[s.sparkleDot, { top: 20, left: 160, width: 4, height: 4, opacity: 0.5 }]} />
-            <View style={[s.sparkleDot, { top: 55, left: 50, width: 3, height: 3, opacity: 0.35 }]} />
-            <View style={[s.sparkleDot, { top: 120, left: 130, width: 2, height: 2, opacity: 0.25 }]} />
-            <View style={[s.sparkleDot, { top: 80, left: 260, width: 3, height: 3, opacity: 0.3 }]} />
-            <View style={[s.sparkleDot, { top: 170, left: 80, width: 2, height: 2, opacity: 0.2 }]} />
-
-            {/* Hero Text + Character */}
+          {/* ═══ HERO CONTENT ═══ */}
+          <View style={s.heroContentContainer}>
             <View style={s.heroContent}>
               <View style={s.heroTextArea}>
                 <Text style={s.heroTitle}>
@@ -267,10 +417,8 @@ export default function ExploreTab() {
               </View>
               <Image source={activeCat.image} style={s.heroCharacter} resizeMode="contain" />
             </View>
-          </LinearGradient>
+          </View>
         </View>
-
-        {/* ═══ FILTER DROPDOWNS ═══ */}
         <View style={s.filterRow}>
           <View style={s.filterCol}>
             <Text style={s.filterLabel}>Price Range</Text>
@@ -452,44 +600,34 @@ const s = StyleSheet.create({
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Hero wrapper
-  heroWrapper: { marginHorizontal: 16, marginBottom: 20, overflow: 'hidden', borderRadius: 24 },
-  catTabsContainer: { backgroundColor: '#000', flexDirection: 'row', zIndex: 1 },
-  catTabsRow: { gap: 0 },
+  heroWrapper: { marginHorizontal: 16, marginBottom: 20, position: 'relative', height: 340 },
+  catTabsContainer: { flexDirection: 'row', zIndex: 1, height: 95 },
+  catTabsRow: { gap: 8, paddingHorizontal: 0 },
 
-  // Active tab: gradient, rounded top, flat bottom → merges into hero
-  catTabMerged: {
-    alignItems: 'center', justifyContent: 'center', paddingVertical: 23, paddingHorizontal: 16,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
-    minWidth: 90,
+  catTabActive: {
+    alignItems: 'center', justifyContent: 'center', height: 95,
   },
-  // Inactive tab: black bg, fully rounded top
   catTabInactive: {
-    alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 16,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
-    minWidth: 90, backgroundColor: '#000',
+    alignItems: 'center', justifyContent: 'center', height: 75,
+    backgroundColor: '#1A1A1A', borderRadius: 24, alignSelf: 'flex-end',
   },
-  catTabImg: { width: 30, height: 30, marginBottom: 6 },
-  catTabLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
+  catTabImg: { width: 28, height: 28, marginBottom: 4 },
+  catTabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
   catTabLabelActive: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
 
-  // Hero gradient body (no top radius — tabs sit on top, no gap)
-  heroGradient: {
-    borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
-    paddingTop: 20, paddingBottom: 28, position: 'relative', minHeight: 260,
-    marginTop: -1,
-  },
+  heroContentContainer: { flex: 1, paddingHorizontal: 20, paddingBottom: 24, justifyContent: 'flex-end' },
 
   // Sparkle dots
   sparkleDot: { position: 'absolute', borderRadius: 99, backgroundColor: '#fff' },
 
   // Hero text + character
-  heroContent: { flexDirection: 'row', paddingHorizontal: 16, alignItems: 'flex-end', flex: 1 },
-  heroTextArea: { flex: 1, paddingRight: 10, paddingBottom: 10 },
+  heroContent: { flexDirection: 'row', alignItems: 'center' },
+  heroTextArea: { flex: 1.2, paddingRight: 10 },
   heroTitle: { fontSize: 32, lineHeight: 38, fontStyle: 'italic', fontFamily: 'Poppins_700Bold' },
   heroTitleBold: { color: '#fff' },
-  heroTitleFaded: { color: 'rgba(255,255,255,0.35)' },
-  heroDesc: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 20, marginTop: 14 },
-  heroCharacter: { width: 160, height: 180, position: 'absolute', right: 0, bottom: -24 },
+  heroTitleFaded: { color: 'rgba(255,255,255,0.3)' },
+  heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 18, marginTop: 8 },
+  heroCharacter: { flex: 1, height: 160, marginLeft: 10 },
 
   // Filters
   filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 16, marginBottom: 24 },

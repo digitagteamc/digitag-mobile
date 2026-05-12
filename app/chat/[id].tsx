@@ -34,7 +34,7 @@ import {
     uploadMessageImage,
 } from '../../services/userService';
 
-const chatBg = require('../../assets/images/chatbg.png');
+const chatBg = require('../../assets/images/chatbg.webp');
 const DARK_BUBBLE = '#1E1E26';
 const REACTIONS = ['❤️', '👍', '😂', '😮', '🙏', '😢'];
 

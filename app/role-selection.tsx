@@ -7,10 +7,10 @@ import { BackHandler, Image, ScrollView, Text, TouchableOpacity, View } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
-const creatorImg = require('../assets/images/creator.png');
-const brandImg = require('../assets/images/brand.png');
-const agencyImg = require('../assets/images/agency.png');
-const freelancerImg = require('../assets/images/freelancer.png');
+const creatorImg = require('../assets/images/creator.webp');
+const brandImg = require('../assets/images/brand.webp');
+const agencyImg = require('../assets/images/agency.webp');
+const freelancerImg = require('../assets/images/freelancer.webp');
 
 interface RoleData {
     id: string;
