@@ -13,7 +13,7 @@ interface CustomAlertProps {
     onClose: () => void;
     primaryButtonText?: string;
     type?: 'success' | 'error' | 'info';
-    role?: 'CREATOR' | 'FREELANCER';
+    role?: string | null;
 }
 
 export default function CustomAlert({
