@@ -1,55 +1,49 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/useProfileGate';
-import { getFeed, getCreatorById, getFreelancerById, sendCollaboration } from '@/services/userService';
+import { getCreatorById, getFeed, getFreelancerById, sendCollaboration } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
-import ExpandableText from '@/Components/ui/ExpandableText';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Animated,
   Dimensions,
   Image,
   Linking,
   Modal,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Share,
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = width - 32;
 
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
-// ─── Filter pills (UI-only for now — backend does not accept these filters yet)
-const FILTER_TABS = [
-  { id: 'all', label: 'All feed' },
-  { id: 'creators', label: 'Creators' },
-  { id: 'freelancers', label: 'Freelancers' },
-  { id: 'paid', label: 'Paid Collab' },
+const imgPhotography = require('../../assets/categories/Photography.gif');
+const imgEditor = require('../../assets/categories/editor.gif');
+const imgVideography = require('../../assets/categories/Videography.gif');
+const imgGrowth = require('../../assets/categories/growth spcielist.gif');
+
+const CATEGORIES = [
+  { id: 'photography', label: 'Photography', image: imgPhotography, heroLine1: 'Capture', heroLine2: 'Every', heroLine3: 'Beautifully', heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.', gradient: ['rgba(53, 10, 97, 1)', 'rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string, string] },
+  { id: 'editor', label: 'Editor', image: imgEditor, heroLine1: 'Amazing', heroLine2: 'Things', heroLine3: 'Stories', heroDesc: 'High-quality edits designed to make your content stand out across every platform.', gradient: ['#1a0533', '#6e0a5a', '#a6148a'] as [string, string, string] },
+  { id: 'videography', label: 'Videography', image: imgVideography, heroLine1: 'Film', heroLine2: 'Every', heroLine3: 'Moment', heroDesc: 'Capture cinematic stories that bring your vision to life with motion.', gradient: ['#0a1a33', '#0a3b6e', '#145ba6'] as [string, string, string] },
+  { id: 'growth', label: 'Growth\nSpecialist', image: imgGrowth, heroLine1: 'Scale', heroLine2: 'Your', heroLine3: 'Brand', heroDesc: 'Strategic growth solutions to amplify your digital presence and reach.', gradient: ['#331a0a', '#6e3b0a', '#a65b14'] as [string, string, string] },
 ];
 
 function getInitials(name: string | null | undefined) {
   if (!name) return 'U';
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase();
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 }
 
 function timeAgo(dateStr: string | null | undefined) {
@@ -62,92 +56,82 @@ function timeAgo(dateStr: string | null | undefined) {
   return `${Math.round(diffHrs / 24)}d ago`;
 }
 
+const GradientTitle = ({ text }: { text: string }) => {
+  const fontSize = 28;
+  const w = text.length * fontSize * 0.58;
+  const h = fontSize * 1.4;
+  return (
+    <View style={{ width: w, height: h }}>
+      <Svg height="100%" width="100%" viewBox={`0 0 ${w} ${h}`}>
+        <Defs>
+          <SvgGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
+            <Stop offset="1" stopColor="#ff6ab9" stopOpacity="1" />
+          </SvgGradient>
+        </Defs>
+        <SvgText fill="url(#titleGrad)" fontSize={fontSize} fontFamily="Poppins_600SemiBold" x="0" y={fontSize}>
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
+  );
+};
+
 export default function ExploreTab() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<string>('all');
-
+  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
 
-  const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
-  const translateY = useRef(new Animated.Value(0)).current;
-  const currentIndex = useRef(0);
-
   const fetchPosts = useCallback(async () => {
     if (!token) { setPosts([]); setLoading(false); return; }
     try {
       const res = await getFeed(token);
-      const rows = Array.isArray(res.data) ? res.data : [];
-      console.log(`🧭 Explore feed loaded: ${rows.length} post(s)`);
-      setPosts(rows);
-    } catch (err) {
-      console.log('Explore fetch error:', err);
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
+      setPosts(Array.isArray(res.data) ? res.data : []);
+    } catch { setPosts([]); } finally { setLoading(false); }
   }, [token]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      currentIndex.current += 1;
+  const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
-      Animated.timing(translateY, {
-        toValue: -(currentIndex.current * 20),
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => {
-        if (currentIndex.current === words.length - 1) {
-          translateY.setValue(0);
-          currentIndex.current = 0;
-        }
-      });
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [translateY]);
+  const activeCat = CATEGORIES.find(c => c.id === activeCategory) || CATEGORIES[0];
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchPosts();
-    setRefreshing(false);
-  };
-
-  const filteredPosts = posts.filter((p) => {
-    if (activeFilter === 'creators' && p.owner?.role !== 'CREATOR') return false;
-    if (activeFilter === 'freelancers' && p.owner?.role !== 'FREELANCER') return false;
-    if (activeFilter === 'paid' && p.collaborationType !== 'PAID') return false;
-    return true;
-  });
-
-  const cards = filteredPosts.map((p, index) => {
+  const allCards = posts.map((p) => {
     const owner = p.owner || {};
     const name = owner.name || (owner.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
-    const roleLabel = owner.role
-      ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase()
-      : 'User';
     return {
-      id: p.id,
-      ownerId: owner.id as string | undefined,
-      ownerRole: owner.role,
-      name,
-      role: roleLabel,
+      id: p.id, ownerId: owner.id, ownerRole: owner.role, name,
+      role: owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User',
       desc: p.description || '',
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       time: timeAgo(p.createdAt),
-      bannerUri: p.imageUrl || FALLBACK_BANNER,
       avatarUri: owner.profilePicture || null,
       isInitials: !owner.profilePicture,
       initials: getInitials(name),
+      experience: owner.experience || '5 years',
+      languages: owner.languages || 'Telugu, English, Tamil',
+      location: owner.location || owner.city || 'Hyderabad',
+      category: owner.category || p.category || '',
     };
+  });
+
+  // Filter cards by active category tab
+  const cards = allCards.filter((item) => {
+    if (!activeCategory) return true;
+    const keyword = activeCategory.toLowerCase();
+    const desc = (item.desc || '').toLowerCase();
+    const cat = (item.category || '').toLowerCase();
+    const role = (item.role || '').toLowerCase();
+    return desc.includes(keyword) || cat.includes(keyword) || role.includes(keyword) || true; // show all for now, backend doesn't support category filter
   });
 
   const handleCardTap = (postId: string, ownerId?: string) => {
@@ -157,9 +141,7 @@ export default function ExploreTab() {
   };
 
   const handlePortfolio = async (ownerId?: string, ownerRole?: string) => {
-    setSelectedPortfolioLink(null);
-    setPortfolioLoading(true);
-    setPortfolioModalVisible(true);
+    setSelectedPortfolioLink(null); setPortfolioLoading(true); setPortfolioModalVisible(true);
     try {
       if (!token || !ownerId) { setPortfolioLoading(false); return; }
       let profileData: any = null;
@@ -170,759 +152,422 @@ export default function ExploreTab() {
         const res = await getCreatorById(ownerId, token);
         profileData = res.success ? res.data : null;
       }
-      const link = profileData?.portfolioUrl 
-        || profileData?.portfolio 
-        || profileData?.portfolioLink 
-        || null;
-      setSelectedPortfolioLink(link);
-    } catch (e) {
-      setSelectedPortfolioLink(null);
-    } finally {
-      setPortfolioLoading(false);
-    }
+      setSelectedPortfolioLink(profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null);
+    } catch { setSelectedPortfolioLink(null); } finally { setPortfolioLoading(false); }
   };
 
   const handleCollab = async (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('send a collaboration request')) return;
     if (!ownerId) return;
-    if (collabSentIds.has(postId)) {
-      Alert.alert('Already Sent', 'You already sent a collaboration request for this post.');
-      return;
-    }
+    if (collabSentIds.has(postId)) { Alert.alert('Already Sent', 'You already sent a request for this post.'); return; }
     try {
       const res = await sendCollaboration(token, { receiverId: ownerId, postId });
       if (res.success) {
         setCollabSentIds(prev => new Set(prev).add(postId));
-        Alert.alert('Request Sent!', 'Your collaboration request has been sent. You will be notified when they respond.');
-      } else {
-        Alert.alert('Request Failed', (res as any).error || 'Could not send collaboration request.');
-      }
-    } catch {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
-    }
-  };
-
-  const handleBookmark = () => {
-    if (!requireProfile('save this post')) return;
-    Alert.alert('Coming Soon', 'Saving posts is not yet available.');
+        Alert.alert('Request Sent!', 'Your collaboration request has been sent.');
+      } else { Alert.alert('Request Failed', (res as any).error || 'Could not send request.'); }
+    } catch { Alert.alert('Error', 'Something went wrong.'); }
   };
 
   const handleShare = async (postId: string) => {
     try {
-      const url = `https://digitag.com/post/${postId}`;
-      await Share.share({
-        message: `Check out this post on Digitag! ${url}`,
-        url: url,
-        title: 'Digitag Post',
-      });
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
+      await Share.share({ message: `Check out this post on Digitag! https://digitag.com/post/${postId}`, title: 'Digitag Post' });
+    } catch (e: any) { Alert.alert('Error', e.message); }
+  };
+
+  const handleMessage = (ownerId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('message this user')) return;
+  };
+
+  const handleCall = () => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('call this user')) return;
+    Alert.alert('Contact', 'Phone contact is not available yet.');
   };
 
   return (
-    <View style={styles.root}>
+    <View style={s.root}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.exploreHeader}>
-          <Text style={styles.exploreTitle}>Explore</Text>
-          <Text style={styles.exploreSubtitle}>Discover & Connect with the right people</Text>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
+      >
+        {/* ═══ HEADER ═══ */}
+        <View style={[s.header, { paddingTop: insets.top + 16 }]}>
+          <GradientTitle text="Explore All" />
+          <Text style={s.subtitle}>Discover & Connect with the right people</Text>
         </View>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
-        >
-          {/* SEARCH BAR */}
-          <View style={styles.searchContainer}>
-            <TouchableOpacity
-              style={styles.searchBar}
-              activeOpacity={0.8}
-              onPress={() => router.push('/searchbar' as any)}
-            >
-              <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
-              <LinearGradient
-                colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={styles.searchBarInner}>
-                <Feather name="search" size={18} color="#d6d6d6" />
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{
-                    fontFamily: 'Poppins_400Regular',
-                    fontSize: 13,
-                    color: '#9a9a9a',
-                    height: 20,
-                    lineHeight: 20
-                  }}>
-                    Search here for{' '}
-                  </Text>
-                  <View style={{ height: 20, overflow: 'hidden' }}>
-                    <Animated.View style={{ transform: [{ translateY }] }}>
-                      {words.map((word, idx) => (
-                        <Text
-                          key={idx}
-                          style={{
-                            fontFamily: 'Poppins_400Regular',
-                            fontSize: 13,
-                            color: '#fff',
-                            height: 20,
-                            lineHeight: 20
-                          }}
-                        >
-                          {word}
-                        </Text>
-                      ))}
-                    </Animated.View>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
+        {/* ═══ HERO SECTION ═══ */}
+        <View style={s.heroWrapper}>
+          {/* Category Tabs Row (on black background) */}
+          <View style={s.catTabsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catTabsRow}>
+              {CATEGORIES.map((cat, index) => {
+                const isActive = cat.id === activeCategory;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    activeOpacity={0.8}
+                    onPress={() => setActiveCategory(cat.id)}
+                    style={{ alignItems: 'center' }}
+                  >
+                    {isActive ? (
+                      /* Active tab: gradient bg, no bottom radius → merges into hero */
+                      <LinearGradient
+                        colors={[activeCat.gradient[0], activeCat.gradient[1]]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={s.catTabMerged}
+                      >
+                        <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
+                        <Text style={s.catTabLabelActive}>{cat.label}</Text>
+                      </LinearGradient>
+                    ) : (
+                      /* Inactive tab: black bg, fully rounded */
+                      <View style={s.catTabInactive}>
+                        <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
+                        <Text style={s.catTabLabel}>{cat.label}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
 
-          {/* FILTER PILLS */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pillsContent}>
-            {FILTER_TABS.filter(tab => {
-              if (userRole === 'CREATOR' && tab.id === 'creators') return false;
-              if (userRole === 'FREELANCER' && tab.id === 'freelancers') return false;
-              return true;
-            }).map((tab) => {
-              const active = tab.id === activeFilter;
+          {/* Hero Gradient Body */}
+          <LinearGradient
+            colors={activeCat.gradient}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={s.heroGradient}
+          >
+            {/* Sparkle dots */}
+            <View style={[s.sparkleDot, { top: 20, left: 160, width: 4, height: 4, opacity: 0.5 }]} />
+            <View style={[s.sparkleDot, { top: 55, left: 50, width: 3, height: 3, opacity: 0.35 }]} />
+            <View style={[s.sparkleDot, { top: 120, left: 130, width: 2, height: 2, opacity: 0.25 }]} />
+            <View style={[s.sparkleDot, { top: 80, left: 260, width: 3, height: 3, opacity: 0.3 }]} />
+            <View style={[s.sparkleDot, { top: 170, left: 80, width: 2, height: 2, opacity: 0.2 }]} />
+
+            {/* Hero Text + Character */}
+            <View style={s.heroContent}>
+              <View style={s.heroTextArea}>
+                <Text style={s.heroTitle}>
+                  <Text style={s.heroTitleBold}>{activeCat.heroLine1} </Text>
+                  <Text style={s.heroTitleFaded}>{activeCat.heroLine2}{"\n"}</Text>
+                  <Text style={s.heroTitleFaded}>{activeCat.heroLine3}</Text>
+                </Text>
+                <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
+              </View>
+              <Image source={activeCat.image} style={s.heroCharacter} resizeMode="contain" />
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* ═══ FILTER DROPDOWNS ═══ */}
+        <View style={s.filterRow}>
+          <View style={s.filterCol}>
+            <Text style={s.filterLabel}>Price Range</Text>
+            <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
+              <Text style={s.filterPlaceholder}>Select Price Range</Text>
+              <Ionicons name="filter" size={16} color="#6e7180" />
+            </TouchableOpacity>
+          </View>
+          <View style={s.filterCol}>
+            <Text style={s.filterLabel}>Experience</Text>
+            <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
+              <Text style={s.filterPlaceholder}>Select experience</Text>
+              <Ionicons name="chevron-down" size={20} color="#6e7180" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ═══ FEED CARDS ═══ */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#ED2A91" style={{ marginTop: 40 }} />
+        ) : cards.length === 0 ? (
+          <View style={s.emptyState}>
+            <Ionicons name="compass-outline" size={48} color="#3A3A47" />
+            <Text style={s.emptyTitle}>Nothing to explore yet</Text>
+            <Text style={s.emptySubtitle}>Pull down to refresh — new posts will appear here.</Text>
+          </View>
+        ) : (
+          <View style={s.feedList}>
+            {cards.map((item) => {
+              const postTheme = getRoleTheme(item.ownerRole);
+              const accent = postTheme.primary;
               return (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={[styles.pill, active && styles.pillActive]}
-                  onPress={() => setActiveFilter(tab.id)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, active && styles.pillTextActive]}>{tab.label}</Text>
+                <TouchableOpacity key={item.id} style={s.card} activeOpacity={0.9} onPress={() => handleCardTap(item.id, item.ownerId)}>
+                  {/* Avatar + Name */}
+                  <View style={s.cardTop}>
+                    <View style={s.cardAvatarWrap}>
+                      {item.isInitials ? (
+                        <View style={[s.cardAvatar, { backgroundColor: accent + '33' }]}>
+                          <Text style={[s.cardInitials, { color: accent }]}>{item.initials}</Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: item.avatarUri }} style={s.cardAvatar} resizeMode="cover" />
+                      )}
+                    </View>
+                    <View style={s.cardNameArea}>
+                      <View style={s.cardNameRow}>
+                        <Text style={s.cardName}>{item.name}</Text>
+                        <Ionicons name="shield-checkmark" size={14} color="#f26930" style={{ marginLeft: 6 }} />
+                      </View>
+                      <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
+                        <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {/* Bookmark */}
+                    <TouchableOpacity style={s.bookmarkBtn}>
+                      <Ionicons name="bookmark-outline" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Description */}
+                  <Text style={s.cardDesc} numberOfLines={2}>
+                    {item.desc || 'Looking for a Photographer experienced in creating engaging short-form content...'}
+                    <Text style={{ color: accent }}> See more</Text>
+                  </Text>
+
+                  {/* Info Grid */}
+                  <View style={s.infoGrid}>
+                    {/* Row 1 */}
+                    <View style={s.infoRow}>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Experience</Text>
+                        <View style={s.infoValueRow}>
+                          <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
+                          <Text style={s.infoValue}>{item.experience}</Text>
+                        </View>
+                      </View>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Price Level <Text style={s.infoLabelSub}>(Primary)</Text></Text>
+                        <View style={s.infoValueRow}>
+                          {[1, 2, 3, 4].map(i => (
+                            <Text key={i} style={{ color: '#f26930', fontSize: 14 }}>₹</Text>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                    {/* Row 2 */}
+                    <View style={s.infoRow}>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Language</Text>
+                        <View style={s.infoValueRow}>
+                          <Ionicons name="language-outline" size={13} color="#a1a2a4" />
+                          <Text style={s.infoValue}>{item.languages}</Text>
+                        </View>
+                      </View>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Location <Text style={s.infoLabelSub}>(Primary)</Text></Text>
+                        <View style={s.infoValueRow}>
+                          <Ionicons name="location-outline" size={13} color="#a1a2a4" />
+                          <Text style={s.infoValue}>{item.location}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Bottom Actions */}
+                  <View style={s.cardBottom}>
+                    <View style={s.cardActions}>
+                      <TouchableOpacity style={s.actionCircle} onPress={() => handleMessage(item.ownerId)}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.actionCircle} onPress={handleCall}>
+                        <Ionicons name="call-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.actionCircle} onPress={() => handleShare(item.id)}>
+                        <Ionicons name="share-social-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={s.cardBottomRight}>
+                      <TouchableOpacity
+                        style={[s.seePortfolioBtn, { backgroundColor: accent }]}
+                        onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
+                      >
+                        <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
+                      </TouchableOpacity>
+                      <View style={s.timeRow}>
+                        <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                        <Text style={s.timeText}>{item.time || '4h ago'}</Text>
+                      </View>
+                    </View>
+                  </View>
                 </TouchableOpacity>
               );
             })}
-          </ScrollView>
+          </View>
+        )}
+      </ScrollView>
 
-          {/* FEED LIST */}
-          {loading ? (
-            <ActivityIndicator size="large" color="#ED2A91" style={{ marginTop: 40 }} />
-          ) : cards.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="compass-outline" size={48} color="#3A3A47" />
-              <Text style={styles.emptyTitle}>Nothing to explore yet</Text>
-              <Text style={styles.emptySubtitle}>
-                {activeFilter !== 'all'
-                  ? 'No posts match your filters. Try a different filter.'
-                  : 'Pull down to refresh — new posts will appear here as people share them.'}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.feedList}>
-              {cards.map((item) => {
-                const postTheme = getRoleTheme(item.ownerRole);
-                const postColor = postTheme.primary;
-
-                return (
-                  <View
-                    key={item.id}
-                    style={styles.card}
-                  >
-                    {/* ── Header: Avatar, Name, See Portfolio, Share */}
-                    <View style={styles.cardHeader}>
-                      <TouchableOpacity
-                        style={styles.cardHeaderLeft}
-                        activeOpacity={0.7}
-                        onPress={() => handleCardTap(item.id, item.ownerId)}
-                      >
-                        {item.isInitials ? (
-                          <View style={[styles.avatarCircle, { backgroundColor: postColor + '33' }]}>
-                            <Text style={[styles.initialsText, { color: postColor }]}>{item.initials}</Text>
-                          </View>
-                        ) : (
-                          <View style={styles.avatarCircle}>
-                            <Image source={{ uri: item.avatarUri }} style={styles.cardAvatarImg} resizeMode="cover" />
-                          </View>
-                        )}
-                        <View style={styles.headerNameBlock}>
-                          <Text style={styles.cardName}>{item.name}</Text>
-                          <Text style={styles.cardCategory}>{item.role}</Text>
-                        </View>
-                      </TouchableOpacity>
-
-                      <View style={styles.cardHeaderRight}>
-                        <TouchableOpacity 
-                          style={[styles.portfolioBtn, { backgroundColor: postColor }]} 
-                          onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
-                        >
-                          <Text style={styles.portfolioBtnText}>See Portfolio</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.shareBtn} onPress={() => handleShare(item.id)}>
-                          <Ionicons name="share-social-outline" size={18} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* ── Description */}
-                    <ExpandableText text={item.desc} style={styles.cardDesc} numberOfLines={2} />
-
-                    {/* ── Meta: Price + Time */}
-                    <View style={styles.cardMetaRow}>
-                      <Text style={[styles.cardPrice, { color: 'rgba(0, 164, 1, 1)' }]}>
-                        {item.price === 'Paid Collab' ? '₹40K–50K/Month' : 'Free Collab'}
-                      </Text>
-                      <View style={styles.cardTimeRow}>
-                        <Ionicons name="time-outline" size={14} color="#8A8A99" />
-                        <Text style={styles.cardTime}>{item.time || '4h ago'}</Text>
-                      </View>
-                    </View>
-
-                    {/* ── Banner Image */}
-                    <View style={styles.cardBannerContainer}>
-                      <Image source={{ uri: item.bannerUri }} style={styles.cardBanner} resizeMode="cover" />
-                      <View style={styles.bannerOverlay} />
-
-                      <View style={styles.bannerActionsRight}>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: postColor }]} onPress={() => handleBookmark()}>
-                          <Ionicons name="bookmark-outline" size={16} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* ── Collaborate row */}
-                    <View style={styles.cardActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.collabBtn, collabSentIds.has(item.id) ? { backgroundColor: '#22c55e', borderColor: '#22c55e' } : { borderColor: postColor }]}
-                        onPress={() => handleCollab(item.id, item.ownerId)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name={collabSentIds.has(item.id) ? "checkmark-circle-outline" : "people-outline"} size={15} color={collabSentIds.has(item.id) ? '#fff' : postColor} />
-                        <Text style={[styles.collabBtnText, { color: collabSentIds.has(item.id) ? '#fff' : postColor }]}>
-                          {collabSentIds.has(item.id) ? 'Request Sent' : 'Collaborate'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </SafeAreaView>
-
-      {/* FAB + bottom nav are rendered globally by (tabs)/_layout.tsx. */}
-      {/* ══════════════ PORTFOLIO MODAL ══════════════ */}
-      <Modal
-        visible={portfolioModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setPortfolioModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalDismissArea} 
-            activeOpacity={1} 
-            onPress={() => setPortfolioModalVisible(false)} 
-          />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderLeft}>
+      {/* ═══ PORTFOLIO MODAL ═══ */}
+      <Modal visible={portfolioModalVisible} transparent animationType="slide" onRequestClose={() => setPortfolioModalVisible(false)}>
+        <View style={s.modalOverlay}>
+          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setPortfolioModalVisible(false)} />
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Feather name="link" size={20} color="#fff" />
-                <Text style={styles.modalTitle}>Portfolio Links</Text>
+                <Text style={s.modalTitle}>Portfolio Links</Text>
               </View>
-              <TouchableOpacity 
-                style={styles.modalCloseBtn}
-                onPress={() => setPortfolioModalVisible(false)}
-              >
+              <TouchableOpacity style={s.modalClose} onPress={() => setPortfolioModalVisible(false)}>
                 <Feather name="x" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
-
             {portfolioLoading ? (
               <ActivityIndicator color="#A78BFA" style={{ marginTop: 16 }} />
             ) : selectedPortfolioLink ? (
-              <TouchableOpacity 
-                style={styles.portfolioLinkRow}
-                onPress={() => {
-                  let url = selectedPortfolioLink;
-                  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                    url = 'https://' + url;
-                  }
-                  Linking.openURL(url);
-                }}
-              >
-                <Text style={styles.portfolioLinkText}>{selectedPortfolioLink}</Text>
+              <TouchableOpacity style={s.portfolioRow} onPress={() => {
+                let url = selectedPortfolioLink;
+                if (!url.startsWith('http')) url = 'https://' + url;
+                Linking.openURL(url);
+              }}>
+                <Text style={s.portfolioLinkText}>{selectedPortfolioLink}</Text>
                 <Feather name="arrow-up-right" size={20} color="#A78BFA" />
               </TouchableOpacity>
             ) : (
-              <Text style={styles.noPortfolioText}>No portfolio link provided.</Text>
+              <Text style={s.noPortfolio}>No portfolio link provided.</Text>
             )}
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#060606',
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#000' },
+  scroll: { flex: 1 },
 
-  },
-  safeArea: {
-    flex: 1,
-  },
+  // Header
+  header: { paddingHorizontal: 16, paddingBottom: 20 },
+  subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
-  exploreHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 24,
-    marginTop: 50
-  },
-  exploreTitle: {
-    color: '#fff',
-    fontSize: 24,
+  // Hero wrapper
+  heroWrapper: { marginHorizontal: 16, marginBottom: 20, overflow: 'hidden', borderRadius: 24 },
+  catTabsContainer: { backgroundColor: '#000', flexDirection: 'row', zIndex: 1 },
+  catTabsRow: { gap: 0 },
 
-    fontFamily: 'Poppins_500Medium'
+  // Active tab: gradient, rounded top, flat bottom → merges into hero
+  catTabMerged: {
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 23, paddingHorizontal: 16,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+    minWidth: 90,
   },
-  exploreSubtitle: {
-    color: '#E2E2E2',
-    fontSize: 12,
-    marginTop: 4,
-    fontFamily: 'Poppins_400Regular',
-    lineHeight: 18,
+  // Inactive tab: black bg, fully rounded top
+  catTabInactive: {
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 16,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24, borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+    minWidth: 90, backgroundColor: '#000',
   },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 20,
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  searchBar: {
-    height: 56,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(156, 156, 156, 0.40)',
-    backgroundColor: 'rgba(70, 70, 70, 0.15)',
-    marginBottom: 20,
-    overflow: 'hidden',
+  catTabImg: { width: 30, height: 30, marginBottom: 6 },
+  catTabLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
+  catTabLabelActive: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
 
-    // Figma shadows
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 40,
-    elevation: 10,
-  },
-  searchBarInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 14,
-    marginLeft: 12,
-    height: 40,
-    paddingVertical: 0,
-  },
-  searchResultsPanel: {
-    backgroundColor: '#1a1a22',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(156,156,156,0.3)',
-    marginTop: -12,
-    overflow: 'hidden',
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
-  },
-  searchResultAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    overflow: 'hidden',
-  },
-  searchResultAvatarFallback: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchResultInitial: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  searchResultText: {
-    flex: 1,
-  },
-  searchResultName: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  searchResultMeta: {
-    color: '#9a9a9a',
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular',
-    marginTop: 1,
-  },
-  noResultsText: {
-    color: '#9a9a9a',
-    fontSize: 13,
-    textAlign: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
-  },
-  modalDismissArea: {
-    flex: 1,
-  },
-  modalContent: {
-    height: '30%',
-    backgroundColor: '#1E1E24',
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 24,
-    borderTopWidth: 1,
-    borderColor: 'rgba(156,156,156,0.3)',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-  },
-  modalHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  modalTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  portfolioLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  portfolioLinkText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Poppins_500Medium',
-    flex: 1,
-    marginRight: 12,
-  },
-  noPortfolioText: {
-    color: '#8A8A99',
-    fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    marginTop: 10,
-  },
-  pillsRow: {
-    paddingLeft: 20,
-    marginBottom: 35,
-  },
-  pillsContent: {
-    paddingRight: 20,
-    gap: 12,
-  },
-  pill: {
-    paddingHorizontal: 20,
-    backgroundColor: '#24221eff',
-    borderRadius: 20,
-    justifyContent: 'center',
-    minWidth: 117,
-    height: 40,
-    borderWidth: 1,
-    borderColor: '#333',
-    alignItems: 'center'
-  },
-  pillActive: {
-    backgroundColor: 'rgba(242, 105, 48, 1)',
-  },
-  pillText: {
-    color: '#888',
-    fontSize: 12,
-    fontFamily: 'Poppins_400Regular'
-  },
-  pillTextActive: {
-    color: '#fff',
-  },
-  feedList: {
-    paddingHorizontal: 16,
-    gap: 20,
-  },
-  emptyState: {
-    paddingHorizontal: 40,
-    paddingTop: 60,
-    alignItems: 'center',
-    gap: 10,
-  },
-  emptyTitle: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-    marginTop: 10,
-  },
-  emptySubtitle: {
-    color: '#888',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 20,
+  // Hero gradient body (no top radius — tabs sit on top, no gap)
+  heroGradient: {
+    borderBottomLeftRadius: 0, borderBottomRightRadius: 0,
+    paddingTop: 20, paddingBottom: 28, position: 'relative', minHeight: 260,
+    marginTop: -1,
   },
 
-  // ── Individual card (Figma: 408×392, bg #1E1E24, border rgba(156,156,156,0.5), rounded-24)
+  // Sparkle dots
+  sparkleDot: { position: 'absolute', borderRadius: 99, backgroundColor: '#fff' },
+
+  // Hero text + character
+  heroContent: { flexDirection: 'row', paddingHorizontal: 16, alignItems: 'flex-end', flex: 1 },
+  heroTextArea: { flex: 1, paddingRight: 10, paddingBottom: 10 },
+  heroTitle: { fontSize: 32, lineHeight: 38, fontStyle: 'italic', fontFamily: 'Poppins_700Bold' },
+  heroTitleBold: { color: '#fff' },
+  heroTitleFaded: { color: 'rgba(255,255,255,0.35)' },
+  heroDesc: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 20, marginTop: 14 },
+  heroCharacter: { width: 160, height: 180, position: 'absolute', right: 0, bottom: -24 },
+
+  // Filters
+  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 16, marginBottom: 24 },
+  filterCol: { flex: 1 },
+  filterLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
+  filterDropdown: {
+    height: 46, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1, borderColor: 'rgba(64,64,64,0.5)',
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, justifyContent: 'space-between',
+  },
+  filterPlaceholder: { color: '#6e7180', fontSize: 13, fontFamily: 'Poppins_400Regular' },
+
+  // Empty
+  emptyState: { paddingHorizontal: 40, paddingTop: 60, alignItems: 'center', gap: 10 },
+  emptyTitle: { color: '#fff', fontSize: 17, fontWeight: '600', marginTop: 10 },
+  emptySubtitle: { color: '#888', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+
+  // Feed
+  feedList: { paddingHorizontal: 16, gap: 16 },
+
+  // Card
   card: {
-    width: CARD_WIDTH,
-    minHeight: 392,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(156, 156, 156, 0.50)',
-    backgroundColor: '#1E1E24',
-    padding: 16,
-    marginBottom: 20,
-    overflow: 'hidden',
+    backgroundColor: '#1a1a1a', borderRadius: 24, padding: 16,
+    borderWidth: 1, borderColor: '#000',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  cardHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardAvatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  initialsText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerNameBlock: {
-    gap: 2,
-  },
-  cardName: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Poppins_600SemiBold',
-    lineHeight: 14,
-    letterSpacing: -0.5,
-  },
-  cardCategory: {
-    color: '#A0A0A0',
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    lineHeight: 14,
-    letterSpacing: -0.5,
-  },
-  cardHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  portfolioBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 80,
-  },
-  portfolioBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    lineHeight: 16,
-  },
-  shareBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    backgroundColor: 'rgba(255, 255, 255, 0)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cardDesc: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  cardMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  cardPrice: {
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
-    lineHeight: 14,
-  },
-  cardTimeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cardTime: {
-    color: '#8A8A99',
-    fontSize: 10,
-    fontFamily: 'Poppins_500Medium',
-  },
-  cardBannerContainer: {
-    height: 220,
-    width: '100%',
-    borderRadius: 30,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  cardBanner: {
-    width: '100%',
-    height: '100%',
-  },
-  bannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  cardActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  collabBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    backgroundColor: 'transparent',
-  },
-  collabBtnText: {
-    fontSize: 13,
-    fontFamily: 'Poppins_500Medium',
-    lineHeight: 16,
-  },
-  bannerActionsRight: {
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-  },
-  actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  cardAvatarWrap: { marginRight: 14 },
+  cardAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#333', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+  cardInitials: { fontSize: 20, fontWeight: '700' },
+  cardNameArea: { flex: 1, paddingTop: 4 },
+  cardNameRow: { flexDirection: 'row', alignItems: 'center' },
+  cardName: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_500Medium' },
+  cardPortfolioLink: { fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2 },
+  bookmarkBtn: {
+    width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(39,39,42,0.5)',
+    justifyContent: 'center', alignItems: 'center',
   },
 
-  floatingBtn: {
-    position: 'absolute',
-    bottom: 100,
-    right: 20,
-    zIndex: 100,
+  // Description
+  cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
+
+  // Info Grid
+  infoGrid: { gap: 12, marginBottom: 14 },
+  infoRow: { flexDirection: 'row', gap: 16 },
+  infoCell: { flex: 1 },
+  infoLabel: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_400Regular', marginBottom: 4 },
+  infoLabelSub: { color: '#d1d2d4' },
+  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  infoValue: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular' },
+
+  // Bottom
+  cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardActions: { flexDirection: 'row', gap: 8 },
+  actionCircle: {
+    width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  floatingBtnGrad: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#ED2A91',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+  cardBottomRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  seePortfolioBtn: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
+    alignItems: 'center', justifyContent: 'center',
   },
-  bottomTabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 80,
-    backgroundColor: '#15151A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#222',
+  seePortfolioBtnText: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold' },
+  timeRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  timeText: { color: '#a1a2a4', fontSize: 10, fontFamily: 'Poppins_500Medium' },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modalDismiss: { flex: 1 },
+  modalContent: {
+    height: '30%', backgroundColor: '#1E1E24', borderTopLeftRadius: 30, borderTopRightRadius: 30,
+    padding: 24, borderTopWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
   },
-  tabBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 },
+  modalTitle: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_600SemiBold' },
+  modalClose: {
+    width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  activePillTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFDCEE', // Lighter pink for active state
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 25,
-    gap: 8,
-  },
-  activePillText: {
-    color: '#ED2A91',
-    fontWeight: '800',
-    fontSize: 14,
-  },
+  portfolioRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  portfolioLinkText: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', flex: 1, marginRight: 12 },
+  noPortfolio: { color: '#8A8A99', fontSize: 14, fontFamily: 'Poppins_400Regular', marginTop: 10 },
 });

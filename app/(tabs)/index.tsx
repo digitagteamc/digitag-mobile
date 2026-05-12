@@ -113,7 +113,7 @@ const CAT_BORDER_COLORS = [
   ['rgba(52, 52, 52, 1)', 'rgba(250, 71, 0, 0.5)'],
 ];
 
-const GradientHeading = ({ text, style, role }: { text: string, style?: any, role?: string }) => {
+const GradientHeading = ({ text, style, role }: { text: string, style?: any, role?: string | null }) => {
   const fontSize = style?.fontSize || 28;
   const fontFamily = style?.fontFamily || 'Poppins_600SemiBold';
   const isFreelancer = role === 'FREELANCER';
@@ -601,7 +601,7 @@ export default function Homepage() {
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
           {/* ══════════════ FREELANCERS BY CATEGORY ══════════════ */}
           <View style={{ marginBottom: 20 }}>
-            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole} />
+            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole ?? undefined} />
           </View>
           <View style={styles.catCarouselContainer}>
             <Animated.FlatList
@@ -672,7 +672,7 @@ export default function Homepage() {
 
         {/* ══════════════ RECENT UPDATES ══════════════ */}
         <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
-          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
+          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole ?? undefined} />
         </View>
 
         {loading ? (
@@ -741,7 +741,7 @@ export default function Homepage() {
           {/* ══════════════ CREATE POST ══════════════ */}
           <View style={{ marginTop: 20, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
+              <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole ?? undefined} />
               <Image
                 source={imgStars}
                 style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
@@ -890,7 +890,7 @@ export default function Homepage() {
         title={alertConfig.title}
         message={alertConfig.message}
         onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
-        role={userRole as any}
+        role={userRole}
       />
     </View>
   );
