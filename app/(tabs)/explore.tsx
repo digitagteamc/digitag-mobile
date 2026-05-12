@@ -1,10 +1,11 @@
 import { useAuth } from '@/context/AuthContext';
-import { useProfileGate } from '@/context/useProfileGate';
+import { useProfileGate } from '@/context/ProfileGateContext';
+// import { useProfileGate } from '@/context/useProfileGate';
 import { getCreatorById, getFeed, getFreelancerById, sendCollaboration } from '@/services/userService';
-import { getRoleTheme } from '@/theme/useRoleTheme';
+import { getRoleTheme, useRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
