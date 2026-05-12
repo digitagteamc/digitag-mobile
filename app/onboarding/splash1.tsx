@@ -7,8 +7,8 @@ import { BackHandler, Image, Platform, Text, TouchableOpacity, useWindowDimensio
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const splashBubble = require('../../assets/images/splash_bubble.png');
-const splashHeart = require('../../assets/images/splash_heart.png');
+const splashBubble = require('../../assets/images/splash_bubble.webp');
+const splashHeart = require('../../assets/images/splash_heart.webp');
 
 interface OnboardingStep {
   gradientColors: readonly [string, string, ...string[]];

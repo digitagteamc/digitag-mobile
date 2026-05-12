@@ -1,8 +1,8 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Reanimated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Alert,
@@ -17,16 +17,15 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
-import LaunchingSoonModal from '../../Components/ui/LaunchingSoonModal';
 import { useAuth } from '../../context/AuthContext';
-import { useProfileGate } from '../../context/ProfileGateContext';
-import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith, sendCollaboration } from '../../services/userService';
+import { useProfileGate } from '@/context/ProfileGateContext';
+import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -44,10 +43,10 @@ const imgStars = require('../../assets/categories/stars.gif');
 const imgPost = require('../../assets/categories/post.gif');
 const imgLove = require('../../assets/categories/love.gif');
 const imgTargetNew = require('../../assets/categories/targetnew.png');
-const slide1 = require('../../assets/slides/slide1.png');
-const slide2 = require('../../assets/slides/slide2.png');
-const slide3 = require('../../assets/slides/slide3.png');
-const slide4 = require('../../assets/slides/slide4.png');
+const slide1 = require('../../assets/slides/slide1.webp');
+const slide2 = require('../../assets/slides/slide2.webp');
+const slide3 = require('../../assets/slides/slide3.webp');
+const slide4 = require('../../assets/slides/slide4.webp');
 
 const CAROUSEL_DATA = [
   {
@@ -144,9 +143,9 @@ const GradientHeading = ({ text, style, role }: { text: string, style?: any, rol
       </Svg>
     </View>
   );
-});
+};
 
-const StrokeText = React.memo(({ text, strokeColor }: { text: string, strokeColor: string }) => {
+const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }) => {
   const fontSize = 38;
   const fontFamily = 'Poppins_800ExtraBold';
   const widthVal = width - 32;
@@ -182,26 +181,46 @@ const StrokeText = React.memo(({ text, strokeColor }: { text: string, strokeColo
       </Svg>
     </View>
   );
-});
+};
 
-// Memoized Carousel Card — animations driven by Reanimated SharedValue (UI thread)
-const CarouselCard = React.memo(({ item, animationValue, CARD_WIDTH, ITEM_SIZE, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentIds, viewerTheme }: any) => {
-  const collabSent = collabSentIds?.has(item.id);
-  const postColor = viewerTheme?.primary || '#ED2A91';
+// Optimization: Memoized Carousel Card component to prevent re-renders
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare }: any) => {
+  const inputRange = [
+    (index - 1) * ITEM_SIZE,
+    index * ITEM_SIZE,
+    (index + 1) * ITEM_SIZE,
+  ];
 
-  const animStyle = useAnimatedStyle(() => {
-    const scale = interpolate(animationValue.value, [-1, 0, 1], [0.85, 1, 0.85], 'clamp');
-    const opacity = interpolate(animationValue.value, [-1, 0, 1], [0.8, 1, 0.8], 'clamp');
-    const rotateY = interpolate(animationValue.value, [-1, 0, 1], [15, 0, -15], 'clamp');
-    return {
-      transform: [{ perspective: 1000 }, { rotateY: `${rotateY}deg` }, { scale }],
-      opacity,
-    };
+  const rotateY = scrollX.interpolate({
+    inputRange,
+    outputRange: ['15deg', '0deg', '-15deg'],
+    extrapolate: 'clamp',
   });
+
+  const scale = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.85, 1, 0.85],
+    extrapolate: 'clamp',
+  });
+
+  const opacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.8, 1, 0.8],
+    extrapolate: 'clamp',
+  });
+
+  const postTheme = getRoleTheme(item.ownerRole);
+  const postColor = postTheme.primary;
 
   return (
     <View style={{ width: ITEM_SIZE, alignItems: 'center', justifyContent: 'center' }}>
-      <Reanimated.View style={[{ width: CARD_WIDTH }, animStyle]}>
+      <Animated.View
+        style={{
+          width: CARD_WIDTH,
+          transform: [{ perspective: 1000 }, { rotateY }, { scale }],
+          opacity,
+        }}
+      >
         <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
           {/* Top Opacity Overlay */}
           <LinearGradient
@@ -250,44 +269,26 @@ const CarouselCard = React.memo(({ item, animationValue, CARD_WIDTH, ITEM_SIZE, 
           <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
 
           {/* Bottom Actions */}
-          {!collabSent ? (
-            <TouchableOpacity
-              style={[styles.figmaCardActions, { backgroundColor: postColor, borderRadius: 20, justifyContent: 'center', paddingHorizontal: 0 }]}
-              onPress={() => handleCollab(item.id, item.ownerId)}
-              activeOpacity={0.8}
-            >
-              <Text style={{ color: '#fff', fontSize: 13, fontFamily: 'Poppins_600SemiBold' }}>Collaborate</Text>
+          <View style={styles.figmaCardActions}>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
             </TouchableOpacity>
-          ) : (
-            <View style={styles.figmaCardActions}>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
-                <Ionicons name="call-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
-                <Ionicons name="share-social-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
+              <Ionicons name="call-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
+              <Ionicons name="share-social-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
-      </Reanimated.View>
+      </Animated.View>
     </View>
   );
 });
 
-// Static — derived from constant CATEGORIES, never changes
-const categoryColumns = [
-  [CATEGORIES[0], CATEGORIES[4]],
-  [CATEGORIES[1], CATEGORIES[5]],
-  [CATEGORIES[2], CATEGORIES[6]],
-  [CATEGORIES[3], CATEGORIES[7]],
-];
-
 export default function Homepage() {
   const router = useRouter();
-  const { token, isGuest, userRole, isProfileCompleted } = useAuth();
+  const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
@@ -297,7 +298,6 @@ export default function Homepage() {
   const [createPostWidth, setCreatePostWidth] = useState(0);
   const [userName, setUserName] = useState<string>('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const [userTagId, setUserTagId] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -308,20 +308,35 @@ export default function Homepage() {
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
-  const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
 
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [launchModalVisible, setLaunchModalVisible] = useState(false);
+
+  // Filter categories based on role: show only first 4 for Freelancers, all 8 for others.
+  const availableCategoryColumns = useMemo(() => {
+    if (userRole === 'FREELANCER') {
+      return [
+        [CATEGORIES[0], CATEGORIES[2]],
+        [CATEGORIES[1], CATEGORIES[3]],
+      ];
+    }
+    return [
+      [CATEGORIES[0], CATEGORIES[4]],
+      [CATEGORIES[1], CATEGORIES[5]],
+      [CATEGORIES[2], CATEGORIES[6]],
+      [CATEGORIES[3], CATEGORIES[7]],
+    ];
+  }, [userRole]);
 
   const colWidth = (width - 32 - 28) / 3;
   const snapInterval = colWidth * 2 + 14 * 2;
 
   const scrollXCat = useRef(new Animated.Value(0)).current;
   const activeCatPage = Animated.divide(scrollXCat, snapInterval);
+  const scrollX = useRef(new Animated.Value(0)).current;
 
-  const showAlert = useCallback((title: string, message: string) => {
+  const showAlert = (title: string, message: string) => {
     setAlertConfig({ visible: true, title, message });
-  }, []);
+  };
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -347,7 +362,6 @@ export default function Homepage() {
         const p = res.data.profile;
         setUserName(p.name || 'User');
         setUserAvatar(p.profilePicture || null);
-        setUserTagId(p.tagId || null);
       } else {
         setUserName('User');
         setUserAvatar(null);
@@ -384,39 +398,56 @@ export default function Homepage() {
     return `${diffDays}d ago`;
   };
 
-  const handleBookmark = useCallback(async (_postId: string) => {}, []);
+  const handleBookmark = async (postId: string) => { };
 
-  const handlePostTap = useCallback((postId: string, ownerId?: string) => {
+  const handleShare = async (postId: string) => {
+    try {
+      const url = `https://digitag.ai/post/${postId}`;
+      await Share.share({
+        message: `Check out this post on Digitag: ${url}`,
+        url: url,
+        title: 'Digitag Post',
+      });
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handlePostTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('view this profile')) return;
     router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
-  }, [isGuest, token, requireProfile, router]);
+  };
 
-  const handleMessage = useCallback(async (ownerId?: string) => {
+  const handleMessage = async (ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('message this user')) return;
     if (!ownerId) return;
+
     try {
       const res = await openConversationWith(token, ownerId);
       if (res.success && res.data?.id) {
         router.push(`/chat/${res.data.id}` as any);
       } else {
-        showAlert('Chat Error', res.error || 'Could not open conversation.');
+        showAlert('Chat Error', res.error || 'Could not open conversation. Make sure you have an active collaboration or try again.');
       }
-    } catch {
+    } catch (err) {
       showAlert('Error', 'Failed to open chat.');
     }
-  }, [isGuest, token, requireProfile, router, showAlert]);
+  };
 
-  const handleCall = useCallback((owner?: any) => {
+  const handleCall = (owner?: any) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('call this user')) return;
     const phone = owner?.mobileNumber || owner?.phone;
-    if (!phone) { showAlert('Contact Error', 'This user has not shared their mobile number.'); return; }
+    if (!phone) {
+      showAlert('Contact Error', 'This user has not shared their mobile number.');
+      return;
+    }
     Linking.openURL(`tel:${phone}`);
-  }, [isGuest, token, requireProfile, router, showAlert]);
+  };
 
-  const handleSeePortfolio = useCallback(async (ownerId?: string, ownerRole?: string) => {
+  const handleSeePortfolio = async (ownerId?: string, ownerRole?: string) => {
     setSelectedPortfolioLink(null);
     setPortfolioLoading(true);
     setPortfolioModalVisible(true);
@@ -430,53 +461,25 @@ export default function Homepage() {
         const res = await getCreatorById(ownerId, token);
         profileData = res.success ? res.data : null;
       }
-      setSelectedPortfolioLink(profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null);
-    } catch {
+      const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
+      setSelectedPortfolioLink(link);
+    } catch (e) {
       setSelectedPortfolioLink(null);
     } finally {
       setPortfolioLoading(false);
     }
-  }, [token]);
+  };
 
-  const handleShare = useCallback(async (postId: string) => {
-    try {
-      const url = `https://digitag.ai/post/${postId}`;
-      await Share.share({ message: `Check out this post on Digitag: ${url}`, url, title: 'Digitag Post' });
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
-  }, []);
-
-  const handleCollab = useCallback(async (postId: string, ownerId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('send a collaboration request')) return;
-    if (!ownerId) return;
-    if (collabSentIds.has(postId)) { showAlert('Already Sent', 'You already sent a collaboration request for this post.'); return; }
-    try {
-      const res = await sendCollaboration(token, { receiverId: ownerId, postId });
-      if (res.success) {
-        setCollabSentIds(prev => new Set(prev).add(postId));
-        showAlert('Request Sent!', 'Your collaboration request has been sent.');
-      } else {
-        showAlert('Request Failed', (res as any).error || 'Could not send collaboration request.');
-      }
-    } catch {
-      showAlert('Error', 'Something went wrong. Please try again.');
-    }
-  }, [isGuest, token, requireProfile, router, collabSentIds, showAlert]);
-
-  const CARD_WIDTH = 250;
-  const SPACING = 10;
-  const ITEM_SIZE = CARD_WIDTH + SPACING;
-
-  const cards = useMemo(() => posts.map(post => {
+  const cards = posts.map(post => {
     const owner = post.owner || {};
     const name = getOwnerName(owner);
     const pic = owner.profilePicture || null;
-    const roleLabel = owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User';
+    const roleLabel = owner.role
+      ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase()
+      : 'User';
     return {
       id: post.id,
-      owner,
+      owner: owner,
       ownerId: owner.id as string | undefined,
       ownerRole: owner.role as string | undefined,
       bannerUri: post.imageUrl || FALLBACK_BANNER,
@@ -490,7 +493,21 @@ export default function Homepage() {
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
     };
-  }), [posts]);
+  });
+
+  const CARD_WIDTH = 250;
+  const SPACING = 10;
+  const ITEM_SIZE = CARD_WIDTH + SPACING;
+
+  const carouselData = React.useMemo(() =>
+    Array(20).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` })),
+    [cards]
+  );
+
+  const carouselOffsets = React.useMemo(() =>
+    carouselData.map((_, i) => i * ITEM_SIZE),
+    [carouselData, ITEM_SIZE]
+  );
 
   return (
     <View style={styles.root}>
@@ -511,7 +528,7 @@ export default function Homepage() {
             height={432}
             autoPlay={true}
             data={CAROUSEL_DATA}
-            scrollAnimationDuration={600}
+            scrollAnimationDuration={1000}
             onSnapToItem={(index) => setCurrentSlide(index)}
             renderItem={({ item }) => (
               <View style={{ flex: 1 }}>
@@ -534,25 +551,9 @@ export default function Homepage() {
                     <Text style={styles.heroDesc}>{item.desc1}</Text>
                     <Text style={styles.heroDesc}>{item.desc2}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
-                    {isGuest && (
-                      <TouchableOpacity
-                        style={[styles.contactBtn, { backgroundColor: item.gradient[1], marginTop: 0 }]}
-                        activeOpacity={0.8}
-                        onPress={() => router.push('/role-selection')}
-                      >
-                        <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Signup</Text>
-                      </TouchableOpacity>
-                    )}
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      onPress={() => setLaunchModalVisible(true)}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                    >
-                      <Text style={styles.creatorCommunityText}>Creator Community</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#fff" style={{ opacity: 0.9 }} />
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1] }]} activeOpacity={0.8}>
+                    <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -566,9 +567,9 @@ export default function Homepage() {
 
           {/* ══════════════ FLOATING HEADER ══════════════ */}
           <View style={[styles.headerWrapper, { paddingTop: insets.top + 10 }]}>
-            <View style={styles.floatingHeader}>
+            <BlurView intensity={5} tint="light" style={styles.floatingHeader}>
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.12)', 'rgba(255,255,255,0.06)']}
+                colors={['rgba(255, 255, 255, 0.1)', 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
@@ -584,23 +585,17 @@ export default function Homepage() {
                   )}
                 </View>
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.headerName}>
-                    Hi, {isProfileCompleted ? userName : (userRole ? userRole.charAt(0) + userRole.slice(1).toLowerCase() : 'there')} 👋
-                  </Text>
-                  {userTagId && (
-                    <Text style={styles.headerTag}>
-                      tag: <Text style={{ fontWeight: '600', color: '#fff' }}>{userTagId}</Text>
-                    </Text>
-                  )}
+                  <Text style={styles.headerName}>{userName}</Text>
+                  <Text style={styles.headerTag}>Fashion <Text style={{ fontWeight: '600', color: '#fff' }}>tag: 45600hyd</Text></Text>
                 </View>
               </View>
-            </View>
+            </BlurView>
 
             <View style={styles.headerRightIcons}>
               <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/analytics' as any)}>
                 <Ionicons name="stats-chart" size={16} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.navigate('/notifications' as any)}>
+              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/notifications' as any)}>
                 <Ionicons name="notifications-outline" size={16} color="#fff" />
                 {pendingCount > 0 && (
                   <View style={[styles.badge, { backgroundColor: theme.primary }]}>
@@ -615,11 +610,11 @@ export default function Homepage() {
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
           {/* ══════════════ FREELANCERS BY CATEGORY ══════════════ */}
           <View style={{ marginBottom: 20 }}>
-            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole ?? undefined} />
+            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole} />
           </View>
           <View style={styles.catCarouselContainer}>
             <Animated.FlatList
-              data={categoryColumns}
+              data={availableCategoryColumns}
               horizontal
               showsHorizontalScrollIndicator={false}
               snapToInterval={snapInterval}
@@ -635,7 +630,7 @@ export default function Homepage() {
                   {colItems.map((cat) => {
                     const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
                     return (
-                      <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.label.replace('\n', ' ') } } as any)}>
+                      <TouchableOpacity key={cat.id} style={styles.catGridItem}>
                         <LinearGradient
                           colors={CAT_BORDER_COLORS[globalIdx] as [string, string]}
                           start={{ x: 0, y: 0 }}
@@ -686,7 +681,7 @@ export default function Homepage() {
 
         {/* ══════════════ RECENT UPDATES ══════════════ */}
         <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
-          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole ?? undefined} />
+          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
         </View>
 
         {loading ? (
@@ -695,21 +690,41 @@ export default function Homepage() {
           <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
         ) : (
           <LinearGradient
-            colors={['transparent', theme.soft, theme.soft, 'transparent']}
+            colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', 'transparent']}
             locations={[0, 0.3, 0.7, 1]}
             style={{ paddingVertical: 50 }}
           >
-            <Carousel
-              loop
-              width={ITEM_SIZE}
-              height={370}
-              data={cards}
-              style={{ width }}
-              scrollAnimationDuration={400}
-              renderItem={({ item, animationValue }: any) => (
+            <Animated.FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={ITEM_SIZE}
+              snapToOffsets={carouselOffsets}
+              decelerationRate="fast"
+              snapToAlignment="center"
+              disableIntervalMomentum={true}
+              scrollEventThrottle={16}
+              windowSize={21}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              removeClippedSubviews={false}
+              contentContainerStyle={{ paddingHorizontal: (width - ITEM_SIZE) / 2 }}
+              data={carouselData}
+              keyExtractor={(item: any) => item._loopId}
+              getItemLayout={(_, index) => ({
+                length: ITEM_SIZE,
+                offset: ITEM_SIZE * index,
+                index,
+              })}
+              initialScrollIndex={cards.length > 0 ? cards.length * 10 : 0}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: true }
+              )}
+              renderItem={({ item, index }) => (
                 <CarouselCard
                   item={item}
-                  animationValue={animationValue}
+                  index={index}
+                  scrollX={scrollX}
                   ITEM_SIZE={ITEM_SIZE}
                   CARD_WIDTH={CARD_WIDTH}
                   handlePostTap={handlePostTap}
@@ -718,9 +733,6 @@ export default function Homepage() {
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
-                  handleCollab={handleCollab}
-                  collabSentIds={collabSentIds}
-                  viewerTheme={theme}
                 />
               )}
             />
@@ -729,7 +741,7 @@ export default function Homepage() {
 
         <View style={{ paddingHorizontal: 16 }}>
           <TouchableOpacity 
-            style={[styles.exploreNowBtn, { backgroundColor: theme.primary }]} 
+            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]} 
             onPress={() => router.push('/explore')}
           >
             <Text style={styles.exploreNowBtnText}>Explore now</Text>
@@ -738,7 +750,7 @@ export default function Homepage() {
           {/* ══════════════ CREATE POST ══════════════ */}
           <View style={{ marginTop: 20, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole ?? undefined} />
+              <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
               <Image
                 source={imgStars}
                 style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
@@ -748,7 +760,7 @@ export default function Homepage() {
             <TouchableOpacity
               style={styles.createPostCard}
               activeOpacity={0.8}
-              onPress={() => { if (!requireProfile('create a post')) return; router.push('/create-post' as any); }}
+              onPress={() => router.push('/create-post' as any)}
               onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
             >
               {createPostWidth > 0 && (
@@ -887,12 +899,7 @@ export default function Homepage() {
         title={alertConfig.title}
         message={alertConfig.message}
         onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
-        role={userRole}
-      />
-
-      <LaunchingSoonModal
-        visible={launchModalVisible}
-        onClose={() => setLaunchModalVisible(false)}
+        role={userRole as any}
       />
     </View>
   );
@@ -998,21 +1005,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   contactBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 99,
     alignSelf: 'flex-start',
+    marginTop: 20,
+
   },
   contactBtnText: {
     color: '#fff',
     fontSize: 14,
     fontFamily: 'Inter_500Medium',
-  },
-  creatorCommunityText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Inter_500Medium',
-    opacity: 0.9,
+
   },
   paginationContainer: {
     position: 'absolute',

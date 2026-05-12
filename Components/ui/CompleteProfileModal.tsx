@@ -15,8 +15,8 @@ import {
 
 const { width } = Dimensions.get('window');
 
-const creatorImg = require('../../assets/images/creator.png');
-const freelancerImg = require('../../assets/images/freelancer.png');
+const creatorImg = require('../../assets/images/creator.webp');
+const freelancerImg = require('../../assets/images/freelancer.webp');
 const starsImg = require('../../assets/categories/stars.gif');
 
 interface Props {

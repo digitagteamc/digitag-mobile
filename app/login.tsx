@@ -219,12 +219,12 @@ export default function LoginScreen() {
                         {/* Logo Mark Images with Animation */}
                         <View className="flex-row justify-center items-center h-[160px]">
                             <Animated.Image
-                                source={require('../assets/images/logo1.png')}
+                                source={require('../assets/images/logo1.webp')}
                                 style={[{ width: 60, height: 100 }, logo1AnimatedStyle]}
                                 resizeMode="contain"
                             />
                             <Animated.Image
-                                source={require('../assets/images/logo2.png')}
+                                source={require('../assets/images/logo2.webp')}
                                 style={[{ width: 80, height: 130, marginLeft: -15, marginTop: 30 }, logo2AnimatedStyle]}
                                 resizeMode="contain"
                             />

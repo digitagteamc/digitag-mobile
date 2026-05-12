@@ -764,7 +764,7 @@ export const editMessage = async (token: string, conversationId: string, message
 };
 
 /** POST /uploads/image — upload an image for use in chat messages. */
-export const uploadMessageImage = async (token: string, asset: { uri: string; mimeType?: string; fileName?: string }) => {
+export const uploadMessageImage = async (token: string, asset: { uri: string; mimeType?: string | null; fileName?: string | null }) => {
     try {
         const formData = new FormData();
         formData.append('image', {

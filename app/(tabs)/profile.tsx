@@ -277,7 +277,7 @@ export default function ProfileScreen() {
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[200px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
-            <Image source={require('../../assets/images/profile_hero_bg.jpg')} className="absolute inset-0 w-full h-full opacity-40" resizeMode="cover" />
+            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-full opacity-40" resizeMode="cover" />
             {/* Dark overlay matching index.tsx gradient */}
             <LinearGradient colors={['rgba(0,0,0,0.2)', '#000']} className="absolute inset-0" />
 

@@ -7,8 +7,8 @@ import { useAuth, Role } from '../context/AuthContext';
 import { switchRole } from '../services/userService';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const creatorImg = require('../assets/images/creator.png');
-const freelancerImg = require('../assets/images/freelancer.png');
+const creatorImg = require('../assets/images/creator.webp');
+const freelancerImg = require('../assets/images/freelancer.webp');
 
 export default function ChooseRoleScreen() {
     const router = useRouter();
