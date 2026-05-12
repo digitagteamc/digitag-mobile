@@ -1,19 +1,10 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
-import { getCreatorById, getFeed, getFreelancerById, sendCollaboration } from '@/services/userService';
+import { getCreatorById, getFeed, getFreelancerById } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedScrollHandler, 
-  useAnimatedProps, 
-  withSpring,
-  useDerivedValue,
-  FadeIn,
-  FadeOut
-} from 'react-native-reanimated';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +21,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, {
+  useAnimatedProps,
+  useAnimatedScrollHandler,
+  useSharedValue
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 
@@ -47,69 +43,69 @@ const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
 const imgProperty = require('../../assets/categories/property-rental.gif');
 
 const CATEGORIES = [
-  { 
-    id: 'photography', 
-    label: 'Photography', 
-    image: imgPhotography, 
-    heroLine1: 'Every', heroLine2: 'Moment', heroLine3: '', 
-    heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.', 
-    gradient: ['#7C3AED', '#4C1D95'] as [string, string] 
+  {
+    id: 'photography',
+    label: 'Photography',
+    image: imgPhotography,
+    heroLine1: 'Every', heroLine2: 'Moment', heroLine3: '',
+    heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.',
+    gradient: ['#7C3AED', '#4C1D95'] as [string, string]
   },
-  { 
-    id: 'editor', 
-    label: 'Editor', 
-    image: imgEditor, 
-    heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '', 
-    heroDesc: 'High-quality edits designed to make your content stand out across every platform.', 
-    gradient: ['#9D174D', '#831843'] as [string, string] 
+  {
+    id: 'editor',
+    label: 'Editor',
+    image: imgEditor,
+    heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '',
+    heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
+    gradient: ['#9D174D', '#831843'] as [string, string]
   },
-  { 
-    id: 'videography', 
-    label: 'Videography', 
-    image: imgVideography, 
-    heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '', 
-    heroDesc: 'High-quality edits designed to make your content stand out across every platform.', 
-    gradient: ['#0284C7', '#075985'] as [string, string] 
+  {
+    id: 'videography',
+    label: 'Videography',
+    image: imgVideography,
+    heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '',
+    heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
+    gradient: ['#0284C7', '#075985'] as [string, string]
   },
-  { 
-    id: 'growth', 
-    label: 'Growth\nSpecialist', 
-    image: imgGrowth, 
-    heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '', 
-    heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.', 
-    gradient: ['#4338CA', '#3730A3'] as [string, string] 
+  {
+    id: 'growth',
+    label: 'Growth\nSpecialist',
+    image: imgGrowth,
+    heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '',
+    heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.',
+    gradient: ['#4338CA', '#3730A3'] as [string, string]
   },
-  { 
-    id: 'script', 
-    label: 'Script Writers', 
-    image: imgScriptWriters, 
-    heroLine1: 'Crafting Compelling', heroLine2: 'Narratives', heroLine3: '', 
-    heroDesc: 'Engaging scripts that drive your story forward and captivate your audience.', 
-    gradient: ['#1E3A8A', '#1E40AF'] as [string, string] 
+  {
+    id: 'script',
+    label: 'Script Writers',
+    image: imgScriptWriters,
+    heroLine1: 'Crafting Compelling', heroLine2: 'Narratives', heroLine3: '',
+    heroDesc: 'Engaging scripts that drive your story forward and captivate your audience.',
+    gradient: ['#1E3A8A', '#1E40AF'] as [string, string]
   },
-  { 
-    id: 'styling', 
-    label: 'Styling &\nmakeup', 
-    image: imgStyling, 
-    heroLine1: 'The Art of', heroLine2: 'Visual Style', heroLine3: '', 
-    heroDesc: 'Professional makeup and styling to ensure you look your best on camera.', 
-    gradient: ['#7E22CE', '#6B21A8'] as [string, string] 
+  {
+    id: 'styling',
+    label: 'Styling &\nmakeup',
+    image: imgStyling,
+    heroLine1: 'The Art of', heroLine2: 'Visual Style', heroLine3: '',
+    heroDesc: 'Professional makeup and styling to ensure you look your best on camera.',
+    gradient: ['#7E22CE', '#6B21A8'] as [string, string]
   },
-  { 
-    id: 'fashion', 
-    label: 'Fashion\nDesigners', 
-    image: imgFashion, 
-    heroLine1: 'Innovative', heroLine2: 'Fashion Design', heroLine3: '', 
-    heroDesc: 'Custom clothing and style consulting for high-impact visual productions.', 
-    gradient: ['#BE185D', '#9D174D'] as [string, string] 
+  {
+    id: 'fashion',
+    label: 'Fashion\nDesigners',
+    image: imgFashion,
+    heroLine1: 'Innovative', heroLine2: 'Fashion Design', heroLine3: '',
+    heroDesc: 'Custom clothing and style consulting for high-impact visual productions.',
+    gradient: ['#BE185D', '#9D174D'] as [string, string]
   },
-  { 
-    id: 'property', 
-    label: 'Property\nRental', 
-    image: imgProperty, 
-    heroLine1: 'Perfect Locations', heroLine2: 'for Your Vision', heroLine3: '', 
-    heroDesc: 'Premium properties and studio spaces for rent for any type of production.', 
-    gradient: ['#B45309', '#92400E'] as [string, string] 
+  {
+    id: 'property',
+    label: 'Property\nRental',
+    image: imgProperty,
+    heroLine1: 'Perfect Locations', heroLine2: 'for Your Vision', heroLine3: '',
+    heroDesc: 'Premium properties and studio spaces for rent for any type of production.',
+    gradient: ['#B45309', '#92400E'] as [string, string]
   },
 ];
 
@@ -159,13 +155,19 @@ const FolderBackground = ({ scrollX, activeIndexAnim, width, height, tabWidth, t
   const h = height;
 
   const animatedProps = useAnimatedProps(() => {
-    const tx = Math.max(0, activeIndexAnim.value * 108 - scrollX.value); // 100 inactive width + 8 gap
+    const tx = 8 + activeIndexAnim.value * 120 - scrollX.value; // 8 padding + (120 width + 0 gap)
 
     const d = `
       M 0 ${th + r}
-      ${tx > 0 ? `
+      ${tx > r ? `
         A ${r} ${r} 0 0 1 ${r} ${th}
         L ${tx - r} ${th}
+        A ${r} ${r} 0 0 0 ${tx} ${th - r}
+        L ${tx} ${r}
+        A ${r} ${r} 0 0 1 ${tx + r} 0
+      ` : tx > 0 ? `
+        M 0 ${th + (r - tx)}
+        A ${tx} ${tx} 0 0 1 ${tx} ${th}
         A ${r} ${r} 0 0 0 ${tx} ${th - r}
         L ${tx} ${r}
         A ${r} ${r} 0 0 1 ${tx + r} 0
@@ -173,16 +175,18 @@ const FolderBackground = ({ scrollX, activeIndexAnim, width, height, tabWidth, t
         M 0 ${r}
         A ${r} ${r} 0 0 1 ${r} 0
       `}
-      L ${tx + tw - r} 0
-      A ${r} ${r} 0 0 1 ${tx + tw} ${r}
-      L ${tx + tw} ${th - r}
-      A ${r} ${r} 0 0 0 ${tx + tw + r} ${th}
-      L ${w - r} ${th}
-      A ${r} ${r} 0 0 1 ${w} ${th + r}
-      L ${w} ${h - r}
-      A ${r} ${r} 0 0 1 ${w - r} ${h}
-      L ${r} ${h}
-      A ${r} ${r} 0 0 1 0 ${h - r}
+      L ${Math.min(w - r, tx + tw - r)} 0
+      ${tx + tw < w - r ? `
+        A ${r} ${r} 0 0 1 ${tx + tw} ${r}
+        L ${tx + tw} ${th - r}
+        A ${r} ${r} 0 0 0 ${tx + tw + r} ${th}
+        L ${w - r} ${th}
+        A ${r} ${r} 0 0 1 ${w} ${th + r}
+      ` : `
+        A ${r} ${r} 0 0 1 ${w} ${r}
+      `}
+      L ${w} ${h}
+      L 0 ${h}
       Z
     `;
     return { d };
@@ -281,8 +285,8 @@ export default function ExploreTab() {
 
   // Constants for tab layout
   const TAB_ACTIVE_WIDTH = 120;
-  const TAB_INACTIVE_WIDTH = 100;
-  const TAB_GAP = 8;
+  const TAB_INACTIVE_WIDTH = 120;
+  const TAB_GAP = 0;
 
   const allCards = posts.map((p) => {
     const owner = p.owner || {};
@@ -305,7 +309,7 @@ export default function ExploreTab() {
 
   const cards = allCards.filter((item) => {
     if (!activeCategory) return true;
-    return true; 
+    return true;
   });
 
   const handleCardTap = (postId: string, ownerId?: string) => {
@@ -366,12 +370,12 @@ export default function ExploreTab() {
         {/* ═══ HERO SECTION (FOLDER STYLE) ═══ */}
         <View style={s.heroWrapper}>
           <FolderBackground
-            width={width - 32}
-            height={340}
+            width={width}
+            height={380}
             scrollX={scrollX}
             activeIndexAnim={activeIndexAnim}
             tabWidth={TAB_ACTIVE_WIDTH}
-            tabHeight={95}
+            tabHeight={100}
             colors={activeCat.gradient}
           />
 
@@ -600,16 +604,16 @@ const s = StyleSheet.create({
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Hero wrapper
-  heroWrapper: { marginHorizontal: 16, marginBottom: 20, position: 'relative', height: 340 },
-  catTabsContainer: { flexDirection: 'row', zIndex: 1, height: 95 },
-  catTabsRow: { gap: 8, paddingHorizontal: 0 },
+  heroWrapper: { marginHorizontal: 0, marginBottom: 0, position: 'relative', height: 380 },
+  catTabsContainer: { flexDirection: 'row', zIndex: 1, height: 100 },
+  catTabsRow: { gap: 0, paddingHorizontal: 8 },
 
   catTabActive: {
-    alignItems: 'center', justifyContent: 'center', height: 95,
+    alignItems: 'center', justifyContent: 'center', height: 100,
   },
   catTabInactive: {
-    alignItems: 'center', justifyContent: 'center', height: 75,
-    backgroundColor: '#1A1A1A', borderRadius: 24, alignSelf: 'flex-end',
+    alignItems: 'center', justifyContent: 'center', height: 100,
+    backgroundColor: '#1A1A1A', borderTopLeftRadius: 24, borderTopRightRadius: 24, alignSelf: 'flex-end',
   },
   catTabImg: { width: 28, height: 28, marginBottom: 4 },
   catTabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
