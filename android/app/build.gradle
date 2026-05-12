@@ -110,24 +110,25 @@ android {
         }
     }
 
-    buildTypes {
-        debug {
-            signingConfig signingConfigs.debug
-        }
-
-        release {
-            signingConfig signingConfigs.debug
-
-            minifyEnabled true
-            shrinkResources true
-
-            proguardFiles getDefaultProguardFile(
-                "proguard-android-optimize.txt"
-            ), "proguard-rules.pro"
-
-            crunchPngs true
-        }
+   buildTypes {
+    debug {
+        signingConfig signingConfigs.debug
     }
+
+    release {
+        // REMOVE debug signing
+        // EAS will automatically use release signing
+
+        minifyEnabled true
+        shrinkResources true
+
+        proguardFiles getDefaultProguardFile(
+            "proguard-android-optimize.txt"
+        ), "proguard-rules.pro"
+
+        crunchPngs true
+    }
+}
 
     packagingOptions {
     jniLibs {
