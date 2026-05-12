@@ -24,6 +24,7 @@ import {
 import Animated, {
   useAnimatedProps,
   useAnimatedScrollHandler,
+  useAnimatedStyle,
   useSharedValue
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -158,35 +159,33 @@ const FolderBackground = ({ scrollX, activeIndexAnim, width, height, tabWidth, t
     const tx = 8 + activeIndexAnim.value * 120 - scrollX.value; // 8 padding + (120 width + 0 gap)
 
     const d = `
-      M 0 ${th + r}
+      M 0 ${th}
       ${tx > r ? `
-        A ${r} ${r} 0 0 1 ${r} ${th}
         L ${tx - r} ${th}
         A ${r} ${r} 0 0 0 ${tx} ${th - r}
         L ${tx} ${r}
         A ${r} ${r} 0 0 1 ${tx + r} 0
       ` : tx > 0 ? `
-        M 0 ${th + (r - tx)}
-        A ${tx} ${tx} 0 0 1 ${tx} ${th}
+        M 0 ${th}
         A ${r} ${r} 0 0 0 ${tx} ${th - r}
         L ${tx} ${r}
         A ${r} ${r} 0 0 1 ${tx + r} 0
       ` : `
-        M 0 ${r}
-        A ${r} ${r} 0 0 1 ${r} 0
+        M 0 0
       `}
       L ${Math.min(w - r, tx + tw - r)} 0
       ${tx + tw < w - r ? `
         A ${r} ${r} 0 0 1 ${tx + tw} ${r}
         L ${tx + tw} ${th - r}
         A ${r} ${r} 0 0 0 ${tx + tw + r} ${th}
-        L ${w - r} ${th}
-        A ${r} ${r} 0 0 1 ${w} ${th + r}
+        L ${w} ${th}
       ` : `
-        A ${r} ${r} 0 0 1 ${w} ${r}
+        A ${r} ${r} 0 0 1 ${w} 0
       `}
-      L ${w} ${h}
-      L 0 ${h}
+      L ${w} ${h - r}
+      A ${r} ${r} 0 0 1 ${w - r} ${h}
+      L ${r} ${h}
+      A ${r} ${r} 0 0 1 0 ${h - r}
       Z
     `;
     return { d };
@@ -211,7 +210,7 @@ const FolderBackground = ({ scrollX, activeIndexAnim, width, height, tabWidth, t
   );
 };
 
-const Sparkles = () => {
+const Sparkles = ({ count = 6 }: { count?: number }) => {
   return (
     <>
       <Ionicons name="sparkles" size={16} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', top: 40, left: 80 }} />
@@ -220,6 +219,7 @@ const Sparkles = () => {
       <View style={[s.sparkleDot, { width: 4, height: 4, top: 100, left: 120, opacity: 0.3 }]} />
       <View style={[s.sparkleDot, { width: 2, height: 2, top: 150, right: 100, opacity: 0.2 }]} />
       <View style={[s.sparkleDot, { width: 3, height: 3, bottom: 80, right: 150, opacity: 0.4 }]} />
+      {/* If we wanted more, we could map here, but for now we'll just fix the type */}
     </>
   );
 };
@@ -276,6 +276,10 @@ export default function ExploreTab() {
       scrollX.value = event.contentOffset.x;
     },
   });
+
+  const contentLayerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -scrollX.value }]
+  }));
 
   useEffect(() => {
     if (!availableCategories.find(c => c.id === activeCategory)) {
@@ -369,58 +373,79 @@ export default function ExploreTab() {
 
         {/* ═══ HERO SECTION (FOLDER STYLE) ═══ */}
         <View style={s.heroWrapper}>
-          <FolderBackground
-            width={width}
-            height={380}
-            scrollX={scrollX}
-            activeIndexAnim={activeIndexAnim}
-            tabWidth={TAB_ACTIVE_WIDTH}
-            tabHeight={100}
-            colors={activeCat.gradient}
-          />
-
-          {/* ═══ CATEGORY TABS ═══ */}
-          <View style={s.catTabsContainer}>
+          {/* Layer 1: Tab Backgrounds (ScrollView) - zIndex: 1 */}
+          <View style={[s.catTabsContainer, { zIndex: 1 }]}>
             <Animated.ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.catTabsRow}
               onScroll={scrollHandler}
               scrollEventThrottle={16}
+              contentContainerStyle={s.catTabsRow}
             >
               {availableCategories.map((cat) => {
                 const isActive = cat.id === activeCategory;
                 return (
                   <TouchableOpacity
                     key={cat.id}
-                    activeOpacity={0.8}
                     onPress={() => setActiveCategory(cat.id)}
+                    activeOpacity={0.8}
                     style={[
-                      isActive ? s.catTabActive : s.catTabInactive,
-                      { width: isActive ? TAB_ACTIVE_WIDTH : TAB_INACTIVE_WIDTH }
+                      { width: 120, height: 100 },
+                      isActive ? s.catTabActive : s.catTabInactive
                     ]}
                   >
-                    <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
-                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel}>{cat.label}</Text>
+                    {/* Just an empty container to hold the background color */}
+                    <View style={StyleSheet.absoluteFill} />
                   </TouchableOpacity>
                 );
               })}
             </Animated.ScrollView>
           </View>
 
-          {/* ═══ HERO CONTENT ═══ */}
-          <View style={s.heroContentContainer}>
-            <View style={s.heroContent}>
-              <View style={s.heroTextArea}>
-                <Text style={s.heroTitle}>
-                  <Text style={s.heroTitleBold}>{activeCat.heroLine1} </Text>
-                  <Text style={s.heroTitleFaded}>{activeCat.heroLine2}{"\n"}</Text>
-                  <Text style={s.heroTitleFaded}>{activeCat.heroLine3}</Text>
-                </Text>
-                <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
+          {/* Layer 2: Folder Background SVG - zIndex: 2 */}
+          <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} pointerEvents="none">
+            <FolderBackground
+              width={width}
+              height={380}
+              scrollX={scrollX}
+              activeIndexAnim={activeIndexAnim}
+              tabWidth={TAB_ACTIVE_WIDTH}
+              tabHeight={100}
+              colors={activeCat.gradient}
+            />
+          </View>
+
+          {/* Layer 3: Tab Content (Icons & Labels) - zIndex: 3 */}
+          <View style={[StyleSheet.absoluteFill, { height: 100, zIndex: 3 }]} pointerEvents="none">
+            <Animated.View style={[{ flexDirection: 'row', paddingHorizontal: 8 }, contentLayerStyle]}>
+              {availableCategories.map((cat) => {
+                const isActive = cat.id === activeCategory;
+                return (
+                  <View key={`content-${cat.id}`} style={{ width: 120, alignItems: 'center', justifyContent: 'center', height: 100 }}>
+                    <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
+                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel}>{cat.label}</Text>
+                  </View>
+                );
+              })}
+            </Animated.View>
+          </View>
+
+          {/* Layer 4: Hero Content Overlays (Text & Character) - zIndex: 4 */}
+          <View style={[StyleSheet.absoluteFill, { top: 100, zIndex: 4 }]} pointerEvents="none">
+            <View style={s.heroContentContainer}>
+              <View style={s.heroContent}>
+                <View style={s.heroTextArea}>
+                  <Text style={s.heroTitle}>
+                    <Text style={s.heroTitleBold}>{activeCat.heroLine1} </Text>
+                    <Text style={s.heroTitleFaded}>{activeCat.heroLine2}{"\n"}</Text>
+                    <Text style={s.heroTitleFaded}>{activeCat.heroLine3}</Text>
+                  </Text>
+                  <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
+                </View>
+                <Image source={activeCat.image} style={s.heroCharacter} resizeMode="contain" />
               </View>
-              <Image source={activeCat.image} style={s.heroCharacter} resizeMode="contain" />
             </View>
+            <Sparkles count={12} />
           </View>
         </View>
         <View style={s.filterRow}>
@@ -600,7 +625,7 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
 
   // Header
-  header: { paddingHorizontal: 16, paddingBottom: 20 },
+  header: { paddingHorizontal: 16, paddingBottom: 20, },
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Hero wrapper
@@ -610,6 +635,7 @@ const s = StyleSheet.create({
 
   catTabActive: {
     alignItems: 'center', justifyContent: 'center', height: 100,
+    borderRadius: 24,
   },
   catTabInactive: {
     alignItems: 'center', justifyContent: 'center', height: 100,
@@ -634,7 +660,7 @@ const s = StyleSheet.create({
   heroCharacter: { flex: 1, height: 160, marginLeft: 10 },
 
   // Filters
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 16, marginBottom: 24 },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 8, gap: 16, marginBottom: 24, marginTop: 40 },
   filterCol: { flex: 1 },
   filterLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
   filterDropdown: {
@@ -650,7 +676,7 @@ const s = StyleSheet.create({
   emptySubtitle: { color: '#888', fontSize: 13, textAlign: 'center', lineHeight: 20 },
 
   // Feed
-  feedList: { paddingHorizontal: 16, gap: 16 },
+  feedList: { paddingHorizontal: 8, gap: 20 },
 
   // Card
   card: {
