@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, sendCollaboration } from '@/services/userService';
-import { getRoleTheme } from '@/theme/useRoleTheme';
+import { getRoleTheme, useRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +14,9 @@ import Animated, {
   FadeIn,
   FadeOut
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
