@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "App",
-    "slug": "App",
+    "name": "DigiTag",
+    "slug": "digitag",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -50,8 +50,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "d58be13e-2bc0-499d-9999-f8bfdbd00d9e"
+        "projectId": "fa9d77f2-ba02-427d-8d4f-66a28ea8d185"
       }
-    }
+    },
+    "owner": "elevaitelabs"
   }
 }

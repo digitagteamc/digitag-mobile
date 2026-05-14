@@ -42,3 +42,6 @@ app-example
 # generated native folders
 /ios
 
+# large files
+/release
+eas-preview.tar.gz

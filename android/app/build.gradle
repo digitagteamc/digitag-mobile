@@ -116,7 +116,7 @@ android {
     }
 
     release {
-        // REMOVE debug signing
+        signingConfig signingConfigs.debug
         // EAS will automatically use release signing
 
         minifyEnabled true
