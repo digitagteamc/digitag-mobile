@@ -1,8 +1,9 @@
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,7 +25,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
-import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
@@ -42,7 +42,9 @@ const imgProperty = require('../../assets/categories/property-rental.gif');
 const imgVoiceOver = require('../../assets/categories/VoiceOver.gif');
 const imgStars = require('../../assets/categories/stars.gif');
 const imgPost = require('../../assets/categories/post.gif');
+const imgNewPost = require('../../assets/categories/newpost.gif');
 const imgLove = require('../../assets/categories/love.gif');
+const imgLoveOrange = require('../../assets/categories/love-orange.gif');
 const imgTargetNew = require('../../assets/categories/targetnew.png');
 const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
@@ -243,7 +245,7 @@ const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -280,66 +282,71 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
           opacity,
         }}
       >
-        <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
-          {/* Top Opacity Overlay */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
-          />
-          {/* Top Absolute Row */}
-          <View style={styles.figmaCardTopRow}>
-            <View style={styles.figmaCardRoleBadge}>
-              <Text style={styles.figmaCardRoleText}>{item.role}</Text>
-            </View>
-            <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
-              <Ionicons name="bookmark-outline" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Avatar */}
-          <View style={styles.figmaCardAvatarWrap}>
-            {item.isInitials ? (
-              <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
+        <LinearGradient
+          colors={['transparent', userRole === 'FREELANCER' ? '#ed2a91' : '#f26930']}
+          style={styles.figmaCardGradientBorder}
+        >
+          <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
+            {/* Top Opacity Overlay */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
+            />
+            {/* Top Absolute Row */}
+            <View style={styles.figmaCardTopRow}>
+              <View style={styles.figmaCardRoleBadge}>
+                <Text style={styles.figmaCardRoleText}>{item.role}</Text>
               </View>
-            ) : (
-              <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
-            )}
-          </View>
-
-          {/* Name & Details */}
-          <Text style={styles.figmaCardName}>{item.name}</Text>
-
-          <View style={styles.figmaCardMetaRow}>
-            <TouchableOpacity
-              style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
-              onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
-            >
-              <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
-            </TouchableOpacity>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-              <Ionicons name="time-outline" size={14} color="#a1a2a4" />
-              <Text style={styles.figmaCardTimeText}> {item.time}</Text>
+              <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
+                <Ionicons name="bookmark-outline" size={18} color="#fff" />
+              </TouchableOpacity>
             </View>
-          </View>
 
-          <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
+            {/* Avatar */}
+            <View style={styles.figmaCardAvatarWrap}>
+              {item.isInitials ? (
+                <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
+                </View>
+              ) : (
+                <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
+              )}
+            </View>
 
-          <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
+            {/* Name & Details */}
+            <Text style={styles.figmaCardName}>{item.name}</Text>
 
-          {/* Bottom Actions */}
-          <View style={styles.figmaCardActions}>
-            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
-              <Ionicons name="call-outline" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
-              <Ionicons name="share-social-outline" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+            <View style={styles.figmaCardMetaRow}>
+              <TouchableOpacity
+                style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
+                onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
+              >
+                <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                <Ionicons name="time-outline" size={14} color="#a1a2a4" />
+                <Text style={styles.figmaCardTimeText}> {item.time}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
+
+            <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
+
+            {/* Bottom Actions */}
+            <View style={styles.figmaCardActions}>
+              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
+                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
+                <Ionicons name="call-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
+                <Ionicons name="share-social-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
       </Animated.View>
     </View>
   );
@@ -675,10 +682,10 @@ export default function Homepage() {
 
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
           {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
-          <View style={{ marginBottom: 20 }}>
+          <View style={{ marginBottom: 10 }}>
             <GradientHeading text={userRole === 'FREELANCER' ? "Creators by category" : "Freelancers by category"} style={styles.gradientHeadingText} role={userRole} />
           </View>
-          <View style={[styles.catCarouselContainer, { height: userRole === 'FREELANCER' ? 300 : 230 }]}>
+          <View style={[styles.catCarouselContainer, { height: userRole === 'FREELANCER' ? 280 : 230 }]}>
             <Animated.FlatList
               data={availableCategoryColumns}
               horizontal
@@ -697,45 +704,45 @@ export default function Homepage() {
                   <View style={[styles.catColumn, { gap: isFreelancer ? 14 : 14, width: isFreelancer ? 100 : 110 }]}>
                     {colItems.map((cat) => {
                       const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
-                    const borderColors = isFreelancer 
-                      ? ['#343434', '#343434'] 
-                      : (CAT_BORDER_COLORS[globalIdx] || ['#333', '#333']);
+                      const borderColors = isFreelancer
+                        ? ['#343434', '#343434']
+                        : (CAT_BORDER_COLORS[globalIdx] || ['#333', '#333']);
 
-                    if (isFreelancer) {
-                      return (
-                        <View key={cat.id} style={styles.catGridItemFreelancer}>
-                          <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer}>
-                            {cat.image ? (
-                              <Image source={cat.image} style={styles.catGridImgFreelancer} resizeMode="contain" />
-                            ) : (
-                              <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
-                            )}
-                          </TouchableOpacity>
-                          <Text style={styles.catGridLabelFreelancer} numberOfLines={2}>{cat.label}</Text>
-                        </View>
-                      );
-                    }
-
-                    return (
-                      <TouchableOpacity key={cat.id} style={styles.catGridItem}>
-                        <LinearGradient
-                          colors={borderColors as [string, string]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.catGradientBorder}
-                        >
-                          <View style={styles.catGridCard}>
-                            {cat.image ? (
-                              <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
-                            ) : (
-                              <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
-                            )}
-                            <Text style={styles.catGridLabel}>{cat.label}</Text>
+                      if (isFreelancer) {
+                        return (
+                          <View key={cat.id} style={styles.catGridItemFreelancer}>
+                            <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer}>
+                              {cat.image ? (
+                                <Image source={cat.image} style={styles.catGridImgFreelancer} resizeMode="contain" />
+                              ) : (
+                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
+                              )}
+                            </TouchableOpacity>
+                            <Text style={styles.catGridLabelFreelancer} numberOfLines={2}>{cat.label}</Text>
                           </View>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    );
-                  })}
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity key={cat.id} style={styles.catGridItem}>
+                          <LinearGradient
+                            colors={borderColors as [string, string]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.catGradientBorder}
+                          >
+                            <View style={styles.catGridCard}>
+                              {cat.image ? (
+                                <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
+                              ) : (
+                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
+                              )}
+                              <Text style={styles.catGridLabel}>{cat.label}</Text>
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 );
               }}
@@ -769,20 +776,19 @@ export default function Homepage() {
           </View>
         </View>
 
-        {/* ══════════════ RECENT UPDATES ══════════════ */}
-        <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
+        <View style={{ marginTop: 20, marginBottom: 10, paddingHorizontal: 16 }}>
           <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
         </View>
 
         {loading ? (
           <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
         ) : cards.length === 0 ? (
-          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
+          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
         ) : (
           <LinearGradient
             colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', 'transparent']}
             locations={[0, 0.3, 0.7, 1]}
-            style={{ paddingVertical: 50 }}
+            style={{ paddingVertical: 10 }}
           >
             <Animated.FlatList
               horizontal
@@ -823,6 +829,7 @@ export default function Homepage() {
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
+                  userRole={userRole}
                 />
               )}
             />
@@ -830,8 +837,8 @@ export default function Homepage() {
         )}
 
         <View style={{ paddingHorizontal: 16 }}>
-          <TouchableOpacity 
-            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]} 
+          <TouchableOpacity
+            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             onPress={() => router.push('/explore')}
           >
             <Text style={styles.exploreNowBtnText}>Explore now</Text>
@@ -878,7 +885,7 @@ export default function Homepage() {
                 </View>
               )}
               <View style={styles.createPostIconWrap}>
-                <Image source={imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
+                <Image source={userRole === 'FREELANCER' ? imgNewPost : imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
               </View>
               <Text style={styles.createPostText}>Create your first post</Text>
             </TouchableOpacity>
@@ -911,7 +918,7 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          <Image source={imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          <Image source={userRole === 'FREELANCER' ? imgLoveOrange : imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
             <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>
@@ -929,12 +936,12 @@ export default function Homepage() {
           <Text style={styles.bharatSubtitle}>This is only the start</Text>
 
           <View style={styles.bharatBtnRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             >
               <Text style={styles.bharatPinkBtnText}>The TeamC_official</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             >
               <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
@@ -1203,8 +1210,8 @@ const styles = StyleSheet.create({
     height: 135,
   },
   catGridCardFreelancer: {
-    width: 100,
-    height: 96,
+    width: 96,
+    height: 90,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#343434',
@@ -1234,16 +1241,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: (width - 280) / 2,
     gap: 16,
   },
-  figmaCard: {
+  figmaCardGradientBorder: {
     width: 251,
     height: 350,
-    backgroundColor: '#1E1E24',
     borderRadius: 24,
+    padding: 0.4,
+  },
+  figmaCard: {
+    width: 250.2,
+    height: 349.2,
+    backgroundColor: '#111111',
+    borderRadius: 23.6,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   figmaCardTopRow: {
     width: '100%',
@@ -1349,7 +1360,7 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     paddingVertical: 16,
     alignItems: 'center',
-
+    marginTop: 15,
     marginBottom: 40,
     marginHorizontal: 32,
     shadowColor: '#000',

@@ -9,10 +9,13 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Image,
+  InteractionManager,
   Linking,
   Modal,
   RefreshControl,
+  ScrollView,
   Share,
   StatusBar,
   StyleSheet,
@@ -22,8 +25,6 @@ import {
 } from 'react-native';
 import Animated, {
   cancelAnimation,
-  useAnimatedProps,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -31,12 +32,43 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle, Defs, Ellipse, FeGaussianBlur, Filter, G, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
+
+const ActiveTabGlow = React.memo(() => (
+  <View style={{ position: 'absolute', top: -30, alignSelf: 'center', zIndex: -1, opacity: 0.3 }}>
+    <Svg width="93" height="49" viewBox="0 0 93 49">
+      <Defs>
+        <Filter id="glow" x="0" y="0" width="93" height="69" filterUnits="userSpaceOnUse">
+          <FeGaussianBlur stdDeviation="35.5" />
+        </Filter>
+      </Defs>
+      <G filter="url(#glow)">
+        <Ellipse cx="46.5" cy="24.5" rx="25.5" ry="3.5" fill="white" />
+      </G>
+    </Svg>
+  </View>
+));
+
+const FolderShoulder = React.memo(({ colors, isLeft }: { colors: string[], isLeft: boolean }) => (
+  <View style={{ position: 'absolute', bottom: 0, [isLeft ? 'left' : 'right']: -20, width: 20, height: 20, zIndex: -1 }}>
+    <Svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute' }}>
+      <Path
+        d={isLeft ? "M 20 20 L 20 0 A 20 20 0 0 1 0 20 Z" : "M 0 20 L 20 20 A 20 20 0 0 1 0 0 Z"}
+        fill={colors[1]}
+      />
+    </Svg>
+    <Svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute', opacity: 0.6 }}>
+      <Path
+        d={isLeft ? "M 20 20 L 20 0 A 20 20 0 0 1 0 20 Z" : "M 0 20 L 20 20 A 20 20 0 0 1 0 0 Z"}
+        fill={colors[0]}
+      />
+    </Svg>
+  </View>
+));
 
 const imgPhotography = require('../../assets/tabs-gifs/tab1.gif');
 const imgEditor = require('../../assets/tabs-gifs/editorgif.gif');
@@ -56,7 +88,45 @@ const imgFashionicon = require('../../assets/tabs_icons/fashionicon.webp');
 const imgPropertyicon = require('../../assets/tabs_icons/Propertyicon.webp');
 const imgVoiceicon = require('../../assets/tabs_icons/VoiceOvericon.webp');
 
+const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
+const f_tech = require('../../assets/freelancer-icons/Tech.webp');
+const f_education = require('../../assets/freelancer-icons/Education.webp');
+const f_photography = require('../../assets/freelancer-icons/Photography.webp');
+const f_food = require('../../assets/freelancer-icons/Food.webp');
+const f_health = require('../../assets/freelancer-icons/Health.webp');
+const f_automotive = require('../../assets/freelancer-icons/Automotive.webp');
+const f_comedy = require('../../assets/freelancer-icons/Comedy-Memes.webp');
+const f_entertainment = require('../../assets/freelancer-icons/Entertainment.webp');
+const f_gaming = require('../../assets/freelancer-icons/Gaming-Anime.webp');
+const f_learning = require('../../assets/freelancer-icons/Learning.webp');
+const f_news = require('../../assets/freelancer-icons/News-Media-Magazins.webp');
+const f_sports = require('../../assets/freelancer-icons/Sports.webp');
+const f_travel = require('../../assets/freelancer-icons/Travel.webp');
+const f_beauty = require('../../assets/freelancer-icons/Beauty.webp');
+const f_fitness = require('../../assets/freelancer-icons/Fitness.webp');
+const f_fashion = require('../../assets/freelancer-icons/Fashion.webp');
+const f_finance = require('../../assets/freelancer-icons/Finance-Investments.webp');
+const f_arts = require('../../assets/freelancer-icons/Arts.webp');
+const f_business = require('../../assets/freelancer-icons/Business-Startups.webp');
+const f_community = require('../../assets/freelancer-icons/communitypages.webp');
+const f_family = require('../../assets/freelancer-icons/FamilyPets.webp');
+const f_home = require('../../assets/freelancer-icons/modern-house.webp');
+const f_law = require('../../assets/freelancer-icons/Law-Rights-Activism.webp');
+const f_pets = require('../../assets/freelancer-icons/pets-animals.webp');
+const f_politics = require('../../assets/freelancer-icons/Politics.webp');
+
+
 const CATEGORIES = [
+  {
+    id: 'all',
+    label: 'All',
+    icon: imgGrowthicon,
+    image: imgPhotography,
+    heroLine1: 'Explore Our Creators', heroLine2: ' ', heroLine3: '',
+    heroDesc: 'Discover top talents and connect with the right people for any project.',
+    gradient: ['#3b82f6', '#2563eb'] as [string, string],
+    charStyle: { right: -45, bottom: -65, width: 230, height: 230, }
+  },
   {
     id: 'photography',
     label: 'Photography',
@@ -235,63 +305,45 @@ const FadeText = React.memo(({
     </View>
   );
 });
-const FolderBackground = React.memo(({ scrollX, activeIndexAnim, width, height, tabWidth, tabHeight, radius, colors }: any) => {
-  const r = radius || 24;
-  const tw = tabWidth || 110;
-  const th = tabHeight || 90;
-  const w = width;
-  const h = height;
+const SimpleFolderBg = React.memo(({ width: w, height: h, tabWidth, activeIndex, colors }: {
+  width: number; height: number; tabWidth: number; activeIndex: number; colors: [string, string];
+}) => {
+  const r = 24;
+  const tw = tabWidth;
+  const th = 100;
+  const tx = 8 + activeIndex * tabWidth;
 
-  const animatedProps = useAnimatedProps(() => {
-    const tx = 8 + activeIndexAnim.value * 120 - scrollX.value; // 8 padding + (120 width + 0 gap)
-
-    const d = `
-      M 0 ${th}
-      ${tx > r ? `
-        L ${tx - r} ${th}
-        A ${r} ${r} 0 0 0 ${tx} ${th - r}
-        L ${tx} ${r}
-        A ${r} ${r} 0 0 1 ${tx + r} 0
-      ` : tx > 0 ? `
-        M 0 ${th}
-        A ${r} ${r} 0 0 1 ${tx} ${th - r}
-        L ${r} ${h}
-        A ${r} ${r} 0 0 1 ${tx + r} 0
-      ` : `
-        M 0 0
-      `}
-      L ${Math.min(w - r, tx + tw - r)} 0
-      ${tx + tw < w - r ? `
-        A ${r} ${r} 0 0 1 ${tx + tw} ${r}
-        L ${tx + tw} ${th - r}
-        A ${r} ${r} 0 0 0 ${tx + tw + r} ${th}
-        L ${w} ${th}
-      ` : `
-        A ${r} ${r} 0 0 1 ${w} 0
-      `}
-      L ${w} ${h - r}
-      A ${r} ${r} 0 0 1 ${w - r} ${h}
-      L ${r} ${h}
-      A ${r} ${r} 0 0 1 0 ${h - r}
-      Z
-    `;
-    return { d };
-  });
+  const d = `
+    M 0 ${th}
+    ${tx > r ? `L ${tx - r} ${th} A ${r} ${r} 0 0 0 ${tx} ${th - r} L ${tx} ${r} A ${r} ${r} 0 0 1 ${tx + r} 0`
+      : `A ${r} ${r} 0 0 1 ${tx + r} 0`}
+    L ${Math.min(w - r, tx + tw - r)} 0
+    ${tx + tw < w - r
+      ? `A ${r} ${r} 0 0 1 ${tx + tw} ${r} L ${tx + tw} ${th - r} A ${r} ${r} 0 0 0 ${tx + tw + r} ${th} L ${w} ${th}`
+      : `A ${r} ${r} 0 0 1 ${w} 0`}
+    L ${w} ${h - r}
+    A ${r} ${r} 0 0 1 ${w - r} ${h}
+    L ${r} ${h}
+    A ${r} ${r} 0 0 1 0 ${h - r}
+    Z
+  `;
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, width: w, height: h }}>
       <Svg width={w} height={h}>
         <Defs>
-          <SvgGradient id="folderGrad" x1="0" y1="0" x2="0.5" y2="1">
+          <SvgGradient id="simpleFolderGrad" x1="0" y1="0" x2="0.5" y2="1">
             <Stop offset="0" stopColor={colors[0]} />
             <Stop offset="1" stopColor={colors[1]} />
           </SvgGradient>
         </Defs>
-        <AnimatedPath animatedProps={animatedProps} fill="url(#folderGrad)" />
+        <Path d={d} fill="url(#simpleFolderGrad)" />
       </Svg>
     </View>
   );
 });
+
+
 
 const BlinkingStar = React.memo(({ style, size = 20, delay = 0 }: { style?: any, size?: number, delay?: number }) => {
   const opacity = useSharedValue(0);
@@ -396,6 +448,15 @@ export default function ExploreTab() {
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
 
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const interaction = InteractionManager.runAfterInteractions(() => {
+      setIsReady(true);
+    });
+    return () => interaction.cancel();
+  }, []);
+
   const toggleExpand = (id: string) => {
     setExpandedPosts(prev => {
       const next = new Set(prev);
@@ -418,35 +479,21 @@ export default function ExploreTab() {
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
   const availableCategories = useMemo(() => {
-    // If user is a Freelancer, only show the first 4 categories
-    if (userRole === 'FREELANCER') {
-      return CATEGORIES.slice(0, 4);
-    }
-    // Otherwise (Creator or Guest), show all
     return CATEGORIES;
   }, [userRole]);
 
   const activeCat = availableCategories.find(c => c.id === activeCategory) || availableCategories[0];
   const activeIndex = Math.max(0, availableCategories.findIndex(c => c.id === activeCategory));
 
-  const scrollX = useSharedValue(0);
-  const activeIndexAnim = useSharedValue(activeIndex);
+  const tabScrollRef = React.useRef<ScrollView>(null);
 
+  // When activeCategory changes, scroll the tab into view
   useEffect(() => {
-    // Instantly snap the folder tab when the active index changes (no effects)
-    activeIndexAnim.value = activeIndex;
-  }, [activeIndex]);
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      // Synchronize the scroll position with zero-lag on the UI thread
-      scrollX.value = event.contentOffset.x;
-    },
-  });
-
-  const contentLayerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: -scrollX.value }]
-  }));
+    const idx = availableCategories.findIndex(c => c.id === activeCategory);
+    if (idx >= 0 && tabScrollRef.current) {
+      tabScrollRef.current.scrollTo({ x: idx * 112, animated: true });
+    }
+  }, [activeCategory, availableCategories]);
 
   useEffect(() => {
     if (!availableCategories.find(c => c.id === activeCategory)) {
@@ -455,9 +502,7 @@ export default function ExploreTab() {
   }, [availableCategories]);
 
   // Constants for tab layout
-  const TAB_ACTIVE_WIDTH = 120;
-  const TAB_INACTIVE_WIDTH = 120;
-  const TAB_GAP = 0;
+  const TAB_WIDTH = 108;
 
   const allCards = useMemo(() => posts.map((p) => {
     const owner = p.owner || {};
@@ -479,7 +524,7 @@ export default function ExploreTab() {
   }), [posts]);
 
   const cards = useMemo(() => allCards.filter((item) => {
-    if (!activeCategory) return true;
+    if (!activeCategory || activeCategory === 'all') return true;
     // You might want to actually filter by category here in the future
     return true;
   }), [allCards, activeCategory]);
@@ -517,19 +562,19 @@ export default function ExploreTab() {
     if (!requireProfile('message this user')) return;
   };
 
-  const handleCall = () => {
+  const handleCall = useCallback(() => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('call this user')) return;
     Alert.alert('Contact', 'Phone contact is not available yet.');
-  };
+  }, [isGuest, token, router, requireProfile]);
 
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = useCallback(({ item }: { item: any }) => {
     const postTheme = getRoleTheme(item.ownerRole);
     const accent = postTheme.primary;
     return (
       <View style={{ paddingHorizontal: 8, paddingBottom: 20 }}>
         <TouchableOpacity
-          style={[s.card, { borderColor: accent + '5D', borderTopColor: accent, borderTopWidth: 0, borderLeftWidth: 0.5, borderRightWidth:0.5 }]}
+          style={[s.card, { borderColor: accent + '5D', borderTopColor: accent, borderTopWidth: 0, borderLeftWidth: 0.5, borderRightWidth: 0.5 }]}
           activeOpacity={0.10}
           onPress={() => handleCardTap(item.id, item.ownerId)}
         >
@@ -633,9 +678,9 @@ export default function ExploreTab() {
         </TouchableOpacity>
       </View>
     );
-  };
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleShare]);
 
-  const listHeader = (
+  const listHeader = useMemo(() => (
     <View>
       {/* ═══ HEADER ═══ */}
       <View style={[s.header, { paddingTop: insets.top + 16 }]}>
@@ -643,15 +688,24 @@ export default function ExploreTab() {
         <Text style={s.subtitle}>Discover & Connect with the right people</Text>
       </View>
 
-      {/* ═══ HERO SECTION (FOLDER STYLE) ═══ */}
+      {/* ═══ HERO SECTION ═══ */}
       <View style={s.heroWrapper}>
-        <View style={[s.catTabsContainer, { zIndex: 1 }]}>
-          <Animated.ScrollView
+
+        {/* Gradient background — ONLY behind hero content, below the tab row */}
+        <View style={[StyleSheet.absoluteFill, { top: 106, backgroundColor: activeCat.gradient[1] }]} />
+        <View style={[StyleSheet.absoluteFill, { top: 106, opacity: 0.6, backgroundColor: activeCat.gradient[0] }]} />
+
+        {/* ── TABS: pinned to the very top ── */}
+        <View style={s.tabRowWrapper}>
+          <ScrollView
+            ref={tabScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
-            onScroll={scrollHandler}
-            scrollEventThrottle={16}
             contentContainerStyle={s.catTabsRow}
+            scrollEventThrottle={16}
+            snapToInterval={TAB_WIDTH}
+            decelerationRate="fast"
+            nestedScrollEnabled={true}
           >
             {availableCategories.map((cat) => {
               const isActive = cat.id === activeCategory;
@@ -660,54 +714,55 @@ export default function ExploreTab() {
                   key={cat.id}
                   onPress={() => setActiveCategory(cat.id)}
                   activeOpacity={0.8}
-                  style={[{ width: 120, height: 100 }, isActive ? s.catTabActive : s.catTabInactive]}
+                  style={[s.catTab, isActive ? [s.catTabActive, { zIndex: 10 }] : s.catTabInactive]}
                 >
-                  <View style={StyleSheet.absoluteFill} />
+                  {/* Active tab: hero gradient bg + shoulders */}
+                  {isActive && (
+                    <View style={[StyleSheet.absoluteFill, { zIndex: 5 }]}>
+                      {/* Inner wrapper for border radius clipping */}
+                      <View style={[StyleSheet.absoluteFill, {
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        overflow: 'hidden',
+                      }]}>
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[1] }]} />
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[0], opacity: 0.6 }]} />
+                      </View>
+                      {/* Shoulders placed outside the overflow: hidden wrapper */}
+                      <FolderShoulder colors={activeCat.gradient} isLeft={true} />
+                      <FolderShoulder colors={activeCat.gradient} isLeft={false} />
+                    </View>
+                  )}
+                  {/* Inactive tab: #999 base + rgba(51,51,51,0.40) overlay */}
+                  {!isActive && (
+                    <View style={[StyleSheet.absoluteFill, {
+                      backgroundColor: 'rgba(51, 51, 51, 0.40)',
+                      borderTopLeftRadius: 20,
+                      borderTopRightRadius: 20,
+                    }]} />
+                  )}
+                  {/* Icon and Text wrapped to stay above absolute backgrounds */}
+                  <View style={{ zIndex: 10, alignItems: 'center' }}>
+                    {isActive && <ActiveTabGlow />}
+                    <Image source={cat.icon} style={isActive ? s.catTabImgActive : s.catTabImg} resizeMode="contain" />
+                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel} numberOfLines={2}>{cat.label}</Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
-          </Animated.ScrollView>
+          </ScrollView>
         </View>
 
-        <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} pointerEvents="none">
-          <FolderBackground
-            width={width}
-            height={380}
-            scrollX={scrollX}
-            activeIndexAnim={activeIndexAnim}
-            tabWidth={TAB_ACTIVE_WIDTH}
-            tabHeight={100}
-            colors={activeCat.gradient}
-          />
-        </View>
-
-        <View style={[StyleSheet.absoluteFill, { height: 100, zIndex: 3 }]} pointerEvents="none">
-          <Animated.View style={[{ flexDirection: 'row', paddingHorizontal: 8 }, contentLayerStyle]}>
-            {availableCategories.map((cat) => {
-              const isActive = cat.id === activeCategory;
-              return (
-                <View key={`content-${cat.id}`} style={{ width: 120, alignItems: 'center', justifyContent: 'center', height: 100 }}>
-                  <Image source={cat.icon} style={isActive ? s.catTabImgActive : s.catTabImg} resizeMode="contain" />
-                  <Text style={isActive ? s.catTabLabelActive : s.catTabLabel}>{cat.label}</Text>
-                </View>
-              );
-            })}
-          </Animated.View>
-        </View>
-
-        <View style={[StyleSheet.absoluteFill, { top: 100, zIndex: 4 }]} pointerEvents="none">
-          <View style={s.heroContentContainer}>
-            <View style={s.heroContent}>
-              <View style={s.heroTextArea}>
-                <View>
-                  <FadeText text={activeCat.heroLine1} style={[s.heroTitle, s.heroTitleBold]} />
-                  <FadeText text={activeCat.heroLine2} style={[s.heroTitle, s.heroTitleFaded]} />
-                  {!!activeCat.heroLine3 && <FadeText text={activeCat.heroLine3} style={[s.heroTitle, s.heroTitleFaded]} />}
-                </View>
-                <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
-              </View>
-              <Image source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle]} resizeMode="contain" />
+        {/* ── HERO CONTENT: sits below the tab row ── */}
+        <View style={s.heroContentContainer} pointerEvents="none">
+          <View style={s.heroContent}>
+            <View style={s.heroTextArea}>
+              <FadeText text={activeCat.heroLine1} style={[s.heroTitle, s.heroTitleBold]} />
+              <FadeText text={activeCat.heroLine2} style={[s.heroTitle, s.heroTitleFaded]} />
+              {!!activeCat.heroLine3 && <FadeText text={activeCat.heroLine3} style={[s.heroTitle, s.heroTitleFaded]} />}
+              <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
             </View>
+            <Image source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle]} resizeMode="contain" />
           </View>
           <Sparkles count={12} />
         </View>
@@ -730,12 +785,20 @@ export default function ExploreTab() {
         </View>
       </View>
     </View>
-  );
+  ), [insets.top, activeCat, availableCategories, activeCategory]);
+
+  if (!isReady) {
+    return (
+      <View style={[s.root, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#ED2A91" />
+      </View>
+    );
+  }
 
   return (
     <View style={s.root}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
-      <Animated.FlatList
+      <FlatList
         data={cards}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
@@ -752,6 +815,11 @@ export default function ExploreTab() {
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={5}
+        initialNumToRender={4}
+        windowSize={7}
+        nestedScrollEnabled={true}
       />
 
 
@@ -799,32 +867,69 @@ const s = StyleSheet.create({
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Hero wrapper
-  heroWrapper: { marginHorizontal: 0, marginBottom: 0, position: 'relative', height: 380, overflow: 'hidden' },
-  catTabsContainer: { flexDirection: 'row', zIndex: 1, height: 100 },
-  catTabsRow: { gap: 0, paddingHorizontal: 8 },
+  heroWrapper: {
+    height: 403,
+    overflow: 'hidden',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  // Wraps the horizontal scroll, pinned at the very top of heroWrapper
+  tabRowWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 106,
+    zIndex: 2,
+    backgroundColor: '#000',
+  },
+  catTabsRow: { gap: 0, paddingHorizontal: 8, alignItems: 'flex-end', flexGrow: 1 },
 
+  catTab: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 6,
+    paddingTop: 14,
+    paddingBottom: 8,
+  },
   catTabActive: {
-    alignItems: 'center', justifyContent: 'center', height: 100,
-    borderRadius: 24,
+    width: 108,
+    height: 106,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   catTabInactive: {
-    alignItems: 'center', justifyContent: 'center', height: 100,
-    backgroundColor: '#1A1A1A', borderTopLeftRadius: 24, borderTopRightRadius: 24, alignSelf: 'flex-end',
+    width: 108,
+    height: 106,
+    backgroundColor: 'rgba(19, 19, 19, 1)',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
-  catTabImg: { width: 28, height: 28, marginBottom: 4 },
-  catTabImgActive: { width: 49, height: 40, marginBottom: 4 },
-  catTabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
+  catTabImg: { width: 29, height: 30, marginBottom: 5, marginTop: 10 },
+  catTabImgActive: { width: 49, height: 40, marginBottom: 6, marginTop: 10 },
+  catTabLabel: { color: '#fff', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
   catTabLabelActive: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
 
-  heroContentContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 40, paddingBottom: 24 },
+  heroContentContainer: {
+    position: 'absolute',
+    top: 106,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+    overflow: 'hidden',
+    zIndex: 1,
+  },
 
   // Sparkle dots
   sparkleDot: { position: 'absolute', borderRadius: 99, backgroundColor: '#fff' },
 
   // Hero text + character
   heroContent: { flex: 1, position: 'relative' },
-  heroTextArea: { maxWidth: '65%' },
-  heroTitle: { fontSize: 20, lineHeight: 30, fontFamily: 'Poppins_700Bold' },
+  heroTextArea: { maxWidth: '65%', marginTop: 35, },
+  heroTitle: { fontSize: 20, lineHeight: 30, fontFamily: 'Poppins_700Bold',  },
   heroTitleBold: { color: '#fff' },
   heroTitleFaded: { color: 'rgba(255,255,255,0.8)' },
   heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 20, marginTop: 10 },
@@ -885,7 +990,7 @@ const s = StyleSheet.create({
   infoCell: { flex: 1 },
   infoLabel: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
   infoLabelSub: { color: '#d1d2d4' },
-  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 ,  fontSize: 11, fontFamily: 'Poppins_400Regular'},
+  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'Poppins_400Regular' },
   infoValue: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular' },
 
   // Bottom
