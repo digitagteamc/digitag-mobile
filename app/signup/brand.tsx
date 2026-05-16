@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 
 export default function BrandSignup() {
@@ -46,121 +47,127 @@ export default function BrandSignup() {
     };
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1, backgroundColor: '#0b0b14' }}
-        >
-            <ScrollView contentContainerStyle={styles.container}>
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Text style={styles.backText}>← Back</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.title}>Brand Registration</Text>
-                    <Text style={styles.subtitle}>
-                        Submit your brand's KYC details. Our admin team will verify and approve your account.
-                    </Text>
-                </View>
-
-                {/* Phone badge */}
-                <View style={styles.phoneBadge}>
-                    <Text style={styles.phoneBadgeLabel}>📱 VERIFIED NUMBER</Text>
-                    <Text style={styles.phoneBadgeValue}>{userPhone}</Text>
-                </View>
-
-                {/* Form */}
-                <View style={styles.formSection}>
-
-                    {/* Required Fields */}
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Required Details</Text>
-                    </View>
-
-                    <Text style={styles.label}>Brand / Company Name *</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="My Awesome Brand Pvt. Ltd."
-                        placeholderTextColor="#555"
-                        value={form.brandName}
-                        onChangeText={v => setForm(f => ({ ...f, brandName: v }))}
-                    />
-
-                    <Text style={styles.label}>PAN Number *</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="ABCDE1234F"
-                        placeholderTextColor="#555"
-                        autoCapitalize="characters"
-                        maxLength={10}
-                        value={form.pan}
-                        onChangeText={v => setForm(f => ({ ...f, pan: v.toUpperCase() }))}
-                    />
-
-                    {/* Optional Fields */}
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Optional Details</Text>
-                    </View>
-
-                    <Text style={styles.label}>GSTIN</Text>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="22AAAAA0000A1Z5"
-                        placeholderTextColor="#555"
-                        autoCapitalize="characters"
-                        maxLength={15}
-                        value={form.gstin}
-                        onChangeText={v => setForm(f => ({ ...f, gstin: v.toUpperCase() }))}
-                    />
-
-                    <View style={styles.row}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>City</Text>
-                            <TextInput
-                                style={[styles.input, { marginRight: 8 }]}
-                                placeholder="Mumbai"
-                                placeholderTextColor="#555"
-                                value={form.city}
-                                onChangeText={v => setForm(f => ({ ...f, city: v }))}
-                            />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>State</Text>
-                            <TextInput
-                                style={[styles.input, { marginLeft: 8 }]}
-                                placeholder="Maharashtra"
-                                placeholderTextColor="#555"
-                                value={form.state}
-                                onChangeText={v => setForm(f => ({ ...f, state: v }))}
-                            />
-                        </View>
-                    </View>
-                </View>
-
-                {/* Submit */}
-                <TouchableOpacity
-                    style={[styles.button, loading && styles.buttonDisabled]}
-                    onPress={handleSubmit}
-                    disabled={loading}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#0b0b14' }} edges={['top', 'left', 'right', 'bottom']}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+                <ScrollView 
+                    contentContainerStyle={styles.container}
+                    keyboardShouldPersistTaps="handled"
                 >
-                    {loading
-                        ? <ActivityIndicator color="#fff" />
-                        : <Text style={styles.buttonText}>{getLoadingText()}</Text>
-                    }
-                </TouchableOpacity>
-                {loading && (
-                    <Text style={styles.loadingHint}>{getLoadingText()}</Text>
-                )}
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                            <Text style={styles.backText}>← Back</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.title}>Brand Registration</Text>
+                        <Text style={styles.subtitle}>
+                            Submit your brand's KYC details. Our admin team will verify and approve your account.
+                        </Text>
+                    </View>
 
-                <Text style={styles.note}>
-                    Your information is secure and will only be reviewed by our admin team.
-                </Text>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                    {/* Phone badge */}
+                    <View style={styles.phoneBadge}>
+                        <Text style={styles.phoneBadgeLabel}>📱 VERIFIED NUMBER</Text>
+                        <Text style={styles.phoneBadgeValue}>{userPhone}</Text>
+                    </View>
+
+                    {/* Form */}
+                    <View style={styles.formSection}>
+
+                        {/* Required Fields */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Required Details</Text>
+                        </View>
+
+                        <Text style={styles.label}>Brand / Company Name *</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="My Awesome Brand Pvt. Ltd."
+                            placeholderTextColor="#555"
+                            value={form.brandName}
+                            onChangeText={v => setForm(f => ({ ...f, brandName: v }))}
+                        />
+
+                        <Text style={styles.label}>PAN Number *</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="ABCDE1234F"
+                            placeholderTextColor="#555"
+                            autoCapitalize="characters"
+                            maxLength={10}
+                            value={form.pan}
+                            onChangeText={v => setForm(f => ({ ...f, pan: v.toUpperCase() }))}
+                        />
+
+                        {/* Optional Fields */}
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Optional Details</Text>
+                        </View>
+
+                        <Text style={styles.label}>GSTIN</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="22AAAAA0000A1Z5"
+                            placeholderTextColor="#555"
+                            autoCapitalize="characters"
+                            maxLength={15}
+                            value={form.gstin}
+                            onChangeText={v => setForm(f => ({ ...f, gstin: v.toUpperCase() }))}
+                        />
+
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>City</Text>
+                                <TextInput
+                                    style={[styles.input, { marginRight: 8 }]}
+                                    placeholder="Mumbai"
+                                    placeholderTextColor="#555"
+                                    value={form.city}
+                                    onChangeText={v => setForm(f => ({ ...f, city: v }))}
+                                />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.label}>State</Text>
+                                <TextInput
+                                    style={[styles.input, { marginLeft: 8 }]}
+                                    placeholder="Maharashtra"
+                                    placeholderTextColor="#555"
+                                    value={form.state}
+                                    onChangeText={v => setForm(f => ({ ...f, state: v }))}
+                                />
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Submit */}
+                    <TouchableOpacity
+                        style={[styles.button, loading && styles.buttonDisabled]}
+                        onPress={handleSubmit}
+                        disabled={loading}
+                    >
+                        {loading
+                            ? <ActivityIndicator color="#fff" />
+                            : <Text style={styles.buttonText}>{getLoadingText()}</Text>
+                        }
+                    </TouchableOpacity>
+                    {loading && (
+                        <Text style={styles.loadingHint}>{getLoadingText()}</Text>
+                    )}
+
+                    <Text style={styles.note}>
+                        Your information is secure and will only be reviewed by our admin team.
+                    </Text>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flexGrow: 1, padding: 24, paddingBottom: 60 },
+    container: { flexGrow: 1, padding: 24, paddingBottom: 0 },
     header: { marginBottom: 28, marginTop: 50 },
     backBtn: { marginBottom: 16 },
     backText: { color: '#4f46e5', fontSize: 15 },
@@ -196,7 +203,7 @@ const styles = StyleSheet.create({
         padding: 17,
         borderRadius: 13,
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 0,
     },
     buttonDisabled: { opacity: 0.6 },
     buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },

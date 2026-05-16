@@ -563,7 +563,7 @@ export default function FreelancerSignup() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right', 'bottom']}>
             <LinearGradient colors={['#3B1F13', '#000000']} className="absolute inset-0 h-[33%]" />
 
             {/* Header */}
@@ -574,11 +574,16 @@ export default function FreelancerSignup() {
                 <Text className="text-white font-poppins-semibold text-lg ml-2">Complete Profile</Text>
             </View>
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                className="flex-1"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
                 <ScrollView
                     className="flex-1 px-6"
-                    contentContainerStyle={{ paddingBottom: 40 }}
+                    contentContainerStyle={{   }}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
                     {/* Progress Header */}
                     <View className="flex-row items-center gap-6 mt-8 mb-10">
@@ -696,10 +701,10 @@ export default function FreelancerSignup() {
                             <TouchableOpacity
                                 onPress={handleNext}
                                 disabled={!isStep1Valid}
-                                className={`h-[60px] rounded-full items-center justify-center mb-10 shadow-lg mt-8 ${isStep1Valid ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-2 mb-5 ${isStep1Valid ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
-                                <Text className={`font-poppins-bold text-lg ${isStep1Valid ? 'text-white' : 'text-[#F5F5F5]'}`}>Next</Text>
+                                <Text className={`font-poppins-bold text-lg  ${isStep1Valid ? 'text-white' : 'text-[#F5F5F5]'}`}>Next</Text>
                             </TouchableOpacity>
                         </>
                     ) : (
@@ -781,7 +786,7 @@ export default function FreelancerSignup() {
                             <TouchableOpacity
                                 onPress={handleSignup}
                                 disabled={!isStep2Valid || loading}
-                                className={`h-[60px] rounded-full items-center justify-center mb-10 shadow-lg mt-8 ${isStep2Valid && !loading ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep2Valid && !loading ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
                                 {loading ? (

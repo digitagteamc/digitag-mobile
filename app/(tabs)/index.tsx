@@ -640,13 +640,49 @@ export default function Homepage() {
 
           {/* ══════════════ FLOATING HEADER ══════════════ */}
           <View style={[styles.headerWrapper, { paddingTop: insets.top + 10 }]}>
-            <BlurView intensity={5} tint="light" style={styles.floatingHeader}>
-              <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'transparent']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-              />
+            <BlurView intensity={0} tint="dark" style={styles.floatingHeader}>
+            {/* Top Gloss */}
+<LinearGradient
+   colors={[
+    '#f4f4f5',
+    '#e7e8ea',
+    '#dfe6ee',
+    '#f8f8f8',
+  ]}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 1, y: 1 }}
+  style={StyleSheet.absoluteFillObject}
+/>
+<View
+  pointerEvents="none"
+  style={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+
+    borderRadius: 999,
+
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  }}
+/>
+<LinearGradient
+  colors={[
+    'rgba(255, 255, 255, 0.4)',
+    'transparent',
+  ]}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 1, y: 1 }}
+  style={{
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    
+    borderRadius: 999,
+  }}
+/>
               <View style={styles.floatingHeaderInner}>
                 <View style={styles.headerAvatarWrap}>
                   {userAvatar ? (
@@ -1024,28 +1060,55 @@ const styles = StyleSheet.create({
     zIndex: 10,
     marginTop: 15,
   },
-  floatingHeader: {
-    borderRadius: 99,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    alignSelf: 'flex-start',
-    overflow: 'hidden',
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+floatingHeader: {
+  borderRadius: 999,
+
+  paddingVertical: 8,
+  paddingHorizontal: 14,
+
+  overflow: 'hidden',
+
+  backgroundColor: 'transparent',
+
+  borderWidth: 1,
+
+  borderTopColor: 'rgba(255,255,255,0.12)',
+  borderLeftColor: 'rgba(255,255,255,0.18)',
+  borderRightColor: 'rgba(255,255,255,0.18)',
+  borderBottomColor: 'rgba(255,255,255,0.12)',
+
+  shadowColor: 'transparent',
+
+  shadowOffset: {
+    width: 0,
+    height: 0,
   },
+
+  shadowOpacity: 0.5,
+  shadowRadius: 20,
+
+  elevation: 2,
+},
   floatingHeaderInner: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerAvatarWrap: {
-    width: 36,
-    height: 36, // Back to square for a perfect circle
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ed2a91',
+ headerAvatarWrap: {
+  width: 38,
+  height: 38,
+  borderRadius: 19,
 
-  },
+  overflow: 'hidden',
+
+  borderWidth: 1.5,
+  borderColor: 'rgba(255,255,255,0.12)',
+
+  shadowColor: '#ed2a91',
+  shadowOpacity: 0.2,
+  shadowRadius: 10,
+
+  elevation: 6,
+},
   headerAvatar: {
     width: '100%',
     height: '100%',
@@ -1067,16 +1130,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  iconCircleDark: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+ iconCircleDark: {
+  width: 38,
+  height: 38,
+  borderRadius: 19,
+
+  backgroundColor: 'transparent',
+
+  borderWidth: 1,
+
+  borderTopColor: 'rgba(255,255,255,0.18)',
+  borderLeftColor: 'rgba(255,255,255,0.18)',
+  borderRightColor: 'rgba(255,255,255,0.18)',
+  borderBottomColor: 'rgba(255,255,255,0.12)',
+
+  justifyContent: 'center',
+  alignItems: 'center',
+
+  overflow: 'hidden',
+
+  shadowColor: 'transparent',
+  shadowOpacity: 0.2,
+  shadowRadius: 14,
+
+  elevation: 2,
+},
   badge: {
     position: 'absolute', top: -4, right: -4,
     minWidth: 16, height: 16, borderRadius: 8,

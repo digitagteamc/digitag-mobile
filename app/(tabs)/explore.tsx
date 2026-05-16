@@ -478,7 +478,60 @@ export default function ExploreTab() {
 
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
+const FREELANCER_CATEGORIES = [
+  { id: 'f1', label: 'Lifestyle &\nLiving', image: f_lifestyle },
+  { id: 'f2', label: 'Tech', image: f_tech },
+  { id: 'f3', label: 'Education', image: f_education },
+  { id: 'f4', label: 'Photography', image: f_photography },
+  { id: 'f5', label: 'Food', image: f_food },
+  { id: 'f6', label: 'Health', image: f_health },
+  { id: 'f7', label: 'Automotive', image: f_automotive },
+  { id: 'f8', label: 'Comedy &\nMemes', image: f_comedy },
+  { id: 'f9', label: 'Entertainment', image: f_entertainment },
+  { id: 'f10', label: 'Gaming &\nAnime', image: f_gaming },
+  { id: 'f11', label: 'Learning', image: f_learning },
+  { id: 'f12', label: 'News, Media\n& Magazins', image: f_news },
+  { id: 'f13', label: 'Sports', image: f_sports },
+  { id: 'f14', label: 'Travel', image: f_travel },
+  { id: 'f15', label: 'Beauty', image: f_beauty },
+  { id: 'f16', label: 'Fitness', image: f_fitness },
+  { id: 'f17', label: 'Fashion', image: f_fashion },
+  { id: 'f18', label: 'Finance &\nInvestments', image: f_finance },
+  { id: 'f19', label: 'Arts', image: f_arts },
+  { id: 'f20', label: 'Business &\nStartups', image: f_business },
+  { id: 'f21', label: 'Community\nPages', image: f_community },
+  { id: 'f22', label: 'Family, Kids\n& Pets', image: f_family },
+  { id: 'f23', label: 'Home &\nDecor', image: f_home },
+  { id: 'f24', label: 'Law, Rights\n& Activism', image: f_law },
+  { id: 'f25', label: 'Pets &\nAnimals', image: f_pets },
+  { id: 'f26', label: 'Politics', image: f_politics },
+];
+
   const availableCategories = useMemo(() => {
+    if (userRole === 'FREELANCER') {
+      return [
+        {
+          id: 'all',
+          label: 'All',
+          icon: imgGrowthicon,
+          image: imgPhotography,
+          heroLine1: 'Explore Our Freelancers', heroLine2: ' ', heroLine3: '',
+          heroDesc: 'Discover top talents and connect with the right people for any project.',
+          gradient: ['#f26930', '#c2410c'] as [string, string],
+          charStyle: { right: -45, bottom: -65, width: 230, height: 230, }
+        },
+        ...FREELANCER_CATEGORIES.map(fc => ({
+          ...fc,
+          icon: fc.image,
+          heroLine1: 'Explore',
+          heroLine2: fc.label.replace('\n', ' '),
+          heroLine3: '',
+          heroDesc: `Find the best talents in ${fc.label.replace('\n', ' ')}.`,
+          gradient: ['#f26930', '#c2410c'] as [string, string],
+          charStyle: { right: -20, bottom: -30, width: 180, height: 180, opacity: 0.9 }
+        }))
+      ];
+    }
     return CATEGORIES;
   }, [userRole]);
 

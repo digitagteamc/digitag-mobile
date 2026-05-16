@@ -23,8 +23,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import {
-    getMyCreatorProfile,
     getInstagramVerificationStatus,
+    getMyCreatorProfile,
     startInstagramVerification,
     submitCreatorApplication,
     updateCreatorProfile,
@@ -889,7 +889,7 @@ export default function CreatorSignup() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right', 'bottom']}>
             <LinearGradient colors={['#300A1F', '#000000']} className="absolute inset-0 h-[33%]" />
 
             {/* Header */}
@@ -901,13 +901,13 @@ export default function CreatorSignup() {
             </View>
 
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
                 style={{ flex: 1 }}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
             >
                 <ScrollView
                     className="flex-1 px-6"
-                    contentContainerStyle={{ paddingBottom: 100 }}
+                    contentContainerStyle={{ paddingBottom: 0 }}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag"
@@ -1024,7 +1024,7 @@ export default function CreatorSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                className="h-[60px] rounded-full items-center justify-center mb-10 shadow-lg mt-8 bg-[#F02C8C]"
+                                className="h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 bg-[#F02C8C]"
                                 activeOpacity={0.8}
                             >
                                 <Text className="font-poppins-bold text-lg text-white">Next</Text>
@@ -1087,7 +1087,7 @@ export default function CreatorSignup() {
                             <TouchableOpacity
                                 onPress={handleSignup}
                                 disabled={!isStep2Valid || loading}
-                                className={`h-[60px] rounded-full items-center justify-center mb-10 shadow-lg mt-8 ${isStep2Valid && !loading ? 'bg-[#F02C8C] shadow-pink-500/30' : 'bg-[#2A2A2A]'
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep2Valid && !loading ? 'bg-[#F02C8C] shadow-pink-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
                                 {loading ? (
