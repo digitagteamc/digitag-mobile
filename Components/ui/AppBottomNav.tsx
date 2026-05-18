@@ -15,8 +15,10 @@ import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
     Easing,
     useAnimatedStyle,
+    useDerivedValue,
     useSharedValue,
     withTiming,
+    cancelAnimation,
 } from 'react-native-reanimated';
 import { useAuth } from '../../context/AuthContext';
 import { fonts } from '../../theme/colors';
@@ -62,7 +64,7 @@ const FAB_SIZE = 56;
 
 // ─── TabButton (persistent – never unmounts) ──────────────────────────────────
 
-function TabButton({
+const TabButton = React.memo(({
     tab,
     isActive,
     theme,
@@ -72,26 +74,30 @@ function TabButton({
     isActive: boolean;
     theme: any; // Use RolePalette type if available
     onPress: () => void;
-}) {
-    const pillWidth = useSharedValue(isActive ? (PILL_OPEN[tab.key] ?? 120) : PILL_CLOSED);
-    const bgOpacity = useSharedValue(isActive ? 1 : 0);
-    const labelOpacity = useSharedValue(isActive ? 1 : 0);
+}) => {
+    const wrapStyle = useAnimatedStyle(() => {
+        const targetWidth = PILL_OPEN[tab.key] ?? 120;
+        return {
+            width: withTiming(isActive ? targetWidth : PILL_CLOSED, {
+                duration: isActive ? OPEN_MS : CLOSE_MS,
+                easing: isActive ? EASE_OUT : EASE_IN,
+            }),
+        };
+    });
 
-    useEffect(() => {
-        if (isActive) {
-            pillWidth.value = withTiming(PILL_OPEN[tab.key] ?? 120, { duration: OPEN_MS, easing: EASE_OUT });
-            bgOpacity.value = withTiming(1, { duration: OPEN_MS, easing: EASE_OUT });
-            labelOpacity.value = withTiming(1, { duration: OPEN_MS, easing: EASE_OUT });
-        } else {
-            pillWidth.value = withTiming(PILL_CLOSED, { duration: CLOSE_MS, easing: EASE_IN });
-            bgOpacity.value = withTiming(0, { duration: CLOSE_MS, easing: EASE_IN });
-            labelOpacity.value = withTiming(0, { duration: 100, easing: EASE_IN });
-        }
-    }, [isActive]);
+    const bgStyle = useAnimatedStyle(() => ({
+        opacity: withTiming(isActive ? 1 : 0, {
+            duration: isActive ? OPEN_MS : CLOSE_MS,
+            easing: isActive ? EASE_OUT : EASE_IN,
+        }),
+    }));
 
-    const wrapStyle = useAnimatedStyle(() => ({ width: pillWidth.value }));
-    const bgStyle = useAnimatedStyle(() => ({ opacity: bgOpacity.value }));
-    const lblStyle = useAnimatedStyle(() => ({ opacity: labelOpacity.value }));
+    const lblStyle = useAnimatedStyle(() => ({
+        opacity: withTiming(isActive ? 1 : 0, {
+            duration: isActive ? OPEN_MS : 100,
+            easing: isActive ? EASE_OUT : EASE_IN,
+        }),
+    }));
 
     // Active: primary color | Inactive: muted white
     const iconName = isActive
@@ -119,13 +125,13 @@ function TabButton({
                 </View>
 
                 {/* Label — revealed by overflow:hidden. Using primary color for text. */}
-                <Animated.Text style={[styles.label, { color: theme.primary }, lblStyle]}>
+                <Animated.Text numberOfLines={1} style={[styles.label, { color: theme.primary }, lblStyle]}>
                     {tab.label}
                 </Animated.Text>
             </Animated.View>
         </TouchableOpacity>
     );
-}
+});
 
 // ─── FAB ─────────────────────────────────────────────────────────────────────
 
