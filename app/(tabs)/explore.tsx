@@ -1,17 +1,15 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById } from '@/services/userService';
-import { getRoleTheme } from '@/theme/useRoleTheme';
+import { useRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  FlatList,
   Image,
-  InteractionManager,
   Linking,
   Modal,
   RefreshControl,
@@ -21,99 +19,20 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import Animated, {
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
+  useAnimatedProps,
+  useAnimatedScrollHandler,
+  useSharedValue
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Ellipse, FeGaussianBlur, Filter, G, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
+
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
-
-const ActiveTabGlow = React.memo(() => (
-  <View style={{ position: 'absolute', top: -30, alignSelf: 'center', zIndex: -1, opacity: 0.3 }}>
-    <Svg width="93" height="49" viewBox="0 0 93 49">
-      <Defs>
-        <Filter id="glow" x="0" y="0" width="93" height="69" filterUnits="userSpaceOnUse">
-          <FeGaussianBlur stdDeviation="35.5" />
-        </Filter>
-      </Defs>
-      <G filter="url(#glow)">
-        <Ellipse cx="46.5" cy="24.5" rx="25.5" ry="3.5" fill="white" />
-      </G>
-    </Svg>
-  </View>
-));
-
-const FolderShoulder = React.memo(({ colors, isLeft }: { colors: string[], isLeft: boolean }) => (
-  <View style={{ position: 'absolute', bottom: 0, [isLeft ? 'left' : 'right']: -20, width: 20, height: 20, zIndex: -1 }}>
-    <Svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute' }}>
-      <Path
-        d={isLeft ? "M 20 20 L 20 0 A 20 20 0 0 1 0 20 Z" : "M 0 20 L 20 20 A 20 20 0 0 1 0 0 Z"}
-        fill={colors[1]}
-      />
-    </Svg>
-    <Svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute', opacity: 0.6 }}>
-      <Path
-        d={isLeft ? "M 20 20 L 20 0 A 20 20 0 0 1 0 20 Z" : "M 0 20 L 20 20 A 20 20 0 0 1 0 0 Z"}
-        fill={colors[0]}
-      />
-    </Svg>
-  </View>
-));
-
-const imgPhotography = require('../../assets/tabs-gifs/tab1.gif');
-const imgEditor = require('../../assets/tabs-gifs/editorgif.gif');
-const imgVideography = require('../../assets/tabs-gifs/videographygif.gif');
-const imgGrowth = require('../../assets/tabs-gifs/growthspecilistgif.gif');
-const imgScriptWriters = require('../../assets/tabs-gifs/scriptgif.gif');
-const imgStyling = require('../../assets/tabs-gifs/stylinggif.gif');
-const imgFashion = require('../../assets/tabs-gifs/fashiongif.gif');
-const imgProperty = require('../../assets/tabs-gifs/propertygif.gif');
-const imgPhotographyicon = require('../../assets/tabs_icons/Photographyicon.webp');
-const imgEditoricon = require('../../assets/tabs_icons/editoricon.webp');
-const imgVideographyicon = require('../../assets/tabs_icons/Videographyicon.webp');
-const imgGrowthicon = require('../../assets/tabs_icons/Growthicon.webp');
-const imgScriptWritersicon = require('../../assets/tabs_icons/Scripticon.webp');
-const imgStylingicon = require('../../assets/tabs_icons/Stylingicon.webp');
-const imgFashionicon = require('../../assets/tabs_icons/fashionicon.webp');
-const imgPropertyicon = require('../../assets/tabs_icons/Propertyicon.webp');
-const imgVoiceicon = require('../../assets/tabs_icons/VoiceOvericon.webp');
-
-const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
-const f_tech = require('../../assets/freelancer-icons/Tech.webp');
-const f_education = require('../../assets/freelancer-icons/Education.webp');
-const f_photography = require('../../assets/freelancer-icons/Photography.webp');
-const f_food = require('../../assets/freelancer-icons/Food.webp');
-const f_health = require('../../assets/freelancer-icons/Health.webp');
-const f_automotive = require('../../assets/freelancer-icons/Automotive.webp');
-const f_comedy = require('../../assets/freelancer-icons/Comedy-Memes.webp');
-const f_entertainment = require('../../assets/freelancer-icons/Entertainment.webp');
-const f_gaming = require('../../assets/freelancer-icons/Gaming-Anime.webp');
-const f_learning = require('../../assets/freelancer-icons/Learning.webp');
-const f_news = require('../../assets/freelancer-icons/News-Media-Magazins.webp');
-const f_sports = require('../../assets/freelancer-icons/Sports.webp');
-const f_travel = require('../../assets/freelancer-icons/Travel.webp');
-const f_beauty = require('../../assets/freelancer-icons/Beauty.webp');
-const f_fitness = require('../../assets/freelancer-icons/Fitness.webp');
-const f_fashion = require('../../assets/freelancer-icons/Fashion.webp');
-const f_finance = require('../../assets/freelancer-icons/Finance-Investments.webp');
-const f_arts = require('../../assets/freelancer-icons/Arts.webp');
-const f_business = require('../../assets/freelancer-icons/Business-Startups.webp');
-const f_community = require('../../assets/freelancer-icons/communitypages.webp');
-const f_family = require('../../assets/freelancer-icons/FamilyPets.webp');
-const f_home = require('../../assets/freelancer-icons/modern-house.webp');
-const f_law = require('../../assets/freelancer-icons/Law-Rights-Activism.webp');
-const f_pets = require('../../assets/freelancer-icons/pets-animals.webp');
-const f_politics = require('../../assets/freelancer-icons/Politics.webp');
 
 const fh_lifestyle = require('../../assets/categories-freelancers/Lifestyle-Living1.webp');
 const fh_tech = require('../../assets/categories-freelancers/Tech1.webp');
@@ -142,107 +61,79 @@ const fh_law = require('../../assets/categories-freelancers/LawRights-Activism1.
 const fh_pets = require('../../assets/categories-freelancers/Pets-Animals1.webp');
 const fh_politics = require('../../assets/categories-freelancers/Politics1.webp');
 
+const imgPhotography = require('../../assets/categories/Photography.gif');
+const imgEditor = require('../../assets/categories/editor.gif');
+const imgVideography = require('../../assets/categories/Videography.gif');
+const imgGrowth = require('../../assets/categories/growth spcielist.gif');
+const imgScriptWriters = require('../../assets/categories/script-writing.gif');
+const imgStyling = require('../../assets/categories/Styling-makeup.gif');
+const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
+const imgProperty = require('../../assets/categories/property-rental.gif');
 
 const CATEGORIES = [
   {
-    id: 'all',
-    label: 'All',
-    icon: imgGrowthicon,
-    image: imgPhotography,
-    heroLine1: 'Explore Our Creators', heroLine2: ' ', heroLine3: '',
-    heroDesc: 'Discover top talents and connect with the right people for any project.',
-    gradient: ['#3b82f6', '#2563eb'] as [string, string],
-    charStyle: { right: -45, bottom: -65, width: 230, height: 230, }
-  },
-  {
     id: 'photography',
     label: 'Photography',
-    icon: imgPhotographyicon,
     image: imgPhotography,
-    heroLine1: 'Capture Every Moment', heroLine2: 'Beautifully', heroLine3: '',
+    heroLine1: 'Every', heroLine2: 'Moment', heroLine3: '',
     heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.',
-    gradient: ['#6366f1', '#4f46e5'] as [string, string],
-    charStyle: { right: -45, bottom: -65, width: 230, height: 230, }
+    gradient: ['#7C3AED', '#4C1D95'] as [string, string]
   },
   {
     id: 'editor',
     label: 'Editor',
-    icon: imgEditoricon,
     image: imgEditor,
     heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
-    gradient: ['#9D174D', '#831843'] as [string, string],
-    charStyle: { right: -57, bottom: -67, width: 220, height: 220 }
+    gradient: ['#9D174D', '#831843'] as [string, string]
   },
   {
     id: 'videography',
     label: 'Videography',
-    icon: imgVideographyicon,
     image: imgVideography,
     heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
-    gradient: ['#0284C7', '#075985'] as [string, string],
-    charStyle: { right: -55, bottom: -50, width: 230, height: 230 }
+    gradient: ['#0284C7', '#075985'] as [string, string]
   },
   {
     id: 'growth',
     label: 'Growth\nSpecialist',
-    icon: imgGrowthicon,
     image: imgGrowth,
     heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '',
     heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.',
-    gradient: ['#4338CA', '#3730A3'] as [string, string],
-    charStyle: { right: -40, bottom: -60, width: 240, height: 240 }
+    gradient: ['#4338CA', '#3730A3'] as [string, string]
   },
   {
     id: 'script',
     label: 'Script Writers',
-    icon: imgScriptWritersicon,
     image: imgScriptWriters,
-    heroLine1: 'Turning Ideas into ', heroLine2: 'Powerful Scripts', heroLine3: '',
-    heroDesc: 'Creative scripts crafted for films, ads, reels, podcasts, and digital content.',
-    gradient: ['#1E3A8A', '#1E40AF'] as [string, string],
-    charStyle: { right: -30, bottom: -55, width: 220, height: 220 }
+    heroLine1: 'Crafting Compelling', heroLine2: 'Narratives', heroLine3: '',
+    heroDesc: 'Engaging scripts that drive your story forward and captivate your audience.',
+    gradient: ['#1E3A8A', '#1E40AF'] as [string, string]
   },
   {
     id: 'styling',
     label: 'Styling &\nmakeup',
-    icon: imgStylingicon,
     image: imgStyling,
-    heroLine1: 'Beauty Styled to ', heroLine2: 'Perfection', heroLine3: '',
-    heroDesc: 'Expert makeup and styling designed to elevate every look with elegance and precision.',
-    gradient: ['#7E22CE', '#6B21A8'] as [string, string],
-    charStyle: { right: -35, bottom: -45, width: 230, height: 230 }
+    heroLine1: 'The Art of', heroLine2: 'Visual Style', heroLine3: '',
+    heroDesc: 'Professional makeup and styling to ensure you look your best on camera.',
+    gradient: ['#7E22CE', '#6B21A8'] as [string, string]
   },
   {
     id: 'fashion',
     label: 'Fashion\nDesigners',
-    icon: imgFashionicon,
     image: imgFashion,
-    heroLine1: 'Where Style Meets ', heroLine2: 'Creativity', heroLine3: '',
-    heroDesc: 'From modern trends to timeless looks, discover fashion designs made to stand out.',
-    gradient: ['#BE185D', '#9D174D'] as [string, string],
-    charStyle: { right: -35, bottom: -55, width: 192, height: 190 }
-  },
-  {
-    id: 'voice',
-    label: 'Voice\nOver',
-    icon: imgVoiceicon,
-    image: imgVoiceicon,
-    heroLine1: 'The Perfect Voice for', heroLine2: '  Your Content', heroLine3: '',
-    heroDesc: 'From reels to commercials, discover voice artists who make every script unforgettable.',
-    gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
-    charStyle: { right: -40, bottom: -63, width: 200, height: 200 }
+    heroLine1: 'Innovative', heroLine2: 'Fashion Design', heroLine3: '',
+    heroDesc: 'Custom clothing and style consulting for high-impact visual productions.',
+    gradient: ['#BE185D', '#9D174D'] as [string, string]
   },
   {
     id: 'property',
     label: 'Property\nRental',
-    icon: imgPropertyicon,
     image: imgProperty,
-    heroLine1: 'Spaces Designed for   ', heroLine2: ' Better Living', heroLine3: '',
-    heroDesc: 'Explore premium rental homes, apartments, and workspaces tailored to your needs.',
-    gradient: ['#B45309', '#92400E'] as [string, string],
-    charStyle: { right: -40, bottom: -63, width: 225, height: 225 }
+    heroLine1: 'Perfect Locations', heroLine2: 'for Your Vision', heroLine3: '',
+    heroDesc: 'Premium properties and studio spaces for rent for any type of production.',
+    gradient: ['#B45309', '#92400E'] as [string, string]
   },
 ];
 
@@ -261,7 +152,7 @@ function timeAgo(dateStr: string | null | undefined) {
   return `${Math.round(diffHrs / 24)}d ago`;
 }
 
-const GradientTitle = ({ text }: { text: string }) => {
+const GradientTitle = ({ text, accentColor }: { text: string; accentColor: string }) => {
   const fontSize = 28;
   const w = text.length * fontSize * 0.58;
   const h = fontSize * 1.4;
@@ -271,7 +162,7 @@ const GradientTitle = ({ text }: { text: string }) => {
         <Defs>
           <SvgGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
-            <Stop offset="1" stopColor="#ff6ab9" stopOpacity="1" />
+            <Stop offset="1" stopColor={accentColor} stopOpacity="1" />
           </SvgGradient>
         </Defs>
         <SvgText fill="url(#titleGrad)" fontSize={fontSize} fontFamily="Poppins_600SemiBold" x="0" y={fontSize}>
@@ -383,144 +274,102 @@ const SimpleFolderBg = React.memo(({ width: w, height: h, tabWidth, activeIndex,
     A ${r} ${r} 0 0 1 0 ${h - r}
     Z
   `;
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+const FolderBackground = ({ scrollX, activeIndexAnim, width, height, tabWidth, tabHeight, radius, colors }: any) => {
+  const r = radius || 24;
+  const tw = tabWidth || 110;
+  const th = tabHeight || 90;
+  const w = width;
+  const h = height;
+
+  const animatedProps = useAnimatedProps(() => {
+    const tx = 8 + activeIndexAnim.value * 120 - scrollX.value; // 8 padding + (120 width + 0 gap)
+
+    const d = `
+      M 0 ${th + r}
+      ${tx > r ? `
+        A ${r} ${r} 0 0 1 ${r} ${th}
+        L ${tx - r} ${th}
+        A ${r} ${r} 0 0 0 ${tx} ${th - r}
+        L ${tx} ${r}
+        A ${r} ${r} 0 0 1 ${tx + r} 0
+      ` : tx > 0 ? `
+        M 0 ${th + (r - tx)}
+        A ${tx} ${tx} 0 0 1 ${tx} ${th}
+        A ${r} ${r} 0 0 0 ${tx} ${th - r}
+        L ${tx} ${r}
+        A ${r} ${r} 0 0 1 ${tx + r} 0
+      ` : `
+        M 0 ${r}
+        A ${r} ${r} 0 0 1 ${r} 0
+      `}
+      L ${Math.min(w - r, tx + tw - r)} 0
+      ${tx + tw < w - r ? `
+        A ${r} ${r} 0 0 1 ${tx + tw} ${r}
+        L ${tx + tw} ${th - r}
+        A ${r} ${r} 0 0 0 ${tx + tw + r} ${th}
+        L ${w - r} ${th}
+        A ${r} ${r} 0 0 1 ${w} ${th + r}
+      ` : `
+        A ${r} ${r} 0 0 1 ${w} ${r}
+      `}
+      L ${w} ${h}
+      L 0 ${h}
+      Z
+    `;
+    return { d };
+  });
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, width: w, height: h }}>
       <Svg width={w} height={h}>
         <Defs>
-          <SvgGradient id="simpleFolderGrad" x1="0" y1="0" x2="0.5" y2="1">
+          <SvgGradient id="folderGrad" x1="0" y1="0" x2="0.5" y2="1">
             <Stop offset="0" stopColor={colors[0]} />
             <Stop offset="1" stopColor={colors[1]} />
           </SvgGradient>
         </Defs>
-        <Path d={d} fill="url(#simpleFolderGrad)" />
+        <AnimatedPath animatedProps={animatedProps} fill="url(#folderGrad)" />
       </Svg>
+      {/* Sparkles Overlay */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Sparkles />
+      </View>
     </View>
   );
-});
+};
 
-
-
-const BlinkingStar = React.memo(({ style, size = 20, delay = 0 }: { style?: any, size?: number, delay?: number }) => {
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    const duration = 1000 + Math.random() * 1500;
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration }),
-        withTiming(0, { duration })
-      ),
-      -1,
-      true
-    );
-    return () => cancelAnimation(opacity);
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: opacity.value * 0.3 + 0.7 }]
-  }));
-
-  return (
-    <Animated.View style={[style, animatedStyle]}>
-      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M9.93694 14.9996C9.84766 14.6535 9.66728 14.3377 9.41456 14.085C9.16184 13.8323 8.84601 13.6519 8.49994 13.5626L2.36494 11.9806C2.26027 11.9509 2.16815 11.8878 2.10255 11.801C2.03696 11.7142 2.00146 11.6084 2.00146 11.4996C2.00146 11.3908 2.03696 11.285 2.10255 11.1981C2.16815 11.1113 2.26027 11.0483 2.36494 11.0186L8.49994 9.43559C8.84589 9.3464 9.16163 9.16617 9.41434 8.91363C9.66705 8.6611 9.84751 8.34548 9.93694 7.99959L11.5189 1.86459C11.5483 1.75951 11.6113 1.66693 11.6983 1.60099C11.7852 1.53504 11.8913 1.49934 12.0004 1.49934C12.1096 1.49934 12.2157 1.53504 12.3026 1.60099C12.3896 1.66693 12.4525 1.75951 12.4819 1.86459L14.0629 7.99959C14.1522 8.34566 14.3326 8.66149 14.5853 8.91421C14.838 9.16693 15.1539 9.34731 15.4999 9.43659L21.6349 11.0176C21.7404 11.0467 21.8335 11.1096 21.8998 11.1967C21.9661 11.2837 22.002 11.3902 22.002 11.4996C22.002 11.609 21.9661 11.7154 21.8998 11.8025C21.8335 11.8896 21.7404 11.9525 21.6349 11.9816L15.4999 13.5626C15.1539 13.6519 14.838 13.8323 14.5853 14.085C14.3326 14.3377 14.1522 14.6535 14.0629 14.9996L12.4809 21.1346C12.4515 21.2397 12.3886 21.3322 12.3016 21.3982C12.2147 21.4641 12.1086 21.4998 11.9994 21.4998C11.8903 21.4998 11.7842 21.4641 11.6973 21.3982C11.6103 21.3322 11.5473 21.2397 11.5179 21.1346L9.93694 14.9996Z"
-          stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-        />
-        <Path d="M20 2.875V6.70833" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M22 5.00034H18" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M4 16.292V18.2087" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M5 18H3" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-const BlinkingDot = React.memo(({ style, size = 5 }: { style?: any, size?: number }) => {
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    const duration = 800 + Math.random() * 1200;
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration }),
-        withTiming(0, { duration })
-      ),
-      -1,
-      true
-    );
-    return () => cancelAnimation(opacity);
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={[style, animatedStyle]}>
-      <Svg width={size} height={size} viewBox="0 0 5 5" fill="none">
-        <Circle cx="2.5" cy="2.5" r="2.5" fill="#D9D9D9" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-const Sparkles = React.memo(({ count = 3 }: { count?: number }) => {
+const Sparkles = () => {
   return (
     <>
-      <BlinkingStar style={{ position: 'absolute', top: 10, left: 120 }} size={24} />
-      <BlinkingStar style={{ position: 'absolute', top: 100, right: 10 }} size={16} />
-      <BlinkingStar style={{ position: 'absolute', bottom: 60, left: 40 }} size={20} />
-
-      {/* Tiny Blinking Dots */}
-      <BlinkingDot style={{ position: 'absolute', top: 40, left: 40 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 140, left: 180 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 60, right: 100 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 100, right: 150 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 40, right: 50 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 200, left: 20 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 20, right: 200 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 150, left: 100 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 100, left: '50%' }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 20, left: 200 }} />
+      <Ionicons name="sparkles" size={16} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', top: 40, left: 80 }} />
+      <Ionicons name="sparkles" size={12} color="rgba(255,255,255,0.1)" style={{ position: 'absolute', top: 120, right: 40 }} />
+      <Ionicons name="sparkles" size={20} color="rgba(255,255,255,0.15)" style={{ position: 'absolute', bottom: 60, left: 30 }} />
+      <View style={[s.sparkleDot, { width: 4, height: 4, top: 100, left: 120, opacity: 0.3 }]} />
+      <View style={[s.sparkleDot, { width: 2, height: 2, top: 150, right: 100, opacity: 0.2 }]} />
+      <View style={[s.sparkleDot, { width: 3, height: 3, bottom: 80, right: 150, opacity: 0.4 }]} />
     </>
   );
-});
+};
 
 export default function ExploreTab() {
   const router = useRouter();
+  const { category: paramCategory } = useLocalSearchParams<{ category?: string }>();
   const insets = useSafeAreaInsets();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
+  const [activeCategory, setActiveCategory] = useState(
+    paramCategory && CATEGORIES.find(c => c.id === paramCategory) ? paramCategory : CATEGORIES[0].id
+  );
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
-  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
-
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    const interaction = InteractionManager.runAfterInteractions(() => {
-      setIsReady(true);
-    });
-    return () => interaction.cancel();
-  }, []);
-
-  const toggleExpand = (id: string) => {
-    setExpandedPosts(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const fetchPosts = useCallback(async () => {
     if (!token) { setPosts([]); setLoading(false); return; }
@@ -532,7 +381,11 @@ export default function ExploreTab() {
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
-  const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
+  useEffect(() => {
+    if (paramCategory && CATEGORIES.find(c => c.id === paramCategory)) {
+      setActiveCategory(paramCategory);
+    }
+  }, [paramCategory]);
 
   const FREELANCER_CATEGORIES = [
     {
@@ -798,6 +651,7 @@ export default function ExploreTab() {
   ];
 
   const availableCategories = useMemo(() => {
+    // If user is a Freelancer, only show the first 4 categories
     if (userRole === 'FREELANCER') {
       return [
         {
@@ -813,21 +667,27 @@ export default function ExploreTab() {
         ...FREELANCER_CATEGORIES
       ];
     }
+    // Otherwise (Creator or Guest), show all
     return CATEGORIES;
   }, [userRole]);
 
   const activeCat = availableCategories.find(c => c.id === activeCategory) || availableCategories[0];
   const activeIndex = Math.max(0, availableCategories.findIndex(c => c.id === activeCategory));
 
-  const tabScrollRef = React.useRef<ScrollView>(null);
+  const scrollX = useSharedValue(0);
+  const activeIndexAnim = useSharedValue(activeIndex);
 
-  // When activeCategory changes, scroll the tab into view
   useEffect(() => {
-    const idx = availableCategories.findIndex(c => c.id === activeCategory);
-    if (idx >= 0 && tabScrollRef.current) {
-      tabScrollRef.current.scrollTo({ x: idx * 112, animated: true });
-    }
-  }, [activeCategory, availableCategories]);
+    // Instantly snap the folder tab when the active index changes (no effects)
+    activeIndexAnim.value = activeIndex;
+  }, [activeIndex]);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      // Synchronize the scroll position with zero-lag on the UI thread
+      scrollX.value = event.contentOffset.x;
+    },
+  });
 
   useEffect(() => {
     if (!availableCategories.find(c => c.id === activeCategory)) {
@@ -836,9 +696,11 @@ export default function ExploreTab() {
   }, [availableCategories]);
 
   // Constants for tab layout
-  const TAB_WIDTH = 108;
+  const TAB_ACTIVE_WIDTH = 120;
+  const TAB_INACTIVE_WIDTH = 120;
+  const TAB_GAP = 0;
 
-  const allCards = useMemo(() => posts.map((p) => {
+  const allCards = posts.map((p) => {
     const owner = p.owner || {};
     const name = owner.name || (owner.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     return {
@@ -855,13 +717,12 @@ export default function ExploreTab() {
       location: owner.location || owner.city || 'Hyderabad',
       category: owner.category || p.category || '',
     };
-  }), [posts]);
+  });
 
-  const cards = useMemo(() => allCards.filter((item) => {
-    if (!activeCategory || activeCategory === 'all') return true;
-    // You might want to actually filter by category here in the future
+  const cards = allCards.filter((item) => {
+    if (!activeCategory) return true;
     return true;
-  }), [allCards, activeCategory]);
+  });
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
@@ -896,190 +757,212 @@ export default function ExploreTab() {
     if (!requireProfile('message this user')) return;
   };
 
-  const handleCall = useCallback(() => {
+  const handleCall = () => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('call this user')) return;
     Alert.alert('Contact', 'Phone contact is not available yet.');
-  }, [isGuest, token, router, requireProfile]);
+  };
 
-  const renderItem = useCallback(({ item }: { item: any }) => {
-    const postTheme = getRoleTheme(item.ownerRole);
-    const accent = postTheme.primary;
-    return (
-      <View style={{ paddingHorizontal: 8, paddingBottom: 20 }}>
-        <TouchableOpacity
-          style={[s.card, { borderColor: accent + '5D', borderTopColor: accent, borderTopWidth: 0, borderLeftWidth: 0.5, borderRightWidth: 0.5 }]}
-          activeOpacity={0.10}
-          onPress={() => handleCardTap(item.id, item.ownerId)}
-        >
-          {/* Avatar + Name */}
-          <View style={s.cardTop}>
-            <View style={s.cardAvatarWrap}>
-              {item.isInitials ? (
-                <View style={[s.cardAvatar, { backgroundColor: accent + '33' }]}>
-                  <Text style={[s.cardInitials, { color: accent }]}>{item.initials}</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: item.avatarUri }} style={s.cardAvatar} resizeMode="cover" />
-              )}
-            </View>
-            <View style={s.cardNameArea}>
-              <View style={s.cardNameRow}>
-                <Text style={s.cardName}>{item.name}</Text>
-                <Ionicons name="shield-checkmark" size={14} color="#f26930" style={{ marginLeft: 6 }} />
+  return (
+    <View style={s.root}>
+      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
+
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
+      >
+        {/* ═══ HEADER ═══ */}
+        <View style={[s.header, { paddingTop: insets.top + 16 }]}>
+          <GradientTitle text="Explore All" accentColor={theme.primary} />
+          <Text style={s.subtitle}>Discover & Connect with the right people</Text>
+        </View>
+
+        {/* ═══ HERO SECTION (FOLDER STYLE) ═══ */}
+        <View style={s.heroWrapper}>
+          <FolderBackground
+            width={width}
+            height={380}
+            scrollX={scrollX}
+            activeIndexAnim={activeIndexAnim}
+            tabWidth={TAB_ACTIVE_WIDTH}
+            tabHeight={100}
+            colors={activeCat.gradient}
+          />
+
+          {/* ═══ CATEGORY TABS ═══ */}
+          <View style={s.catTabsContainer}>
+            <Animated.ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.catTabsRow}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+            >
+              {availableCategories.map((cat) => {
+                const isActive = cat.id === activeCategory;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    activeOpacity={0.8}
+                    onPress={() => setActiveCategory(cat.id)}
+                    style={[
+                      isActive ? s.catTabActive : s.catTabInactive,
+                      { width: isActive ? TAB_ACTIVE_WIDTH : TAB_INACTIVE_WIDTH }
+                    ]}
+                  >
+                    <Image source={cat.image} style={s.catTabImg} resizeMode="contain" />
+                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel}>{cat.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </Animated.ScrollView>
+          </View>
+
+          {/* ═══ HERO CONTENT ═══ */}
+          <View style={s.heroContentContainer}>
+            <View style={s.heroContent}>
+              <View style={s.heroTextArea}>
+                <Text style={s.heroTitle}>
+                  <Text style={s.heroTitleBold}>{activeCat.heroLine1} </Text>
+                  <Text style={s.heroTitleFaded}>{activeCat.heroLine2}{"\n"}</Text>
+                  <Text style={s.heroTitleFaded}>{activeCat.heroLine3}</Text>
+                </Text>
+                <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
               </View>
-              <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
-                <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>
-              </TouchableOpacity>
+              <Image source={activeCat.image} style={s.heroCharacter} resizeMode="contain" />
             </View>
-            {/* Bookmark */}
-            <TouchableOpacity style={s.bookmarkBtn}>
-              <Ionicons name="bookmark-outline" size={18} color="#fff" />
+          </View>
+        </View>
+        <View style={s.filterRow}>
+          <View style={s.filterCol}>
+            <Text style={s.filterLabel}>Price Range</Text>
+            <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
+              <Text style={s.filterPlaceholder}>Select Price Range</Text>
+              <Ionicons name="filter" size={16} color="#6e7180" />
             </TouchableOpacity>
           </View>
-
-          {/* Description */}
-          <TouchableOpacity onPress={() => toggleExpand(item.id)} activeOpacity={0.7}>
-            <Text style={s.cardDesc} numberOfLines={expandedPosts.has(item.id) ? undefined : 2}>
-              {item.desc || 'Looking for a Photographer experienced in creating engaging short-form content'}
-              {!expandedPosts.has(item.id) && <Text style={{ color: accent }}>... See more</Text>}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Info Grid */}
-          <View style={s.infoGrid}>
-            <View style={s.infoRow}>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Experience</Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue}>{item.experience}</Text>
-                </View>
-              </View>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Price Level <Text style={s.infoLabelSub}>(Primary)</Text></Text>
-                <View style={s.infoValueRow}>
-                  {[1, 2, 3, 4].map(i => (
-                    <Text key={i} style={{ color: '#22c55e', fontSize: 14 }}>₹</Text>
-                  ))}
-                </View>
-              </View>
-            </View>
-            <View style={s.infoRow}>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Language</Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name="language-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue}>{item.languages}</Text>
-                </View>
-              </View>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Location <Text style={s.infoLabelSub}>(Primary)</Text></Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name="location-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue}>{item.location}</Text>
-                </View>
-              </View>
-            </View>
+          <View style={s.filterCol}>
+            <Text style={s.filterLabel}>Experience</Text>
+            <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
+              <Text style={s.filterPlaceholder}>Select experience</Text>
+              <Ionicons name="chevron-down" size={20} color="#6e7180" />
+            </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Bottom Actions */}
-          <View style={s.cardBottom}>
-            <View style={s.cardActions}>
-              <TouchableOpacity style={s.actionCircle} onPress={() => handleMessage(item.ownerId)}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={s.actionCircle} onPress={handleCall}>
-                <Ionicons name="call-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={s.actionCircle} onPress={() => handleShare(item.id)}>
-                <Ionicons name="share-social-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <View style={s.cardBottomRight}>
-              <TouchableOpacity
-                style={[s.seePortfolioBtn, { backgroundColor: accent }]}
-                onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
-              >
-                <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
-              </TouchableOpacity>
-              <View style={s.timeRow}>
-                <Ionicons name="time-outline" size={12} color="#a1a2a4" />
-                <Text style={s.timeText}>{item.time || '4h ago'}</Text>
-              </View>
-            </View>
+        {/* ═══ FEED CARDS ═══ */}
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
+        ) : cards.length === 0 ? (
+          <View style={s.emptyState}>
+            <Ionicons name="compass-outline" size={48} color="#3A3A47" />
+            <Text style={s.emptyTitle}>Nothing to explore yet</Text>
+            <Text style={s.emptySubtitle}>Pull down to refresh — new posts will appear here.</Text>
           </View>
-        </TouchableOpacity>
-      </View>
-    );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleShare]);
-
-  const listHeader = useMemo(() => (
-    <View>
-      {/* ═══ HEADER ═══ */}
-      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-        <GradientTitle text="Explore All" />
-        <Text style={s.subtitle}>Discover & Connect with the right people</Text>
-      </View>
-
-      {/* ═══ HERO SECTION ═══ */}
-      <View style={s.heroWrapper}>
-
-        {/* Gradient background — ONLY behind hero content, below the tab row */}
-        <View style={[StyleSheet.absoluteFill, { top: 106, backgroundColor: activeCat.gradient[1] }]} />
-        <View style={[StyleSheet.absoluteFill, { top: 106, opacity: 0.6, backgroundColor: activeCat.gradient[0] }]} />
-
-        {/* ── TABS: pinned to the very top ── */}
-        <View style={s.tabRowWrapper}>
-          <ScrollView
-            ref={tabScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.catTabsRow}
-            scrollEventThrottle={16}
-            snapToInterval={TAB_WIDTH}
-            decelerationRate="fast"
-            nestedScrollEnabled={true}
-          >
-            {availableCategories.map((cat) => {
-              const isActive = cat.id === activeCategory;
+        ) : (
+          <View style={s.feedList}>
+            {cards.map((item) => {
+              const accent = theme.primary;
               return (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setActiveCategory(cat.id)}
-                  activeOpacity={0.8}
-                  style={[s.catTab, isActive ? [s.catTabActive, { zIndex: 10 }] : s.catTabInactive]}
-                >
-                  {/* Active tab: hero gradient bg + shoulders */}
-                  {isActive && (
-                    <View style={[StyleSheet.absoluteFill, { zIndex: 5 }]}>
-                      {/* Inner wrapper for border radius clipping */}
-                      <View style={[StyleSheet.absoluteFill, {
-                        borderTopLeftRadius: 20,
-                        borderTopRightRadius: 20,
-                        overflow: 'hidden',
-                      }]}>
-                        <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[1] }]} />
-                        <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[0], opacity: 0.6 }]} />
-                      </View>
-                      {/* Shoulders placed outside the overflow: hidden wrapper */}
-                      <FolderShoulder colors={activeCat.gradient} isLeft={true} />
-                      <FolderShoulder colors={activeCat.gradient} isLeft={false} />
+                <TouchableOpacity key={item.id} style={s.card} activeOpacity={0.9} onPress={() => handleCardTap(item.id, item.ownerId)}>
+                  {/* Avatar + Name */}
+                  <View style={s.cardTop}>
+                    <View style={s.cardAvatarWrap}>
+                      {item.isInitials ? (
+                        <View style={[s.cardAvatar, { backgroundColor: accent + '33' }]}>
+                          <Text style={[s.cardInitials, { color: accent }]}>{item.initials}</Text>
+                        </View>
+                      ) : (
+                        <Image source={{ uri: item.avatarUri }} style={s.cardAvatar} resizeMode="cover" />
+                      )}
                     </View>
-                  )}
-                  {/* Inactive tab: #999 base + rgba(51,51,51,0.40) overlay */}
-                  {!isActive && (
-                    <View style={[StyleSheet.absoluteFill, {
-                      backgroundColor: 'rgba(51, 51, 51, 0.40)',
-                      borderTopLeftRadius: 20,
-                      borderTopRightRadius: 20,
-                    }]} />
-                  )}
-                  {/* Icon and Text wrapped to stay above absolute backgrounds */}
-                  <View style={{ zIndex: 10, alignItems: 'center' }}>
-                    {isActive && <ActiveTabGlow />}
-                    <Image source={cat.icon} style={isActive ? s.catTabImgActive : s.catTabImg} resizeMode="contain" />
-                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel} numberOfLines={2}>{cat.label}</Text>
+                    <View style={s.cardNameArea}>
+                      <View style={s.cardNameRow}>
+                        <Text style={s.cardName}>{item.name}</Text>
+                        <Ionicons name="shield-checkmark" size={14} color={theme.primary} style={{ marginLeft: 6 }} />
+                      </View>
+                      <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
+                        <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {/* Bookmark */}
+                    <TouchableOpacity style={s.bookmarkBtn}>
+                      <Ionicons name="bookmark-outline" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Description */}
+                  <Text style={s.cardDesc} numberOfLines={2}>
+                    {item.desc || 'Looking for a Photographer experienced in creating engaging short-form content...'}
+                    <Text style={{ color: accent }}> See more</Text>
+                  </Text>
+
+                  {/* Info Grid */}
+                  <View style={s.infoGrid}>
+                    {/* Row 1 */}
+                    <View style={s.infoRow}>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Experience</Text>
+                        <View style={s.infoValueRow}>
+                          <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
+                          <Text style={s.infoValue}>{item.experience}</Text>
+                        </View>
+                      </View>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Price Level <Text style={s.infoLabelSub}>(Primary)</Text></Text>
+                        <View style={s.infoValueRow}>
+                          {[1, 2, 3, 4].map(i => (
+                            <Text key={i} style={{ color: theme.primary, fontSize: 14 }}>₹</Text>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                    {/* Row 2 */}
+                    <View style={s.infoRow}>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Language</Text>
+                        <View style={s.infoValueRow}>
+                          <Ionicons name="language-outline" size={13} color="#a1a2a4" />
+                          <Text style={s.infoValue}>{item.languages}</Text>
+                        </View>
+                      </View>
+                      <View style={s.infoCell}>
+                        <Text style={s.infoLabel}>Location <Text style={s.infoLabelSub}>(Primary)</Text></Text>
+                        <View style={s.infoValueRow}>
+                          <Ionicons name="location-outline" size={13} color="#a1a2a4" />
+                          <Text style={s.infoValue}>{item.location}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Bottom Actions */}
+                  <View style={s.cardBottom}>
+                    <View style={s.cardActions}>
+                      <TouchableOpacity style={s.actionCircle} onPress={() => handleMessage(item.ownerId)}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.actionCircle} onPress={handleCall}>
+                        <Ionicons name="call-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={s.actionCircle} onPress={() => handleShare(item.id)}>
+                        <Ionicons name="share-social-outline" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                    <View style={s.cardBottomRight}>
+                      <TouchableOpacity
+                        style={[s.seePortfolioBtn, { backgroundColor: accent }]}
+                        onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
+                      >
+                        <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
+                      </TouchableOpacity>
+                      <View style={s.timeRow}>
+                        <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                        <Text style={s.timeText}>{item.time || '4h ago'}</Text>
+                      </View>
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -1102,64 +985,8 @@ export default function ExploreTab() {
             </View>
             <HeroAnimatedImage source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
           </View>
-          <Sparkles count={12} />
-        </View>
-      </View>
-
-      <View style={s.filterRow}>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Price Range</Text>
-          <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
-            <Text style={s.filterPlaceholder}>Select Price Range</Text>
-            <Ionicons name="filter" size={16} color="#6e7180" />
-          </TouchableOpacity>
-        </View>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Experience</Text>
-          <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
-            <Text style={s.filterPlaceholder}>Select experience</Text>
-            <Ionicons name="chevron-down" size={20} color="#6e7180" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  ), [insets.top, activeCat, availableCategories, activeCategory]);
-
-  if (!isReady) {
-    return (
-      <View style={[s.root, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#ED2A91" />
-      </View>
-    );
-  }
-
-  return (
-    <View style={s.root}>
-      <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
-      <FlatList
-        data={cards}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={s.emptyState}>
-              <Ionicons name="compass-outline" size={48} color="#3A3A47" />
-              <Text style={s.emptyTitle}>Nothing to explore yet</Text>
-              <Text style={s.emptySubtitle}>Pull down to refresh — new posts will appear here.</Text>
-            </View>
-          ) : null
-        }
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
-        showsVerticalScrollIndicator={false}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={5}
-        initialNumToRender={4}
-        windowSize={7}
-        nestedScrollEnabled={true}
-      />
-
+        )}
+      </ScrollView>
 
       {/* ═══ PORTFOLIO MODAL ═══ */}
       <Modal visible={portfolioModalVisible} transparent animationType="slide" onRequestClose={() => setPortfolioModalVisible(false)}>
@@ -1201,65 +1028,26 @@ const s = StyleSheet.create({
   scroll: { flex: 1 },
 
   // Header
-  header: { paddingHorizontal: 16, paddingBottom: 20, },
+  header: { paddingHorizontal: 16, paddingBottom: 20 },
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Hero wrapper
-  heroWrapper: {
-    height: 403,
-    overflow: 'hidden',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  // Wraps the horizontal scroll, pinned at the very top of heroWrapper
-  tabRowWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 106,
-    zIndex: 2,
-    backgroundColor: '#000',
-  },
-  catTabsRow: { gap: 0, paddingHorizontal: 8, alignItems: 'flex-end', flexGrow: 1 },
+  heroWrapper: { marginHorizontal: 0, marginBottom: 0, position: 'relative', height: 380 },
+  catTabsContainer: { flexDirection: 'row', zIndex: 1, height: 100 },
+  catTabsRow: { gap: 0, paddingHorizontal: 8 },
 
-  catTab: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 6,
-    paddingTop: 14,
-    paddingBottom: 8,
-  },
   catTabActive: {
-    width: 108,
-    height: 106,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    alignItems: 'center', justifyContent: 'center', height: 100,
   },
   catTabInactive: {
-    width: 108,
-    height: 106,
-    backgroundColor: 'rgba(19, 19, 19, 1)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    alignItems: 'center', justifyContent: 'center', height: 100,
+    backgroundColor: '#1A1A1A', borderTopLeftRadius: 24, borderTopRightRadius: 24, alignSelf: 'flex-end',
   },
-  catTabImg: { width: 29, height: 30, marginBottom: 5, marginTop: 10 },
-  catTabImgActive: { width: 49, height: 40, marginBottom: 6, marginTop: 10 },
-  catTabLabel: { color: '#fff', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
+  catTabImg: { width: 28, height: 28, marginBottom: 4 },
+  catTabLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
   catTabLabelActive: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
 
-  heroContentContainer: {
-    position: 'absolute',
-    top: 106,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 16,
-    overflow: 'hidden',
-    zIndex: 1,
-  },
+  heroContentContainer: { flex: 1, paddingHorizontal: 20, paddingBottom: 24, justifyContent: 'flex-end' },
 
   // Sparkle dots
   sparkleDot: { position: 'absolute', borderRadius: 99, backgroundColor: '#fff' },
@@ -1269,19 +1057,12 @@ const s = StyleSheet.create({
   heroTextArea: { maxWidth: '78%', marginTop: 35, },
   heroTitle: { fontSize: 20, lineHeight: 30, fontFamily: 'Poppins_700Bold', },
   heroTitleBold: { color: '#fff' },
-  heroTitleFaded: { color: 'rgba(255,255,255,0.8)' },
-  heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 20, marginTop: 10 },
-  heroCharacter: {
-    position: 'absolute',
-    // Default values if not specified in category
-    right: -40,
-    bottom: -55,
-    width: 210,
-    height: 210,
-  },
+  heroTitleFaded: { color: 'rgba(255,255,255,0.3)' },
+  heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 18, marginTop: 8 },
+  heroCharacter: { flex: 1, height: 160, marginLeft: 10 },
 
   // Filters
-  filterRow: { flexDirection: 'row', paddingHorizontal: 8, gap: 16, marginBottom: 24, marginTop: 40 },
+  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 16, marginBottom: 24 },
   filterCol: { flex: 1 },
   filterLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
   filterDropdown: {
@@ -1297,14 +1078,12 @@ const s = StyleSheet.create({
   emptySubtitle: { color: '#888', fontSize: 13, textAlign: 'center', lineHeight: 20 },
 
   // Feed
-  feedList: { paddingHorizontal: 8, gap: 20 },
+  feedList: { paddingHorizontal: 16, gap: 16 },
 
   // Card
   card: {
     backgroundColor: '#1a1a1a', borderRadius: 24, padding: 16,
-    borderWidth: 1,
-
-
+    borderWidth: 1, borderColor: '#000',
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
   cardAvatarWrap: { marginRight: 14 },
@@ -1326,9 +1105,9 @@ const s = StyleSheet.create({
   infoGrid: { gap: 12, marginBottom: 14 },
   infoRow: { flexDirection: 'row', gap: 16 },
   infoCell: { flex: 1 },
-  infoLabel: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
+  infoLabel: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_400Regular', marginBottom: 4 },
   infoLabelSub: { color: '#d1d2d4' },
-  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'Poppins_400Regular' },
+  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   infoValue: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular' },
 
   // Bottom
@@ -1340,7 +1119,7 @@ const s = StyleSheet.create({
   },
   cardBottomRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   seePortfolioBtn: {
-    paddingHorizontal: 12, paddingVertical: 9, borderRadius: 99,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99,
     alignItems: 'center', justifyContent: 'center',
   },
   seePortfolioBtnText: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold' },

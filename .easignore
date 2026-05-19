@@ -1,0 +1,16 @@
+node_modules
+.git
+*.log
+*.map
+.expo
+android/build
+android/.gradle
+android/app/build
+android/app/.cxx
+ios/build
+ios/Pods
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx

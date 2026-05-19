@@ -41,4 +41,7 @@ app-example
 
 # generated native folders
 /ios
-/android
+
+# large files
+/release
+eas-preview.tar.gz

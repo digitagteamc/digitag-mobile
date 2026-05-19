@@ -1,9 +1,8 @@
-import { useProfileGate } from '@/context/ProfileGateContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,8 +24,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
-import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
+import { useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
 
@@ -43,13 +43,10 @@ const imgScriptWriters = require('../../assets/categories/script-writing.gif');
 const imgStyling = require('../../assets/categories/Styling-makeup.gif');
 const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
 const imgProperty = require('../../assets/categories/property-rental.gif');
-const imgVoiceOver = require('../../assets/categories/VoiceOver.gif');
 const imgStars = require('../../assets/categories/stars.gif');
 const imgStarsOrange = require('../../assets/categories/star-orange.gif');
 const imgPost = require('../../assets/categories/post.gif');
-const imgNewPost = require('../../assets/categories/newpost.gif');
 const imgLove = require('../../assets/categories/love.gif');
-const imgLoveOrange = require('../../assets/categories/love-orange.gif');
 const imgTargetNew = require('../../assets/categories/targetnew.png');
 const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
@@ -109,64 +106,6 @@ const CATEGORIES = [
   { id: '6', label: 'Styling &\nmakeup', image: imgStyling, icon: 'color-palette-outline' as const },
   { id: '7', label: 'Fashion\nDesigners', image: imgFashion, icon: 'shirt-outline' as const },
   { id: '8', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
-  { id: '9', label: 'Voice Over', image: imgVoiceOver, icon: 'mic-outline' as const },
-];
-
-const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
-const f_tech = require('../../assets/freelancer-icons/Tech.webp');
-const f_education = require('../../assets/freelancer-icons/Education.webp');
-const f_photography = require('../../assets/freelancer-icons/Photography.webp');
-const f_food = require('../../assets/freelancer-icons/Food.webp');
-const f_health = require('../../assets/freelancer-icons/Health.webp');
-const f_automotive = require('../../assets/freelancer-icons/Automotive.webp');
-const f_comedy = require('../../assets/freelancer-icons/Comedy-Memes.webp');
-const f_entertainment = require('../../assets/freelancer-icons/Entertainment.webp');
-const f_gaming = require('../../assets/freelancer-icons/Gaming-Anime.webp');
-const f_learning = require('../../assets/freelancer-icons/Learning.webp');
-const f_news = require('../../assets/freelancer-icons/News-Media-Magazins.webp');
-const f_sports = require('../../assets/freelancer-icons/Sports.webp');
-
-const f_travel = require('../../assets/freelancer-icons/Travel.webp');
-const f_beauty = require('../../assets/freelancer-icons/Beauty.webp');
-const f_fitness = require('../../assets/freelancer-icons/Fitness.webp');
-const f_fashion = require('../../assets/freelancer-icons/Fashion.webp');
-const f_finance = require('../../assets/freelancer-icons/Finance-Investments.webp');
-const f_arts = require('../../assets/freelancer-icons/Arts.webp');
-const f_business = require('../../assets/freelancer-icons/Business-Startups.webp');
-const f_community = require('../../assets/freelancer-icons/communitypages.webp');
-const f_family = require('../../assets/freelancer-icons/FamilyPets.webp');
-const f_home = require('../../assets/freelancer-icons/modern-house.webp');
-const f_law = require('../../assets/freelancer-icons/Law-Rights-Activism.webp');
-const f_pets = require('../../assets/freelancer-icons/pets-animals.webp');
-const f_politics = require('../../assets/freelancer-icons/Politics.webp');
-
-const FREELANCER_CATEGORIES = [
-  { id: 'f1', label: 'Lifestyle &\nLiving', image: f_lifestyle },
-  { id: 'f2', label: 'Tech', image: f_tech },
-  { id: 'f3', label: 'Education', image: f_education },
-  { id: 'f4', label: 'Photography', image: f_photography },
-  { id: 'f5', label: 'Food', image: f_food },
-  { id: 'f6', label: 'Health', image: f_health },
-  { id: 'f7', label: 'Automotive', image: f_automotive },
-  { id: 'f8', label: 'Comedy &\nMemes', image: f_comedy },
-  { id: 'f9', label: 'Entertainment', image: f_entertainment },
-  { id: 'f10', label: 'Gaming &\nAnime', image: f_gaming },
-  { id: 'f11', label: 'Learning', image: f_learning },
-  { id: 'f12', label: 'News, Media\n& Magazins', image: f_news },
-  { id: 'f13', label: 'Sports', image: f_sports },
-  { id: 'f14', label: 'Travel', image: f_travel },
-  { id: 'f15', label: 'Beauty', image: f_beauty },
-  { id: 'f16', label: 'Fitness', image: f_fitness },
-  { id: 'f17', label: 'Fashion', image: f_fashion },
-  { id: 'f18', label: 'Finance &\nInvestments', image: f_finance },
-  { id: 'f19', label: 'Arts', image: f_arts },
-  { id: 'f20', label: 'Business &\nStartups', image: f_business },
-  { id: 'f21', label: 'Community\nPages', image: f_community },
-  { id: 'f22', label: 'Family, Kids\n& Pets', image: f_family },
-  { id: 'f23', label: 'Home &\nDecor', image: f_home },
-  { id: 'f24', label: 'Law, Rights\n& Activism', image: f_law },
-  { id: 'f25', label: 'Pets &\nAnimals', image: f_pets },
-  { id: 'f26', label: 'Politics', image: f_politics },
 ];
 
 const CAT_BORDER_COLORS = [
@@ -251,7 +190,7 @@ const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, accentColor }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -276,8 +215,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
     extrapolate: 'clamp',
   });
 
-  const postTheme = getRoleTheme(item.ownerRole);
-  const postColor = postTheme.primary;
+  const postColor = accentColor;
 
   return (
     <View style={{ width: ITEM_SIZE, alignItems: 'center', justifyContent: 'center' }}>
@@ -288,71 +226,66 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
           opacity,
         }}
       >
-        <LinearGradient
-          colors={['transparent', userRole === 'FREELANCER' ? '#ed2a91' : '#f26930']}
-          style={styles.figmaCardGradientBorder}
-        >
-          <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
-            {/* Top Opacity Overlay */}
-            <LinearGradient
-              colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
-            />
-            {/* Top Absolute Row */}
-            <View style={styles.figmaCardTopRow}>
-              <View style={styles.figmaCardRoleBadge}>
-                <Text style={styles.figmaCardRoleText}>{item.role}</Text>
+        <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
+          {/* Top Opacity Overlay */}
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
+          />
+          {/* Top Absolute Row */}
+          <View style={styles.figmaCardTopRow}>
+            <View style={styles.figmaCardRoleBadge}>
+              <Text style={styles.figmaCardRoleText}>{item.role}</Text>
+            </View>
+            <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
+              <Ionicons name="bookmark-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Avatar */}
+          <View style={styles.figmaCardAvatarWrap}>
+            {item.isInitials ? (
+              <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
               </View>
-              <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
-                <Ionicons name="bookmark-outline" size={18} color="#fff" />
-              </TouchableOpacity>
+            ) : (
+              <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
+            )}
+          </View>
+
+          {/* Name & Details */}
+          <Text style={styles.figmaCardName}>{item.name}</Text>
+
+          <View style={styles.figmaCardMetaRow}>
+            <TouchableOpacity
+              style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
+              onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
+            >
+              <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+              <Ionicons name="time-outline" size={14} color="#a1a2a4" />
+              <Text style={styles.figmaCardTimeText}> {item.time}</Text>
             </View>
+          </View>
 
-            {/* Avatar */}
-            <View style={styles.figmaCardAvatarWrap}>
-              {item.isInitials ? (
-                <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
-              )}
-            </View>
+          <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
 
-            {/* Name & Details */}
-            <Text style={styles.figmaCardName}>{item.name}</Text>
+          <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
 
-            <View style={styles.figmaCardMetaRow}>
-              <TouchableOpacity
-                style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
-                onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
-              >
-                <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
-              </TouchableOpacity>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                <Ionicons name="time-outline" size={14} color="#a1a2a4" />
-                <Text style={styles.figmaCardTimeText}> {item.time}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
-
-            <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
-
-            {/* Bottom Actions */}
-            <View style={styles.figmaCardActions}>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
-                <Ionicons name="call-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
-                <Ionicons name="share-social-outline" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </LinearGradient>
+          {/* Bottom Actions */}
+          <View style={styles.figmaCardActions}>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
+              <Ionicons name="call-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
+              <Ionicons name="share-social-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Animated.View>
     </View>
   );
@@ -386,28 +319,21 @@ export default function Homepage() {
   // Filter categories based on role: show only first 4 for Freelancers, all 8 for others.
   const availableCategoryColumns = useMemo(() => {
     if (userRole === 'FREELANCER') {
-      const cols = [];
-      const mid = Math.ceil(FREELANCER_CATEGORIES.length / 2);
-      for (let i = 0; i < mid; i++) {
-        cols.push([
-          FREELANCER_CATEGORIES[i],
-          FREELANCER_CATEGORIES[i + mid]
-        ].filter(Boolean));
-      }
-      return cols;
+      return [
+        [CATEGORIES[0], CATEGORIES[2]],
+        [CATEGORIES[1], CATEGORIES[3]],
+      ];
     }
     return [
-      [CATEGORIES[0], CATEGORIES[5]],
-      [CATEGORIES[1], CATEGORIES[6]],
-      [CATEGORIES[2], CATEGORIES[7]],
-      [CATEGORIES[3], CATEGORIES[8]],
-      [CATEGORIES[4]],
+      [CATEGORIES[0], CATEGORIES[4]],
+      [CATEGORIES[1], CATEGORIES[5]],
+      [CATEGORIES[2], CATEGORIES[6]],
+      [CATEGORIES[3], CATEGORIES[7]],
     ];
   }, [userRole]);
 
-  const catGap = userRole === 'FREELANCER' ? 12 : 12;
-  const colWidth = userRole === 'FREELANCER' ? 100 : 110;
-  const snapInterval = userRole === 'FREELANCER' ? colWidth + catGap : colWidth * 2 + 14 * 2;
+  const colWidth = (width - 32 - 28) / 3;
+  const snapInterval = colWidth * 2 + 14 * 2;
 
   const scrollXCat = useRef(new Animated.Value(0)).current;
   const activeCatPage = Animated.divide(scrollXCat, snapInterval);
@@ -717,114 +643,91 @@ export default function Homepage() {
         </View>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
-          {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
-          <View style={{ marginBottom: 10 }}>
-            <GradientHeading text={userRole === 'FREELANCER' ? "Creators by category" : "Freelancers by category"} style={styles.gradientHeadingText} role={userRole} />
+          {/* ══════════════ FREELANCERS BY CATEGORY ══════════════ */}
+          <View style={{ marginBottom: 20 }}>
+            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole} />
           </View>
-          <View style={[styles.catCarouselContainer, { height: userRole === 'FREELANCER' ? 280 : 230 }]}>
+          <View style={styles.catCarouselContainer}>
             <Animated.FlatList
               data={availableCategoryColumns}
               horizontal
               showsHorizontalScrollIndicator={false}
               snapToInterval={snapInterval}
               decelerationRate="fast"
-              contentContainerStyle={{ paddingHorizontal: 2, gap: catGap }}
+              contentContainerStyle={{ paddingHorizontal: 2, gap: 12 }}
               onScroll={Animated.event(
                 [{ nativeEvent: { contentOffset: { x: scrollXCat } } }],
                 { useNativeDriver: true }
               )}
               keyExtractor={(_, i) => `col-${i}`}
-              renderItem={({ item: colItems }) => {
-                const isFreelancer = userRole === 'FREELANCER';
-                return (
-                  <View style={[styles.catColumn, { gap: isFreelancer ? 14 : 14, width: isFreelancer ? 100 : 110 }]}>
-                    {colItems.map((cat) => {
-                      const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
-                      const borderColors = isFreelancer
-                        ? ['#343434', '#343434']
-                        : (CAT_BORDER_COLORS[globalIdx] || ['#333', '#333']);
-
-                      if (isFreelancer) {
-                        return (
-                          <View key={cat.id} style={styles.catGridItemFreelancer}>
-                            <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer}>
-                              {cat.image ? (
-                                <Image source={cat.image} style={styles.catGridImgFreelancer} resizeMode="contain" />
-                              ) : (
-                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
-                              )}
-                            </TouchableOpacity>
-                            <Text style={styles.catGridLabelFreelancer} numberOfLines={2}>{cat.label}</Text>
+              renderItem={({ item: colItems }) => (
+                <View style={styles.catColumn}>
+                  {colItems.map((cat) => {
+                    const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
+                    return (
+                      <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)}>
+                        <LinearGradient
+                          colors={CAT_BORDER_COLORS[globalIdx] as [string, string]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={styles.catGradientBorder}
+                        >
+                          <View style={styles.catGridCard}>
+                            {cat.image ? (
+                              <Image source={cat.image} style={styles.catGridImg} resizeMode="contain" />
+                            ) : (
+                              <Ionicons name={cat.icon} size={36} color="#aaa" />
+                            )}
+                            <Text style={styles.catGridLabel}>{cat.label}</Text>
                           </View>
-                        );
-                      }
-
-                      return (
-                        <TouchableOpacity key={cat.id} style={styles.catGridItem}>
-                          <LinearGradient
-                            colors={borderColors as [string, string]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.catGradientBorder}
-                          >
-                            <View style={styles.catGridCard}>
-                              {cat.image ? (
-                                <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
-                              ) : (
-                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
-                              )}
-                              <Text style={styles.catGridLabel}>{cat.label}</Text>
-                            </View>
-                          </LinearGradient>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                );
-              }}
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             />
             {/* Pagination Dots */}
-            {userRole !== 'FREELANCER' && (
-              <View style={styles.catPagination}>
-                {[0, 1].map((i) => {
-                  const opacity = activeCatPage.interpolate({
-                    inputRange: [i - 1, i, i + 1],
-                    outputRange: [0.3, 1, 0.3],
-                    extrapolate: 'clamp',
-                  });
-                  const scale = activeCatPage.interpolate({
-                    inputRange: [i - 1, i, i + 1],
-                    outputRange: [0.8, 1.2, 0.8],
-                    extrapolate: 'clamp',
-                  });
-                  return (
-                    <Animated.View
-                      key={i}
-                      style={[
-                        styles.catDot,
-                        { opacity, transform: [{ scale }] }
-                      ]}
-                    />
-                  );
-                })}
-              </View>
-            )}
+            <View style={styles.catPagination}>
+              {[0, 1].map((i) => {
+                const opacity = activeCatPage.interpolate({
+                  inputRange: [i - 1, i, i + 1],
+                  outputRange: [0.3, 1, 0.3],
+                  extrapolate: 'clamp',
+                });
+                const scale = activeCatPage.interpolate({
+                  inputRange: [i - 1, i, i + 1],
+                  outputRange: [0.8, 1.2, 0.8],
+                  extrapolate: 'clamp',
+                });
+                return (
+                  <Animated.View
+                    key={i}
+                    style={[
+                      styles.catDot,
+                      { opacity, transform: [{ scale }] }
+                    ]}
+                  />
+                );
+              })}
+            </View>
           </View>
         </View>
 
-        <View style={{ marginTop: 20, marginBottom: 10, paddingHorizontal: 16 }}>
+        {/* ══════════════ RECENT UPDATES ══════════════ */}
+        <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
           <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
         </View>
 
         {loading ? (
           <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
         ) : cards.length === 0 ? (
-          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
+          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
         ) : (
           <LinearGradient
             colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', 'transparent']}
             locations={[0, 0.3, 0.7, 1]}
-            style={{ paddingVertical: 10 }}
+            style={{ paddingVertical: 50 }}
           >
             <Animated.FlatList
               horizontal
@@ -865,7 +768,7 @@ export default function Homepage() {
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
-                  userRole={userRole}
+                  accentColor={theme.primary}
                 />
               )}
             />
@@ -873,8 +776,8 @@ export default function Homepage() {
         )}
 
         <View style={{ paddingHorizontal: 16 }}>
-          <TouchableOpacity
-            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+          <TouchableOpacity 
+            style={[styles.exploreNowBtn, { backgroundColor: theme.primary }]}
             onPress={() => router.push('/explore')}
           >
             <Text style={styles.exploreNowBtnText}>Explore now</Text>
@@ -921,7 +824,7 @@ export default function Homepage() {
                 </View>
               )}
               <View style={styles.createPostIconWrap}>
-                <Image source={userRole === 'FREELANCER' ? imgNewPost : imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
+                <Image source={imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
               </View>
               <Text style={styles.createPostText}>Create your first post</Text>
             </TouchableOpacity>
@@ -954,7 +857,7 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          <Image source={userRole === 'FREELANCER' ? imgLoveOrange : imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          <Image source={imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
             <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>
@@ -972,12 +875,12 @@ export default function Homepage() {
           <Text style={styles.bharatSubtitle}>This is only the start</Text>
 
           <View style={styles.bharatBtnRow}>
-            <TouchableOpacity
+            <TouchableOpacity 
               style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             >
               <Text style={styles.bharatPinkBtnText}>The TeamC_official</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            <TouchableOpacity 
               style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             >
               <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
@@ -1228,21 +1131,21 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   catCarouselContainer: {
-    height: 300,
+    height: 275,
   },
   catColumn: {
     gap: 14,
-    width: 110,
+    width: (width - 32 - 28) / 3,
   },
   catGridItem: {
-    width: 110,
-    height: 89,
+    width: (width - 32 - 28) / 3,
+    height: 116,
   },
   catPagination: {
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
-    marginTop: 0,
+    marginTop: 10,
   },
   catDot: {
     width: 8,
@@ -1251,8 +1154,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f4f6ff',
   },
   catGradientBorder: {
-    width: 110,
-    height: 89,
     borderRadius: 24,
     padding: 0.4,
 
@@ -1262,57 +1163,22 @@ const styles = StyleSheet.create({
     borderRadius: 23.6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 13,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     width: '100%',
     height: '100%',
   },
-  catGridImgFreelancer: {
-    width: 56,
-    height: 52,
-    marginBottom: 6,
-  },
-  catGridImgCreator: {
-    width: 36,
-    height: 36,
+  catGridImg: {
+    width: 51,
+    height: 51,
     marginBottom: 8,
   },
   catGridLabel: {
     color: '#fff',
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Poppins_400Regular',
     textAlign: 'center',
-    lineHeight: 14,
-  },
-  catGridItemFreelancer: {
-    width: 100,
-    height: 135,
-  },
-  catGridCardFreelancer: {
-    width: 96,
-    height: 90,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#343434',
-    backgroundColor: '#0F0F0F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Approximation of box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.04), -8px 0 16px 0 rgba(0, 0, 0, 0.08)
-    shadowColor: '#000',
-    shadowOffset: { width: -8, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  catGridLabelFreelancer: {
-    color: '#fff',
-    fontSize: 10,
-    fontFamily: 'Poppins_400Regular',
-    textAlign: 'center',
-    lineHeight: 14,
-    marginTop: 8,
-    width: 100,
-    height: 28, // Fixed height for 2 lines
+    lineHeight: 20,
   },
 
   // RECENT UPDATES CARDS
@@ -1320,20 +1186,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: (width - 280) / 2,
     gap: 16,
   },
-  figmaCardGradientBorder: {
+  figmaCard: {
     width: 251,
     height: 350,
+    backgroundColor: '#1E1E24',
     borderRadius: 24,
-    padding: 0.4,
-  },
-  figmaCard: {
-    width: 250.2,
-    height: 349.2,
-    backgroundColor: '#111111',
-    borderRadius: 23.6,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   figmaCardTopRow: {
     width: '100%',
@@ -1439,7 +1301,7 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 15,
+
     marginBottom: 40,
     marginHorizontal: 32,
     shadowColor: '#000',
