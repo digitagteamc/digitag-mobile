@@ -34,14 +34,14 @@ const roles: RoleData[] = [
         primaryColor: '#ED2A91',
         selectedBg: '#ED2A9133',
         gradientStops: [
-            { color: '#ED2A91', opacity: 1.0 },   // top-left (pos 0.029 = full)
-            { color: '#ED2A91', opacity: 0.35 },   // top-center (pos 0.089)
-            { color: '#FFFFFF', opacity: 0.3 },    // top-right (pos 0.167)
-            { color: '#FFFFFF', opacity: 0.3 },    // right-center (pos 0.299)
-            { color: '#ED2A91', opacity: 0.35 },   // bottom-right (pos 0.521)
-            { color: '#ED2A91', opacity: 0.5 },    // bottom-center (pos 0.577)
-            { color: '#FFFFFF', opacity: 0.3 },    // bottom-left (pos 0.798)
-            { color: '#ED2A91', opacity: 0.3 },    // left-center (pos 0.908)
+            { color: '#ED2A91', opacity: 0.2 },   // top-left (pos 0.029 = full)
+            { color: '#ED2A91', opacity: 0.2 },   // top-center (pos 0.089)
+            { color: '#FFFFFF', opacity: 0.2 },    // top-right (pos 0.167)
+            { color: '#ED2A91', opacity: 0.2 },    // right-center (pos 0.299)
+            { color: '#ED2A91', opacity: 0.2 },   // bottom-right (pos 0.521)
+            { color: '#ED2A91', opacity: 0.1 },    // bottom-center (pos 0.577)
+            { color: '#FFFFFF', opacity: 0.1 },    // bottom-left (pos 0.798)
+            { color: '#ED2A91', opacity: 0.2 },    // left-center (pos 0.908)
         ],
     },
     {
@@ -52,13 +52,13 @@ const roles: RoleData[] = [
         primaryColor: '#214EE7',
         selectedBg: '#253E934D',
         gradientStops: [
-            { color: '#214EE7', opacity: 1.0 },
-            { color: '#214EE7', opacity: 1.0 },
-            { color: '#FFFFFF', opacity: 0.3 },
-            { color: '#FFFFFF', opacity: 0.3 },
-            { color: '#214EE7', opacity: 0.35 },
-            { color: '#214EE7', opacity: 0.5 },
-            { color: '#FFFFFF', opacity: 0.3 },
+            { color: '#214EE7', opacity: 0.2 },
+            { color: '#214EE7', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
+            { color: '#214EE7', opacity: 0.2 },
+            { color: '#214EE7', opacity: 0.2 },
+            { color: '#214EE7', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
             { color: '#214EE7', opacity: 0.3 },
         ],
     },
@@ -70,13 +70,13 @@ const roles: RoleData[] = [
         primaryColor: '#E2F20F',
         selectedBg: '#E2F20F1A',
         gradientStops: [
-            { color: '#E2F20F', opacity: 1.0 },
-            { color: '#E2F20F', opacity: 0.35 },
-            { color: '#FFFFFF', opacity: 0.3 },
-            { color: '#FFFFFF', opacity: 0.3 },
-            { color: '#E2F20F', opacity: 0.35 },
-            { color: '#E2F20F', opacity: 0.5 },
-            { color: '#FFFFFF', opacity: 0.3 },
+            { color: '#E2F20F', opacity: 0.2 },
+            { color: '#E2F20F', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
+            { color: '#E2F20F', opacity: 0.2 },
+            { color: '#E2F20F', opacity: 0.2 },
+            { color: '#E2F20F', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
             { color: '#E2F20F', opacity: 0.3 },
         ],
     },
@@ -88,19 +88,19 @@ const roles: RoleData[] = [
         primaryColor: '#F26930',
         selectedBg: '#F2693033',
         gradientStops: [
-            { color: '#F26930', opacity: 1.0 },
-            { color: '#F26930', opacity: 0.35 },
-            { color: '#FFFFFF', opacity: 0.3 },
-            { color: '#FFFFFF', opacity: 0.3 },
-            { color: '#F26930', opacity: 0.35 },
-            { color: '#F26930', opacity: 0.5 },
-            { color: '#FFFFFF', opacity: 0.3 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
             { color: '#F26930', opacity: 0.3 },
         ],
     },
 ];
 
- 
+
 function FigmaConicBorder({
     width,
     height,
@@ -393,6 +393,8 @@ export default function RoleSelectionScreen() {
                                                 shadowOpacity: 0.07,
                                                 shadowRadius: 11,
                                                 elevation: 6,
+                                                borderBottomWidth: 0.3,
+                                                borderBottomColor: isSelected ? role.primaryColor : 'transparent',
                                             }}
                                             className="rounded-[20px] pb-4 pt-[85px] px-3 items-center"
                                         >

@@ -1,5 +1,5 @@
 import { Tabs, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
 import { palette } from '../../theme/colors';
@@ -12,6 +12,32 @@ import { palette } from '../../theme/colors';
 export default function TabsLayout() {
     const router = useRouter();
 
+    const isNavigating = React.useRef(false);
+
+    const renderTabBar = useCallback((props: any) => {
+        const activeRouteName = props.state.routes[props.state.index]?.name ?? 'index';
+        const activeKey = routeToTabKey(activeRouteName);
+        
+        const handleTabPress = (tab: any) => {
+            if (isNavigating.current) return;
+            isNavigating.current = true;
+            props.navigation.navigate(tabKeyToRoute(tab.key) as never);
+            setTimeout(() => {
+                isNavigating.current = false;
+            }, 300);
+        };
+
+        return (
+            <View>
+                <AppBottomNav
+                    activeKey={activeKey}
+                    onTabPress={handleTabPress}
+                    onFabPress={() => router.push('/create-post' as any)}
+                />
+            </View>
+        );
+    }, [router]);
+
     return (
         <Tabs
             screenOptions={{
@@ -20,19 +46,7 @@ export default function TabsLayout() {
                 sceneStyle: { backgroundColor: palette.background },
             }}
             backBehavior="initialRoute"
-            tabBar={(props) => {
-                const activeRouteName = props.state.routes[props.state.index]?.name ?? 'index';
-                const activeKey = routeToTabKey(activeRouteName);
-                return (
-                    <View>
-                        <AppBottomNav
-                            activeKey={activeKey}
-                            onTabPress={(tab) => props.navigation.navigate(tabKeyToRoute(tab.key) as never)}
-                            onFabPress={() => router.push('/create-post' as any)}
-                        />
-                    </View>
-                );
-            }}
+            tabBar={renderTabBar}
         >
             <Tabs.Screen name="index" />
             <Tabs.Screen name="explore" />
