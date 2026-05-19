@@ -22,13 +22,17 @@ import {
 } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
+
+const CARD_WIDTH = 250;
+const SPACING = 10;
+const ITEM_SIZE = CARD_WIDTH + SPACING;
 
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 const imgPhotography = require('../../assets/categories/Photography.gif');
@@ -41,6 +45,7 @@ const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
 const imgProperty = require('../../assets/categories/property-rental.gif');
 const imgVoiceOver = require('../../assets/categories/VoiceOver.gif');
 const imgStars = require('../../assets/categories/stars.gif');
+const imgStarsOrange = require('../../assets/categories/star-orange.gif');
 const imgPost = require('../../assets/categories/post.gif');
 const imgNewPost = require('../../assets/categories/newpost.gif');
 const imgLove = require('../../assets/categories/love.gif');
@@ -50,6 +55,7 @@ const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
 const slide3 = require('../../assets/slides/slide3.webp');
 const slide4 = require('../../assets/slides/slide4.webp');
+
 
 const CAROUSEL_DATA = [
   {
@@ -266,7 +272,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
   const opacity = scrollX.interpolate({
     inputRange,
-    outputRange: [0.8, 1, 0.8],
+    outputRange: [1, 1, 1], // Keeps cards solid so background doesn't bleed through
     extrapolate: 'clamp',
   });
 
@@ -417,6 +423,9 @@ export default function Homepage() {
         if (!token) { setPosts([]); setLoading(false); return; }
         const res = await getFeed(token);
         const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
+        if (allPosts.length > 0) {
+          scrollX.setValue(allPosts.length * 10 * ITEM_SIZE);
+        }
         setPosts(allPosts);
       } catch (error) {
         setPosts([]);
@@ -568,9 +577,6 @@ export default function Homepage() {
     };
   });
 
-  const CARD_WIDTH = 250;
-  const SPACING = 10;
-  const ITEM_SIZE = CARD_WIDTH + SPACING;
 
   const carouselData = React.useMemo(() =>
     Array(20).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` })),
@@ -640,49 +646,16 @@ export default function Homepage() {
 
           {/* ══════════════ FLOATING HEADER ══════════════ */}
           <View style={[styles.headerWrapper, { paddingTop: insets.top + 10 }]}>
-            <BlurView intensity={0} tint="dark" style={styles.floatingHeader}>
-            {/* Top Gloss */}
-<LinearGradient
-   colors={[
-    '#f4f4f5',
-    '#e7e8ea',
-    '#dfe6ee',
-    '#f8f8f8',
-  ]}
-  start={{ x: 0, y: 0 }}
-  end={{ x: 1, y: 1 }}
-  style={StyleSheet.absoluteFillObject}
-/>
-<View
-  pointerEvents="none"
-  style={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-
-    borderRadius: 999,
-
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  }}
-/>
-<LinearGradient
-  colors={[
-    'rgba(255, 255, 255, 0.4)',
-    'transparent',
-  ]}
-  start={{ x: 0, y: 0 }}
-  end={{ x: 1, y: 1 }}
-  style={{
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    
-    borderRadius: 999,
-  }}
-/>
+            <BlurView intensity={15} tint="default" style={styles.floatingHeader}>
+              {/* Subtle white glass sheen - top edge only */}
+              <LinearGradient
+                colors={['rgba(255,255,255,0.00)', 'rgba(255,255,255,0.00)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 999 }]}
+              />
+              {/* Inner glow ring */}
+              <View style={styles.glassInnerGlow} pointerEvents="none" />
               <View style={styles.floatingHeaderInner}>
                 <View style={styles.headerAvatarWrap}>
                   {userAvatar ? (
@@ -701,16 +674,43 @@ export default function Homepage() {
             </BlurView>
 
             <View style={styles.headerRightIcons}>
-              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/analytics' as any)}>
-                <Ionicons name="stats-chart" size={16} color="#fff" />
+              {/* Analytics Button - from Figma SVG */}
+              <TouchableOpacity onPress={() => router.push('/analytics' as any)} activeOpacity={0.75}>
+                <BlurView intensity={15} tint="default" style={styles.iconCircleDark}>
+                  <Svg width="38" height="38" viewBox="31 3 36 36" style={StyleSheet.absoluteFillObject}>
+                    {/* Glass circle background */}
+                    <Circle cx="49" cy="21" r="18" fillOpacity="0.1" />
+                    {/* Glass border highlight */}
+                    <Circle cx="49" cy="21" r="17.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                    {/* Top-left highlight arc */}
+                    <Path d="M34 14 A17 17 0 0 1 56 7" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" fill="none" />
+                    {/* Bar chart icon */}
+                    <Path d="M40.4285 27.6392V23.4258" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M46.0447 27.6404V19.2136" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M51.6633 27.6395V14.9993" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M57.2793 27.6379V27.6499" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                </BlurView>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/notifications' as any)}>
-                <Ionicons name="notifications-outline" size={16} color="#fff" />
-                {pendingCount > 0 && (
-                  <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.badgeText}>{pendingCount > 9 ? '9+' : pendingCount}</Text>
-                  </View>
-                )}
+
+              {/* Notifications Button - from Figma SVG */}
+              <TouchableOpacity onPress={() => router.push('/notifications' as any)} activeOpacity={0.75}>
+                <BlurView intensity={15} tint="default" style={styles.iconCircleDark}>
+                  <Svg width="38" height="38" viewBox="31 3 36 36" style={StyleSheet.absoluteFillObject}>
+                    {/* Glass circle background */}
+                    <Circle cx="49" cy="21" r="18" fillOpacity="0.1" />
+                    {/* Glass border highlight */}
+                    <Circle cx="49" cy="21" r="17.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                    {/* Top-left highlight arc */}
+                    <Path d="M34 14 A17 17 0 0 1 56 7" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" fill="none" />
+                    {/* Bell icon */}
+                    <Path d="M50.8879 29.4863C50.186 30.1058 49.2641 30.4816 48.2544 30.4816C47.2446 30.4816 46.3227 30.1058 45.6208 29.4863M54.2241 22.6986V19.5324C54.2241 16.2254 51.5613 13.5601 48.2544 13.5601C44.9474 13.5601 42.2485 16.1118 42.2485 19.5324V22.6771C42.2485 23.1581 42.1736 23.6358 42.0265 24.0921L41.2915 26.3731C41.2714 26.4355 41.3163 26.5 41.3799 26.5H55.0859C55.1532 26.5 55.201 26.4344 55.1803 26.3704L54.4403 24.074C54.2971 23.6295 54.2241 23.1655 54.2241 22.6986Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+                    {/* Red notification dot */}
+                    {pendingCount > 0 && (
+                      <Circle cx="53.7273" cy="15.0549" r="3" fill="#E43E3E" />
+                    )}
+                  </Svg>
+                </BlurView>
               </TouchableOpacity>
             </View>
           </View>
@@ -885,7 +885,7 @@ export default function Homepage() {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
               <Image
-                source={imgStars}
+                source={userRole === 'FREELANCER' ? imgStarsOrange : imgStars}
                 style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
                 resizeMode="contain"
               />
@@ -1060,55 +1060,40 @@ const styles = StyleSheet.create({
     zIndex: 10,
     marginTop: 15,
   },
-floatingHeader: {
-  borderRadius: 999,
-
-  paddingVertical: 8,
-  paddingHorizontal: 14,
-
-  overflow: 'hidden',
-
-  backgroundColor: 'transparent',
-
-  borderWidth: 1,
-
-  borderTopColor: 'rgba(255,255,255,0.12)',
-  borderLeftColor: 'rgba(255,255,255,0.18)',
-  borderRightColor: 'rgba(255,255,255,0.18)',
-  borderBottomColor: 'rgba(255,255,255,0.12)',
-
-  shadowColor: 'transparent',
-
-  shadowOffset: {
-    width: 0,
-    height: 0,
+  floatingHeader: {
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    overflow: 'hidden',
+    // Clear glass: near-transparent white
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-
-  shadowOpacity: 0.5,
-  shadowRadius: 20,
-
-  elevation: 2,
-},
   floatingHeaderInner: {
     flexDirection: 'row',
     alignItems: 'center',
   },
- headerAvatarWrap: {
-  width: 38,
-  height: 38,
-  borderRadius: 19,
+  headerAvatarWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
 
-  overflow: 'hidden',
+    overflow: 'hidden',
 
-  borderWidth: 1.5,
-  borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
 
-  shadowColor: '#ed2a91',
-  shadowOpacity: 0.2,
-  shadowRadius: 10,
+    shadowColor: '#ed2a91',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
 
-  elevation: 6,
-},
+    elevation: 1,
+  },
   headerAvatar: {
     width: '100%',
     height: '100%',
@@ -1130,31 +1115,47 @@ floatingHeader: {
     flexDirection: 'row',
     gap: 12,
   },
- iconCircleDark: {
-  width: 38,
-  height: 38,
-  borderRadius: 19,
+  iconCircleDark: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    // Clear glass: near-transparent white
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.33)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  glassInnerGlow: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    right: 3,
+    bottom: 3,
+    borderRadius: 999,
 
-  backgroundColor: 'transparent',
+    borderColor: 'rgba(179,179,179,0.4)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 11,
+  },
+  glassInnerGlowCircle: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    right: 2,
+    bottom: 2,
+    borderRadius: 99,
 
-  borderWidth: 1,
-
-  borderTopColor: 'rgba(255,255,255,0.18)',
-  borderLeftColor: 'rgba(255,255,255,0.18)',
-  borderRightColor: 'rgba(255,255,255,0.18)',
-  borderBottomColor: 'rgba(255,255,255,0.12)',
-
-  justifyContent: 'center',
-  alignItems: 'center',
-
-  overflow: 'hidden',
-
-  shadowColor: 'transparent',
-  shadowOpacity: 0.2,
-  shadowRadius: 14,
-
-  elevation: 2,
-},
+    borderColor: 'rgba(179,179,179,0.4)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 11,
+  },
   badge: {
     position: 'absolute', top: -4, right: -4,
     minWidth: 16, height: 16, borderRadius: 8,
