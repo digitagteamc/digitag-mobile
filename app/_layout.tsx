@@ -22,66 +22,71 @@ import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
 
+function routeNotification(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined) {
+    if (!data?.type) return;
+    switch (data.type) {
+        case 'INCOMING_CALL':
+            router.push({
+                pathname: '/call',
+                params: { mode: 'incoming', callId: data.callId, remoteName: data.callerName },
+            } as any);
+            break;
+        case 'CALL_ENDED':
+        case 'CALL_DECLINED':
+            try { router.back(); } catch {}
+            break;
+        case 'NEW_MESSAGE':
+            if (data.conversationId) {
+                router.push({ pathname: '/chat/[id]', params: { id: data.conversationId } } as any);
+            }
+            break;
+        case 'COLLAB_REQUEST':
+        case 'COLLAB_ACCEPTED':
+        case 'COLLAB_DECLINED':
+            router.push('/notifications' as any);
+            break;
+        case 'NEW_POST':
+            router.push('/(tabs)/explore' as any);
+            break;
+        default:
+            break;
+    }
+}
+
 function NotificationHandler() {
     const router = useRouter();
     const { token } = useAuth();
 
     useEffect(() => {
-        // Register FCM token with backend when logged in
         if (!token) return;
         messaging().getToken().then(fcmToken => {
             if (fcmToken) registerFcmToken(token, fcmToken);
         }).catch(() => {});
 
-        // Foreground messages
+        // Foreground messages — silent data-only for calls, show banner for rest
         const unsubscribe = messaging().onMessage(async remoteMessage => {
             const data = remoteMessage.data as Record<string, string> | undefined;
-            if (data?.type === 'INCOMING_CALL') {
-                router.push({
-                    pathname: '/call',
-                    params: {
-                        mode: 'incoming',
-                        callId: data.callId,
-                        remoteName: data.callerName,
-                    },
-                });
-            } else if (data?.type === 'CALL_ENDED' || data?.type === 'CALL_DECLINED') {
-                router.back();
+            if (!data) return;
+            // Calls need immediate full-screen routing, not a banner
+            if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
+                routeNotification(router, data);
             }
+            // Other types: the FCM notification payload already shows a system banner
+            // when the app is in foreground on Android with high-priority data messages.
         });
 
         return unsubscribe;
     }, [token]);
 
-    // Handle notification tap when app was in background
+    // Background / quit-state notification taps
     useEffect(() => {
         messaging().onNotificationOpenedApp(remoteMessage => {
-            const data = remoteMessage.data as Record<string, string> | undefined;
-            if (data?.type === 'INCOMING_CALL') {
-                router.push({
-                    pathname: '/call',
-                    params: {
-                        mode: 'incoming',
-                        callId: data.callId,
-                        remoteName: data.callerName,
-                    },
-                });
-            }
+            routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
         });
 
-        // App opened from quit state via notification
         messaging().getInitialNotification().then(remoteMessage => {
-            if (!remoteMessage) return;
-            const data = remoteMessage.data as Record<string, string> | undefined;
-            if (data?.type === 'INCOMING_CALL') {
-                router.push({
-                    pathname: '/call',
-                    params: {
-                        mode: 'incoming',
-                        callId: data.callId,
-                        remoteName: data.callerName,
-                    },
-                });
+            if (remoteMessage) {
+                routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
             }
         });
     }, []);

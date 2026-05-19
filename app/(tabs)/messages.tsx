@@ -218,10 +218,7 @@ export default function MessagesTab() {
                                 <View style={styles.rowRight}>
                                     <Text style={styles.rowTime}>{when}</Text>
                                     {unread > 0 ? (
-                                        <View style={[
-                                            styles.unreadBadge,
-                                            { backgroundColor: item.other?.role === 'CREATOR' ? '#E91E8C' : '#F26930' }
-                                        ]}>
+                                        <View style={[styles.unreadBadge, { backgroundColor: accentColor }]}>
                                             <Text style={styles.unreadText}>{unread}</Text>
                                         </View>
                                     ) : null}

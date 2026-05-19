@@ -1,9 +1,9 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById } from '@/services/userService';
-import { getRoleTheme } from '@/theme/useRoleTheme';
+import { useRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -124,7 +124,7 @@ function timeAgo(dateStr: string | null | undefined) {
   return `${Math.round(diffHrs / 24)}d ago`;
 }
 
-const GradientTitle = ({ text }: { text: string }) => {
+const GradientTitle = ({ text, accentColor }: { text: string; accentColor: string }) => {
   const fontSize = 28;
   const w = text.length * fontSize * 0.58;
   const h = fontSize * 1.4;
@@ -134,7 +134,7 @@ const GradientTitle = ({ text }: { text: string }) => {
         <Defs>
           <SvgGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
             <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
-            <Stop offset="1" stopColor="#ff6ab9" stopOpacity="1" />
+            <Stop offset="1" stopColor={accentColor} stopOpacity="1" />
           </SvgGradient>
         </Defs>
         <SvgText fill="url(#titleGrad)" fontSize={fontSize} fontFamily="Poppins_600SemiBold" x="0" y={fontSize}>
@@ -226,13 +226,17 @@ const Sparkles = () => {
 
 export default function ExploreTab() {
   const router = useRouter();
+  const { category: paramCategory } = useLocalSearchParams<{ category?: string }>();
   const insets = useSafeAreaInsets();
   const { token, isGuest, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
+  const [activeCategory, setActiveCategory] = useState(
+    paramCategory && CATEGORIES.find(c => c.id === paramCategory) ? paramCategory : CATEGORIES[0].id
+  );
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
@@ -247,6 +251,12 @@ export default function ExploreTab() {
   }, [token]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  useEffect(() => {
+    if (paramCategory && CATEGORIES.find(c => c.id === paramCategory)) {
+      setActiveCategory(paramCategory);
+    }
+  }, [paramCategory]);
 
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
@@ -359,11 +369,11 @@ export default function ExploreTab() {
         style={s.scroll}
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
       >
         {/* ═══ HEADER ═══ */}
         <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-          <GradientTitle text="Explore All" />
+          <GradientTitle text="Explore All" accentColor={theme.primary} />
           <Text style={s.subtitle}>Discover & Connect with the right people</Text>
         </View>
 
@@ -442,7 +452,7 @@ export default function ExploreTab() {
 
         {/* ═══ FEED CARDS ═══ */}
         {loading ? (
-          <ActivityIndicator size="large" color="#ED2A91" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
         ) : cards.length === 0 ? (
           <View style={s.emptyState}>
             <Ionicons name="compass-outline" size={48} color="#3A3A47" />
@@ -452,8 +462,7 @@ export default function ExploreTab() {
         ) : (
           <View style={s.feedList}>
             {cards.map((item) => {
-              const postTheme = getRoleTheme(item.ownerRole);
-              const accent = postTheme.primary;
+              const accent = theme.primary;
               return (
                 <TouchableOpacity key={item.id} style={s.card} activeOpacity={0.9} onPress={() => handleCardTap(item.id, item.ownerId)}>
                   {/* Avatar + Name */}
@@ -470,7 +479,7 @@ export default function ExploreTab() {
                     <View style={s.cardNameArea}>
                       <View style={s.cardNameRow}>
                         <Text style={s.cardName}>{item.name}</Text>
-                        <Ionicons name="shield-checkmark" size={14} color="#f26930" style={{ marginLeft: 6 }} />
+                        <Ionicons name="shield-checkmark" size={14} color={theme.primary} style={{ marginLeft: 6 }} />
                       </View>
                       <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
                         <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>
@@ -503,7 +512,7 @@ export default function ExploreTab() {
                         <Text style={s.infoLabel}>Price Level <Text style={s.infoLabelSub}>(Primary)</Text></Text>
                         <View style={s.infoValueRow}>
                           {[1, 2, 3, 4].map(i => (
-                            <Text key={i} style={{ color: '#f26930', fontSize: 14 }}>₹</Text>
+                            <Text key={i} style={{ color: theme.primary, fontSize: 14 }}>₹</Text>
                           ))}
                         </View>
                       </View>

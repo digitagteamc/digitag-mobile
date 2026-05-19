@@ -26,7 +26,7 @@ import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
-import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
+import { useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
 
@@ -184,7 +184,7 @@ const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, accentColor }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -209,8 +209,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
     extrapolate: 'clamp',
   });
 
-  const postTheme = getRoleTheme(item.ownerRole);
-  const postColor = postTheme.primary;
+  const postColor = accentColor;
 
   return (
     <View style={{ width: ITEM_SIZE, alignItems: 'center', justifyContent: 'center' }}>
@@ -630,7 +629,7 @@ export default function Homepage() {
                   {colItems.map((cat) => {
                     const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
                     return (
-                      <TouchableOpacity key={cat.id} style={styles.catGridItem}>
+                      <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)}>
                         <LinearGradient
                           colors={CAT_BORDER_COLORS[globalIdx] as [string, string]}
                           start={{ x: 0, y: 0 }}
@@ -733,6 +732,7 @@ export default function Homepage() {
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
+                  accentColor={theme.primary}
                 />
               )}
             />
@@ -741,7 +741,7 @@ export default function Homepage() {
 
         <View style={{ paddingHorizontal: 16 }}>
           <TouchableOpacity 
-            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]} 
+            style={[styles.exploreNowBtn, { backgroundColor: theme.primary }]}
             onPress={() => router.push('/explore')}
           >
             <Text style={styles.exploreNowBtnText}>Explore now</Text>
