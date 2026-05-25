@@ -10,6 +10,7 @@ import {
   Animated,
   Dimensions,
   Image,
+  ImageBackground,
   Linking,
   Modal,
   ScrollView,
@@ -341,14 +342,20 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
             {/* Bottom Actions */}
             <View style={styles.figmaCardActions}>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+              <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
+                <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+                </ImageBackground>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
-                <Ionicons name="call-outline" size={16} color="#fff" />
+              <TouchableOpacity onPress={() => handleCall(item.owner)} activeOpacity={0.75}>
+                <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                  <Ionicons name="call-outline" size={18} color="#fff" />
+                </ImageBackground>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
-                <Ionicons name="share-social-outline" size={16} color="#fff" />
+              <TouchableOpacity onPress={() => handleShare(item.id)} activeOpacity={0.75}>
+                <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                  <Ionicons name="share-social-outline" size={18} color="#fff" />
+                </ImageBackground>
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1119,16 +1126,12 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    // Clear glass: near-transparent white
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.33)',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    borderWidth: 0,
+
+
   },
   glassInnerGlow: {
     position: 'absolute',
