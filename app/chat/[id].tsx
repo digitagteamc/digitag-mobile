@@ -241,7 +241,6 @@ export default function ChatScreen() {
 
     // ── Call ────────────────────────────────────────────────────────────────────
     const handleCall = () => {
-        Alert.alert('📞 Calling…', 'Connecting, please wait.');
         const peer = otherRef.current;
         if (!token) { Alert.alert('Error', 'Not signed in'); return; }
         if (!peer?.id) { Alert.alert('Still loading', 'Conversation not loaded yet. Please wait a moment.'); return; }
@@ -298,13 +297,14 @@ export default function ChatScreen() {
                     </View>
                 </View>
 
-                <Pressable
+                <TouchableOpacity
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    style={({ pressed }) => [styles.callBtn, { backgroundColor: myTheme.primary, opacity: pressed ? 0.7 : 1 }]}
+                    style={[styles.callBtn, { backgroundColor: myTheme.primary }]}
                     onPress={handleCall}
+                    activeOpacity={0.75}
                 >
                     <Ionicons name="call" size={20} color="#fff" />
-                </Pressable>
+                </TouchableOpacity>
             </View>
 
             {/* ── Body: KAV only on iOS — Android uses adjustResize ───────────── */}
