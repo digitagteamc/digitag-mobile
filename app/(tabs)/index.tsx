@@ -1,8 +1,9 @@
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,14 +22,17 @@ import {
 } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
-import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
-import { useRoleTheme } from '../../theme/useRoleTheme';
+import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
+
+const CARD_WIDTH = 250;
+const SPACING = 10;
+const ITEM_SIZE = CARD_WIDTH + SPACING;
 
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 const imgPhotography = require('../../assets/categories/Photography.gif');
@@ -39,14 +43,19 @@ const imgScriptWriters = require('../../assets/categories/script-writing.gif');
 const imgStyling = require('../../assets/categories/Styling-makeup.gif');
 const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
 const imgProperty = require('../../assets/categories/property-rental.gif');
+const imgVoiceOver = require('../../assets/categories/VoiceOver.gif');
 const imgStars = require('../../assets/categories/stars.gif');
+const imgStarsOrange = require('../../assets/categories/star-orange.gif');
 const imgPost = require('../../assets/categories/post.gif');
+const imgNewPost = require('../../assets/categories/newpost.gif');
 const imgLove = require('../../assets/categories/love.gif');
+const imgLoveOrange = require('../../assets/categories/love-orange.gif');
 const imgTargetNew = require('../../assets/categories/targetnew.png');
 const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
 const slide3 = require('../../assets/slides/slide3.webp');
 const slide4 = require('../../assets/slides/slide4.webp');
+
 
 const CAROUSEL_DATA = [
   {
@@ -100,6 +109,64 @@ const CATEGORIES = [
   { id: '6', label: 'Styling &\nmakeup', image: imgStyling, icon: 'color-palette-outline' as const },
   { id: '7', label: 'Fashion\nDesigners', image: imgFashion, icon: 'shirt-outline' as const },
   { id: '8', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
+  { id: '9', label: 'Voice Over', image: imgVoiceOver, icon: 'mic-outline' as const },
+];
+
+const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
+const f_tech = require('../../assets/freelancer-icons/Tech.webp');
+const f_education = require('../../assets/freelancer-icons/Education.webp');
+const f_photography = require('../../assets/freelancer-icons/Photography.webp');
+const f_food = require('../../assets/freelancer-icons/Food.webp');
+const f_health = require('../../assets/freelancer-icons/Health.webp');
+const f_automotive = require('../../assets/freelancer-icons/Automotive.webp');
+const f_comedy = require('../../assets/freelancer-icons/Comedy-Memes.webp');
+const f_entertainment = require('../../assets/freelancer-icons/Entertainment.webp');
+const f_gaming = require('../../assets/freelancer-icons/Gaming-Anime.webp');
+const f_learning = require('../../assets/freelancer-icons/Learning.webp');
+const f_news = require('../../assets/freelancer-icons/News-Media-Magazins.webp');
+const f_sports = require('../../assets/freelancer-icons/Sports.webp');
+
+const f_travel = require('../../assets/freelancer-icons/Travel.webp');
+const f_beauty = require('../../assets/freelancer-icons/Beauty.webp');
+const f_fitness = require('../../assets/freelancer-icons/Fitness.webp');
+const f_fashion = require('../../assets/freelancer-icons/Fashion.webp');
+const f_finance = require('../../assets/freelancer-icons/Finance-Investments.webp');
+const f_arts = require('../../assets/freelancer-icons/Arts.webp');
+const f_business = require('../../assets/freelancer-icons/Business-Startups.webp');
+const f_community = require('../../assets/freelancer-icons/communitypages.webp');
+const f_family = require('../../assets/freelancer-icons/FamilyPets.webp');
+const f_home = require('../../assets/freelancer-icons/modern-house.webp');
+const f_law = require('../../assets/freelancer-icons/Law-Rights-Activism.webp');
+const f_pets = require('../../assets/freelancer-icons/pets-animals.webp');
+const f_politics = require('../../assets/freelancer-icons/Politics.webp');
+
+const FREELANCER_CATEGORIES = [
+  { id: 'f1', label: 'Lifestyle &\nLiving', image: f_lifestyle },
+  { id: 'f2', label: 'Tech', image: f_tech },
+  { id: 'f3', label: 'Education', image: f_education },
+  { id: 'f4', label: 'Photography', image: f_photography },
+  { id: 'f5', label: 'Food', image: f_food },
+  { id: 'f6', label: 'Health', image: f_health },
+  { id: 'f7', label: 'Automotive', image: f_automotive },
+  { id: 'f8', label: 'Comedy &\nMemes', image: f_comedy },
+  { id: 'f9', label: 'Entertainment', image: f_entertainment },
+  { id: 'f10', label: 'Gaming &\nAnime', image: f_gaming },
+  { id: 'f11', label: 'Learning', image: f_learning },
+  { id: 'f12', label: 'News, Media\n& Magazins', image: f_news },
+  { id: 'f13', label: 'Sports', image: f_sports },
+  { id: 'f14', label: 'Travel', image: f_travel },
+  { id: 'f15', label: 'Beauty', image: f_beauty },
+  { id: 'f16', label: 'Fitness', image: f_fitness },
+  { id: 'f17', label: 'Fashion', image: f_fashion },
+  { id: 'f18', label: 'Finance &\nInvestments', image: f_finance },
+  { id: 'f19', label: 'Arts', image: f_arts },
+  { id: 'f20', label: 'Business &\nStartups', image: f_business },
+  { id: 'f21', label: 'Community\nPages', image: f_community },
+  { id: 'f22', label: 'Family, Kids\n& Pets', image: f_family },
+  { id: 'f23', label: 'Home &\nDecor', image: f_home },
+  { id: 'f24', label: 'Law, Rights\n& Activism', image: f_law },
+  { id: 'f25', label: 'Pets &\nAnimals', image: f_pets },
+  { id: 'f26', label: 'Politics', image: f_politics },
 ];
 
 const CAT_BORDER_COLORS = [
@@ -184,7 +251,7 @@ const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, accentColor }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -205,11 +272,12 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
   const opacity = scrollX.interpolate({
     inputRange,
-    outputRange: [0.8, 1, 0.8],
+    outputRange: [1, 1, 1], // Keeps cards solid so background doesn't bleed through
     extrapolate: 'clamp',
   });
 
-  const postColor = accentColor;
+  const postTheme = getRoleTheme(item.ownerRole);
+  const postColor = postTheme.primary;
 
   return (
     <View style={{ width: ITEM_SIZE, alignItems: 'center', justifyContent: 'center' }}>
@@ -220,66 +288,71 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
           opacity,
         }}
       >
-        <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
-          {/* Top Opacity Overlay */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
-            style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
-          />
-          {/* Top Absolute Row */}
-          <View style={styles.figmaCardTopRow}>
-            <View style={styles.figmaCardRoleBadge}>
-              <Text style={styles.figmaCardRoleText}>{item.role}</Text>
-            </View>
-            <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
-              <Ionicons name="bookmark-outline" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Avatar */}
-          <View style={styles.figmaCardAvatarWrap}>
-            {item.isInitials ? (
-              <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
-                <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
+        <LinearGradient
+          colors={['transparent', userRole === 'FREELANCER' ? '#ed2a91' : '#f26930']}
+          style={styles.figmaCardGradientBorder}
+        >
+          <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
+            {/* Top Opacity Overlay */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
+            />
+            {/* Top Absolute Row */}
+            <View style={styles.figmaCardTopRow}>
+              <View style={styles.figmaCardRoleBadge}>
+                <Text style={styles.figmaCardRoleText}>{item.role}</Text>
               </View>
-            ) : (
-              <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
-            )}
-          </View>
-
-          {/* Name & Details */}
-          <Text style={styles.figmaCardName}>{item.name}</Text>
-
-          <View style={styles.figmaCardMetaRow}>
-            <TouchableOpacity
-              style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
-              onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
-            >
-              <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
-            </TouchableOpacity>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-              <Ionicons name="time-outline" size={14} color="#a1a2a4" />
-              <Text style={styles.figmaCardTimeText}> {item.time}</Text>
+              <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
+                <Ionicons name="bookmark-outline" size={18} color="#fff" />
+              </TouchableOpacity>
             </View>
-          </View>
 
-          <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
+            {/* Avatar */}
+            <View style={styles.figmaCardAvatarWrap}>
+              {item.isInitials ? (
+                <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
+                </View>
+              ) : (
+                <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
+              )}
+            </View>
 
-          <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
+            {/* Name & Details */}
+            <Text style={styles.figmaCardName}>{item.name}</Text>
 
-          {/* Bottom Actions */}
-          <View style={styles.figmaCardActions}>
-            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
-              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
-              <Ionicons name="call-outline" size={16} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
-              <Ionicons name="share-social-outline" size={16} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+            <View style={styles.figmaCardMetaRow}>
+              <TouchableOpacity
+                style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
+                onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
+              >
+                <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
+                <Ionicons name="time-outline" size={14} color="#a1a2a4" />
+                <Text style={styles.figmaCardTimeText}> {item.time}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
+
+            <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
+
+            {/* Bottom Actions */}
+            <View style={styles.figmaCardActions}>
+              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleMessage(item.ownerId)}>
+                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleCall(item.owner)}>
+                <Ionicons name="call-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.figmaCardActionBtn} onPress={() => handleShare(item.id)}>
+                <Ionicons name="share-social-outline" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </LinearGradient>
       </Animated.View>
     </View>
   );
@@ -313,21 +386,28 @@ export default function Homepage() {
   // Filter categories based on role: show only first 4 for Freelancers, all 8 for others.
   const availableCategoryColumns = useMemo(() => {
     if (userRole === 'FREELANCER') {
-      return [
-        [CATEGORIES[0], CATEGORIES[2]],
-        [CATEGORIES[1], CATEGORIES[3]],
-      ];
+      const cols = [];
+      const mid = Math.ceil(FREELANCER_CATEGORIES.length / 2);
+      for (let i = 0; i < mid; i++) {
+        cols.push([
+          FREELANCER_CATEGORIES[i],
+          FREELANCER_CATEGORIES[i + mid]
+        ].filter(Boolean));
+      }
+      return cols;
     }
     return [
-      [CATEGORIES[0], CATEGORIES[4]],
-      [CATEGORIES[1], CATEGORIES[5]],
-      [CATEGORIES[2], CATEGORIES[6]],
-      [CATEGORIES[3], CATEGORIES[7]],
+      [CATEGORIES[0], CATEGORIES[5]],
+      [CATEGORIES[1], CATEGORIES[6]],
+      [CATEGORIES[2], CATEGORIES[7]],
+      [CATEGORIES[3], CATEGORIES[8]],
+      [CATEGORIES[4]],
     ];
   }, [userRole]);
 
-  const colWidth = (width - 32 - 28) / 3;
-  const snapInterval = colWidth * 2 + 14 * 2;
+  const catGap = userRole === 'FREELANCER' ? 12 : 12;
+  const colWidth = userRole === 'FREELANCER' ? 100 : 110;
+  const snapInterval = userRole === 'FREELANCER' ? colWidth + catGap : colWidth * 2 + 14 * 2;
 
   const scrollXCat = useRef(new Animated.Value(0)).current;
   const activeCatPage = Animated.divide(scrollXCat, snapInterval);
@@ -343,6 +423,9 @@ export default function Homepage() {
         if (!token) { setPosts([]); setLoading(false); return; }
         const res = await getFeed(token);
         const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
+        if (allPosts.length > 0) {
+          scrollX.setValue(allPosts.length * 10 * ITEM_SIZE);
+        }
         setPosts(allPosts);
       } catch (error) {
         setPosts([]);
@@ -494,9 +577,6 @@ export default function Homepage() {
     };
   });
 
-  const CARD_WIDTH = 250;
-  const SPACING = 10;
-  const ITEM_SIZE = CARD_WIDTH + SPACING;
 
   const carouselData = React.useMemo(() =>
     Array(20).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` })),
@@ -566,13 +646,16 @@ export default function Homepage() {
 
           {/* ══════════════ FLOATING HEADER ══════════════ */}
           <View style={[styles.headerWrapper, { paddingTop: insets.top + 10 }]}>
-            <BlurView intensity={5} tint="light" style={styles.floatingHeader}>
+            <BlurView intensity={15} tint="default" style={styles.floatingHeader}>
+              {/* Subtle white glass sheen - top edge only */}
               <LinearGradient
-                colors={['rgba(255, 255, 255, 0.1)', 'transparent']}
+                colors={['rgba(255,255,255,0.00)', 'rgba(255,255,255,0.00)']}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
+                end={{ x: 0, y: 1 }}
+                style={[StyleSheet.absoluteFillObject, { borderRadius: 999 }]}
               />
+              {/* Inner glow ring */}
+              <View style={styles.glassInnerGlow} pointerEvents="none" />
               <View style={styles.floatingHeaderInner}>
                 <View style={styles.headerAvatarWrap}>
                   {userAvatar ? (
@@ -591,107 +674,157 @@ export default function Homepage() {
             </BlurView>
 
             <View style={styles.headerRightIcons}>
-              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/analytics' as any)}>
-                <Ionicons name="stats-chart" size={16} color="#fff" />
+              {/* Analytics Button - from Figma SVG */}
+              <TouchableOpacity onPress={() => router.push('/analytics' as any)} activeOpacity={0.75}>
+                <BlurView intensity={15} tint="default" style={styles.iconCircleDark}>
+                  <Svg width="38" height="38" viewBox="31 3 36 36" style={StyleSheet.absoluteFillObject}>
+                    {/* Glass circle background */}
+                    <Circle cx="49" cy="21" r="18" fillOpacity="0.1" />
+                    {/* Glass border highlight */}
+                    <Circle cx="49" cy="21" r="17.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                    {/* Top-left highlight arc */}
+                    <Path d="M34 14 A17 17 0 0 1 56 7" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" fill="none" />
+                    {/* Bar chart icon */}
+                    <Path d="M40.4285 27.6392V23.4258" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M46.0447 27.6404V19.2136" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M51.6633 27.6395V14.9993" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <Path d="M57.2793 27.6379V27.6499" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                </BlurView>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconCircleDark} onPress={() => router.push('/notifications' as any)}>
-                <Ionicons name="notifications-outline" size={16} color="#fff" />
-                {pendingCount > 0 && (
-                  <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.badgeText}>{pendingCount > 9 ? '9+' : pendingCount}</Text>
-                  </View>
-                )}
+
+              {/* Notifications Button - from Figma SVG */}
+              <TouchableOpacity onPress={() => router.push('/notifications' as any)} activeOpacity={0.75}>
+                <BlurView intensity={15} tint="default" style={styles.iconCircleDark}>
+                  <Svg width="38" height="38" viewBox="31 3 36 36" style={StyleSheet.absoluteFillObject}>
+                    {/* Glass circle background */}
+                    <Circle cx="49" cy="21" r="18" fillOpacity="0.1" />
+                    {/* Glass border highlight */}
+                    <Circle cx="49" cy="21" r="17.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+                    {/* Top-left highlight arc */}
+                    <Path d="M34 14 A17 17 0 0 1 56 7" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" fill="none" />
+                    {/* Bell icon */}
+                    <Path d="M50.8879 29.4863C50.186 30.1058 49.2641 30.4816 48.2544 30.4816C47.2446 30.4816 46.3227 30.1058 45.6208 29.4863M54.2241 22.6986V19.5324C54.2241 16.2254 51.5613 13.5601 48.2544 13.5601C44.9474 13.5601 42.2485 16.1118 42.2485 19.5324V22.6771C42.2485 23.1581 42.1736 23.6358 42.0265 24.0921L41.2915 26.3731C41.2714 26.4355 41.3163 26.5 41.3799 26.5H55.0859C55.1532 26.5 55.201 26.4344 55.1803 26.3704L54.4403 24.074C54.2971 23.6295 54.2241 23.1655 54.2241 22.6986Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+                    {/* Red notification dot */}
+                    {pendingCount > 0 && (
+                      <Circle cx="53.7273" cy="15.0549" r="3" fill="#E43E3E" />
+                    )}
+                  </Svg>
+                </BlurView>
               </TouchableOpacity>
             </View>
           </View>
         </View>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
-          {/* ══════════════ FREELANCERS BY CATEGORY ══════════════ */}
-          <View style={{ marginBottom: 20 }}>
-            <GradientHeading text="Freelancers by category" style={styles.gradientHeadingText} role={userRole} />
+          {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
+          <View style={{ marginBottom: 10 }}>
+            <GradientHeading text={userRole === 'FREELANCER' ? "Creators by category" : "Freelancers by category"} style={styles.gradientHeadingText} role={userRole} />
           </View>
-          <View style={styles.catCarouselContainer}>
+          <View style={[styles.catCarouselContainer, { height: userRole === 'FREELANCER' ? 280 : 230 }]}>
             <Animated.FlatList
               data={availableCategoryColumns}
               horizontal
               showsHorizontalScrollIndicator={false}
               snapToInterval={snapInterval}
               decelerationRate="fast"
-              contentContainerStyle={{ paddingHorizontal: 2, gap: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 2, gap: catGap }}
               onScroll={Animated.event(
                 [{ nativeEvent: { contentOffset: { x: scrollXCat } } }],
                 { useNativeDriver: true }
               )}
               keyExtractor={(_, i) => `col-${i}`}
-              renderItem={({ item: colItems }) => (
-                <View style={styles.catColumn}>
-                  {colItems.map((cat) => {
-                    const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
-                    return (
-                      <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)}>
-                        <LinearGradient
-                          colors={CAT_BORDER_COLORS[globalIdx] as [string, string]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.catGradientBorder}
-                        >
-                          <View style={styles.catGridCard}>
-                            {cat.image ? (
-                              <Image source={cat.image} style={styles.catGridImg} resizeMode="contain" />
-                            ) : (
-                              <Ionicons name={cat.icon} size={36} color="#aaa" />
-                            )}
-                            <Text style={styles.catGridLabel}>{cat.label}</Text>
+              renderItem={({ item: colItems }) => {
+                const isFreelancer = userRole === 'FREELANCER';
+                return (
+                  <View style={[styles.catColumn, { gap: isFreelancer ? 14 : 14, width: isFreelancer ? 100 : 110 }]}>
+                    {colItems.map((cat) => {
+                      const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
+                      const borderColors = isFreelancer
+                        ? ['#343434', '#343434']
+                        : (CAT_BORDER_COLORS[globalIdx] || ['#333', '#333']);
+
+                      if (isFreelancer) {
+                        return (
+                          <View key={cat.id} style={styles.catGridItemFreelancer}>
+                            <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer}>
+                              {cat.image ? (
+                                <Image source={cat.image} style={styles.catGridImgFreelancer} resizeMode="contain" />
+                              ) : (
+                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
+                              )}
+                            </TouchableOpacity>
+                            <Text style={styles.catGridLabelFreelancer} numberOfLines={2}>{cat.label}</Text>
                           </View>
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity key={cat.id} style={styles.catGridItem}>
+                          <LinearGradient
+                            colors={borderColors as [string, string]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.catGradientBorder}
+                          >
+                            <View style={styles.catGridCard}>
+                              {cat.image ? (
+                                <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
+                              ) : (
+                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
+                              )}
+                              <Text style={styles.catGridLabel}>{cat.label}</Text>
+                            </View>
+                          </LinearGradient>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              }}
             />
             {/* Pagination Dots */}
-            <View style={styles.catPagination}>
-              {[0, 1].map((i) => {
-                const opacity = activeCatPage.interpolate({
-                  inputRange: [i - 1, i, i + 1],
-                  outputRange: [0.3, 1, 0.3],
-                  extrapolate: 'clamp',
-                });
-                const scale = activeCatPage.interpolate({
-                  inputRange: [i - 1, i, i + 1],
-                  outputRange: [0.8, 1.2, 0.8],
-                  extrapolate: 'clamp',
-                });
-                return (
-                  <Animated.View
-                    key={i}
-                    style={[
-                      styles.catDot,
-                      { opacity, transform: [{ scale }] }
-                    ]}
-                  />
-                );
-              })}
-            </View>
+            {userRole !== 'FREELANCER' && (
+              <View style={styles.catPagination}>
+                {[0, 1].map((i) => {
+                  const opacity = activeCatPage.interpolate({
+                    inputRange: [i - 1, i, i + 1],
+                    outputRange: [0.3, 1, 0.3],
+                    extrapolate: 'clamp',
+                  });
+                  const scale = activeCatPage.interpolate({
+                    inputRange: [i - 1, i, i + 1],
+                    outputRange: [0.8, 1.2, 0.8],
+                    extrapolate: 'clamp',
+                  });
+                  return (
+                    <Animated.View
+                      key={i}
+                      style={[
+                        styles.catDot,
+                        { opacity, transform: [{ scale }] }
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+            )}
           </View>
         </View>
 
-        {/* ══════════════ RECENT UPDATES ══════════════ */}
-        <View style={{ marginTop: 40, marginBottom: 20, paddingHorizontal: 16 }}>
+        <View style={{ marginTop: 20, marginBottom: 10, paddingHorizontal: 16 }}>
           <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
         </View>
 
         {loading ? (
           <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
         ) : cards.length === 0 ? (
-          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 40 }}>No posts found</Text>
+          <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
         ) : (
           <LinearGradient
             colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', 'transparent']}
             locations={[0, 0.3, 0.7, 1]}
-            style={{ paddingVertical: 50 }}
+            style={{ paddingVertical: 10 }}
           >
             <Animated.FlatList
               horizontal
@@ -732,7 +865,7 @@ export default function Homepage() {
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
-                  accentColor={theme.primary}
+                  userRole={userRole}
                 />
               )}
             />
@@ -740,8 +873,8 @@ export default function Homepage() {
         )}
 
         <View style={{ paddingHorizontal: 16 }}>
-          <TouchableOpacity 
-            style={[styles.exploreNowBtn, { backgroundColor: theme.primary }]}
+          <TouchableOpacity
+            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             onPress={() => router.push('/explore')}
           >
             <Text style={styles.exploreNowBtnText}>Explore now</Text>
@@ -752,7 +885,7 @@ export default function Homepage() {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
               <Image
-                source={imgStars}
+                source={userRole === 'FREELANCER' ? imgStarsOrange : imgStars}
                 style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
                 resizeMode="contain"
               />
@@ -788,7 +921,7 @@ export default function Homepage() {
                 </View>
               )}
               <View style={styles.createPostIconWrap}>
-                <Image source={imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
+                <Image source={userRole === 'FREELANCER' ? imgNewPost : imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
               </View>
               <Text style={styles.createPostText}>Create your first post</Text>
             </TouchableOpacity>
@@ -821,7 +954,7 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          <Image source={imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          <Image source={userRole === 'FREELANCER' ? imgLoveOrange : imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
             <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>
@@ -839,12 +972,12 @@ export default function Homepage() {
           <Text style={styles.bharatSubtitle}>This is only the start</Text>
 
           <View style={styles.bharatBtnRow}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             >
               <Text style={styles.bharatPinkBtnText}>The TeamC_official</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
             >
               <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
@@ -928,26 +1061,38 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   floatingHeader: {
-    borderRadius: 99,
-    paddingVertical: 6,
+    borderRadius: 999,
+    paddingVertical: 8,
     paddingHorizontal: 14,
-    alignSelf: 'flex-start',
     overflow: 'hidden',
-    borderWidth: 0.8,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    // Clear glass: near-transparent white
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.45)',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   floatingHeaderInner: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   headerAvatarWrap: {
-    width: 36,
-    height: 36, // Back to square for a perfect circle
-    borderRadius: 18,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#ed2a91',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
 
+    overflow: 'hidden',
+
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
+
+    shadowColor: '#ed2a91',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+
+    elevation: 1,
   },
   headerAvatar: {
     width: '100%',
@@ -971,14 +1116,45 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconCircleDark: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    // Clear glass: near-transparent white
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.33)',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  glassInnerGlow: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    right: 3,
+    bottom: 3,
+    borderRadius: 999,
+
+    borderColor: 'rgba(179,179,179,0.4)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 11,
+  },
+  glassInnerGlowCircle: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    right: 2,
+    bottom: 2,
+    borderRadius: 99,
+
+    borderColor: 'rgba(179,179,179,0.4)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 11,
   },
   badge: {
     position: 'absolute', top: -4, right: -4,
@@ -1052,21 +1228,21 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   catCarouselContainer: {
-    height: 275,
+    height: 300,
   },
   catColumn: {
     gap: 14,
-    width: (width - 32 - 28) / 3,
+    width: 110,
   },
   catGridItem: {
-    width: (width - 32 - 28) / 3,
-    height: 116,
+    width: 110,
+    height: 89,
   },
   catPagination: {
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 0,
   },
   catDot: {
     width: 8,
@@ -1075,6 +1251,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f4f6ff',
   },
   catGradientBorder: {
+    width: 110,
+    height: 89,
     borderRadius: 24,
     padding: 0.4,
 
@@ -1084,22 +1262,57 @@ const styles = StyleSheet.create({
     borderRadius: 23.6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 13,
     width: '100%',
     height: '100%',
   },
-  catGridImg: {
-    width: 51,
-    height: 51,
+  catGridImgFreelancer: {
+    width: 56,
+    height: 52,
+    marginBottom: 6,
+  },
+  catGridImgCreator: {
+    width: 36,
+    height: 36,
     marginBottom: 8,
   },
   catGridLabel: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10.5,
     fontFamily: 'Poppins_400Regular',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 14,
+  },
+  catGridItemFreelancer: {
+    width: 100,
+    height: 135,
+  },
+  catGridCardFreelancer: {
+    width: 96,
+    height: 90,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#343434',
+    backgroundColor: '#0F0F0F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Approximation of box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.04), -8px 0 16px 0 rgba(0, 0, 0, 0.08)
+    shadowColor: '#000',
+    shadowOffset: { width: -8, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  catGridLabelFreelancer: {
+    color: '#fff',
+    fontSize: 10,
+    fontFamily: 'Poppins_400Regular',
+    textAlign: 'center',
+    lineHeight: 14,
+    marginTop: 8,
+    width: 100,
+    height: 28, // Fixed height for 2 lines
   },
 
   // RECENT UPDATES CARDS
@@ -1107,16 +1320,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: (width - 280) / 2,
     gap: 16,
   },
-  figmaCard: {
+  figmaCardGradientBorder: {
     width: 251,
     height: 350,
-    backgroundColor: '#1E1E24',
     borderRadius: 24,
+    padding: 0.4,
+  },
+  figmaCard: {
+    width: 250.2,
+    height: 349.2,
+    backgroundColor: '#111111',
+    borderRadius: 23.6,
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   figmaCardTopRow: {
     width: '100%',
@@ -1222,7 +1439,7 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     paddingVertical: 16,
     alignItems: 'center',
-
+    marginTop: 15,
     marginBottom: 40,
     marginHorizontal: 32,
     shadowColor: '#000',
