@@ -34,6 +34,9 @@ export default function CreatePost() {
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [collab, setCollab] = useState<CollabChoice | null>(null);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
+  const [budget, setBudget] = useState('');
+  const [isMonthly, setIsMonthly] = useState(false);
+  const [boostDuration, setBoostDuration] = useState(4); // Default 4 hours
   const [submitting, setSubmitting] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
@@ -114,6 +117,11 @@ export default function CreatePost() {
   };
 
   const handleDraft = () => saveDraft();
+
+  const formatTimeEndsAt = (hours: number) => {
+    const end = new Date(Date.now() + hours * 60 * 60 * 1000);
+    return end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -224,6 +232,88 @@ export default function CreatePost() {
             </LinearGradient>
           )}
         </View>
+
+        {/* ── BUDGET INPUT ── */}
+        <Text style={styles.sectionTitle}>Budget *</Text>
+        <View style={styles.budgetInputContainer}>
+          <TextInput
+            style={styles.budgetInput}
+            placeholder="₹1000-5000"
+            placeholderTextColor="#555"
+            value={budget}
+            onChangeText={setBudget}
+            keyboardType="numeric"
+          />
+        </View>
+
+        {/* ── READY TO COLLAB ── */}
+        <Text style={styles.sectionTitle}>Ready to collab with Brand</Text>
+        <TouchableOpacity 
+          style={styles.checkboxRow} 
+          activeOpacity={0.7}
+          onPress={() => setIsMonthly(v => !v)}
+        >
+          <View style={[styles.checkbox, isMonthly && styles.checkboxActive]}>
+            {isMonthly && <Ionicons name="checkmark" size={14} color="#fff" />}
+          </View>
+          <Text style={styles.checkboxLabel}>Monthly</Text>
+        </TouchableOpacity>
+
+        {/* ── BOOST DURATION CARD ── */}
+        <LinearGradient
+          colors={['#1A1A1A', '#0D0D0D']}
+          style={styles.boostCard}
+        >
+          <View style={styles.boostHeader}>
+            <View style={styles.boostIconContainer}>
+              <Ionicons name="flash" size={14} color="#7C3AED" />
+            </View>
+            <View>
+              <Text style={styles.boostTitle}>Boost Duration</Text>
+              <Text style={styles.boostSubtitle}>How long should your post stay live?</Text>
+            </View>
+          </View>
+
+          <View style={styles.durationRow}>
+            {[
+              { h: 4, label: '4 hr', sub: 'Quick boost', icon: 'rocket' },
+              { h: 12, label: '12 hr', sub: 'Half day', icon: 'sunny' },
+              { h: 24, label: '24 hr', sub: 'Full day', icon: 'sunny-outline' },
+              { h: 48, label: '48 hr', sub: 'Extended reach', icon: 'flame' },
+            ].map(item => {
+              const active = boostDuration === item.h;
+              return (
+                <TouchableOpacity
+                  key={item.h}
+                  onPress={() => setBoostDuration(item.h)}
+                  style={[styles.durationPill, active && styles.durationPillActive]}
+                >
+                  <Ionicons name={item.icon as any} size={18} color={active ? '#fff' : '#888'} />
+                  <Text style={[styles.durationText, active && styles.durationTextActive]}>{item.label}</Text>
+                  <Text style={[styles.durationSub, active && styles.durationSubActive]}>{item.sub}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={styles.sliderContainer}>
+            <View style={styles.sliderLine}>
+              <View style={[styles.sliderFill, { width: `${(boostDuration / 48) * 100}%` }]} />
+              <View style={[styles.sliderThumb, { left: `${(boostDuration / 48) * 100}%` }]} />
+            </View>
+          </View>
+
+          <View style={styles.boostFooter}>
+            <View>
+              <Text style={styles.footerLabel}>Active for</Text>
+              <Text style={styles.footerValue}>{boostDuration} hours</Text>
+            </View>
+            <View style={styles.endsAtPill}>
+              <Text style={styles.endsAtLabel}>Ends at</Text>
+              <Text style={styles.endsAtValue}>{formatTimeEndsAt(boostDuration)}</Text>
+            </View>
+          </View>
+        </LinearGradient>
       </ScrollView>
 
       <View style={styles.bottomActions}>
@@ -394,5 +484,175 @@ const styles = StyleSheet.create({
   optionText: {
     color: '#fff',
     fontSize: 15,
+  },
+  sectionTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Medium',
+    marginTop: 14,
+    marginBottom: 14,
+  },
+  budgetInputContainer: {
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  budgetInput: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#555',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: '#7C3AED',
+    borderColor: '#7C3AED',
+  },
+  checkboxLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_400Regular',
+  },
+  boostCard: {
+    marginTop: 24,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    padding: 20,
+  },
+  boostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  boostIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  boostTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  boostSubtitle: {
+    color: '#888',
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+  },
+  durationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  durationPill: {
+    width: '23%',
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  durationPillActive: {
+    backgroundColor: '#A855F7',
+    borderColor: '#C084FC',
+  },
+  durationText: {
+    color: '#888',
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+    marginTop: 4,
+  },
+  durationTextActive: {
+    color: '#fff',
+  },
+  durationSub: {
+    color: '#555',
+    fontSize: 8,
+    fontFamily: 'Poppins_400Regular',
+    marginTop: 2,
+  },
+  durationSubActive: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  sliderContainer: {
+    marginVertical: 12,
+  },
+  sliderLine: {
+    height: 4,
+    backgroundColor: '#333',
+    borderRadius: 2,
+    position: 'relative',
+  },
+  sliderFill: {
+    height: '100%',
+    backgroundColor: '#A855F7',
+    borderRadius: 2,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    top: -6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 3,
+    borderColor: '#A855F7',
+    transform: [{ translateX: -8 }],
+  },
+  boostFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  footerLabel: {
+    color: '#888',
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+  },
+  footerValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins_700Bold',
+  },
+  endsAtPill: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  endsAtLabel: {
+    color: '#888',
+    fontSize: 10,
+    fontFamily: 'Poppins_400Regular',
+  },
+  endsAtValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

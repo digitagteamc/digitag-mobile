@@ -18,12 +18,21 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
+import Reanimated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import { Circle, Defs, G, Mask, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
@@ -251,6 +260,244 @@ const StrokeText = ({ text, strokeColor }: { text: string, strokeColor: string }
   );
 };
 
+const HeroGradientText = ({ text, color, fontSize = 14 }: { text: string, color: string, fontSize?: number }) => {
+  const widthVal = text.length * fontSize * 0.6;
+  return (
+    <View style={{ width: widthVal, height: fontSize * 1.5 }}>
+      <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${fontSize * 1.5}`}>
+        <Defs>
+          <SvgGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
+            <Stop offset="1" stopColor={color} stopOpacity="1" />
+          </SvgGradient>
+        </Defs>
+        <SvgText
+          fill="url(#heroGrad)"
+          fontSize={fontSize}
+          fontFamily="Poppins_600SemiBold"
+          x="0"
+          y={fontSize}
+        >
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
+  );
+};
+
+const BlinkingStar = React.memo(({ style, size = 20 }: { style?: any, size?: number }) => {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const duration = 1000 + Math.random() * 1500;
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration }),
+        withTiming(0, { duration })
+      ),
+      -1,
+      true
+    );
+    return () => cancelAnimation(opacity);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: opacity.value * 0.3 + 0.7 }]
+  }));
+
+  return (
+    <Reanimated.View style={[style, animatedStyle]}>
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M9.93694 14.9996C9.84766 14.6535 9.66728 14.3377 9.41456 14.085C9.16184 13.8323 8.84601 13.6519 8.49994 13.5626L2.36494 11.9806C2.26027 11.9509 2.16815 11.8878 2.10255 11.801C2.03696 11.7142 2.00146 11.6084 2.00146 11.4996C2.00146 11.3908 2.03696 11.285 2.00146 11.4996C2.00146 11.3908 2.03696 11.285 2.10255 11.1981C2.16815 11.1113 2.26027 11.0483 2.36494 11.0186L8.49994 9.43559C8.84589 9.3464 9.16163 9.16617 9.41434 8.91363C9.66705 8.6611 9.84751 8.34548 9.93694 7.99959L11.5189 1.86459C11.5483 1.75951 11.6113 1.66693 11.6983 1.60099C11.7852 1.53504 11.8913 1.49934 12.0004 1.49934C12.1096 1.49934 12.2157 1.53504 12.3026 1.60099C12.3896 1.66693 12.4525 1.75951 12.4819 1.86459L14.0629 7.99959C14.1522 8.34566 14.3326 8.66149 14.5853 8.91421C14.838 9.16693 15.1539 9.34731 15.4999 9.43659L21.6349 11.0176C21.7404 11.0467 21.8335 11.1096 21.8998 11.1967C21.9661 11.2837 22.002 11.3902 22.002 11.4996C22.002 11.609 21.9661 11.7154 21.8998 11.8025C21.8335 11.8896 21.7404 11.9525 21.6349 11.9816L15.4999 13.5626C15.1539 13.6519 14.838 13.8323 14.5853 14.085C14.3326 14.3377 14.1522 14.6535 14.0629 14.9996L12.4809 21.1346C12.4515 21.2397 12.3886 21.3322 12.3016 21.3982C12.2147 21.4641 12.1086 21.4998 11.9994 21.4998C11.8903 21.4998 11.7842 21.4641 11.6973 21.3982C11.6103 21.3322 11.5473 21.2397 11.5179 21.1346L9.93694 14.9996Z"
+          stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        />
+        <Path d="M20 2.875V6.70833" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M22 5.00034H18" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M4 16.292V18.2087" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+       </Svg>
+    </Reanimated.View>
+  );
+});
+
+const BlinkingDot = React.memo(({ style, size = 5 }: { style?: any, size?: number }) => {
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    const duration = 800 + Math.random() * 1200;
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration }),
+        withTiming(0, { duration })
+      ),
+      -1,
+      true
+    );
+    return () => cancelAnimation(opacity);
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Reanimated.View style={[style, animatedStyle]}>
+      <Svg width={size} height={size} viewBox="0 0 5 5" fill="none">
+        <Circle cx="2.5" cy="2.5" r="2.5" fill="#D9D9D9" />
+      </Svg>
+    </Reanimated.View>
+  );
+});
+
+const Sparkles = React.memo(() => {
+  return (
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      <BlinkingStar style={{ position: 'absolute', top: 10, left: 120 }} size={24} />
+      <BlinkingStar style={{ position: 'absolute', top: 100, right: 10 }} size={16} />
+      <BlinkingStar style={{ position: 'absolute', bottom: 60, left: 40 }} size={20} />
+
+      <BlinkingDot style={{ position: 'absolute', top: 40, left: 40 }} />
+      <BlinkingDot style={{ position: 'absolute', top: 140, left: 180 }} />
+      <BlinkingDot style={{ position: 'absolute', top: 60, right: 100 }} />
+      <BlinkingDot style={{ position: 'absolute', bottom: 100, right: 150 }} />
+      <BlinkingDot style={{ position: 'absolute', bottom: 40, right: 50 }} />
+      <BlinkingDot style={{ position: 'absolute', top: 200, left: 20 }} />
+      <BlinkingDot style={{ position: 'absolute', top: 20, right: 200 }} />
+      <BlinkingDot style={{ position: 'absolute', bottom: 150, left: 100 }} />
+      <BlinkingDot style={{ position: 'absolute', top: 100, left: '50%' }} />
+      <BlinkingDot style={{ position: 'absolute', bottom: 20, left: 200 }} />
+    </View>
+  );
+});
+
+const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+  const [timeLeft, setTimeLeft] = useState({
+    days: 15,
+    hours: 8,
+    minutes: 42,
+    seconds: 19
+  });
+
+  const translateY = useSharedValue(0);
+
+  useEffect(() => {
+    if (!visible) return;
+    translateY.value = withRepeat(
+      withSequence(
+        withTiming(-10, { duration: 1500 }),
+        withTiming(0, { duration: 1500 })
+      ),
+      -1,
+      true
+    );
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
+        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        if (prev.days > 0) return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
+        return prev;
+      });
+    }, 1000);
+    return () => {
+      clearInterval(timer);
+      cancelAnimation(translateY);
+    };
+  }, [visible]);
+
+  const animatedRocketStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }]
+  }));
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <LinearGradient
+          colors={['#1E1C5B', '#1E1C5B', '#921B66', '#E91E63']}
+          locations={[0, 0.45, 0.75, 1]}
+          style={{ 
+            width: Math.min(400, width - 32), 
+            height: 647, 
+            borderRadius: 32, 
+            padding: 24, 
+            paddingBottom: 40, 
+            alignItems: 'center', 
+            position: 'relative', 
+            overflow: 'hidden' 
+          }}
+        >
+          <Sparkles />
+
+          <TouchableOpacity 
+            onPress={onClose}
+            style={{ position: 'absolute', top: 20, right: 20, width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)' }}
+          >
+            <Ionicons name="close" size={20} color="#fff" />
+          </TouchableOpacity>
+
+          <Reanimated.View style={[{ width: 100, height: 100, borderRadius: 24, backgroundColor: '#C2185B', justifyContent: 'center', alignItems: 'center', marginTop: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 10 }, animatedRocketStyle]}>
+            <Ionicons name="rocket-outline" size={56} color="#fff" />
+          </Reanimated.View>
+
+          <Text style={{ color: '#fff', fontSize: 36, fontFamily: 'Poppins_700Bold', marginTop: 20 }}>Launching Soon</Text>
+          <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_400Regular', opacity: 0.8, marginTop: 3 }}>Something amazing is on the way</Text>
+
+          {/* Countdown timer */}
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 20 }}>
+            {[
+              { val: timeLeft.days, label: 'DAYS' },
+              { val: timeLeft.hours, label: 'HOURS' },
+              { val: timeLeft.minutes, label: 'MINUTES' },
+              { val: timeLeft.seconds, label: 'SECONDS' }
+            ].map((item, idx) => (
+              <View key={idx} style={{ width: 70, height: 80, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 28, fontFamily: 'Poppins_700Bold' }}>{String(item.val).padStart(2, '0')}</Text>
+                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins_400Regular', opacity: 0.6, marginTop: 0 }}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Notification Input */}
+          <View style={{ width: '100%', marginTop: 40, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
+              <Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.6)" />
+              <TextInput 
+                placeholder="Enter your number for updates" 
+                placeholderTextColor="rgba(255,255,255,0.4)" 
+                style={{ flex: 1, marginLeft: 10, color: '#fff', fontFamily: 'Poppins_400Regular', fontSize: 13 }}
+                keyboardType="numeric"
+              />
+            </View>
+            <TouchableOpacity style={{ height: 56, borderRadius: 16, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#6C63FF' }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>Notify Me</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ width: '100%', height: 1.5, backgroundColor: 'rgba(255,255,255,0.1)', marginTop: 40 }} />
+
+          {/* Footer Icons */}
+          <View style={{ width: '100%', marginTop: 30, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 }}>
+            {[
+              { icon: 'calendar-outline', label: 'Early Access' },
+              { icon: 'sparkles-outline', label: 'Exclusive Features' },
+              { icon: 'notifications-outline', label: 'Launch Updates' }
+            ].map((item, idx) => (
+              <View key={idx} style={{ alignItems: 'center', width: '30%' }}>
+                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                  <Ionicons name={item.icon as any} size={20} color="#fff" />
+                </View>
+                <Text style={{ color: '#fff', fontSize: 10, fontFamily: 'Poppins_400Regular', textAlign: 'center' }}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+        </LinearGradient>
+      </View>
+    </Modal>
+  );
+};
+
 // Optimization: Memoized Carousel Card component to prevent re-renders
 const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, userRole }: any) => {
   const inputRange = [
@@ -389,6 +636,7 @@ export default function Homepage() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   // Filter categories based on role: show only first 4 for Freelancers, all 8 for others.
   const availableCategoryColumns = useMemo(() => {
@@ -637,9 +885,24 @@ export default function Homepage() {
                     <Text style={styles.heroDesc}>{item.desc1}</Text>
                     <Text style={styles.heroDesc}>{item.desc2}</Text>
                   </View>
-                  <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1] }]} activeOpacity={0.8}>
-                    <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
+                    <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1], marginTop: 0 }]} activeOpacity={0.8}>
+                      <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
+                    </TouchableOpacity>
+
+                    {userRole === 'CREATOR' && (
+                      <TouchableOpacity 
+                        style={styles.communityBtn} 
+                        activeOpacity={0.8}
+                        onPress={() => setCommunityModalVisible(true)}
+                      >
+                        <View style={styles.communityBtnInner}>
+                          <HeroGradientText text="Creator Community" color={item.gradient[1]} fontSize={14} />
+                          <Feather name="arrow-up-right" size={20} color={item.gradient[1]} style={{ marginLeft: -4 }} />
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
             )}
@@ -683,41 +946,48 @@ export default function Homepage() {
             <View style={styles.headerRightIcons}>
               {/* Analytics Button - from Figma SVG */}
               <TouchableOpacity onPress={() => router.push('/analytics' as any)} activeOpacity={0.75}>
-                <BlurView intensity={15} tint="default" style={styles.iconCircleDark}>
-                  <Svg width="38" height="38" viewBox="31 3 36 36" style={StyleSheet.absoluteFillObject}>
-                    {/* Glass circle background */}
-                    <Circle cx="49" cy="21" r="18" fillOpacity="0.1" />
-                    {/* Glass border highlight */}
-                    <Circle cx="49" cy="21" r="17.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
-                    {/* Top-left highlight arc */}
-                    <Path d="M34 14 A17 17 0 0 1 56 7" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" fill="none" />
-                    {/* Bar chart icon */}
-                    <Path d="M40.4285 27.6392V23.4258" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M46.0447 27.6404V19.2136" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M51.6633 27.6395V14.9993" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <Path d="M57.2793 27.6379V27.6499" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                </BlurView>
+                <Svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                  <G data-figma-bg-blur-radius="15">
+                    <Mask id="path-1-inside-1_4770_5356" fill="white">
+                      <Path d="M36 18C36 27.9411 27.9411 36 18 36C8.05887 36 0 27.9411 0 18C0 8.05887 8.05887 0 18 0C27.9411 0 36 8.05887 36 18Z" />
+                    </Mask>
+                    <Path d="M36 18C36 27.9411 27.9411 36 18 36C8.05887 36 0 27.9411 0 18C0 8.05887 8.05887 0 18 0C27.9411 0 36 8.05887 36 18Z" fill="white" fillOpacity={0.1} />
+                    <Path
+                      d="M36 18H35C35 27.3888 27.3888 35 18 35V36V37C28.4934 37 37 28.4934 37 18H36ZM18 36V35C8.61116 35 1 27.3888 1 18H0H-1C-1 28.4934 7.50659 37 18 37V36ZM0 18H1C1 8.61116 8.61116 1 18 1V0V-1C7.50659 -1 -1 7.50659 -1 18H0ZM18 0V1C27.3888 1 35 8.61116 35 18H36H37C37 7.50659 28.4934 -1 18 -1V0Z"
+                      fill="white"
+                      fillOpacity={0.5}
+                      mask="url(#path-1-inside-1_4770_5356)"
+                    />
+                  </G>
+                  <Path d="M9.42847 24.6392V20.4258" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M15.0447 24.6404V16.2136" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M20.6633 24.6393V11.9991" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  <Path d="M26.2793 24.6379V24.6499" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
               </TouchableOpacity>
 
               {/* Notifications Button - from Figma SVG */}
               <TouchableOpacity onPress={() => router.push('/notifications' as any)} activeOpacity={0.75}>
-                <BlurView intensity={15} tint="default" style={styles.iconCircleDark}>
-                  <Svg width="38" height="38" viewBox="31 3 36 36" style={StyleSheet.absoluteFillObject}>
-                    {/* Glass circle background */}
-                    <Circle cx="49" cy="21" r="18" fillOpacity="0.1" />
-                    {/* Glass border highlight */}
-                    <Circle cx="49" cy="21" r="17.5" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
-                    {/* Top-left highlight arc */}
-                    <Path d="M34 14 A17 17 0 0 1 56 7" stroke="rgba(255,255,255,0.5)" strokeWidth="0.5" fill="none" />
-                    {/* Bell icon */}
-                    <Path d="M50.8879 29.4863C50.186 30.1058 49.2641 30.4816 48.2544 30.4816C47.2446 30.4816 46.3227 30.1058 45.6208 29.4863M54.2241 22.6986V19.5324C54.2241 16.2254 51.5613 13.5601 48.2544 13.5601C44.9474 13.5601 42.2485 16.1118 42.2485 19.5324V22.6771C42.2485 23.1581 42.1736 23.6358 42.0265 24.0921L41.2915 26.3731C41.2714 26.4355 41.3163 26.5 41.3799 26.5H55.0859C55.1532 26.5 55.201 26.4344 55.1803 26.3704L54.4403 24.074C54.2971 23.6295 54.2241 23.1655 54.2241 22.6986Z" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
-                    {/* Red notification dot */}
-                    {pendingCount > 0 && (
-                      <Circle cx="53.7273" cy="15.0549" r="3" fill="#E43E3E" />
-                    )}
-                  </Svg>
-                </BlurView>
+                <Svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                  <G data-figma-bg-blur-radius="15">
+                    <Mask id="path-1-inside-1_4770_5352" fill="white">
+                      <Path d="M36 18C36 27.9411 27.9411 36 18 36C8.05887 36 0 27.9411 0 18C0 8.05887 8.05887 0 18 0C27.9411 0 36 8.05887 36 18Z" />
+                    </Mask>
+                    <Path d="M36 18C36 27.9411 27.9411 36 18 36C8.05887 36 0 27.9411 0 18C0 8.05887 8.05887 0 18 0C27.9411 0 36 8.05887 36 18Z" fill="white" fillOpacity={0.1} />
+                    <Path
+                      d="M36 18H35C35 27.3888 27.3888 35 18 35V36V37C28.4934 37 37 28.4934 37 18H36ZM18 36V35C8.61116 35 1 27.3888 1 18H0H-1C-1 28.4934 7.50659 37 18 37V36ZM0 18H1C1 8.61116 8.61116 1 18 1V0V-1C7.50659 -1 -1 7.50659 -1 18H0ZM18 0V1C27.3888 1 35 8.61116 35 18H36H37C37 7.50659 28.4934 -1 18 -1V0Z"
+                      fill="white"
+                      fillOpacity={0.5}
+                      mask="url(#path-1-inside-1_4770_5352)"
+                    />
+                  </G>
+                  <G transform="translate(-31, -3)">
+                    <Path d="M50.8879 29.4863C50.186 30.1058 49.2641 30.4816 48.2544 30.4816C47.2446 30.4816 46.3227 30.1058 45.6208 29.4863M54.2241 22.6986V19.5324C54.2241 16.2254 51.5613 13.5601 48.2544 13.5601C44.9474 13.5601 42.2485 16.1118 42.2485 19.5324V22.6771C42.2485 23.1581 42.1736 23.6358 42.0265 24.0921L41.2915 26.3731C41.2714 26.4355 41.3163 26.4355 41.3799 26.4355H55.0859C55.1532 26.4355 55.201 26.4344 55.1803 26.3704L54.4403 24.074C54.2971 23.6295 54.2241 23.1655 54.2241 22.6986Z" stroke="white" strokeWidth={1.2} strokeLinecap="round" />
+                  </G>
+                  {pendingCount > 0 && (
+                    <Circle cx="22.7273" cy="12.0549" r="3" fill="#E43E3E" />
+                  )}
+                </Svg>
               </TouchableOpacity>
             </View>
           </View>
@@ -992,6 +1262,7 @@ export default function Homepage() {
             </TouchableOpacity>
           </View>
         </View>
+        <CommunityModal visible={communityModalVisible} onClose={() => setCommunityModalVisible(false)} />
       </ScrollView>
 
       {/* ══════════════ PORTFOLIO MODAL ══════════════ */}
@@ -1197,21 +1468,41 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
 
   },
+  communityBtn: {
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+    borderRadius: 99,
+    alignSelf: 'flex-start',
+  },
+  communityBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  communityBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
   paginationContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 8,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    
   },
   dot: {
     width: 6,
     height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderRadius: 10,
+    backgroundColor: '#828282',
   },
   activeDot: {
     width: 12,

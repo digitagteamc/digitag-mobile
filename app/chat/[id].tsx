@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -24,17 +25,17 @@ import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { useRoleTheme } from '../../theme/useRoleTheme';
 import {
     editMessage as apiEditMessage,
+    sendMessage as apiSendMessage,
     getConversation,
     initiateCall,
     listMessages,
-    sendMessage as apiSendMessage,
     uploadMessageImage,
 } from '../../services/userService';
+import { useRoleTheme } from '../../theme/useRoleTheme';
 
-const chatBg = require('../../assets/images/chatbg.webp');
+const chatBg = require('../../assets/bg-chat.webp');
 const DARK_BUBBLE = '#1E1E26';
 const REACTIONS = ['❤️', '👍', '😂', '😮', '🙏', '😢'];
 
@@ -94,6 +95,7 @@ export default function ChatScreen() {
     // Long-press context menu state
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const listRef = useRef<FlatList<ChatMessage> | null>(null);
     const inputRef = useRef<TextInput>(null);
@@ -132,6 +134,22 @@ export default function ChatScreen() {
         return () => sub.remove();
     }, []);
 
+    // Keyboard listener for Android to prevent stuck gap and lift input
+    useEffect(() => {
+        if (Platform.OS === 'android') {
+            const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+                setKeyboardHeight(e.endCoordinates.height);
+            });
+            const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+                setKeyboardHeight(0);
+            });
+            return () => {
+                showSub.remove();
+                hideSub.remove();
+            };
+        }
+    }, []);
+
     // ── Camera / Gallery ────────────────────────────────────────────────────────
     const handleCamera = async () => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -155,7 +173,7 @@ export default function ChatScreen() {
             setMessages((prev) => prev.map((m) => m.id === editingMsg.id ? { ...m, content: text, isEdited: true } : m));
             setEditingMsg(null);
             setInput('');
-            apiEditMessage(token, String(id), editingMsg.id, text).catch(() => {});
+            apiEditMessage(token, String(id), editingMsg.id, text).catch(() => { });
             return;
         }
 
@@ -254,6 +272,7 @@ export default function ChatScreen() {
                         mode: 'outgoing', callId: res.data.callId,
                         channelName: res.data.channelName, agoraToken: res.data.token,
                         appId: res.data.appId, remoteName: peer.name || 'User',
+                        remoteImage: peer.profilePicture || '',
                     },
                 });
             } else {
@@ -267,6 +286,153 @@ export default function ChatScreen() {
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     const pic = other?.profilePicture || null;
     const reversedMessages = [...messages].reverse();
+
+    const renderMainContent = () => (
+        <ImageBackground
+            source={chatBg}
+            style={[styles.chatBackground, { backgroundColor: '#060606' }]}
+            imageStyle={{ opacity: 0.65 }}
+            resizeMode="cover"
+        >
+
+            {loading ? (
+                <View style={styles.centerWrap}>
+                    <ActivityIndicator color={myTheme.primary} size="large" />
+                </View>
+            ) : (
+                <>
+                    <FlatList
+                        ref={listRef}
+                        inverted
+                        data={reversedMessages}
+                        keyExtractor={(m) => m.id}
+                        contentContainerStyle={styles.messagesContent}
+                        keyboardShouldPersistTaps="handled"
+                        ListFooterComponent={
+                            <View style={styles.dateSeparator}>
+                                <Text style={styles.dateText}>Today</Text>
+                            </View>
+                        }
+                        ListEmptyComponent={
+                            <View style={styles.emptyBox}>
+                                <Ionicons name="chatbubbles-outline" size={42} color="#3A3A47" />
+                                <Text style={styles.emptyText}>Say hi to start the conversation</Text>
+                            </View>
+                        }
+                        renderItem={({ item }) => {
+                            const mine = item.senderId === userId;
+                            return (
+                                <MessageRow
+                                    item={item}
+                                    mine={mine}
+                                    myColor={myTheme.primary}
+                                    otherColor={myTheme.primary}
+                                    userId={userId!}
+                                    onLongPress={handleLongPress}
+                                    onSwipeReply={(msg) => {
+                                        setReplyTo(msg);
+                                        swipeableRefs.current.get(msg.id)?.close();
+                                        setTimeout(() => inputRef.current?.focus(), 150);
+                                    }}
+                                    swipeableRefs={swipeableRefs}
+                                />
+                            );
+                        }}
+                    />
+
+                    {/* ── Composer ──────────────────────────────────────────── */}
+                    <View style={[styles.composerWrapper, {
+                        paddingBottom: Math.max(insets.bottom, 8),
+                    }]}>
+                        {/* Reply preview */}
+                        {replyTo && !editingMsg && (
+                            <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={[styles.contextBar, { borderLeftColor: myTheme.primary }]}>
+                                <View style={styles.contextBarInner}>
+                                    <Ionicons name="return-down-forward" size={13} color={myTheme.primary} />
+                                    <Text style={[styles.contextBarText, { color: myTheme.primary }]} numberOfLines={1}>
+                                        {replyTo.content.replace(/^> .+\n\n/, '').slice(0, 60)}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <Ionicons name="close" size={15} color="#888" />
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )}
+
+                        {/* Edit mode banner */}
+                        {editingMsg && (
+                            <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={[styles.contextBar, { borderLeftColor: '#F59E0B' }]}>
+                                <View style={styles.contextBarInner}>
+                                    <Ionicons name="pencil" size={13} color="#F59E0B" />
+                                    <Text style={[styles.contextBarText, { color: '#F59E0B' }]} numberOfLines={1}>
+                                        Editing: {editingMsg.content.slice(0, 50)}
+                                    </Text>
+                                </View>
+                                <TouchableOpacity onPress={() => { setEditingMsg(null); setInput(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <Ionicons name="close" size={15} color="#888" />
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )}
+
+                        {/* Image preview */}
+                        {imageToSend && (
+                            <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={styles.imagePreviewRow}>
+                                <Image source={{ uri: imageToSend.uri }} style={styles.imagePreview} resizeMode="cover" />
+                                <TouchableOpacity style={styles.imagePreviewRemove} onPress={() => setImageToSend(null)}>
+                                    <Ionicons name="close-circle" size={20} color="#fff" />
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )}
+
+                        <View style={styles.composer}>
+                            <TouchableOpacity
+                                style={[styles.composerCircleBtn, { backgroundColor: myTheme.primary }]}
+                                onPress={handleCamera}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="camera" size={18} color="#fff" />
+                            </TouchableOpacity>
+
+                            <TextInput
+                                ref={inputRef}
+                                style={styles.input}
+                                placeholder={editingMsg ? 'Edit message…' : 'Type a message…'}
+                                placeholderTextColor="#8A8A99"
+                                value={input}
+                                onChangeText={setInput}
+                                multiline
+                                maxLength={4000}
+                            />
+
+                            <TouchableOpacity style={styles.attachBtn} onPress={handleAttach} activeOpacity={0.75}>
+                                <Ionicons name="attach" size={22} color="#aaa" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.composerCircleBtn,
+                                    { backgroundColor: myTheme.primary },
+                                    (!input.trim() && !imageToSend) && styles.sendBtnDisabled,
+                                ]}
+                                onPress={handleSend}
+                                disabled={(!input.trim() && !imageToSend && !editingMsg) || sending}
+                                activeOpacity={0.8}
+                            >
+                                {sending
+                                    ? <ActivityIndicator color="#fff" size="small" />
+                                    : <Ionicons name={editingMsg ? 'checkmark' : 'paper-plane'} size={17} color="#fff" />
+                                }
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {Platform.OS === 'android' && keyboardHeight > 0 && (
+                        <View style={{ height: keyboardHeight + 6 }} />
+                    )}
+                </>
+            )}
+        </ImageBackground>
+    );
 
     return (
         <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -307,149 +473,20 @@ export default function ChatScreen() {
                 </Pressable>
             </View>
 
-            {/* ── Body: KAV only on iOS — Android uses adjustResize ───────────── */}
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={0}
-            >
-                <ImageBackground source={chatBg} style={styles.chatBackground} resizeMode="cover">
-                    <View style={[styles.bgBlob, { backgroundColor: myTheme.soft }]} pointerEvents="none" />
-
-                    {loading ? (
-                        <View style={styles.centerWrap}>
-                            <ActivityIndicator color={myTheme.primary} size="large" />
-                        </View>
-                    ) : (
-                        <>
-                            <FlatList
-                                ref={listRef}
-                                inverted
-                                data={reversedMessages}
-                                keyExtractor={(m) => m.id}
-                                contentContainerStyle={styles.messagesContent}
-                                keyboardShouldPersistTaps="handled"
-                                ListFooterComponent={
-                                    <View style={styles.dateSeparator}>
-                                        <Text style={styles.dateText}>Today</Text>
-                                    </View>
-                                }
-                                ListEmptyComponent={
-                                    <View style={styles.emptyBox}>
-                                        <Ionicons name="chatbubbles-outline" size={42} color="#3A3A47" />
-                                        <Text style={styles.emptyText}>Say hi to start the conversation</Text>
-                                    </View>
-                                }
-                                renderItem={({ item }) => {
-                                    const mine = item.senderId === userId;
-                                    return (
-                                        <MessageRow
-                                            item={item}
-                                            mine={mine}
-                                            myColor={myTheme.primary}
-                                            otherColor={myTheme.softStrong}
-                                            userId={userId!}
-                                            onLongPress={handleLongPress}
-                                            onSwipeReply={(msg) => {
-                                                setReplyTo(msg);
-                                                swipeableRefs.current.get(msg.id)?.close();
-                                                setTimeout(() => inputRef.current?.focus(), 150);
-                                            }}
-                                            swipeableRefs={swipeableRefs}
-                                        />
-                                    );
-                                }}
-                            />
-
-                            {/* ── Composer ──────────────────────────────────────────── */}
-                            <View style={[styles.composerWrapper, {
-                                paddingBottom: Platform.OS === 'ios' ? insets.bottom + 4 : 12,
-                            }]}>
-                                {/* Reply preview */}
-                                {replyTo && !editingMsg && (
-                                    <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={[styles.contextBar, { borderLeftColor: myTheme.primary }]}>
-                                        <View style={styles.contextBarInner}>
-                                            <Ionicons name="return-down-forward" size={13} color={myTheme.primary} />
-                                            <Text style={[styles.contextBarText, { color: myTheme.primary }]} numberOfLines={1}>
-                                                {replyTo.content.replace(/^> .+\n\n/, '').slice(0, 60)}
-                                            </Text>
-                                        </View>
-                                        <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                            <Ionicons name="close" size={15} color="#888" />
-                                        </TouchableOpacity>
-                                    </Animated.View>
-                                )}
-
-                                {/* Edit mode banner */}
-                                {editingMsg && (
-                                    <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={[styles.contextBar, { borderLeftColor: '#F59E0B' }]}>
-                                        <View style={styles.contextBarInner}>
-                                            <Ionicons name="pencil" size={13} color="#F59E0B" />
-                                            <Text style={[styles.contextBarText, { color: '#F59E0B' }]} numberOfLines={1}>
-                                                Editing: {editingMsg.content.slice(0, 50)}
-                                            </Text>
-                                        </View>
-                                        <TouchableOpacity onPress={() => { setEditingMsg(null); setInput(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                                            <Ionicons name="close" size={15} color="#888" />
-                                        </TouchableOpacity>
-                                    </Animated.View>
-                                )}
-
-                                {/* Image preview */}
-                                {imageToSend && (
-                                    <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={styles.imagePreviewRow}>
-                                        <Image source={{ uri: imageToSend.uri }} style={styles.imagePreview} resizeMode="cover" />
-                                        <TouchableOpacity style={styles.imagePreviewRemove} onPress={() => setImageToSend(null)}>
-                                            <Ionicons name="close-circle" size={20} color="#fff" />
-                                        </TouchableOpacity>
-                                    </Animated.View>
-                                )}
-
-                                <View style={styles.composer}>
-                                    <TouchableOpacity
-                                        style={[styles.composerCircleBtn, { backgroundColor: myTheme.primary }]}
-                                        onPress={handleCamera}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Ionicons name="camera" size={18} color="#fff" />
-                                    </TouchableOpacity>
-
-                                    <TextInput
-                                        ref={inputRef}
-                                        style={styles.input}
-                                        placeholder={editingMsg ? 'Edit message…' : 'Type a message…'}
-                                        placeholderTextColor="#8A8A99"
-                                        value={input}
-                                        onChangeText={setInput}
-                                        multiline
-                                        maxLength={4000}
-                                    />
-
-                                    <TouchableOpacity style={styles.attachBtn} onPress={handleAttach} activeOpacity={0.75}>
-                                        <Ionicons name="attach" size={22} color="#aaa" />
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.composerCircleBtn,
-                                            { backgroundColor: myTheme.primary },
-                                            (!input.trim() && !imageToSend) && styles.sendBtnDisabled,
-                                        ]}
-                                        onPress={handleSend}
-                                        disabled={(!input.trim() && !imageToSend && !editingMsg) || sending}
-                                        activeOpacity={0.8}
-                                    >
-                                        {sending
-                                            ? <ActivityIndicator color="#fff" size="small" />
-                                            : <Ionicons name={editingMsg ? 'checkmark' : 'paper-plane'} size={17} color="#fff" />
-                                        }
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </>
-                    )}
-                </ImageBackground>
-            </KeyboardAvoidingView>
+            {/* ── Body: Manual Keyboard Avoiding for Android ───────────── */}
+            {Platform.OS === 'ios' ? (
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior="padding"
+                    keyboardVerticalOffset={80}
+                >
+                    {renderMainContent()}
+                </KeyboardAvoidingView>
+            ) : (
+                <View style={{ flex: 1 }}>
+                    {renderMainContent()}
+                </View>
+            )}
 
             {/* ── WhatsApp-style context menu modal ─────────────────────────── */}
             <Modal
@@ -616,7 +653,6 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 12, paddingVertical: 10,
-        borderBottomWidth: StyleSheet.hairlineWidth,
         backgroundColor: '#060606',
         gap: 10,
     },
@@ -631,7 +667,6 @@ const styles = StyleSheet.create({
 
     // ── Chat background
     chatBackground: { flex: 1 },
-    bgBlob: { position: 'absolute', top: -60, right: -60, width: 300, height: 300, borderRadius: 150, opacity: 0.5 },
     centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
     // ── Messages list

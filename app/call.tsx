@@ -6,6 +6,8 @@ import {
     Alert,
     Animated,
     Easing,
+    Image,
+    ImageBackground,
     PermissionsAndroid,
     Platform,
     StatusBar,
@@ -14,6 +16,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import {
     ChannelProfileType,
     ClientRoleType,
@@ -28,11 +31,10 @@ import { useRoleTheme } from '../theme/useRoleTheme';
 async function requestAudioPermission(): Promise<boolean> {
     if (Platform.OS !== 'android') return true;
     try {
-        const granted = await PermissionsAndroid.requestMultiple([
-            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-            PermissionsAndroid.PERMISSIONS.MODIFY_AUDIO_SETTINGS,
-        ]);
-        return granted[PermissionsAndroid.PERMISSIONS.RECORD_AUDIO] === PermissionsAndroid.RESULTS.GRANTED;
+        const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch {
         return false;
     }
@@ -87,6 +89,7 @@ export default function CallScreen() {
     const params = useLocalSearchParams<{
         mode: string; callId: string; channelName: string;
         agoraToken: string; appId: string; remoteName: string;
+        remoteImage?: string;
     }>();
 
     const engineRef = useRef<IRtcEngine | null>(null);
@@ -196,56 +199,63 @@ export default function CallScreen() {
         return (
             <View style={styles.root}>
                 <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-                <LinearGradient
-                    colors={['#0A0A10', '#13131E', '#0A0A10']}
+                <ImageBackground
+                    source={params.remoteImage ? { uri: params.remoteImage } : undefined}
                     style={StyleSheet.absoluteFill}
-                />
-                {/* Top glow blob */}
-                <View style={[styles.topBlob, { backgroundColor: softColor }]} pointerEvents="none" />
+                >
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
 
-                <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}>
-                    {/* Avatar */}
-                    <View style={styles.avatarSection}>
-                        <PulsingRing color={accentColor} size={140} />
-                        <PulsingRing color={accentColor} size={140} />
-                        <View style={[styles.avatarRing, { borderColor: accentColor }]}>
-                            <LinearGradient
-                                colors={[softColor, '#1a1a28']}
-                                style={styles.avatarInner}
-                            >
-                                <Text style={[styles.avatarInitials, { color: accentColor }]}>{initials}</Text>
-                            </LinearGradient>
-                        </View>
-                    </View>
-
-                    <View style={styles.nameSection}>
-                        <Text style={styles.remoteName}>{remoteName}</Text>
-                        <View style={styles.statusRow}>
-                            <View style={[styles.statusDot, { backgroundColor: accentColor }]} />
-                            <Text style={styles.statusText}>Incoming audio call</Text>
-                        </View>
-                    </View>
-
-                    {/* Accept / Decline */}
-                    <View style={styles.incomingActions}>
-                        <View style={styles.actionItem}>
-                            <TouchableOpacity style={styles.declineBtn} onPress={handleDecline} activeOpacity={0.8}>
-                                <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+                    <View style={styles.topControls}>
+                        <TouchableOpacity style={styles.topIconBtn} onPress={() => router.back()}>
+                            <Ionicons name="expand-outline" size={24} color="#fff" />
+                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 15 }}>
+                            <TouchableOpacity style={styles.topIconBtn}>
+                                <Ionicons name="person-add-outline" size={24} color="#fff" />
                             </TouchableOpacity>
-                            <Text style={styles.actionLabel}>Decline</Text>
-                        </View>
-                        <View style={styles.actionItem}>
-                            <TouchableOpacity
-                                style={[styles.acceptBtn, { backgroundColor: accentColor }]}
-                                onPress={handleAccept}
-                                activeOpacity={0.8}
-                            >
-                                <Ionicons name="call" size={28} color="#fff" />
+                            <TouchableOpacity style={styles.topIconBtn}>
+                                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
                             </TouchableOpacity>
-                            <Text style={styles.actionLabel}>Accept</Text>
                         </View>
                     </View>
-                </View>
+
+                    <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+                        <BlurView intensity={30} tint="dark" style={styles.glassCard}>
+                            <View style={styles.cardHeader}>
+                                <View style={[styles.avatarBox, !params.remoteImage && { backgroundColor: theme.soft }]}>
+                                    {params.remoteImage ? (
+                                        <Image source={{ uri: params.remoteImage }} style={styles.avatarImage} />
+                                    ) : (
+                                        <Text style={[styles.avatarText, { color: theme.primary }]}>{initials}</Text>
+                                    )}
+                                </View>
+                                <Text style={styles.remoteNameText}>{remoteName}</Text>
+                                <Text style={styles.statusText}>Incoming audio call</Text>
+                            </View>
+
+                            <View style={styles.divider} />
+
+                            <View style={styles.incomingActions}>
+                                <View style={styles.actionItem}>
+                                    <TouchableOpacity style={styles.declineBtnGlass} onPress={handleDecline} activeOpacity={0.8}>
+                                        <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.actionLabel}>Decline</Text>
+                                </View>
+                                <View style={styles.actionItem}>
+                                    <TouchableOpacity
+                                        style={[styles.acceptBtnGlass, { backgroundColor: '#22C55E' }]}
+                                        onPress={handleAccept}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Ionicons name="call" size={28} color="#fff" />
+                                    </TouchableOpacity>
+                                    <Text style={styles.actionLabel}>Accept</Text>
+                                </View>
+                            </View>
+                        </BlurView>
+                    </View>
+                </ImageBackground>
             </View>
         );
     }
@@ -254,216 +264,237 @@ export default function CallScreen() {
     return (
         <View style={styles.root}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-            <LinearGradient
-                colors={['#0A0A10', '#13131E', '#0A0A10']}
+            <ImageBackground
+                source={params.remoteImage ? { uri: params.remoteImage } : undefined}
                 style={StyleSheet.absoluteFill}
-            />
-            <View style={[styles.topBlob, { backgroundColor: softColor }]} pointerEvents="none" />
+            >
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
 
-            <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}>
-                {/* Avatar */}
-                <View style={styles.avatarSection}>
-                    {callMode !== 'active' && <PulsingRing color={accentColor} size={140} />}
-                    <View style={[styles.avatarRing, { borderColor: callMode === 'active' ? accentColor : '#2a2a3a' }]}>
-                        <LinearGradient
-                            colors={callMode === 'active' ? [softColor, '#1a1a28'] : ['#1a1a28', '#0f0f18']}
-                            style={styles.avatarInner}
-                        >
-                            <Text style={[styles.avatarInitials, { color: accentColor }]}>{initials}</Text>
-                        </LinearGradient>
-                    </View>
-                </View>
-
-                <View style={styles.nameSection}>
-                    <Text style={styles.remoteName}>{remoteName}</Text>
-                    {callMode === 'active' ? (
-                        <View style={styles.timerRow}>
-                            <View style={[styles.timerDot, { backgroundColor: '#22c55e' }]} />
-                            <Text style={[styles.timerText, { color: '#22c55e' }]}>{formatTime(elapsedSeconds)}</Text>
-                        </View>
-                    ) : (
-                        <View style={styles.statusRow}>
-                            <CallingDots color={accentColor} />
-                        </View>
-                    )}
-                </View>
-
-                {/* Controls */}
-                <View style={styles.controls}>
-                    {callMode === 'active' && (
-                        <View style={styles.secondaryControls}>
-                            {/* Mute */}
-                            <View style={styles.actionItem}>
-                                <TouchableOpacity
-                                    style={[styles.controlBtn, isMuted && { backgroundColor: accentColor }]}
-                                    onPress={toggleMute}
-                                    activeOpacity={0.8}
-                                >
-                                    <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={24} color={isMuted ? '#fff' : '#ccc'} />
-                                </TouchableOpacity>
-                                <Text style={styles.actionLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
-                            </View>
-
-                            {/* Speaker */}
-                            <View style={styles.actionItem}>
-                                <TouchableOpacity
-                                    style={[styles.controlBtn, isSpeaker && { backgroundColor: accentColor }]}
-                                    onPress={toggleSpeaker}
-                                    activeOpacity={0.8}
-                                >
-                                    <Ionicons name={isSpeaker ? 'volume-high' : 'volume-medium'} size={24} color={isSpeaker ? '#fff' : '#ccc'} />
-                                </TouchableOpacity>
-                                <Text style={styles.actionLabel}>Speaker</Text>
-                            </View>
-                        </View>
-                    )}
-
-                    {/* End call */}
-                    <View style={styles.actionItem}>
-                        <TouchableOpacity style={styles.endBtn} onPress={handleEndCall} activeOpacity={0.8}>
-                            <Ionicons name="call" size={30} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+                <View style={styles.topControls}>
+                    <TouchableOpacity style={styles.topIconBtn} onPress={() => router.back()}>
+                        <Ionicons name="expand-outline" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 15 }}>
+                        <TouchableOpacity style={styles.topIconBtn}>
+                            <Ionicons name="person-add-outline" size={24} color="#fff" />
                         </TouchableOpacity>
-                        <Text style={styles.actionLabel}>End call</Text>
+                        <TouchableOpacity style={styles.topIconBtn}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+
+                <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
+                    <BlurView intensity={45} tint="dark" style={styles.glassCard}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.avatarBox, !params.remoteImage && { backgroundColor: theme.soft }]}>
+                                {params.remoteImage ? (
+                                    <Image source={{ uri: params.remoteImage }} style={styles.avatarImage} />
+                                ) : (
+                                    <Text style={[styles.avatarText, { color: theme.primary }]}>{initials}</Text>
+                                )}
+                            </View>
+                            <Text style={styles.remoteNameText}>{remoteName}</Text>
+                            {callMode === 'active' ? (
+                                <Text style={[styles.statusText, { color: '#22c55e' }]}>
+                                    Connected · {formatTime(elapsedSeconds)}
+                                </Text>
+                            ) : (
+                                <Text style={styles.statusText}>Calling...</Text>
+                            )}
+                        </View>
+
+                        <View style={styles.divider} />
+
+                        <View style={styles.controlsRow}>
+                            {/* Speaker */}
+                            <TouchableOpacity
+                                style={[styles.glassBtn, isSpeaker && { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                                onPress={toggleSpeaker}
+                            >
+                                <Ionicons name={isSpeaker ? 'volume-high' : 'volume-medium'} size={24} color="#fff" />
+                            </TouchableOpacity>
+
+                            {/* Mute */}
+                            <TouchableOpacity
+                                style={[styles.glassBtn, isMuted && { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                                onPress={toggleMute}
+                            >
+                                <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={24} color="#fff" />
+                            </TouchableOpacity>
+
+                            {/* End Call */}
+                            <TouchableOpacity style={styles.endBtnGlass} onPress={handleEndCall}>
+                                <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+                            </TouchableOpacity>
+                        </View>
+                    </BlurView>
+                </View>
+            </ImageBackground>
         </View>
     );
 }
 
-// Animated "Calling…" dots
+// Minimal placeholder component for calling status
 function CallingDots({ color }: { color: string }) {
-    const dot1 = useRef(new Animated.Value(0)).current;
-    const dot2 = useRef(new Animated.Value(0)).current;
-    const dot3 = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-        const anim = (dot: Animated.Value, delay: number) =>
-            Animated.loop(
-                Animated.sequence([
-                    Animated.delay(delay),
-                    Animated.timing(dot, { toValue: 1, duration: 400, useNativeDriver: true }),
-                    Animated.timing(dot, { toValue: 0, duration: 400, useNativeDriver: true }),
-                    Animated.delay(800 - delay),
-                ]),
-            );
-        Animated.parallel([anim(dot1, 0), anim(dot2, 200), anim(dot3, 400)]).start();
-    }, []);
-    const style = (dot: Animated.Value) => ({
-        width: 7, height: 7, borderRadius: 4, backgroundColor: color, marginHorizontal: 3,
-        opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
-        transform: [{ translateY: dot.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }) }],
-    });
-    return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-            <Text style={{ color: '#8A8A99', fontSize: 14, fontFamily: 'Poppins_400Regular', marginRight: 6 }}>Calling</Text>
-            <Animated.View style={style(dot1)} />
-            <Animated.View style={style(dot2)} />
-            <Animated.View style={style(dot3)} />
-        </View>
-    );
+    return <Text style={{ color: '#8A8A99' }}>Calling...</Text>;
 }
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#0A0A10' },
-
-    topBlob: {
-        position: 'absolute',
-        top: -100, alignSelf: 'center',
-        width: 320, height: 320, borderRadius: 160,
-        opacity: 0.25,
+    root: {
+        flex: 1,
+        backgroundColor: '#000',
     },
-
     content: {
         flex: 1,
+        justifyContent: 'flex-end',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 32,
+        paddingHorizontal: 20,
     },
 
-    // Avatar
-    avatarSection: {
+    // ── Top Controls
+    topControls: {
+        position: 'absolute',
+        top: 60,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        zIndex: 10,
+    },
+    topIconBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
-        width: 160,
-        height: 160,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
-    avatarRing: {
-        width: 130,
-        height: 130,
-        borderRadius: 65,
-        borderWidth: 2.5,
-        padding: 4,
+
+    // ── Action Card
+    glassCard: {
+        width: '100%',
+        borderRadius: 32,
+        padding: 24,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
+        overflow: 'hidden',
+    },
+    cardHeader: {
+        alignItems: 'center',
+        paddingBottom: 20,
+    },
+    avatarBox: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        marginBottom: 16,
+        overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: '#2A2A32',
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
-    avatarInner: {
+    avatarImage: {
         width: '100%',
         height: '100%',
-        borderRadius: 60,
+    },
+    avatarText: {
+        fontSize: 32,
+        fontFamily: 'Poppins_700Bold',
+    },
+    remoteNameText: {
+        color: '#fff',
+        fontSize: 22,
+        fontFamily: 'Poppins_600SemiBold',
+        marginBottom: 4,
+    },
+    statusText: {
+        color: '#B8B8C6',
+        fontSize: 13,
+        fontFamily: 'Poppins_400Regular',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        width: '100%',
+        marginBottom: 20,
+    },
+
+    // ── Buttons
+    controlsRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 20,
+    },
+    glassBtn: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    avatarInitials: {
-        fontSize: 40,
-        fontFamily: 'Poppins_700Bold',
-        lineHeight: 52,
-    },
-
-    // Name / status
-    nameSection: { alignItems: 'center', gap: 8 },
-    remoteName: {
-        color: '#fff',
-        fontSize: 28,
-        fontFamily: 'Poppins_700Bold',
-        letterSpacing: -0.5,
-        textAlign: 'center',
-    },
-    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    statusDot: { width: 8, height: 8, borderRadius: 4 },
-    statusText: { color: '#8A8A99', fontSize: 15, fontFamily: 'Poppins_400Regular' },
-    timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    timerDot: { width: 8, height: 8, borderRadius: 4 },
-    timerText: { fontSize: 22, fontFamily: 'Poppins_600SemiBold', letterSpacing: 1 },
-
-    // Controls
-    controls: { width: '100%', alignItems: 'center', gap: 32 },
-    secondaryControls: {
-        flexDirection: 'row',
-        gap: 48,
+    endBtnGlass: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
         justifyContent: 'center',
-    },
-    actionItem: { alignItems: 'center', gap: 10 },
-    actionLabel: { color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular' },
-
-    controlBtn: {
-        width: 60, height: 60, borderRadius: 30,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-        alignItems: 'center', justifyContent: 'center',
-    },
-    endBtn: {
-        width: 70, height: 70, borderRadius: 35,
-        backgroundColor: '#ef4444',
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#ef4444', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5, shadowRadius: 12, elevation: 10,
-    },
-    acceptBtn: {
-        width: 70, height: 70, borderRadius: 35,
-        alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#EF4444',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5, shadowRadius: 12, elevation: 10,
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 5,
     },
-    declineBtn: {
-        width: 70, height: 70, borderRadius: 35,
-        backgroundColor: '#ef4444',
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#ef4444', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4, shadowRadius: 12, elevation: 10,
-    },
+
+    // ── Incoming Actions
     incomingActions: {
         flexDirection: 'row',
-        gap: 64,
         justifyContent: 'center',
+        alignItems: 'center',
+        gap: 40,
+    },
+    actionItem: {
+        alignItems: 'center',
+        gap: 8,
+    },
+    actionLabel: {
+        color: '#8A8A99',
+        fontSize: 12,
+        fontFamily: 'Poppins_400Regular',
+    },
+    declineBtnGlass: {
+        width: 65,
+        height: 65,
+        borderRadius: 33,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    acceptBtnGlass: {
+        width: 65,
+        height: 65,
+        borderRadius: 33,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
     },
 });
