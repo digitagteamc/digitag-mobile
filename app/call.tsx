@@ -1,5 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -23,10 +21,8 @@ import {
     IRtcEngine,
     createAgoraRtcEngine,
 } from 'react-native-agora';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { acceptCall, declineCall, endCall } from '../services/userService';
-import { useRoleTheme } from '../theme/useRoleTheme';
 
 async function requestAudioPermission(): Promise<boolean> {
     if (Platform.OS !== 'android') return true;
@@ -40,52 +36,11 @@ async function requestAudioPermission(): Promise<boolean> {
     }
 }
 
-function getInitials(name: string) {
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase();
-}
-
 type CallMode = 'outgoing' | 'incoming' | 'active';
-
-function PulsingRing({ color, size }: { color: string; size: number }) {
-    const anim = useRef(new Animated.Value(0)).current;
-    useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(anim, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-                Animated.timing(anim, { toValue: 0, duration: 0, useNativeDriver: true }),
-            ]),
-        ).start();
-    }, []);
-    const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.55] });
-    const opacity = anim.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.5, 0.15, 0] });
-    return (
-        <Animated.View
-            pointerEvents="none"
-            style={{
-                position: 'absolute',
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                borderWidth: 2,
-                borderColor: color,
-                transform: [{ scale }],
-                opacity,
-            }}
-        />
-    );
-}
 
 export default function CallScreen() {
     const router = useRouter();
     const { token } = useAuth();
-    const theme = useRoleTheme();
-    const insets = useSafeAreaInsets();
     const params = useLocalSearchParams<{
         mode: string; callId: string; channelName: string;
         agoraToken: string; appId: string; remoteName: string;
@@ -102,10 +57,9 @@ export default function CallScreen() {
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     const remoteName = params.remoteName || 'User';
-    const initials = getInitials(remoteName);
 
     const startTimer = useCallback(() => {
-        timerRef.current = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+        timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
     }, []);
 
     const joinChannel = useCallback(async (tkn: string, channel: string, appId: string) => {
@@ -122,15 +76,21 @@ export default function CallScreen() {
             engine.enableAudio();
             engine.setDefaultAudioRouteToSpeakerphone(false);
             engine.registerEventHandler({
-                onJoinChannelSuccess: () => {},
-                onUserJoined: () => { setCallMode('active'); startTimer(); },
-                onUserOffline: () => { if (!endedRef.current) handleEndCall(); },
+                onJoinChannelSuccess: () => console.log('[Agora] Joined channel'),
+                onUserJoined: () => {
+                    setCallMode('active');
+                    startTimer();
+                },
+                onUserOffline: () => {
+                    if (!endedRef.current) handleEndCall();
+                },
             });
             engine.joinChannel(tkn, channel, 0, {
                 channelProfile: ChannelProfileType.ChannelProfileCommunication,
                 clientRoleType: ClientRoleType.ClientRoleBroadcaster,
             });
-        } catch {
+        } catch (err) {
+            console.error('[Agora] Join error:', err);
             Alert.alert('Error', 'Could not connect to call');
             router.back();
         }
@@ -179,11 +139,11 @@ export default function CallScreen() {
     };
 
     const toggleMute = () => {
-        setIsMuted((prev) => { engineRef.current?.muteLocalAudioStream(!prev); return !prev; });
+        setIsMuted(prev => { engineRef.current?.muteLocalAudioStream(!prev); return !prev; });
     };
 
     const toggleSpeaker = () => {
-        setIsSpeaker((prev) => { engineRef.current?.setEnableSpeakerphone(!prev); return !prev; });
+        setIsSpeaker(prev => { engineRef.current?.setEnableSpeakerphone(!prev); return !prev; });
     };
 
     const formatTime = (s: number) => {
@@ -191,10 +151,6 @@ export default function CallScreen() {
         return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     };
 
-    const accentColor = theme.primary;
-    const softColor = theme.soft;
-
-    // ── Incoming call screen ────────────────────────────────────────────────────
     if (callMode === 'incoming') {
         return (
             <View style={styles.root}>
@@ -260,7 +216,6 @@ export default function CallScreen() {
         );
     }
 
-    // ── Outgoing / Active call screen ───────────────────────────────────────────
     return (
         <View style={styles.root}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
