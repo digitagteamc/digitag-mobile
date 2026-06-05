@@ -3,6 +3,7 @@ import { useProfileGate } from '@/context/ProfileGateContext';
 import { getCreatorById, getFeed, getFreelancerById } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -11,6 +12,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  ImageBackground,
   InteractionManager,
   Linking,
   Modal,
@@ -986,14 +988,20 @@ export default function ExploreTab() {
           {/* Bottom Actions */}
           <View style={s.cardBottom}>
             <View style={s.cardActions}>
-              <TouchableOpacity style={s.actionCircle} onPress={() => handleMessage(item.ownerId)}>
-                <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+              <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
+                <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+                </ImageBackground>
               </TouchableOpacity>
-              <TouchableOpacity style={s.actionCircle} onPress={handleCall}>
-                <Ionicons name="call-outline" size={16} color="#fff" />
+              <TouchableOpacity onPress={handleCall} activeOpacity={0.75}>
+                <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                  <Ionicons name="call-outline" size={18} color="#fff" />
+                </ImageBackground>
               </TouchableOpacity>
-              <TouchableOpacity style={s.actionCircle} onPress={() => handleShare(item.id)}>
-                <Ionicons name="share-social-outline" size={16} color="#fff" />
+              <TouchableOpacity onPress={() => handleShare(item.id)} activeOpacity={0.75}>
+                <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                  <Ionicons name="share-social-outline" size={18} color="#fff" />
+                </ImageBackground>
               </TouchableOpacity>
             </View>
             <View style={s.cardBottomRight}>
@@ -1333,10 +1341,14 @@ const s = StyleSheet.create({
 
   // Bottom
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardActions: { flexDirection: 'row', gap: 8 },
-  actionCircle: {
-    width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center', alignItems: 'center',
+  cardActions: { flexDirection: 'row', gap: 12 },
+  iconCircleDark: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   cardBottomRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   seePortfolioBtn: {

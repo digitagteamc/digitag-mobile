@@ -1,7 +1,6 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProfileGateProvider } from '@/context/ProfileGateContext';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
     Poppins_200ExtraLight,
     Poppins_300Light,
@@ -16,9 +15,10 @@ import messaging from '@react-native-firebase/messaging';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { registerFcmToken } from '../services/userService';
 import '../global.css';
+import { registerFcmToken } from '../services/userService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,7 +33,7 @@ function routeNotification(router: ReturnType<typeof useRouter>, data: Record<st
             break;
         case 'CALL_ENDED':
         case 'CALL_DECLINED':
-            try { router.back(); } catch {}
+            try { router.back(); } catch { }
             break;
         case 'NEW_MESSAGE':
             if (data.conversationId) {
@@ -61,7 +61,7 @@ function NotificationHandler() {
         if (!token) return;
         messaging().getToken().then(fcmToken => {
             if (fcmToken) registerFcmToken(token, fcmToken);
-        }).catch(() => {});
+        }).catch(() => { });
 
         // Foreground messages — silent data-only for calls, show banner for rest
         const unsubscribe = messaging().onMessage(async remoteMessage => {
@@ -119,36 +119,36 @@ export default function RootLayout() {
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-            <AuthProvider>
-                <ProfileGateProvider>
-                <NotificationHandler />
-                <Stack
-                    screenOptions={{
-                        headerShown: false,
-                        animation: 'slide_from_right',
-                        animationDuration: 250,
-                        contentStyle: { backgroundColor: '#060606' }
-                    }}
-                    initialRouteName="index"
-                >
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="onboarding/splash1" options={{ animation: 'fade', animationDuration: 200 }} />
-                    <Stack.Screen name="login" options={{ animationDuration: 250 }} />
-                    <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 200, contentStyle: { backgroundColor: '#060606' } }} />
-                    <Stack.Screen name="signup" options={{ animationDuration: 280 }} />
-                    <Stack.Screen name="role-selection" options={{ animation: 'fade', animationDuration: 200 }} />
-                    <Stack.Screen name="coming-soon" />
-                    <Stack.Screen name="creator-details" />
-                    <Stack.Screen name="settings" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#060606' } }} />
-                    <Stack.Screen name="notifications" />
-                    <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right', animationDuration: 220 }} />
-                    <Stack.Screen name="switch-role" />
-                    <Stack.Screen name="call" options={{ animation: 'fade', gestureEnabled: false }} />
-                </Stack>
-                </ProfileGateProvider>
-            </AuthProvider>
-        </SafeAreaProvider>
+            <SafeAreaProvider>
+                <AuthProvider>
+                    <ProfileGateProvider>
+                        <NotificationHandler />
+                        <Stack
+                            screenOptions={{
+                                headerShown: false,
+                                animation: 'slide_from_right',
+                                animationDuration: 250,
+                                contentStyle: { backgroundColor: '#060606' }
+                            }}
+                            initialRouteName="index"
+                        >
+                            <Stack.Screen name="index" />
+                            <Stack.Screen name="onboarding/splash1" options={{ animation: 'fade', animationDuration: 200 }} />
+                            <Stack.Screen name="login" options={{ animationDuration: 250 }} />
+                            <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 200, contentStyle: { backgroundColor: '#060606' } }} />
+                            <Stack.Screen name="signup" options={{ animationDuration: 280 }} />
+                            <Stack.Screen name="role-selection" options={{ animation: 'fade', animationDuration: 200 }} />
+                            <Stack.Screen name="coming-soon" />
+                            <Stack.Screen name="creator-details" />
+                            <Stack.Screen name="settings" options={{ animation: 'slide_from_right', contentStyle: { backgroundColor: '#060606' } }} />
+                            <Stack.Screen name="notifications" />
+                            <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right', animationDuration: 220 }} />
+                            <Stack.Screen name="switch-role" />
+                            <Stack.Screen name="call" options={{ animation: 'fade', gestureEnabled: false }} />
+                        </Stack>
+                    </ProfileGateProvider>
+                </AuthProvider>
+            </SafeAreaProvider>
         </GestureHandlerRootView>
     );
 }

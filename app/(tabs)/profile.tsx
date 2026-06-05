@@ -1,10 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Linking,
   Modal,
@@ -13,14 +12,13 @@ import {
   StatusBar,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import { useAuth } from '../../context/AuthContext';
 import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
-import PostCard from '../../Components/PostCard';
-import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 
 const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
@@ -52,17 +50,16 @@ interface ProfileData {
   availability?: string | null;
 }
 
-const MENU_ITEMS = [
+export const MENU_ITEMS = [
   { id: 'my_profile', icon: 'person-outline' as const, label: 'My Profile' },
   { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts' },
-  { id: 'my_posts', icon: 'images-outline' as const, label: 'My Posts' },
-  { id: 'my_collabs', icon: 'people-outline' as const, label: 'My Collabs' },
   { id: 'settings', icon: 'settings-outline' as const, label: 'Settings' },
   { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support' },
   { id: 'about', icon: 'information-circle-outline' as const, label: 'About DigiTag' },
+  { id: 'report', icon: 'bug-outline' as const, label: 'Report App Issue' },
 ];
 
-const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_collabs']);
+const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_collabs', 'report']);
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -75,6 +72,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -195,7 +193,8 @@ export default function ProfileScreen() {
     if (id === 'help') router.push('/help-support' as any);
     if (id === 'saved') router.push('/saved-posts');
     if (id === 'settings') router.navigate('/settings' as any);
-    if (id === 'about') Linking.openURL('https://digitag.in/about').catch(() => {});
+    if (id === 'about') router.push('/about-digitag' as any);
+    if (id === 'report') router.push('/report-issue' as any);
   };
 
   const handleLogout = () => {
@@ -275,218 +274,217 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* ══════════ HERO HEADER ══════════ */}
-          <View className="h-[200px] w-full relative overflow-hidden">
+          <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
-            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-full opacity-40" resizeMode="cover" />
+            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px] opacity-60" resizeMode="cover" />
             {/* Dark overlay matching index.tsx gradient */}
             <LinearGradient colors={['rgba(0,0,0,0.2)', '#000']} className="absolute inset-0" />
 
-            {/* Back button row */}
-            <View className="flex-row justify-between items-center px-4 mb-4" style={{ marginTop: Math.max(insets.top, statusBarHeight) + 8 }}>
-              <TouchableOpacity className="w-[36px] h-[36px] rounded-full bg-white/12 justify-center items-center" onPress={() => {
-                if (viewMode === 'details') {
-                  setViewMode('main');
-                } else {
-                  router.back();
-                }
+            {/* Top Navigation Row */}
+            <View className="flex-row justify-between items-center px-6" style={{ marginTop: Math.max(insets.top, statusBarHeight) + 8 }}>
+              <TouchableOpacity onPress={() => {
+                if (viewMode === 'details') setViewMode('main');
+                else router.back();
               }}>
-                <Ionicons name="arrow-back" size={20} color="#fff" />
+                <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
-              <View style={{ width: 36 }} />
+              <TouchableOpacity onPress={() => setShowDropdown(v => !v)}>
+                <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+              </TouchableOpacity>
             </View>
 
-            {/* Avatar + Name block */}
-            <View className="flex-row items-start px-4 gap-4">
+            {/* ══════════ 3-DOT DROPDOWN MENU ══════════ */}
+            {showDropdown && (
+              <>
+                {/* Backdrop to dismiss */}
+                <TouchableOpacity
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  activeOpacity={1}
+                  onPress={() => setShowDropdown(false)}
+                />
+                <View style={{
+                  position: 'absolute',
+                  top: Math.max(insets.top, statusBarHeight) + 48,
+                  right: 16,
+                  backgroundColor: '#1A1A1A',
+                  borderRadius: 18,
+                  paddingVertical: 6,
+                  minWidth: 190,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 16,
+                  elevation: 20,
+                  borderWidth: 1,
+                  borderColor: '#2A2A2A',
+                  zIndex: 999,
+                }}>
+                  {/* Edit Profile */}
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setShowDropdown(false);
+                      const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+                      router.push(editPath as any);
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="pencil-outline" size={18} color="#fff" />
+                    </View>
+                    <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Edit Profile</Text>
+                  </TouchableOpacity>
+
+                  {/* Divider */}
+                  <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
+
+                  {/* Share Profile */}
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setShowDropdown(false);
+                      // Share action
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="share-social-outline" size={18} color="#fff" />
+                    </View>
+                    <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Share Profile</Text>
+                  </TouchableOpacity>
+
+                  {/* Divider */}
+                  <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
+
+                  {/* Logout */}
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setShowDropdown(false);
+                      handleLogout();
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FF0000', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="log-out-outline" size={18} color="#fff" />
+                    </View>
+                    <Text style={{ color: '#FF3B3B', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Logout</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* Profile Info Block */}
+            <View className="flex-row items-center px-6 mt-6 gap-5">
               {/* Avatar */}
               <TouchableOpacity
                 onPress={() => setIsPhotoModalOpen(true)}
                 activeOpacity={0.9}
-                className="w-[72px] h-[72px] rounded-full border-2 border-white/40 overflow-hidden bg-[#333]"
+                className="w-24 h-24 rounded-full border-2 border-white/60 overflow-hidden bg-[#222]"
               >
                 {profile?.profilePicture ? (
-                  <Image
-                    source={{ uri: profile.profilePicture }}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
+                  <Image source={{ uri: profile.profilePicture }} className="w-full h-full" resizeMode="cover" />
                 ) : (
-                  <LinearGradient
-                    colors={[theme.softStrong, theme.primary] as [string, string]}
-                    className="w-full h-full justify-center items-center"
-                  >
-                    <Text className="text-white text-2xl font-bold tracking-[-0.5px]" style={{ fontFamily: 'Poppins_700Bold' }}>
-                      {initials(profile?.name || 'U')}
-                    </Text>
+                  <LinearGradient colors={[theme.softStrong, theme.primary] as [string, string]} className="w-full h-full justify-center items-center">
+                    <Text className="text-white text-3xl font-bold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{initials(profile?.name || 'U')}</Text>
                   </LinearGradient>
                 )}
               </TouchableOpacity>
 
-              {/* Name, phone, role + social */}
-              <View className="flex-1 gap-[3px]">
-                <Text className="text-white text-xl font-semibold tracking-[-0.3px] leading-6" style={{ fontFamily: 'Poppins_600SemiBold' }}>{profile?.name}</Text>
-                <Text className="text-[#e1e1e1] text-sm font-normal leading-5" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.phone}</Text>
+              {/* Text Info */}
+              <View className="flex-1">
+                <Text className="text-white text-2xl font-bold tracking-tight" style={{ fontFamily: 'Poppins_700Bold' }}>{profile?.name}</Text>
+                <Text className="text-[#a1a1a1] text-base font-normal mt-1" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.phone}</Text>
 
-                {/* Role badge with verified icon */}
-                <View className="flex-row items-center mt-[2px]">
-                  <Text className="text-sm font-medium tracking-[-0.14px]" style={{ fontFamily: 'Poppins_600SemiBold', color: theme.primary }}>{getRoleLabel(profile?.role || '')}</Text>
-                  <Ionicons name="checkmark-circle" size={13} color={theme.primary} style={{ marginLeft: 3 }} />
+                {/* Role badge */}
+                <View className="flex-row items-center mt-2">
+                  <Text className="text-[#EF2A91] text-sm font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{getRoleLabel(profile?.role || '')}</Text>
+                  <Ionicons name="checkmark-circle" size={14} color="#EF2A91" style={{ marginLeft: 4 }} />
                 </View>
 
-                {/* Category + location */}
-                {(profile?.categories && profile.categories.length > 0) ? (
-                  <Text className="text-xs font-medium mt-1" style={{ fontFamily: 'Poppins_600SemiBold', color: theme.primary }} numberOfLines={1}>
-                    {profile.categories.map(c => `#${c}`).join(' ')}
-                  </Text>
-                ) : profile?.category ? (
-                  <Text className="text-xs font-medium mt-1" style={{ fontFamily: 'Poppins_600SemiBold', color: theme.primary }}>#{profile.category}</Text>
-                ) : null}
+                {/* Social Icons Row */}
+                <View className="flex-row items-center mt-5 gap-3.5">
+                  <TouchableOpacity activeOpacity={0.8}>
+                    <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
+                      <Image 
+                        source={require('../../assets/skill-icons_instagram.png')} 
+                        className="w-full h-full" 
+                        resizeMode="cover" 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity activeOpacity={0.8}>
+                    <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
+                      <Image 
+                        source={require('../../assets/logos_facebook.png')} 
+                        className="w-full h-full" 
+                        resizeMode="cover" 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity activeOpacity={0.8}>
+                    <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
+                      <Image 
+                        source={require('../../assets/bi_threads-fill.png')} 
+                        className="w-full h-full" 
+                        resizeMode="cover" 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    className="w-9 h-9 rounded-xl bg-[#1DA1F2] items-center justify-center shadow-sm" 
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="logo-twitter" size={22} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
 
           {viewMode === 'main' ? (
             <>
-              {/* ══════════ FOLLOW / COLLAB COUNTS ══════════ */}
-              <View className="flex-row items-center justify-center bg-[#14141C] rounded-2xl mx-4 -mt-[1px] mb-3 py-3.5 border border-[#1E1E2A]">
-                <TouchableOpacity className="flex-1 items-center" onPress={() => router.push('/followers')} activeOpacity={0.7}>
-                  <Text className="text-xl font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>{followerCount}</Text>
-                  <Text className="text-[#8A8A99] text-xs mt-[2px]" style={{ fontFamily: 'Poppins_400Regular' }}>Followers</Text>
-                </TouchableOpacity>
-                <View className="w-[1px] h-8 bg-[#2A2A36]" />
-                <TouchableOpacity className="flex-1 items-center" onPress={() => router.push('/following')} activeOpacity={0.7}>
-                  <Text className="text-xl font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>{followingCount}</Text>
-                  <Text className="text-[#8A8A99] text-xs mt-[2px]" style={{ fontFamily: 'Poppins_400Regular' }}>Following</Text>
-                </TouchableOpacity>
-                <View className="w-[1px] h-8 bg-[#2A2A36]" />
-                <TouchableOpacity className="flex-1 items-center" onPress={() => router.push('/my-collabs')} activeOpacity={0.7}>
-                  <Text className="text-xl font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>{collabCount}</Text>
-                  <Text className="text-[#8A8A99] text-xs mt-[2px]" style={{ fontFamily: 'Poppins_400Regular' }}>Collabs</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* ══════════ ROLE STATS CARD ══════════ */}
-              {/* {profile && profile.role === 'CREATOR' && (
-                <View className="mx-4 mt-[14px] bg-white/5 border border-white/10 rounded-2xl p-3.5 gap-2.5">
-                  {(profile.instagramHandle || profile.youtubeHandle || profile.twitterHandle) && (
-                    <View className="flex-row gap-3.5 flex-wrap">
-                      {profile.instagramHandle && (
-                        <View className="items-center gap-[2px]">
-                          <Ionicons name="logo-instagram" size={15} color="#E1306C" />
-                          <Text className="text-white text-[13px] font-bold" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(profile.instagramFollowers)}</Text>
-                          <Text className="text-[#8A8A99] text-[10px]" style={{ fontFamily: 'Poppins_400Regular' }}>@{profile.instagramHandle}</Text>
-                        </View>
-                      )}
-                      {profile.youtubeHandle && (
-                        <View className="items-center gap-[2px]">
-                          <Ionicons name="logo-youtube" size={15} color="#FF0000" />
-                          <Text className="text-white text-[13px] font-bold" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(profile.youtubeFollowers)}</Text>
-                          <Text className="text-[#8A8A99] text-[10px]" style={{ fontFamily: 'Poppins_400Regular' }}>@{profile.youtubeHandle}</Text>
-                        </View>
-                      )}
-                      {profile.twitterHandle && (
-                        <View className="items-center gap-[2px]">
-                          <Ionicons name="logo-twitter" size={15} color="#1DA1F2" />
-                          <Text className="text-white text-[13px] font-bold" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(profile.twitterFollowers)}</Text>
-                          <Text className="text-[#8A8A99] text-[10px]" style={{ fontFamily: 'Poppins_400Regular' }}>@{profile.twitterHandle}</Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-                  <View className="flex-row gap-2 flex-wrap">
-                    <View className={`flex-row items-center gap-[5px] rounded-full px-2.5 py-1 ${profile.isAvailableForCollab ? 'bg-emerald-500/15' : 'bg-red-500/15'}`}>
-                      <View className={`w-1.5 h-1.5 rounded-full ${profile.isAvailableForCollab ? 'bg-[#10B981]' : 'bg-[#EF4444]'}`} />
-                      <Text className={`text-xs font-semibold ${profile.isAvailableForCollab ? 'text-[#10B981]' : 'text-[#EF4444]'}`} style={{ fontFamily: 'Poppins_600SemiBold' }}>
-                        {profile.isAvailableForCollab ? 'Open to Collabs' : 'Not Available'}
-                      </Text>
-                    </View>
-                    {profile.preferredCollabType && (
-                      <View className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: theme.soft, borderColor: theme.border }}>
-                        <Text className="text-xs font-semibold" style={{ fontFamily: 'Poppins_600SemiBold', color: theme.primary }}>{profile.preferredCollabType}</Text>
-                      </View>
-                    )}
-                  </View>
-                  {profile.bio ? <Text className="text-[#C0C0CC] text-[13px] leading-[19px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile.bio}</Text> : null}
-                </View>
-              )}
-
-              {profile && profile.role === 'FREELANCER' && (
-                <View className="mx-4 mt-[14px] bg-white/5 border border-white/10 rounded-2xl p-3.5 gap-2.5">
-                  <View className="flex-row gap-2 flex-wrap">
-                    {(() => {
-                      const c = availColor(profile.availability); return (
-                        <View className="flex-row items-center gap-[5px] rounded-full px-2.5 py-1" style={{ backgroundColor: c.bg }}>
-                          <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: c.dot }} />
-                          <Text className="text-xs font-semibold" style={{ fontFamily: 'Poppins_600SemiBold', color: c.text }}>{fmtAvailability(profile.availability)}</Text>
-                        </View>
-                      );
-                    })()}
-                    {profile.experienceLevel && (
-                      <View className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: theme.soft, borderColor: theme.border }}>
-                        <Text className="text-xs font-semibold" style={{ fontFamily: 'Poppins_600SemiBold', color: theme.primary }}>{profile.experienceLevel}</Text>
-                      </View>
-                    )}
-                    {profile.hourlyRate ? (
-                      <View className="bg-[#10B981]/12 border border-[#10B981]/35 rounded-full px-2.5 py-1">
-                        <Text className="text-[#10B981] text-xs font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>₹{profile.hourlyRate}/hr</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {profile.skills && profile.skills.length > 0 && (
-                    <View className="flex-row flex-wrap gap-1.5">
-                      {profile.skills.slice(0, 6).map((skill, i) => (
-                        <View key={i} className="rounded-full px-2.5 py-1 border" style={{ backgroundColor: theme.soft, borderColor: theme.border }}>
-                          <Text className="text-xs" style={{ fontFamily: 'Poppins_400Regular', color: theme.primary }}>{skill}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  {profile.bio ? <Text className="text-[#C0C0CC] text-[13px] leading-[19px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile.bio}</Text> : null}
-                  {profile.portfolioUrl ? (
-                    <TouchableOpacity onPress={() => openLink(profile.portfolioUrl)} className="flex-row items-center gap-[5px]">
-                      <Ionicons name="link-outline" size={13} color={theme.primary} />
-                      <Text className="text-[13px]" style={{ fontFamily: 'Poppins_400Regular', color: theme.primary }}>View Portfolio</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              )} */}
-
-
               {/* ══════════ MENU CARD ══════════ */}
-              <View className="mx-4 mt-5 rounded-2xl border border-[#9C9C9C]/50 overflow-hidden relative px-4 py-2">
-                <View className="absolute inset-0 bg-black/30" />
-                <View className="absolute inset-0 rounded-2xl shadow-lg shadow-[#323232]" />
-
-                {MENU_ITEMS.map((item, index) => {
-                  return (
-                    <React.Fragment key={item.id}>
-                      <TouchableOpacity className="flex-row items-center py-3.5 gap-3" activeOpacity={0.7} onPress={() => handleMenuPress(item.id)}>
-                        {/* Icon pill */}
-                        <View className="w-[36px] h-[36px] rounded-full bg-[#323232]/15 border justify-center items-center" style={{ borderColor: theme.border }}>
-                          <Ionicons name={item.icon} size={16} color={theme.primary} />
-                        </View>
-                        <Text className="text-white text-base font-normal flex-1" style={{ fontFamily: 'Poppins_400Regular' }}>{item.label}</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#9a9a9a" />
-                      </TouchableOpacity>
-
-                      {/* Divider (not after last item) */}
-                      {index < MENU_ITEMS.length - 1 && <View className="h-[1px] bg-[#9C9C9C]/25" />}
-                    </React.Fragment>
-                  )
-                })}
+              <View className="mx-5 mt-4 rounded-[28px] border border-[#2A2A2A] bg-[#0A0A0A] overflow-hidden">
+                {MENU_ITEMS.map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    <TouchableOpacity
+                      className="flex-row items-center py-4 px-5 gap-4"
+                      activeOpacity={0.7}
+                      onPress={() => handleMenuPress(item.id)}
+                    >
+                      {/* Icon circle */}
+                      <View className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-white/10 justify-center items-center">
+                        <Ionicons name={item.icon} size={20} color="#fff" />
+                      </View>
+                      <Text className="text-white text-[16px] font-medium flex-1" style={{ fontFamily: 'Poppins_500Medium' }}>{item.label}</Text>
+                      <Ionicons name="chevron-forward" size={18} color="#555" />
+                    </TouchableOpacity>
+                    {index < MENU_ITEMS.length - 1 && (
+                      <View className="h-[0.5px] bg-[#2A2A2A] mx-5" />
+                    )}
+                  </React.Fragment>
+                ))}
               </View>
 
               {/* ══════════ LOGOUT BUTTON ══════════ */}
-              <TouchableOpacity className="mx-4 mt-4 h-16 rounded-2xl bg-[#ffe1e1] flex-row items-center px-4 gap-4 shadow-md elevation-4" activeOpacity={0.8} onPress={handleLogout}>
-                <View className="w-8 h-8 rounded-full bg-[#e30000] justify-center items-center">
-                  <Ionicons name="log-out-outline" size={16} color="#fff" />
+              <TouchableOpacity
+                className="mx-5 mt-12 h-[72px] rounded-[24px] bg-[#FFE1E1] flex-row items-center px-6 gap-5 shadow-sm"
+                activeOpacity={0.8}
+                onPress={handleLogout}
+              >
+                <View className="w-11 h-11 rounded-full bg-[#FF0000] justify-center items-center shadow-sm">
+                  <Ionicons name="log-out" size={22} color="#fff" />
                 </View>
-                <Text className="text-[#e30000] text-base font-semibold flex-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>Logout</Text>
-                <Ionicons name="chevron-forward" size={14} color="#e30000" />
+                <Text className="text-[#FF0000] text-[18px] font-bold flex-1" style={{ fontFamily: 'Poppins_700Bold' }}>Logout</Text>
+                <Ionicons name="chevron-forward" size={22} color="#FF0000" />
               </TouchableOpacity>
-
             </>
           ) : (
-            <View className="px-4 mt-6">
+            <View className="px-4 mt-8">
               <Text className="text-white text-xl font-semibold mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Profile Details</Text>
 
               {/* Profile Details Card */}
@@ -547,12 +545,47 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
+              {/* ══════════ MY POSTS ══════════ */}
+              <View className="mt-6 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[24px] overflow-hidden">
+                <TouchableOpacity
+                  className="flex-row items-center px-5 py-4 gap-4"
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/my-posts')}
+                >
+                  <View className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#F26930]/20 justify-center items-center">
+                    <Ionicons name="images-outline" size={20} color="#fff" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-white text-[17px] font-medium" style={{ fontFamily: 'Poppins_500Medium' }}>My Posts</Text>
+                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>{myPosts.length} post{myPosts.length !== 1 ? 's' : ''}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {/* ══════════ MY COLLABS ══════════ */}
+              <View className="mt-4 mb-6 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[24px] overflow-hidden">
+                <TouchableOpacity
+                  className="flex-row items-center px-5 py-4 gap-4"
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/my-collabs')}
+                >
+                  <View className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#F26930]/20 justify-center items-center">
+                    <Ionicons name="people-outline" size={20} color="#fff" />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-white text-[17px] font-medium" style={{ fontFamily: 'Poppins_500Medium' }}>My Collabs</Text>
+                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>{myCollabs.length} collab{myCollabs.length !== 1 ? 's' : ''}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#666" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
+
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
-
 
       {/* ══════════ PHOTO PREVIEW MODAL ══════════ */}
       <Modal visible={isPhotoModalOpen} transparent animationType="fade">
@@ -566,7 +599,7 @@ export default function ProfileScreen() {
             <View className="w-[280px] h-[280px] rounded-full overflow-hidden border-4 border-white/20 bg-[#222]">
               {profile?.profilePicture ? (
                 <Image
-                  source={{ uri: profile.profilePicture }}
+                  source={{ uri: profile.profilePicture! }}
                   className="w-full h-full"
                   resizeMode="cover"
                 />
@@ -581,7 +614,7 @@ export default function ProfileScreen() {
                 </LinearGradient>
               )}
             </View>
- 
+
             {/* Edit Button */}
             <TouchableOpacity
               onPress={() => {

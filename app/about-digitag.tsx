@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  Linking,
   Platform,
   ScrollView,
   StatusBar,
@@ -12,90 +13,122 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+const FEATURES = [
+  {
+    id: 1,
+    icon: 'people-outline' as const,
+    title: 'Connect with Professionals',
+    description: 'Network with agencies, creators, and brands in the digital marketing space',
+  },
+  {
+    id: 2,
+    icon: 'document-text-outline' as const,
+    title: 'Post Requirements',
+    description: 'Create and share your collaboration needs with the right audience',
+  },
+  {
+    id: 3,
+    icon: 'settings-outline' as const,
+    title: 'Real-time Updates',
+    description: 'Stay updated with instant notifications and live chat features',
+  },
+];
+
 export default function AboutDigitagScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
-  const FEATURES = [
-    {
-      id: 1,
-      icon: 'people-outline' as const,
-      title: 'Connect with Professionals',
-      description: 'Network with agencies, creators, and brands in the digital marketing space',
-    },
-    {
-      id: 2,
-      icon: 'document-text-outline' as const,
-      title: 'Post Requirements',
-      description: 'Create and share your collaboration needs with the right audience',
-    },
-    {
-      id: 3,
-      icon: 'notifications-outline' as const,
-      title: 'Real-time Updates',
-      description: 'Stay updated with instant notifications and live chat features',
-    },
-  ];
-
   return (
-    <View className="flex-1 bg-[#0A0A0A]">
+    <View style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
       {/* Top purple glow gradient */}
       <LinearGradient
-        colors={['rgba(98, 50, 255, 0.15)', 'transparent']}
-        className="absolute top-0 left-0 right-0 h-[250px]"
+        colors={['rgba(98, 50, 255, 0.20)', 'transparent']}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 280 }}
       />
 
-      <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
 
-        {/* ── STICKY HEADER ── */}
+        {/* ── HEADER ── */}
         <View
-          className="px-5 mb-6"
-          style={{ paddingTop: Math.max(insets.top, statusBarHeight) + 16 }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingBottom: 16,
+            paddingTop: Math.max(insets.top, statusBarHeight) + 16,
+          }}
         >
-          <View className="flex-row items-center">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text className="text-white text-[22px] font-poppins-semibold tracking-wide">About Digitag</Text>
-          </View>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginRight: 12, padding: 4 }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Poppins_600SemiBold' }}>
+            About Digitag
+          </Text>
         </View>
 
         <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingBottom: 40 }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── OUR MISSION ── */}
-          <View className="px-5 mb-10">
-            <Text className="text-white text-[17px] font-poppins-semibold mb-4 ml-1">Our Mission</Text>
-            <Text className="text-[#8A8A8A] text-[14px] font-poppins-regular leading-6 mb-4">
+          <View style={{ paddingHorizontal: 20, marginBottom: 36 }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', marginBottom: 14 }}>
+              Our Mission
+            </Text>
+            <Text style={{ color: '#8A8A8A', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 22, marginBottom: 14 }}>
               Digitag is a revolutionary platform designed to bridge the gap between agencies, content creators, and brands. We're building a community where collaboration happens seamlessly and opportunities are just a tap away.
             </Text>
-            <Text className="text-[#8A8A8A] text-[14px] font-poppins-regular leading-6">
+            <Text style={{ color: '#8A8A8A', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 22 }}>
               Our vision is to create the most trusted and efficient marketplace for digital collaborations, empowering professionals to grow their network and business.
             </Text>
           </View>
 
           {/* ── KEY FEATURES ── */}
-          <View className="px-5 mb-10">
-            <Text className="text-white text-[17px] font-poppins-semibold mb-4 ml-1">Key Features</Text>
-            <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
+          <View style={{ paddingHorizontal: 20, marginBottom: 36 }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', marginBottom: 14 }}>
+              Key Features
+            </Text>
+            <View style={{
+              backgroundColor: '#111',
+              borderWidth: 1,
+              borderColor: '#2A2A2A',
+              borderRadius: 24,
+              overflow: 'hidden',
+            }}>
               {FEATURES.map((feature, index) => (
                 <React.Fragment key={feature.id}>
-                  <View className="flex-row items-center py-4 px-3">
-                    <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 18 }}>
+                    <View style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: '#1A1A1A',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.1)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 14,
+                    }}>
                       <Ionicons name={feature.icon} size={20} color="#E0E0E0" />
                     </View>
-                    <View className="flex-1">
-                      <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium mb-0.5">{feature.title}</Text>
-                      <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular leading-5">{feature.description}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#E0E0E0', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 3 }}>
+                        {feature.title}
+                      </Text>
+                      <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 19 }}>
+                        {feature.description}
+                      </Text>
                     </View>
                   </View>
                   {index < FEATURES.length - 1 && (
-                    <View className="h-[1px] bg-[#2A2A2A] mx-3" />
+                    <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
                   )}
                 </React.Fragment>
               ))}
@@ -103,20 +136,44 @@ export default function AboutDigitagScreen() {
           </View>
 
           {/* ── LEGAL & PRIVACY ── */}
-          <View className="px-5 mb-8">
-            <Text className="text-white text-[17px] font-poppins-semibold mb-4 ml-1">Legal & Privacy</Text>
+          <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', marginBottom: 14 }}>
+              Legal & Privacy
+            </Text>
             <TouchableOpacity
-              className="bg-[#121212] border border-[#2A2A2A] rounded-[20px] p-4 flex-row items-center justify-between"
+              style={{
+                backgroundColor: '#111',
+                borderWidth: 1,
+                borderColor: '#2A2A2A',
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
               activeOpacity={0.8}
               onPress={() => router.push('/privacysettings')}
             >
-              <View className="flex-row items-center">
-                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 21,
+                  backgroundColor: '#1A1A1A',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 14,
+                }}>
                   <Ionicons name="shield-checkmark-outline" size={20} color="#E0E0E0" />
                 </View>
-                <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium">Legal & Privacy</Text>
+                <Text style={{ color: '#E0E0E0', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>
+                  Legal & Privacy
+                </Text>
               </View>
-              <Ionicons name="arrow-up-outline" size={24} color="#7352DD" style={{ transform: [{ rotate: '45deg' }] }} />
+              <Ionicons name="arrow-up-outline" size={22} color="#7352DD" style={{ transform: [{ rotate: '45deg' }] }} />
             </TouchableOpacity>
           </View>
 
