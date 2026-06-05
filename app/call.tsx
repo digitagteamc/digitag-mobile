@@ -1,9 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
-    Animated,
-    Easing,
     Image,
     ImageBackground,
     PermissionsAndroid,
@@ -14,15 +14,20 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import {
     ChannelProfileType,
     ClientRoleType,
     IRtcEngine,
     createAgoraRtcEngine,
 } from 'react-native-agora';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { acceptCall, declineCall, endCall } from '../services/userService';
+import { useRoleTheme } from '../theme/useRoleTheme';
+
+function getInitials(name: string) {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
+}
 
 async function requestAudioPermission(): Promise<boolean> {
     if (Platform.OS !== 'android') return true;
@@ -47,6 +52,9 @@ export default function CallScreen() {
         remoteImage?: string;
     }>();
 
+    const insets = useSafeAreaInsets();
+    const theme = useRoleTheme();
+
     const engineRef = useRef<IRtcEngine | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endedRef = useRef(false);
@@ -57,6 +65,7 @@ export default function CallScreen() {
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     const remoteName = params.remoteName || 'User';
+    const initials = getInitials(remoteName);
 
     const startTimer = useCallback(() => {
         timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);

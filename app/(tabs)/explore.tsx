@@ -4,7 +4,7 @@ import { getCreatorById, getFeed, getFreelancerById } from '@/services/userServi
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -499,7 +499,16 @@ export default function ExploreTab() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
+  const { category: paramCategory } = useLocalSearchParams<{ category?: string }>();
+  const [activeCategory, setActiveCategory] = useState(
+    paramCategory && CATEGORIES.find(c => c.id === paramCategory) ? paramCategory : CATEGORIES[0].id
+  );
+
+  useEffect(() => {
+    if (paramCategory && CATEGORIES.find(c => c.id === paramCategory)) {
+      setActiveCategory(paramCategory);
+    }
+  }, [paramCategory]);
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
@@ -855,14 +864,27 @@ export default function ExploreTab() {
       experience: owner.experience || '5 years',
       languages: owner.languages || 'Telugu, English, Tamil',
       location: owner.location || owner.city || 'Hyderabad',
-      category: owner.category || p.category || '',
+      category: owner.category?.slug || p.category?.slug || '',
     };
   }), [posts]);
 
+  // Map explore tab IDs → backend category slugs
+  const CATEGORY_SLUG_MAP: Record<string, string[]> = {
+    photography: ['photography'],
+    editor: ['video-editing', 'graphic-design'],
+    videography: ['video-editing', 'videography'],
+    growth: ['social-media', 'growth'],
+    script: ['content-writing', 'script-writing'],
+    styling: ['styling', 'makeup', 'beauty'],
+    fashion: ['fashion', 'graphic-design'],
+    property: ['property', 'real-estate'],
+    voice: ['music-production', 'voice-over'],
+  };
+
   const cards = useMemo(() => allCards.filter((item) => {
     if (!activeCategory || activeCategory === 'all') return true;
-    // You might want to actually filter by category here in the future
-    return true;
+    const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
+    return slugs.some(s => item.category?.toLowerCase().includes(s));
   }), [allCards, activeCategory]);
 
   const handleCardTap = (postId: string, ownerId?: string) => {

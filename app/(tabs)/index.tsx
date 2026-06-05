@@ -111,15 +111,15 @@ const CAROUSEL_DATA = [
 ];
 
 const CATEGORIES = [
-  { id: '1', label: 'Photography', image: imgPhotography, icon: 'camera-outline' as const },
-  { id: '2', label: 'Editors', image: imgEditor, icon: 'desktop-outline' as const },
-  { id: '3', label: 'Videography', image: imgVideography, icon: 'videocam-outline' as const },
-  { id: '4', label: 'Growth\nSpecialist', image: imgGrowth, icon: 'trending-up-outline' as const },
-  { id: '5', label: 'Script Writers', image: imgScriptWriters, icon: 'document-text-outline' as const },
-  { id: '6', label: 'Styling &\nmakeup', image: imgStyling, icon: 'color-palette-outline' as const },
-  { id: '7', label: 'Fashion\nDesigners', image: imgFashion, icon: 'shirt-outline' as const },
-  { id: '8', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
-  { id: '9', label: 'Voice Over', image: imgVoiceOver, icon: 'mic-outline' as const },
+  { id: 'photography', label: 'Photography', image: imgPhotography, icon: 'camera-outline' as const },
+  { id: 'editor', label: 'Editors', image: imgEditor, icon: 'desktop-outline' as const },
+  { id: 'videography', label: 'Videography', image: imgVideography, icon: 'videocam-outline' as const },
+  { id: 'growth', label: 'Growth\nSpecialist', image: imgGrowth, icon: 'trending-up-outline' as const },
+  { id: 'script', label: 'Script Writers', image: imgScriptWriters, icon: 'document-text-outline' as const },
+  { id: 'styling', label: 'Styling &\nmakeup', image: imgStyling, icon: 'color-palette-outline' as const },
+  { id: 'fashion', label: 'Fashion\nDesigners', image: imgFashion, icon: 'shirt-outline' as const },
+  { id: 'property', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
+  { id: 'voice', label: 'Voice Over', image: imgVoiceOver, icon: 'mic-outline' as const },
 ];
 
 const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
@@ -1024,7 +1024,7 @@ export default function Homepage() {
                       if (isFreelancer) {
                         return (
                           <View key={cat.id} style={styles.catGridItemFreelancer}>
-                            <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer}>
+                            <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)}>
                               {cat.image ? (
                                 <Image source={cat.image} style={styles.catGridImgFreelancer} resizeMode="contain" />
                               ) : (
@@ -1037,7 +1037,7 @@ export default function Homepage() {
                       }
 
                       return (
-                        <TouchableOpacity key={cat.id} style={styles.catGridItem}>
+                        <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)} activeOpacity={0.8}>
                           <LinearGradient
                             colors={borderColors as [string, string]}
                             start={{ x: 0, y: 0 }}
