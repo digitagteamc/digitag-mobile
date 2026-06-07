@@ -1,5 +1,6 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { ProfileGateProvider } from '@/context/ProfileGateContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import {
     Poppins_200ExtraLight,
@@ -94,6 +95,17 @@ function NotificationHandler() {
     return null;
 }
 
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 60 * 1000,        // Data stays fresh for 1 minute
+            gcTime: 5 * 60 * 1000,       // Garbage collect unused cache after 5 minutes
+            retry: 2,
+            refetchOnWindowFocus: false,  // Don't refetch just because app comes to foreground
+        },
+    },
+});
+
 export default function RootLayout() {
     const [loaded, error] = useFonts({
         Poppins_200ExtraLight,
@@ -120,6 +132,7 @@ export default function RootLayout() {
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
+                <QueryClientProvider client={queryClient}>
                 <AuthProvider>
                     <ProfileGateProvider>
                         <NotificationHandler />
@@ -148,6 +161,7 @@ export default function RootLayout() {
                         </Stack>
                     </ProfileGateProvider>
                 </AuthProvider>
+                </QueryClientProvider>
             </SafeAreaProvider>
         </GestureHandlerRootView>
     );

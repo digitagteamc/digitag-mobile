@@ -985,3 +985,12 @@ export const endCall = async (token: string, callId: string) => {
         await request(`/calls/${callId}/end`, { method: 'POST', headers: authHeaders(token) });
     } catch {}
 };
+
+export const deleteAccount = async (token: string) => {
+    try {
+        await request('/auth/account', { method: 'DELETE', headers: authHeaders(token) });
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};

@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    Alert,
     Platform,
     ScrollView,
     StatusBar,
@@ -16,11 +17,46 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
+import { deleteAccount } from '../services/userService';
 
 export default function PrivacySettingsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
+    const { token, logout } = useAuth();
+    const [deleting, setDeleting] = useState(false);
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Delete Account',
+            'This will permanently delete your account, all your posts, collaborations, and messages. This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete Permanently',
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (!token || deleting) return;
+                        setDeleting(true);
+                        try {
+                            const res = await deleteAccount(token);
+                            if (res.success) {
+                                await logout();
+                                router.replace('/login' as any);
+                            } else {
+                                Alert.alert('Error', 'Could not delete account. Please try again.');
+                            }
+                        } catch {
+                            Alert.alert('Error', 'Something went wrong. Please try again.');
+                        } finally {
+                            setDeleting(false);
+                        }
+                    },
+                },
+            ],
+        );
+    };
 
     // Custom Animated Switch Component (same as in settings.tsx)
     const CustomSwitch = ({ value, onValueChange }: { value: boolean, onValueChange: (v: boolean) => void }) => {
@@ -186,9 +222,16 @@ export default function PrivacySettingsScreen() {
                     {/* ── ACCOUNT DELETION ── */}
                     <View className="px-5 mb-8">
                         <Text className="text-white text-[17px] font-poppins-semibold mb-4">Account Deletion</Text>
-                        <TouchableOpacity className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-4">
-                            <Text className="text-[#FF3B30] text-[16px] font-poppins-bold mb-1">DELETE ACCOUNT</Text>
-                            <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Permanently delete your account</Text>
+                        <TouchableOpacity
+                            className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-4"
+                            onPress={handleDeleteAccount}
+                            disabled={deleting}
+                            activeOpacity={0.75}
+                        >
+                            <Text className="text-[#FF3B30] text-[16px] font-poppins-bold mb-1">
+                                {deleting ? 'Deleting...' : 'DELETE ACCOUNT'}
+                            </Text>
+                            <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Permanently delete your account and all data</Text>
                         </TouchableOpacity>
                     </View>
 

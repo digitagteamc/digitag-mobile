@@ -116,9 +116,9 @@ android {
     }
 
     release {
-        signingConfig signingConfigs.debug
-        // EAS will automatically use release signing
-
+        // No local signingConfig here — EAS Build injects the release keystore
+        // during cloud builds. Local ./gradlew assembleRelease will be unsigned
+        // (intentional: use EAS for all production builds).
         minifyEnabled true
         shrinkResources true
 
