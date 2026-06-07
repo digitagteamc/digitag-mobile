@@ -89,13 +89,13 @@ export default function SettingsScreen() {
       id: 'terms',
       icon: 'document-text-outline',
       label: 'Terms & Conditions',
-      onPress: () => Linking.openURL('https://digitag.in/terms').catch(() => { }),
+      onPress: () => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => { }),
     },
     {
       id: 'privacy policy',
       icon: 'reader-outline',
       label: 'Privacy Policy',
-      onPress: () => Linking.openURL('https://digitag.in/privacy-policy').catch(() => { }),
+      onPress: () => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => { }),
     },
   ];
 
