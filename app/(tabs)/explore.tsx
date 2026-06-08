@@ -1,6 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
-import { getCreatorById, getFeed, getFreelancerById } from '@/services/userService';
+import { getCreatorById, getFeed, getFreelancerById, initiateCall, listCollaborations, sendCollaboration } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -494,7 +494,7 @@ const Sparkles = React.memo(({ count = 3 }: { count?: number }) => {
 export default function ExploreTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { token, isGuest, userRole } = useAuth();
+  const { token, isGuest, userRole, userId } = useAuth();
   const { requireProfile } = useProfileGate();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -513,7 +513,18 @@ export default function ExploreTab() {
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
+  const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
+  const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
+  const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | null>(null);
+
+  const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Punjabi', 'Marathi', 'Bengali', 'Gujarati'];
+  const LOCATION_OPTIONS = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
+  const PRICE_OPTIONS = ['Free Collab', 'Paid Collab'];
+  const EXPERIENCE_OPTIONS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
 
   const [isReady, setIsReady] = useState(false);
 
@@ -542,6 +553,22 @@ export default function ExploreTab() {
   }, [token]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  useEffect(() => {
+    if (!token || !userId) return;
+    listCollaborations(token, { direction: 'all' }).then(res => {
+      if (res.success && Array.isArray(res.data)) {
+        const accepted = new Set<string>();
+        res.data.forEach((r: any) => {
+          if (r.status === 'ACCEPTED') {
+            const otherId = r.senderId === userId ? r.receiverId : r.senderId;
+            if (otherId) accepted.add(otherId);
+          }
+        });
+        setAcceptedCollabOwnerIds(accepted);
+      }
+    });
+  }, [token, userId]);
 
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
@@ -861,10 +888,10 @@ export default function ExploreTab() {
       avatarUri: owner.profilePicture || null,
       isInitials: !owner.profilePicture,
       initials: getInitials(name),
-      experience: owner.experience || '5 years',
-      languages: owner.languages || 'Telugu, English, Tamil',
-      location: owner.location || owner.city || 'Hyderabad',
-      category: owner.category?.slug || p.category?.slug || '',
+      experience: owner.experience || '',
+      languages: owner.languages || '',
+      location: owner.location || '',
+      category: owner.category?.slug || '',
     };
   }), [posts]);
 
@@ -882,10 +909,26 @@ export default function ExploreTab() {
   };
 
   const cards = useMemo(() => allCards.filter((item) => {
-    if (!activeCategory || activeCategory === 'all') return true;
-    const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
-    return slugs.some(s => item.category?.toLowerCase().includes(s));
-  }), [allCards, activeCategory]);
+    if (activeCategory && activeCategory !== 'all') {
+      const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
+      if (!slugs.some(s => item.category?.toLowerCase().includes(s))) return false;
+    }
+    if (selectedLanguage) {
+      const langs = (item.languages || '').toLowerCase();
+      if (!langs.includes(selectedLanguage.toLowerCase())) return false;
+    }
+    if (selectedLocation) {
+      const loc = (item.location || '').toLowerCase();
+      if (!loc.includes(selectedLocation.toLowerCase())) return false;
+    }
+    if (selectedPriceRange) {
+      if (item.price !== selectedPriceRange) return false;
+    }
+    if (selectedExperience) {
+      if ((item.experience || '').toLowerCase() !== selectedExperience.toLowerCase()) return false;
+    }
+    return true;
+  }), [allCards, activeCategory, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
@@ -920,11 +963,49 @@ export default function ExploreTab() {
     if (!requireProfile('message this user')) return;
   };
 
-  const handleCall = useCallback(() => {
+  const handleCall = useCallback(async (calleeId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('call this user')) return;
-    Alert.alert('Contact', 'Phone contact is not available yet.');
+    if (!calleeId) return;
+    try {
+      const res = await initiateCall(token, calleeId);
+      if (res.success && res.data) {
+        router.push({
+          pathname: '/call',
+          params: {
+            mode: 'outgoing',
+            callId: res.data.callId,
+            channelName: res.data.channelName,
+            agoraToken: res.data.token,
+            appId: res.data.appId,
+            remoteName: 'User',
+            remoteImage: '',
+          },
+        } as any);
+      } else {
+        Alert.alert('Call Failed', (res as any).error || 'Could not start call.');
+      }
+    } catch (err: any) {
+      Alert.alert('Call Failed', err?.message || 'Network error.');
+    }
   }, [isGuest, token, router, requireProfile]);
+
+  const handleCollab = useCallback(async (ownerId: string, postId: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('send a collab request')) return;
+    if (collabSentIds.has(postId)) return;
+    try {
+      const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
+      if (res.success !== false) {
+        setCollabSentIds(prev => new Set(prev).add(postId));
+        Alert.alert('Collab Sent!', 'Your collaboration request has been sent.');
+      } else {
+        Alert.alert('Error', res.error || 'Could not send collab request.');
+      }
+    } catch {
+      Alert.alert('Error', 'Could not send collab request.');
+    }
+  }, [isGuest, token, router, requireProfile, collabSentIds]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     const postTheme = getRoleTheme(item.ownerRole);
@@ -981,11 +1062,10 @@ export default function ExploreTab() {
                 </View>
               </View>
               <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Price Level <Text style={s.infoLabelSub}>(Primary)</Text></Text>
+                <Text style={s.infoLabel}>Collab Type</Text>
                 <View style={s.infoValueRow}>
-                  {[1, 2, 3, 4].map(i => (
-                    <Text key={i} style={{ color: '#22c55e', fontSize: 14 }}>₹</Text>
-                  ))}
+                  <Ionicons name={item.price === 'Paid Collab' ? 'cash-outline' : 'gift-outline'} size={13} color="#a1a2a4" />
+                  <Text style={[s.infoValue, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]}>{item.price}</Text>
                 </View>
               </View>
             </View>
@@ -1008,41 +1088,68 @@ export default function ExploreTab() {
           </View>
 
           {/* Bottom Actions */}
-          <View style={s.cardBottom}>
-            <View style={s.cardActions}>
-              <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
-                <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
-                </ImageBackground>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleCall} activeOpacity={0.75}>
-                <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                  <Ionicons name="call-outline" size={18} color="#fff" />
-                </ImageBackground>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleShare(item.id)} activeOpacity={0.75}>
-                <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                  <Ionicons name="share-social-outline" size={18} color="#fff" />
-                </ImageBackground>
-              </TouchableOpacity>
-            </View>
-            <View style={s.cardBottomRight}>
-              <TouchableOpacity
-                style={[s.seePortfolioBtn, { backgroundColor: accent }]}
-                onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
-              >
-                <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
-              </TouchableOpacity>
-              <View style={s.timeRow}>
-                <Ionicons name="time-outline" size={12} color="#a1a2a4" />
-                <Text style={s.timeText}>{item.time || '4h ago'}</Text>
+          {acceptedCollabOwnerIds.has(item.ownerId) ? (
+            <View style={s.cardBottom}>
+              <View style={s.cardActions}>
+                <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
+                  <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+                  </ImageBackground>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleCall(item.ownerId)} activeOpacity={0.75}>
+                  <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                    <Ionicons name="call-outline" size={18} color="#fff" />
+                  </ImageBackground>
+                </TouchableOpacity>
+              </View>
+              <View style={s.cardBottomRight}>
+                <TouchableOpacity
+                  style={[s.seePortfolioBtn, { backgroundColor: accent }]}
+                  onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
+                >
+                  <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
+                </TouchableOpacity>
+                <View style={s.timeRow}>
+                  <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                  <Text style={s.timeText}>{item.time || '4h ago'}</Text>
+                </View>
               </View>
             </View>
-          </View>
+          ) : (
+            <View style={s.cardBottomCollab}>
+              <TouchableOpacity
+                style={[s.bigCollabBtn, { backgroundColor: accent, opacity: collabSentIds.has(item.id) ? 0.6 : 1 }]}
+                onPress={() => handleCollab(item.ownerId, item.id)}
+                activeOpacity={0.8}
+                disabled={collabSentIds.has(item.id)}
+              >
+                <Ionicons
+                  name={collabSentIds.has(item.id) ? 'checkmark-circle-outline' : 'people-outline'}
+                  size={16}
+                  color="#fff"
+                />
+                <Text style={s.bigCollabBtnText}>
+                  {collabSentIds.has(item.id) ? 'Request Sent' : 'Collaborate'}
+                </Text>
+              </TouchableOpacity>
+              <View style={s.cardBottomRight}>
+                <TouchableOpacity
+                  style={[s.seePortfolioBtn, { backgroundColor: accent }]}
+                  onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
+                >
+                  <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
+                </TouchableOpacity>
+                <View style={s.timeRow}>
+                  <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                  <Text style={s.timeText}>{item.time || '4h ago'}</Text>
+                </View>
+              </View>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleShare]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, collabSentIds, acceptedCollabOwnerIds]);
 
   const listHeader = useMemo(() => (
     <View>
@@ -1139,21 +1246,37 @@ export default function ExploreTab() {
       <View style={s.filterRow}>
         <View style={s.filterCol}>
           <Text style={s.filterLabel}>Price Range</Text>
-          <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
-            <Text style={s.filterPlaceholder}>Select Price Range</Text>
-            <Ionicons name="filter" size={16} color="#6e7180" />
+          <TouchableOpacity style={[s.filterDropdown, selectedPriceRange ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('price')}>
+            <Text style={[s.filterPlaceholder, selectedPriceRange ? s.filterValueText : null]}>{selectedPriceRange || 'Select Price Range'}</Text>
+            {selectedPriceRange ? <TouchableOpacity onPress={() => setSelectedPriceRange(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="filter" size={16} color="#6e7180" />}
           </TouchableOpacity>
         </View>
         <View style={s.filterCol}>
           <Text style={s.filterLabel}>Experience</Text>
-          <TouchableOpacity style={s.filterDropdown} activeOpacity={0.7}>
-            <Text style={s.filterPlaceholder}>Select experience</Text>
-            <Ionicons name="chevron-down" size={20} color="#6e7180" />
+          <TouchableOpacity style={[s.filterDropdown, selectedExperience ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('experience')}>
+            <Text style={[s.filterPlaceholder, selectedExperience ? s.filterValueText : null]}>{selectedExperience || 'Select experience'}</Text>
+            {selectedExperience ? <TouchableOpacity onPress={() => setSelectedExperience(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
+          </TouchableOpacity>
+        </View>
+      </View>
+      <View style={[s.filterRow, { marginTop: 0 }]}>
+        <View style={s.filterCol}>
+          <Text style={s.filterLabel}>Language</Text>
+          <TouchableOpacity style={[s.filterDropdown, selectedLanguage ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('language')}>
+            <Text style={[s.filterPlaceholder, selectedLanguage ? s.filterValueText : null]}>{selectedLanguage || 'Select language'}</Text>
+            {selectedLanguage ? <TouchableOpacity onPress={() => setSelectedLanguage(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
+          </TouchableOpacity>
+        </View>
+        <View style={s.filterCol}>
+          <Text style={s.filterLabel}>Location</Text>
+          <TouchableOpacity style={[s.filterDropdown, selectedLocation ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('location')}>
+            <Text style={[s.filterPlaceholder, selectedLocation ? s.filterValueText : null]}>{selectedLocation || 'Select location'}</Text>
+            {selectedLocation ? <TouchableOpacity onPress={() => setSelectedLocation(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
           </TouchableOpacity>
         </View>
       </View>
     </View>
-  ), [insets.top, activeCat, availableCategories, activeCategory]);
+  ), [insets.top, activeCat, availableCategories, activeCategory, selectedPriceRange, selectedExperience, selectedLanguage, selectedLocation]);
 
   if (!isReady) {
     return (
@@ -1180,7 +1303,7 @@ export default function ExploreTab() {
             </View>
           ) : null
         }
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 16 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
@@ -1219,6 +1342,59 @@ export default function ExploreTab() {
             ) : (
               <Text style={s.noPortfolio}>No portfolio link provided.</Text>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ═══ FILTER SELECTION MODAL ═══ */}
+      <Modal
+        visible={filterModalType !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterModalType(null)}
+      >
+        <View style={s.modalOverlay}>
+          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setFilterModalType(null)} />
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>
+                {filterModalType === 'language' ? 'Select Language'
+                  : filterModalType === 'location' ? 'Select Location'
+                  : filterModalType === 'price' ? 'Select Price Range'
+                  : 'Select Experience'}
+              </Text>
+              <TouchableOpacity style={s.modalClose} onPress={() => setFilterModalType(null)}>
+                <Feather name="x" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            {(filterModalType === 'language' ? LANGUAGE_OPTIONS
+              : filterModalType === 'location' ? LOCATION_OPTIONS
+              : filterModalType === 'price' ? PRICE_OPTIONS
+              : EXPERIENCE_OPTIONS
+            ).map((option) => {
+              const currentVal = filterModalType === 'language' ? selectedLanguage
+                : filterModalType === 'location' ? selectedLocation
+                : filterModalType === 'price' ? selectedPriceRange
+                : selectedExperience;
+              const isSelected = currentVal === option;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (filterModalType === 'language') setSelectedLanguage(isSelected ? null : option);
+                    else if (filterModalType === 'location') setSelectedLocation(isSelected ? null : option);
+                    else if (filterModalType === 'price') setSelectedPriceRange(isSelected ? null : option);
+                    else setSelectedExperience(isSelected ? null : option);
+                    setFilterModalType(null);
+                  }}
+                >
+                  <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
+                  {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </Modal>
@@ -1320,6 +1496,8 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, justifyContent: 'space-between',
   },
   filterPlaceholder: { color: '#6e7180', fontSize: 13, fontFamily: 'Poppins_400Regular' },
+  filterDropdownActive: { borderColor: '#ED2A91', backgroundColor: 'rgba(237,42,145,0.08)' },
+  filterValueText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_400Regular' },
 
   // Empty
   emptyState: { paddingHorizontal: 40, paddingTop: 60, alignItems: 'center', gap: 10 },
@@ -1363,6 +1541,13 @@ const s = StyleSheet.create({
 
   // Bottom
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardBottomCollab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  bigCollabBtn: {
+    flex: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, borderRadius: 99, paddingVertical: 9,
+  },
+  bigCollabBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
   cardActions: { flexDirection: 'row', gap: 12 },
   iconCircleDark: {
     width: 38,
@@ -1397,4 +1582,12 @@ const s = StyleSheet.create({
   portfolioRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   portfolioLinkText: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', flex: 1, marginRight: 12 },
   noPortfolio: { color: '#8A8A99', fontSize: 14, fontFamily: 'Poppins_400Regular', marginTop: 10 },
+
+  filterOptionRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 4,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  filterOptionRowActive: { backgroundColor: 'rgba(237,42,145,0.06)', borderRadius: 8, paddingHorizontal: 8 },
+  filterOptionText: { color: '#fff', fontSize: 15, fontFamily: 'Poppins_400Regular' },
 });

@@ -135,7 +135,6 @@ const TabButton = React.memo(({
 
 // ─── FAB ─────────────────────────────────────────────────────────────────────
 
-/*
 function FabButton({
     isFreelancer,
     onPress,
@@ -165,7 +164,6 @@ function FabButton({
         </View>
     );
 }
-*/
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -183,23 +181,19 @@ export default function AppBottomNav({
     const theme = useRoleTheme();
     const { userRole } = useAuth();
 
-    /*
     const isHomeOrExplore = activeKey === 'home' || activeKey === 'explore';
     const showFab = isHomeOrExplore && !!onFabPress;
     const isFreelancer = userRole === 'FREELANCER';
-    */
 
     return (
         <View style={styles.wrap}>
             {/* Create Post FAB — floats above bar top-right */}
-            {/* 
             {showFab && (
                 <FabButton
                     isFreelancer={isFreelancer}
                     onPress={onFabPress!}
                 />
             )}
-            */}
 
             {/* Nav bar */}
             <View style={styles.bar}>
@@ -284,11 +278,10 @@ const styles = StyleSheet.create({
         marginRight: 4,
     },
 
-    /*
     fab: {
         position: 'absolute',
         right: 20,
-        bottom: Platform.OS === 'ios' ? 125 : 95, 
+        bottom: Platform.OS === 'ios' ? 125 : 95,
         width: FAB_SIZE,
         height: FAB_SIZE,
         borderRadius: FAB_SIZE / 2,
@@ -309,9 +302,8 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 4.5, 
+        borderWidth: 4.5,
         borderColor: '#fff',
         borderRadius: FAB_SIZE / 2,
     },
-    */
 });

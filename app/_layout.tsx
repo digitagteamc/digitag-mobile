@@ -16,6 +16,7 @@ import messaging from '@react-native-firebase/messaging';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { Image, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
@@ -119,14 +120,22 @@ export default function RootLayout() {
         Inter_500Medium,
     });
 
+    // Hide the native splash immediately so its mesh never shows.
+    // We render our own GIF loading screen while fonts load.
     useEffect(() => {
-        if (loaded || error) {
-            SplashScreen.hideAsync();
-        }
-    }, [loaded, error]);
+        SplashScreen.hideAsync().catch(() => {});
+    }, []);
 
     if (!loaded && !error) {
-        return null;
+        return (
+            <View style={{ flex: 1, backgroundColor: '#060606', alignItems: 'center', justifyContent: 'center' }}>
+                <Image
+                    source={require('../assets/videos/digitag-intro.gif')}
+                    style={{ width: 210, height: 210 }}
+                    resizeMode="contain"
+                />
+            </View>
+        );
     }
 
     return (

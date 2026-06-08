@@ -1,6 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -204,7 +205,7 @@ export default function SettingsScreen() {
         {/* ── APP VERSION FOOTER ── */}
         <View className="h-[60px] bg-[#1A1A1A] flex-row items-center justify-center border-t border-[#2A2A2A]">
           <Text className="text-[#E0E0E0] text-[14px] font-poppins-regular">App Version </Text>
-          <Text className="text-white text-[14px] font-poppins-bold">1.0.0</Text>
+          <Text className="text-white text-[14px] font-poppins-bold">{Constants.expoConfig?.version ?? '1.0.2'}</Text>
         </View>
       </SafeAreaView>
 

@@ -1,8 +1,10 @@
 import { Tabs, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
 import { palette } from '../../theme/colors';
+
+export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 110 : 80;
 
 /**
  * Persistent bottom-nav layout. We mount expo-router's <Tabs /> with a custom
@@ -43,7 +45,7 @@ export default function TabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: { display: 'none' },
-                sceneStyle: { backgroundColor: palette.background },
+                sceneStyle: { backgroundColor: palette.background, paddingBottom: NAV_BAR_HEIGHT },
             }}
             backBehavior="initialRoute"
             tabBar={renderTabBar}

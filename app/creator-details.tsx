@@ -4,10 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Dimensions,
     Image,
-    Linking,
     ScrollView,
     StyleSheet,
     Text,
@@ -23,6 +21,7 @@ import {
     getPostById,
     getUserById,
     getUserStats,
+    initiateCall,
     openConversationWith,
     sendCollaboration,
     unfollowUser,
@@ -147,13 +146,29 @@ export default function CreatorDetails() {
         }
     };
 
-    const handleCall = () => {
-        const phone = profile?.mobileNumber || profile?.phone || profile?.freelancerProfile?.phone || profile?.creatorProfile?.phone;
-        if (!phone) {
-            showAlert('Contact Error', 'This user has not shared their mobile number.');
-            return;
+    const handleCall = async () => {
+        if (!token || !resolvedUserId) return;
+        try {
+            const res = await initiateCall(token, resolvedUserId);
+            if (res.success && res.data) {
+                router.push({
+                    pathname: '/call',
+                    params: {
+                        mode: 'outgoing',
+                        callId: res.data.callId,
+                        channelName: res.data.channelName,
+                        agoraToken: res.data.token,
+                        appId: res.data.appId,
+                        remoteName: profile?.name || 'User',
+                        remoteImage: profile?.profilePicture || '',
+                    },
+                } as any);
+            } else {
+                showAlert('Call Failed', (res as any).error || 'Could not start call.');
+            }
+        } catch (err: any) {
+            showAlert('Call Failed', err?.message || 'Network error.');
         }
-        Linking.openURL(`tel:${phone}`);
     };
 
     if (loading) {
@@ -184,27 +199,33 @@ export default function CreatorDetails() {
     const bio = p.bio || (isFreelancerProfile
         ? 'Fashion & lifestyle content creator with a passion for sustainable fashion. I create engaging content for brands that align with my values.'
         : 'Creates engaging beauty content like makeup tutorials, skincare tips, and product reviews.');
-    const location = p.location || 'Banglore, India';
+    const location = p.location || null;
     const joinedLabel = profile.createdAt
         ? `Joined ${new Date(profile.createdAt).toLocaleString('en-US', { month: 'long', year: 'numeric' })}`
-        : (isFreelancerProfile ? 'Joined March 2021' : 'Joined March 2020');
-    const instagram = p.instagramHandle ? `instagram.com/${p.instagramHandle}` : 'instagram.com/priyasharma';
+        : null;
+    const instagram = p.instagramHandle ? `instagram.com/${p.instagramHandle}` : null;
+    const langsArr: string[] = p.languages && p.languages.length > 0 ? p.languages : p.language ? [p.language] : [];
+    const languagesText = langsArr.join(', ') || null;
+    const experienceText = p.experienceLevel
+        ? p.experienceLevel.charAt(0) + p.experienceLevel.slice(1).toLowerCase()
+        : null;
 
-    const specializations = isFreelancerProfile
-        ? [
-            { label: 'Portrait Photography', bg: 'rgba(74, 1, 48, 0.5)', border: '#4A0130', text: '#FF7CC3' },
-            { label: 'Event Photography', bg: 'rgba(11, 2, 60, 0.5)', border: '#0B023C', text: '#7C8CFF' },
-            { label: 'Product Photography', bg: 'rgba(57, 45, 1, 0.5)', border: '#392D01', text: '#FFE07C' },
-            { label: 'Fashion Photography', bg: 'rgba(1, 47, 47, 0.5)', border: '#012F2F', text: '#7CFFD6' },
-            { label: 'Nature & Landscape Photography', bg: 'rgba(55, 30, 0, 0.5)', border: '#371E00', text: '#FFB87C' },
-        ]
-        : [
-            { label: 'Makeup Tutorials', bg: 'rgba(74, 1, 48, 0.5)', border: '#4A0130', text: '#FF7CC3' },
-            { label: 'Product Reviews', bg: 'rgba(11, 2, 60, 0.5)', border: '#0B023C', text: '#7C8CFF' },
-            { label: 'Hair Styling', bg: 'rgba(57, 45, 1, 0.5)', border: '#392D01', text: '#FFE07C' },
-            { label: 'Organic / Skincare Focus', bg: 'rgba(1, 47, 47, 0.5)', border: '#012F2F', text: '#7CFFD6' },
-            { label: 'Transformation Videos', bg: 'rgba(55, 30, 0, 0.5)', border: '#371E00', text: '#FFB87C' },
-        ];
+    const CHIP_COLORS = [
+        { bg: 'rgba(74, 1, 48, 0.5)', border: '#4A0130', text: '#FF7CC3' },
+        { bg: 'rgba(11, 2, 60, 0.5)', border: '#0B023C', text: '#7C8CFF' },
+        { bg: 'rgba(57, 45, 1, 0.5)', border: '#392D01', text: '#FFE07C' },
+        { bg: 'rgba(1, 47, 47, 0.5)', border: '#012F2F', text: '#7CFFD6' },
+        { bg: 'rgba(55, 30, 0, 0.5)', border: '#371E00', text: '#FFB87C' },
+    ];
+    const rawSkills: string[] = (isFreelancerProfile ? p.skills : p.categories) || [];
+    const categoryName = profile.category?.name || p.category?.name;
+    const skillLabels = rawSkills.length > 0
+        ? rawSkills
+        : categoryName ? [categoryName] : [];
+    const specializations = skillLabels.map((label: string, idx: number) => ({
+        label,
+        ...CHIP_COLORS[idx % CHIP_COLORS.length],
+    }));
 
     return (
         <View style={styles.root}>
@@ -222,9 +243,11 @@ export default function CreatorDetails() {
                             <Ionicons name="arrow-back" size={24} color="#fff" />
                         </TouchableOpacity>
                         <View style={styles.topBarRight}>
-                            <TouchableOpacity style={styles.topIconBtn} onPress={handleCall}>
-                                <Ionicons name="call-outline" size={24} color="#fff" />
-                            </TouchableOpacity>
+                            {collabStatus === 'ACCEPTED' && (
+                                <TouchableOpacity style={styles.topIconBtn} onPress={handleCall}>
+                                    <Ionicons name="call-outline" size={24} color="#fff" />
+                                </TouchableOpacity>
+                            )}
                             <TouchableOpacity style={styles.topIconBtn}>
                                 <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
                             </TouchableOpacity>
@@ -265,20 +288,38 @@ export default function CreatorDetails() {
                         <Text style={styles.category}>{category}</Text>
 
                         <View style={styles.infoGrid}>
-                            <View style={styles.infoItem}>
-                                <Ionicons name="location-outline" size={24} color="#A0A0A0" />
-                                <Text style={styles.infoText}>{location}</Text>
-                            </View>
-                            <View style={styles.infoItem}>
-                                <Ionicons name="calendar-outline" size={18} color="#A0A0A0" />
-                                <Text style={styles.infoText}>{joinedLabel}</Text>
-                            </View>
+                            {location ? (
+                                <View style={styles.infoItem}>
+                                    <Ionicons name="location-outline" size={18} color="#A0A0A0" />
+                                    <Text style={styles.infoText}>{location}</Text>
+                                </View>
+                            ) : null}
+                            {joinedLabel ? (
+                                <View style={styles.infoItem}>
+                                    <Ionicons name="calendar-outline" size={18} color="#A0A0A0" />
+                                    <Text style={styles.infoText}>{joinedLabel}</Text>
+                                </View>
+                            ) : null}
+                            {languagesText ? (
+                                <View style={styles.infoItem}>
+                                    <Ionicons name="language-outline" size={18} color="#A0A0A0" />
+                                    <Text style={styles.infoText}>{languagesText}</Text>
+                                </View>
+                            ) : null}
+                            {experienceText ? (
+                                <View style={styles.infoItem}>
+                                    <Ionicons name="briefcase-outline" size={18} color="#A0A0A0" />
+                                    <Text style={styles.infoText}>{experienceText}</Text>
+                                </View>
+                            ) : null}
                         </View>
 
-                        <View style={styles.linkRow}>
-                            <Ionicons name="link-outline" size={18} color="#8A8AFF" />
-                            <Text style={styles.linkText}>{instagram}</Text>
-                        </View>
+                        {instagram ? (
+                            <View style={styles.linkRow}>
+                                <Ionicons name="link-outline" size={18} color="#8A8AFF" />
+                                <Text style={styles.linkText}>{instagram}</Text>
+                            </View>
+                        ) : null}
 
                         <View style={styles.aboutSection}>
                             <Text style={styles.aboutTitle}>About</Text>
@@ -287,25 +328,27 @@ export default function CreatorDetails() {
                     </View>
 
                     {/* ── Collaborate / Message CTA */}
-                    {resolvedUserId !== myId && collabStatus !== 'ACCEPTED' && (
+                    {resolvedUserId !== myId && (
                         <TouchableOpacity
                             style={[
                                 styles.collabBtn,
-                                collabStatus === 'PENDING'
-                                    ? { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)' }
-                                    : { borderColor: accentColor },
+                                collabStatus === 'ACCEPTED'
+                                    ? { borderColor: '#4caf50', backgroundColor: 'rgba(76,175,80,0.08)' }
+                                    : collabStatus === 'PENDING'
+                                        ? { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)' }
+                                        : { borderColor: accentColor },
                             ]}
                             onPress={handleCollab}
-                            disabled={collabBusy || collabStatus === 'PENDING'}
+                            disabled={collabBusy || collabStatus === 'PENDING' || collabStatus === 'ACCEPTED'}
                             activeOpacity={0.8}
                         >
                             <Ionicons
-                                name={collabStatus === 'PENDING' ? "time-outline" : "people-outline"}
+                                name={collabStatus === 'ACCEPTED' ? 'people' : collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
                                 size={16}
-                                color={collabStatus === 'PENDING' ? '#f59e0b' : accentColor}
+                                color={collabStatus === 'ACCEPTED' ? '#4caf50' : collabStatus === 'PENDING' ? '#f59e0b' : accentColor}
                             />
-                            <Text style={[styles.collabBtnText, { color: collabStatus === 'PENDING' ? '#f59e0b' : accentColor }]}>
-                                {collabBusy ? 'Sending…' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
+                            <Text style={[styles.collabBtnText, { color: collabStatus === 'ACCEPTED' ? '#4caf50' : collabStatus === 'PENDING' ? '#f59e0b' : accentColor }]}>
+                                {collabBusy ? 'Sending…' : collabStatus === 'ACCEPTED' ? 'Collaborated' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
                             </Text>
                         </TouchableOpacity>
                     )}
@@ -323,8 +366,8 @@ export default function CreatorDetails() {
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>Rating</Text>
-                            <Text style={styles.statValue}>4.9</Text>
+                            <Text style={styles.statLabel}>Collabs</Text>
+                            <Text style={styles.statValue}>{stats?.collabCount ?? 0}</Text>
                         </View>
                     </View>
 
@@ -396,7 +439,6 @@ const styles = StyleSheet.create({
     },
     profileCard: {
         width: Math.min(408, SCREEN_WIDTH - 40),
-        height: 370,
          borderRadius: 20,
         padding: 24,
         marginBottom: 20,

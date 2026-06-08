@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, G, Mask, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
-import { getCreatorById, getFeed, getFreelancerById, getFullProfile, listCollaborations, openConversationWith } from '../../services/userService';
+import { getCreatorById, getFeed, getFreelancerById, getFullProfile, initiateCall, listCollaborations, openConversationWith, sendCollaboration } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -499,7 +499,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentOwnerIds, acceptedCollabOwnerIds, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -588,23 +588,36 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
             <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
 
             {/* Bottom Actions */}
-            <View style={styles.figmaCardActions}>
-              <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
-                <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
-                </ImageBackground>
+            {acceptedCollabOwnerIds?.has(item.ownerId) ? (
+              <View style={styles.figmaCardActions}>
+                <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
+                  <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+                  </ImageBackground>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleCall(item.ownerId)} activeOpacity={0.75}>
+                  <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                    <Ionicons name="call-outline" size={18} color="#fff" />
+                  </ImageBackground>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[styles.figmaCollabBtn, { backgroundColor: postColor, opacity: collabSentOwnerIds?.has(item.ownerId) ? 0.6 : 1 }]}
+                onPress={() => handleCollab(item.ownerId, item.id)}
+                activeOpacity={0.8}
+                disabled={collabSentOwnerIds?.has(item.ownerId)}
+              >
+                <Ionicons
+                  name={collabSentOwnerIds?.has(item.ownerId) ? 'checkmark-circle-outline' : 'people-outline'}
+                  size={15}
+                  color="#fff"
+                />
+                <Text style={styles.figmaCollabBtnText}>
+                  {collabSentOwnerIds?.has(item.ownerId) ? 'Request Sent' : 'Collaborate'}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleCall(item.owner)} activeOpacity={0.75}>
-                <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                  <Ionicons name="call-outline" size={18} color="#fff" />
-                </ImageBackground>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleShare(item.id)} activeOpacity={0.75}>
-                <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                  <Ionicons name="share-social-outline" size={18} color="#fff" />
-                </ImageBackground>
-              </TouchableOpacity>
-            </View>
+            )}
           </TouchableOpacity>
         </LinearGradient>
       </Animated.View>
@@ -614,7 +627,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
 export default function Homepage() {
   const router = useRouter();
-  const { token, isGuest, userRole } = useAuth();
+  const { token, isGuest, userRole, userId } = useAuth();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
@@ -625,6 +638,8 @@ export default function Homepage() {
   const [userName, setUserName] = useState<string>('');
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
+  const [collabSentOwnerIds, setCollabSentOwnerIds] = useState<Set<string>>(new Set());
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -705,18 +720,31 @@ export default function Homepage() {
       }
     };
 
-    const fetchPendingCount = async () => {
+    const fetchCollabInfo = async () => {
       if (!token || isGuest) return;
-      const res = await listCollaborations(token, { direction: 'incoming' });
+      const res = await listCollaborations(token, { direction: 'all' });
       if (res.success && Array.isArray(res.data)) {
-        setPendingCount(res.data.filter((r: any) => r.status === 'PENDING').length);
+        const accepted = new Set<string>();
+        const sent = new Set<string>();
+        let pending = 0;
+        res.data.forEach((r: any) => {
+          if (r.status === 'ACCEPTED') {
+            const otherId = r.senderId === userId ? r.receiverId : r.senderId;
+            if (otherId) accepted.add(otherId);
+          }
+          if (r.senderId === userId) sent.add(r.receiverId);
+          if (r.status === 'PENDING' && r.receiverId === userId) pending++;
+        });
+        setAcceptedCollabOwnerIds(accepted);
+        setCollabSentOwnerIds(sent);
+        setPendingCount(pending);
       }
     };
 
     fetchPosts();
     fetchUser();
-    fetchPendingCount();
-  }, [token, isGuest, userRole]);
+    fetchCollabInfo();
+  }, [token, isGuest, userRole, userId]);
 
   const getOwnerName = (owner: any) => {
     if (owner?.name) return owner.name;
@@ -773,15 +801,31 @@ export default function Homepage() {
     }
   };
 
-  const handleCall = (owner?: any) => {
+  const handleCall = async (calleeId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('call this user')) return;
-    const phone = owner?.mobileNumber || owner?.phone;
-    if (!phone) {
-      showAlert('Contact Error', 'This user has not shared their mobile number.');
-      return;
+    if (!calleeId) return;
+    try {
+      const res = await initiateCall(token, calleeId);
+      if (res.success && res.data) {
+        router.push({
+          pathname: '/call',
+          params: {
+            mode: 'outgoing',
+            callId: res.data.callId,
+            channelName: res.data.channelName,
+            agoraToken: res.data.token,
+            appId: res.data.appId,
+            remoteName: 'User',
+            remoteImage: '',
+          },
+        } as any);
+      } else {
+        showAlert('Call Failed', (res as any).error || 'Could not start call. Please try again.');
+      }
+    } catch (err: any) {
+      showAlert('Call Failed', err?.message || 'Network error.');
     }
-    Linking.openURL(`tel:${phone}`);
   };
 
   const handleSeePortfolio = async (ownerId?: string, ownerRole?: string) => {
@@ -804,6 +848,23 @@ export default function Homepage() {
       setSelectedPortfolioLink(null);
     } finally {
       setPortfolioLoading(false);
+    }
+  };
+
+  const handleCollab = async (ownerId?: string, postId?: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('send a collaboration')) return;
+    if (!ownerId) return;
+    if (collabSentOwnerIds.has(ownerId)) return;
+    try {
+      const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
+      if (res.success) {
+        setCollabSentOwnerIds(prev => new Set([...prev, ownerId]));
+      } else {
+        showAlert('Collab Error', res.error || 'Could not send collaboration request.');
+      }
+    } catch {
+      showAlert('Error', 'Failed to send collaboration request.');
     }
   };
 
@@ -1142,6 +1203,9 @@ export default function Homepage() {
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
+                  handleCollab={handleCollab}
+                  collabSentOwnerIds={collabSentOwnerIds}
+                  acceptedCollabOwnerIds={acceptedCollabOwnerIds}
                   userRole={userRole}
                 />
               )}
@@ -1717,6 +1781,24 @@ const styles = StyleSheet.create({
     gap: 16,
     position: 'absolute',
     bottom: 20,
+  },
+  figmaCollabBtn: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#ed2a91',
+    borderRadius: 99,
+    paddingVertical: 10,
+  },
+  figmaCollabBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
   },
   figmaCardActionBtn: {
     width: 36,
