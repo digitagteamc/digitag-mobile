@@ -1,4 +1,5 @@
 import GradientButton from '@/Components/ui/GradientButton';
+import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -257,6 +258,7 @@ function FigmaConicBorder({
 
 export default function RoleSelectionScreen() {
     const router = useRouter();
+    const { markOnboarded } = useAuth();
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
 
@@ -269,8 +271,10 @@ export default function RoleSelectionScreen() {
         return () => backHandler.remove();
     }, []);
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (!selectedRole) return;
+        // Mark that the user has seen onboarding — won't show splash again
+        await markOnboarded();
         if (selectedRole === 'brand' || selectedRole === 'agency') {
             router.push('/coming-soon');
             return;

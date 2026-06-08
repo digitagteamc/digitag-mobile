@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { refreshToken as apiRefreshToken } from '../services/userService';
 
 export type Role = 'CREATOR' | 'FREELANCER';
 
@@ -12,13 +14,14 @@ interface AuthContextType {
     userId: string | null;
     token: string | null;
     refreshToken: string | null;
-    /** The currently-active session role (a.k.a. "which profile am I using right now"). */
     userRole: string | null;
-    /** Whether the *active* role has a complete profile. */
     isProfileCompleted: boolean;
-    /** Which roles on this account already have a completed profile. */
     profiles: ProfileMap;
     isGuest: boolean;
+    /** true while restoring session from storage — show a loading screen */
+    isLoading: boolean;
+    /** true once the user has seen onboarding at least once */
+    hasOnboarded: boolean;
     login: (args: {
         phone: string;
         token?: string;
@@ -29,13 +32,23 @@ interface AuthContextType {
         profiles?: Partial<ProfileMap>;
     }) => void;
     setProfileCompleted: (v: boolean) => void;
-    /** Update which roles have completed profiles (e.g. after creating a new one). */
     setProfiles: (next: Partial<ProfileMap>) => void;
-    /** Swap the active role locally (after a server switchRole call). */
     setActiveRole: (role: Role) => void;
     loginAsGuest: () => void;
     logout: () => void;
+    markOnboarded: () => void;
 }
+
+const STORAGE_KEYS = {
+    TOKEN: '@auth_token',
+    REFRESH_TOKEN: '@auth_refresh_token',
+    USER_PHONE: '@auth_phone',
+    USER_ID: '@auth_user_id',
+    USER_ROLE: '@auth_role',
+    IS_PROFILE_COMPLETED: '@auth_profile_completed',
+    PROFILES: '@auth_profiles',
+    HAS_ONBOARDED: '@has_onboarded',
+};
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -45,33 +58,130 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userPhone, setUserPhone] = useState<string | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
     const [token, setToken] = useState<string | null>(null);
-    const [refreshToken, setRefreshToken] = useState<string | null>(null);
+    const [refreshTokenState, setRefreshTokenState] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [isProfileCompleted, setIsProfileCompleted] = useState<boolean>(false);
     const [profiles, setProfilesState] = useState<ProfileMap>(EMPTY_PROFILES);
     const [isGuest, setIsGuest] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [hasOnboarded, setHasOnboarded] = useState<boolean>(false);
 
-    const login: AuthContextType['login'] = ({ phone, token, refreshToken, role, id, isProfileCompleted, profiles: incomingProfiles }) => {
+    // Restore session from AsyncStorage on app start
+    useEffect(() => {
+        restoreSession();
+    }, []);
+
+    async function restoreSession() {
+        try {
+            const [
+                storedToken,
+                storedRefresh,
+                storedPhone,
+                storedId,
+                storedRole,
+                storedProfileDone,
+                storedProfiles,
+                storedOnboarded,
+            ] = await AsyncStorage.multiGet([
+                STORAGE_KEYS.TOKEN,
+                STORAGE_KEYS.REFRESH_TOKEN,
+                STORAGE_KEYS.USER_PHONE,
+                STORAGE_KEYS.USER_ID,
+                STORAGE_KEYS.USER_ROLE,
+                STORAGE_KEYS.IS_PROFILE_COMPLETED,
+                STORAGE_KEYS.PROFILES,
+                STORAGE_KEYS.HAS_ONBOARDED,
+            ]);
+
+            const rToken = storedRefresh[1];
+            const hasOnboardedFlag = storedOnboarded[1] === 'true';
+            setHasOnboarded(hasOnboardedFlag);
+
+            if (rToken) {
+                // Try to get a fresh access token using the stored refresh token
+                try {
+                    const res = await apiRefreshToken(rToken);
+                    if (res.success && res.data?.tokens) {
+                        const newToken = res.data.tokens.accessToken;
+                        const newRefresh = res.data.tokens.refreshToken;
+
+                        await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
+                        await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefresh);
+
+                        setToken(newToken);
+                        setRefreshTokenState(newRefresh);
+                        setUserPhone(storedPhone[1]);
+                        setUserId(storedId[1]);
+                        setUserRole(storedRole[1]);
+                        setIsProfileCompleted(storedProfileDone[1] === 'true');
+                        if (storedProfiles[1]) {
+                            try { setProfilesState(JSON.parse(storedProfiles[1])); } catch { }
+                        }
+                    }
+                    // If refresh fails (expired/revoked), session stays null → user goes to login
+                } catch {
+                    // Refresh token invalid — clear storage and proceed to login
+                    await clearStorage();
+                }
+            }
+        } catch {
+            // Storage read error — proceed without session
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function clearStorage() {
+        await AsyncStorage.multiRemove([
+            STORAGE_KEYS.TOKEN,
+            STORAGE_KEYS.REFRESH_TOKEN,
+            STORAGE_KEYS.USER_PHONE,
+            STORAGE_KEYS.USER_ID,
+            STORAGE_KEYS.USER_ROLE,
+            STORAGE_KEYS.IS_PROFILE_COMPLETED,
+            STORAGE_KEYS.PROFILES,
+        ]);
+    }
+
+    const login: AuthContextType['login'] = async ({ phone, token: tk, refreshToken: rTk, role, id, isProfileCompleted: ipc, profiles: incomingProfiles }) => {
         setIsGuest(false);
         setUserPhone(phone);
-        if (token) setToken(token);
-        if (refreshToken) setRefreshToken(refreshToken);
+        if (tk) setToken(tk);
+        if (rTk) setRefreshTokenState(rTk);
         if (role) setUserRole(role);
         if (id) setUserId(id);
-        setIsProfileCompleted(Boolean(isProfileCompleted));
-        if (incomingProfiles) {
-            setProfilesState({ ...EMPTY_PROFILES, ...incomingProfiles });
-        }
+        setIsProfileCompleted(Boolean(ipc));
+        const mergedProfiles = { ...EMPTY_PROFILES, ...incomingProfiles };
+        if (incomingProfiles) setProfilesState(mergedProfiles);
+
+        // Persist to AsyncStorage
+        const pairs: [string, string][] = [
+            [STORAGE_KEYS.USER_PHONE, phone],
+            [STORAGE_KEYS.IS_PROFILE_COMPLETED, String(Boolean(ipc))],
+            [STORAGE_KEYS.PROFILES, JSON.stringify(mergedProfiles)],
+            [STORAGE_KEYS.HAS_ONBOARDED, 'true'],
+        ];
+        if (tk) pairs.push([STORAGE_KEYS.TOKEN, tk]);
+        if (rTk) pairs.push([STORAGE_KEYS.REFRESH_TOKEN, rTk]);
+        if (role) pairs.push([STORAGE_KEYS.USER_ROLE, role]);
+        if (id) pairs.push([STORAGE_KEYS.USER_ID, id]);
+
+        setHasOnboarded(true);
+        await AsyncStorage.multiSet(pairs);
     };
 
     const setProfiles = (next: Partial<ProfileMap>) => {
-        setProfilesState((prev) => ({ ...prev, ...next }));
+        setProfilesState((prev) => {
+            const merged = { ...prev, ...next };
+            AsyncStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(merged)).catch(() => { });
+            return merged;
+        });
     };
 
     const setActiveRole = (role: Role) => {
         setUserRole(role);
-        // If the new active role already has a complete profile, lift the gate.
         setIsProfileCompleted(profiles[role] === true);
+        AsyncStorage.setItem(STORAGE_KEYS.USER_ROLE, role).catch(() => { });
     };
 
     const loginAsGuest = () => {
@@ -79,21 +189,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserPhone(null);
         setUserId(null);
         setToken(null);
-        setRefreshToken(null);
+        setRefreshTokenState(null);
         setUserRole(null);
         setIsProfileCompleted(false);
         setProfilesState(EMPTY_PROFILES);
     };
 
-    const logout = () => {
+    const logout = async () => {
         setIsGuest(false);
         setUserPhone(null);
         setUserId(null);
         setToken(null);
-        setRefreshToken(null);
+        setRefreshTokenState(null);
         setUserRole(null);
         setIsProfileCompleted(false);
         setProfilesState(EMPTY_PROFILES);
+        await clearStorage();
+    };
+
+    const markOnboarded = async () => {
+        setHasOnboarded(true);
+        await AsyncStorage.setItem(STORAGE_KEYS.HAS_ONBOARDED, 'true');
     };
 
     return (
@@ -102,17 +218,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 userPhone,
                 userId,
                 token,
-                refreshToken,
+                refreshToken: refreshTokenState,
                 userRole,
                 isProfileCompleted,
                 profiles,
                 isGuest,
+                isLoading,
+                hasOnboarded,
                 login,
                 setProfileCompleted: setIsProfileCompleted,
                 setProfiles,
                 setActiveRole,
                 loginAsGuest,
                 logout,
+                markOnboarded,
             }}
         >
             {children}

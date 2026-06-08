@@ -7,8 +7,10 @@ import {
     ActivityIndicator,
     BackHandler,
     Dimensions,
+    Image,
     Keyboard,
     KeyboardAvoidingView,
+    Linking,
     Platform,
     ScrollView,
     Text,
@@ -32,6 +34,7 @@ export default function LoginScreen() {
     const role: SignupRole = (params.role?.toUpperCase() === 'FREELANCER') ? 'FREELANCER' : 'CREATOR';
 
     const { login, loginAsGuest } = useAuth();
+
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');
     const [confirm, setConfirm] = useState<any>(null);
@@ -67,21 +70,6 @@ export default function LoginScreen() {
         return () => clearInterval(interval);
     }, [countdown]);
 
-    // ── Animations ──
-    const logo1Y = useSharedValue(-50);
-    const logo2Y = useSharedValue(50);
-
-    useEffect(() => {
-        logo1Y.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) });
-        logo2Y.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.cubic) });
-    }, []);
-
-    const logo1AnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: logo1Y.value }],
-    }));
-    const logo2AnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: logo2Y.value }],
-    }));
 
     const { height: windowHeight } = useWindowDimensions();
     const screenHeight = Dimensions.get('screen').height;
@@ -216,16 +204,11 @@ export default function LoginScreen() {
                             <ChevronLeftIcon color="white" size={22} />
                         </TouchableOpacity>
 
-                        {/* Logo Mark Images with Animation */}
-                        <View className="flex-row justify-center items-center h-[160px]">
-                            <Animated.Image
-                                source={require('../assets/images/logo1.webp')}
-                                style={[{ width: 60, height: 100 }, logo1AnimatedStyle]}
-                                resizeMode="contain"
-                            />
-                            <Animated.Image
-                                source={require('../assets/images/logo2.webp')}
-                                style={[{ width: 80, height: 130, marginLeft: -15, marginTop: 30 }, logo2AnimatedStyle]}
+                        {/* Animated intro GIF */}
+                        <View className="justify-center items-center h-[160px]">
+                            <Image
+                                source={require('../assets/videos/digitag-intro.gif')}
+                                style={{ width: 210, height: 160 }}
                                 resizeMode="contain"
                             />
                         </View>
@@ -287,8 +270,15 @@ export default function LoginScreen() {
 
                             <Text className="text-[#A0A0B0] font-poppins-regular text-[11px] text-center mt-5 leading-[18px]">
                                 By continuing, I confirm that i am at least 18 years old, and agree to{' '}
-                                <Text className="text-[#D1E61A] font-poppins-bold">Terms &amp; Conditions</Text> and{' '}
-                                <Text className="text-[#D1E61A] font-poppins-bold">Privacy Policy</Text>
+                                <Text
+                                    className="text-[#D1E61A] font-poppins-bold"
+                                    onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => {})}
+                                >Terms &amp; Conditions</Text>
+                                {' '}and{' '}
+                                <Text
+                                    className="text-[#D1E61A] font-poppins-bold"
+                                    onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => {})}
+                                >Privacy Policy</Text>
                             </Text>
 
                             <TouchableOpacity

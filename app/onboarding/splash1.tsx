@@ -3,7 +3,7 @@ import SplashBackground from '@/Components/ui/SplashBackground';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Image, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { BackHandler, Image, Linking, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -271,7 +271,15 @@ export default function Splash1() {
               className={`font-poppins-light ${isCompact ? 'text-[15px] leading-[20px]' : 'text-[18px] leading-[24px]'} text-[#b4b4b4] text-center mt-[5px] z-20`}
             >
               By Continuing. You accept our{' '}
-              <Text className="text-white underline font-poppins-medium">Terms{'\n'} and Privacy Policy</Text>
+              <Text
+                className="text-white underline font-poppins-medium"
+                onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => {})}
+              >Terms & Conditions</Text>
+              {' '}and{' '}
+              <Text
+                className="text-white underline font-poppins-medium"
+                onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => {})}
+              >Privacy Policy</Text>
             </Animated.Text>
           )}
         </View>
