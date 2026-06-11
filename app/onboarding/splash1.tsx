@@ -30,7 +30,7 @@ interface OnboardingStep {
 const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     gradientColors: ['#000000', '#621487'],
-    titles: ["Your beauty × brand", "collaboration", "platform."],
+    titles: ["Bharat’s first", "collaboration", "platform."],
     subtitle: "DigiTag",
     buttonText: "Get Started",
     buttonColors: ['transparent', 'transparent'],

@@ -275,8 +275,12 @@ export default function RoleSelectionScreen() {
         if (!selectedRole) return;
         // Mark that the user has seen onboarding — won't show splash again
         await markOnboarded();
-        if (selectedRole === 'brand' || selectedRole === 'agency') {
-            router.push('/coming-soon');
+        if (selectedRole === 'brand') {
+            router.push('/brand-coming-soon');
+            return;
+        }
+        if (selectedRole === 'agency') {
+            router.push('/agency-coming-soon');
             return;
         }
         router.replace({ pathname: '/login', params: { role: selectedRole.toUpperCase() } });
