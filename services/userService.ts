@@ -689,6 +689,20 @@ export const cancelCollaboration = async (token: string, id: string) => {
     }
 };
 
+/** PATCH /collaborations/:id { action: 'COMPLETE' } — creator marks work done */
+export const completeCollab = async (token: string, id: string) => {
+    try {
+        const body = await request(`/collaborations/${id}`, {
+            method: 'PATCH',
+            headers: authHeaders(token),
+            body: JSON.stringify({ action: 'COMPLETE' }),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ─────────────────────── CONVERSATIONS ────────────────────── */
 
 /** GET /conversations — list my conversations with last message + unread count */

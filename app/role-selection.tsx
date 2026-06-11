@@ -26,6 +26,7 @@ interface RoleData {
 
 // Exact stop colors and opacities from Figma SVG data-figma-gradient-fill
 // Positions clockwise: topLeft, topCenter, topRight, rightCenter, bottomRight, bottomCenter, bottomLeft, leftCenter
+// Row 1: Creator, Freelancer  |  Row 2: Brand, Agency
 const roles: RoleData[] = [
     {
         id: 'creator',
@@ -35,14 +36,32 @@ const roles: RoleData[] = [
         primaryColor: '#ED2A91',
         selectedBg: '#ED2A9133',
         gradientStops: [
-            { color: '#ED2A91', opacity: 0.2 },   // top-left (pos 0.029 = full)
-            { color: '#ED2A91', opacity: 0.2 },   // top-center (pos 0.089)
-            { color: '#FFFFFF', opacity: 0.2 },    // top-right (pos 0.167)
-            { color: '#ED2A91', opacity: 0.2 },    // right-center (pos 0.299)
-            { color: '#ED2A91', opacity: 0.2 },   // bottom-right (pos 0.521)
-            { color: '#ED2A91', opacity: 0.1 },    // bottom-center (pos 0.577)
-            { color: '#FFFFFF', opacity: 0.1 },    // bottom-left (pos 0.798)
-            { color: '#ED2A91', opacity: 0.2 },    // left-center (pos 0.908)
+            { color: '#ED2A91', opacity: 0.2 },
+            { color: '#ED2A91', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
+            { color: '#ED2A91', opacity: 0.2 },
+            { color: '#ED2A91', opacity: 0.2 },
+            { color: '#ED2A91', opacity: 0.1 },
+            { color: '#FFFFFF', opacity: 0.1 },
+            { color: '#ED2A91', opacity: 0.2 },
+        ],
+    },
+    {
+        id: 'freelancer',
+        title: 'Freelancer',
+        desc: 'Independent Professional \n& Promoters',
+        image: freelancerImg,
+        primaryColor: '#F26930',
+        selectedBg: '#F2693033',
+        gradientStops: [
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.2 },
+            { color: '#FFFFFF', opacity: 0.2 },
+            { color: '#F26930', opacity: 0.3 },
         ],
     },
     {
@@ -79,24 +98,6 @@ const roles: RoleData[] = [
             { color: '#E2F20F', opacity: 0.2 },
             { color: '#FFFFFF', opacity: 0.2 },
             { color: '#E2F20F', opacity: 0.3 },
-        ],
-    },
-    {
-        id: 'freelancer',
-        title: 'Freelancer',
-        desc: 'Independent Professional \n& Promoters',
-        image: freelancerImg,
-        primaryColor: '#F26930',
-        selectedBg: '#F2693033',
-        gradientStops: [
-            { color: '#F26930', opacity: 0.2 },
-            { color: '#F26930', opacity: 0.2 },
-            { color: '#FFFFFF', opacity: 0.2 },
-            { color: '#F26930', opacity: 0.2 },
-            { color: '#F26930', opacity: 0.2 },
-            { color: '#F26930', opacity: 0.2 },
-            { color: '#FFFFFF', opacity: 0.2 },
-            { color: '#F26930', opacity: 0.3 },
         ],
     },
 ];
@@ -328,9 +329,9 @@ export default function RoleSelectionScreen() {
                     >
                         <View style={{ flexDirection: 'row', gap: 8 }}>
                             {[
-                                { title: 'Grow Brand', desc: 'Expand your reach', emoji: '🌐', color: '#8F38FF', bg: 'rgba(143, 56, 255, 0.15)' },
                                 { title: 'Collaborate', desc: 'Work with top pros', emoji: '🤝', color: '#FF618C', bg: 'rgba(255, 97, 140, 0.15)' },
-                                { title: 'Monetize', desc: 'Earn from your skills', emoji: '💰', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
+                                { title: 'Get Hired', desc: 'Land freelance gigs', emoji: '💼', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
+                                { title: 'Grow Brand', desc: 'Expand your reach', emoji: '🌐', color: '#8F38FF', bg: 'rgba(143, 56, 255, 0.15)' },
                             ].map((feature, idx) => (
                                 <View
                                     key={idx}
