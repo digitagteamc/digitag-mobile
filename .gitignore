@@ -45,3 +45,10 @@ app-example
 # large files
 /release
 eas-preview.tar.gz
+
+# Android build files
+android/build.gradle
+android/gradle.properties
+android/app/build.gradle
+
+
