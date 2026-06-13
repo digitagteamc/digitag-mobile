@@ -892,10 +892,11 @@ export default function ExploreTab() {
       languages: owner.languages || '',
       location: owner.location || '',
       category: owner.category?.slug || '',
+      categories: Array.isArray(owner.categories) ? owner.categories : [],
     };
   }), [posts]);
 
-  // Map explore tab IDs → backend category slugs
+  // Creator tab IDs → backend category slugs (used when CREATOR is browsing freelancers)
   const CATEGORY_SLUG_MAP: Record<string, string[]> = {
     photography: ['photography'],
     editor: ['video-editing', 'graphic-design'],
@@ -908,10 +909,51 @@ export default function ExploreTab() {
     voice: ['music-production', 'voice-over'],
   };
 
+  // Freelancer tab IDs (f1-f26) → creator profile category strings (used when FREELANCER is browsing creators)
+  const FREELANCER_CATEGORY_SLUG_MAP: Record<string, string[]> = {
+    f1:  ['Lifestyle', 'Fashion & Lifestyle'],
+    f2:  ['Tech'],
+    f3:  ['Education'],
+    f4:  ['Photography'],
+    f5:  ['Food & Cooking'],
+    f6:  ['Fitness & Health'],
+    f7:  ['Automotive'],
+    f8:  ['Comedy', 'Entertainment'],
+    f9:  ['Entertainment'],
+    f10: ['Gaming'],
+    f11: ['Education'],
+    f12: ['News', 'Media'],
+    f13: ['Sports'],
+    f14: ['Travel'],
+    f15: ['Beauty & Skincare'],
+    f16: ['Fitness & Health'],
+    f17: ['Fashion & Lifestyle'],
+    f18: ['Business & Finance'],
+    f19: ['Art & Creativity'],
+    f20: ['Business & Finance'],
+    f21: ['Lifestyle'],
+    f22: ['Parenting'],
+    f23: ['Home & Garden'],
+    f24: ['Education'],
+    f25: ['Lifestyle'],
+    f26: ['Education'],
+  };
+
   const cards = useMemo(() => allCards.filter((item) => {
     if (activeCategory && activeCategory !== 'all') {
-      const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
-      if (!slugs.some(s => item.category?.toLowerCase().includes(s))) return false;
+      if (userRole === 'FREELANCER') {
+        // Filter creator posts by content category strings stored in CreatorProfile.categories[]
+        const matchStrings = FREELANCER_CATEGORY_SLUG_MAP[activeCategory] || [];
+        const itemCategories: string[] = item.categories || [];
+        const matchesContent = matchStrings.some(s =>
+          itemCategories.some(c => c.toLowerCase().includes(s.toLowerCase()))
+        );
+        if (!matchesContent) return false;
+      } else {
+        // Filter freelancer posts by backend category slug
+        const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
+        if (!slugs.some(s => item.category?.toLowerCase().includes(s))) return false;
+      }
     }
     if (selectedLanguage) {
       const langs = (item.languages || '').toLowerCase();
@@ -928,12 +970,12 @@ export default function ExploreTab() {
       if ((item.experience || '').toLowerCase() !== selectedExperience.toLowerCase()) return false;
     }
     return true;
-  }), [allCards, activeCategory, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
+  }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('view this profile')) return;
-    router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
+    if (!requireProfile('view this post')) return;
+    router.push({ pathname: '/post-detail', params: { postId } } as any);
   };
 
   const handlePortfolio = async (ownerId?: string, ownerRole?: string) => {
@@ -1030,8 +1072,8 @@ export default function ExploreTab() {
             </View>
             <View style={s.cardNameArea}>
               <View style={s.cardNameRow}>
-                <Text style={s.cardName}>{item.name}</Text>
-                <Ionicons name="shield-checkmark" size={14} color="#f26930" style={{ marginLeft: 6 }} />
+                <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
+                <Ionicons name="shield-checkmark" size={14} color="#f26930" style={{ marginLeft: 6, flexShrink: 0 }} />
               </View>
               <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
                 <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>
@@ -1058,14 +1100,14 @@ export default function ExploreTab() {
                 <Text style={s.infoLabel}>Experience</Text>
                 <View style={s.infoValueRow}>
                   <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue}>{item.experience}</Text>
+                  <Text style={s.infoValue} numberOfLines={1}>{item.experience}</Text>
                 </View>
               </View>
               <View style={s.infoCell}>
                 <Text style={s.infoLabel}>Collab Type</Text>
                 <View style={s.infoValueRow}>
                   <Ionicons name={item.price === 'Paid Collab' ? 'cash-outline' : 'gift-outline'} size={13} color="#a1a2a4" />
-                  <Text style={[s.infoValue, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]}>{item.price}</Text>
+                  <Text style={[s.infoValue, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]} numberOfLines={1}>{item.price}</Text>
                 </View>
               </View>
             </View>
@@ -1074,14 +1116,14 @@ export default function ExploreTab() {
                 <Text style={s.infoLabel}>Language</Text>
                 <View style={s.infoValueRow}>
                   <Ionicons name="language-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue}>{item.languages}</Text>
+                  <Text style={s.infoValue} numberOfLines={1}>{item.languages}</Text>
                 </View>
               </View>
               <View style={s.infoCell}>
                 <Text style={s.infoLabel}>Location <Text style={s.infoLabelSub}>(Primary)</Text></Text>
                 <View style={s.infoValueRow}>
                   <Ionicons name="location-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue}>{item.location}</Text>
+                  <Text style={s.infoValue} numberOfLines={1}>{item.location}</Text>
                 </View>
               </View>
             </View>
@@ -1518,9 +1560,9 @@ const s = StyleSheet.create({
   cardAvatarWrap: { marginRight: 14 },
   cardAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#333', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
   cardInitials: { fontSize: 20, fontWeight: '700' },
-  cardNameArea: { flex: 1, paddingTop: 4 },
-  cardNameRow: { flexDirection: 'row', alignItems: 'center' },
-  cardName: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_500Medium' },
+  cardNameArea: { flex: 1, paddingTop: 4, minWidth: 0 },
+  cardNameRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', flexShrink: 1 },
   cardPortfolioLink: { fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2 },
   bookmarkBtn: {
     width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(39,39,42,0.5)',
@@ -1533,11 +1575,11 @@ const s = StyleSheet.create({
   // Info Grid
   infoGrid: { gap: 12, marginBottom: 14 },
   infoRow: { flexDirection: 'row', gap: 16 },
-  infoCell: { flex: 1 },
+  infoCell: { flex: 1, minWidth: 0 },
   infoLabel: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
   infoLabelSub: { color: '#d1d2d4' },
-  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6, fontSize: 11, fontFamily: 'Poppins_400Regular' },
-  infoValue: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular' },
+  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  infoValue: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
 
   // Bottom
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

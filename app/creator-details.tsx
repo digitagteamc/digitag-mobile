@@ -536,20 +536,22 @@ const styles = StyleSheet.create({
     },
     infoGrid: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: 20,
+        flexWrap: 'wrap',
+        gap: 10,
         marginBottom: 10,
     },
     infoItem: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 3,
+        maxWidth: '48%',
     },
     infoText: {
         color: '#E0E0E0',
         fontSize: 13,
         fontFamily: fonts.regular,
         letterSpacing: -0.5,
+        flexShrink: 1,
     },
     linkRow: {
         flexDirection: 'row',

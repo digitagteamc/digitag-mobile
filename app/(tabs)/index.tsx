@@ -780,8 +780,8 @@ export default function Homepage() {
 
   const handlePostTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('view this profile')) return;
-    router.push({ pathname: '/creator-details', params: { postId, ...(ownerId ? { userId: ownerId } : {}) } } as any);
+    if (!requireProfile('view this post')) return;
+    router.push({ pathname: '/post-detail', params: { postId } } as any);
   };
 
   const handleMessage = async (ownerId?: string) => {
