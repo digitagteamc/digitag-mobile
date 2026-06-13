@@ -26,6 +26,7 @@ interface ProfileData {
   name: string;
   phone: string;
   role: string;
+  tagId?: string | null;
   profilePicture?: string | null;
   bio?: string | null;
   category?: string | null;
@@ -118,9 +119,10 @@ export default function ProfileScreen() {
             const p = res.data.profile;
             const role = res.data.role || userRole || 'USER';
             const base: ProfileData = {
-              name: p.name || 'User',
+              name: p.name || '',
               phone: userPhone || '',
               role,
+              tagId: p.tagId || null,
               profilePicture: p.profilePicture || null,
               bio: p.bio || null,
               category: p.category?.name || null,
@@ -152,7 +154,7 @@ export default function ProfileScreen() {
             setProfile(base);
           } else {
             setProfile({
-              name: 'User',
+              name: '',
               phone: userPhone || '',
               role: userRole || 'USER',
             });
@@ -160,7 +162,7 @@ export default function ProfileScreen() {
         } catch (e) {
           console.error('Profile fetch error:', e);
           setProfile({
-            name: 'User',
+            name: '',
             phone: userPhone || '',
             role: userRole || 'USER',
           });
@@ -386,20 +388,26 @@ export default function ProfileScreen() {
                   <Image source={{ uri: profile.profilePicture }} className="w-full h-full" resizeMode="cover" />
                 ) : (
                   <LinearGradient colors={[theme.softStrong, theme.primary] as [string, string]} className="w-full h-full justify-center items-center">
-                    <Text className="text-white text-3xl font-bold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{initials(profile?.name || 'U')}</Text>
+                    <Text className="text-white text-3xl font-bold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{initials(profile?.name || profile?.phone || 'U')}</Text>
                   </LinearGradient>
                 )}
               </TouchableOpacity>
 
               {/* Text Info */}
               <View className="flex-1">
-                <Text className="text-white text-2xl font-bold tracking-tight" style={{ fontFamily: 'Poppins_700Bold' }}>{profile?.name}</Text>
-                <Text className="text-[#a1a1a1] text-base font-normal mt-1" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.phone}</Text>
+                <Text className="text-white text-2xl font-bold tracking-tight" style={{ fontFamily: 'Poppins_700Bold' }}>
+                  {profile?.name || profile?.phone || ''}
+                </Text>
+                {profile?.tagId ? (
+                  <Text style={{ color: theme.primary, fontFamily: 'Poppins_400Regular', fontSize: 13, marginTop: 2 }}>{profile.tagId}</Text>
+                ) : (
+                  <Text className="text-[#a1a1a1] text-base font-normal mt-1" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.phone}</Text>
+                )}
 
                 {/* Role badge */}
                 <View className="flex-row items-center mt-2">
-                  <Text className="text-[#EF2A91] text-sm font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{getRoleLabel(profile?.role || '')}</Text>
-                  <Ionicons name="checkmark-circle" size={14} color="#EF2A91" style={{ marginLeft: 4 }} />
+                  <Text style={{ color: theme.primary, fontSize: 13, fontFamily: 'Poppins_600SemiBold' }}>{getRoleLabel(profile?.role || '')}</Text>
+                  <Ionicons name="checkmark-circle" size={14} color={theme.primary} style={{ marginLeft: 4 }} />
                 </View>
 
                 {/* Social Icons Row */}

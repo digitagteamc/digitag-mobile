@@ -636,6 +636,7 @@ export default function Homepage() {
   const [loading, setLoading] = useState(true);
   const [createPostWidth, setCreatePostWidth] = useState(0);
   const [userName, setUserName] = useState<string>('');
+  const [userTagId, setUserTagId] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
@@ -712,11 +713,9 @@ export default function Homepage() {
       const res = await getFullProfile(token);
       if (res.success && res.data?.profile) {
         const p = res.data.profile;
-        setUserName(p.name || 'User');
+        setUserName(p.name || '');
+        setUserTagId(p.tagId || null);
         setUserAvatar(p.profilePicture || null);
-      } else {
-        setUserName('User');
-        setUserAvatar(null);
       }
     };
 
@@ -999,7 +998,9 @@ export default function Homepage() {
                 </View>
                 <View style={{ marginLeft: 10 }}>
                   <Text style={styles.headerName}>{userName}</Text>
-                  <Text style={styles.headerTag}>Fashion <Text style={{ fontWeight: '600', color: '#fff' }}>tag: 45600hyd</Text></Text>
+                  {userTagId ? (
+                    <Text style={styles.headerTag}><Text style={{ fontWeight: '600', color: '#fff' }}>{userTagId}</Text></Text>
+                  ) : null}
                 </View>
               </View>
             </BlurView>
