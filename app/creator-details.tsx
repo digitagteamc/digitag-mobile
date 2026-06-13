@@ -174,7 +174,7 @@ export default function CreatorDetails() {
     if (loading) {
         return (
             <View style={styles.loadingWrap}>
-                <ActivityIndicator size="large" color="#F26930" />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
@@ -188,10 +188,12 @@ export default function CreatorDetails() {
     }
 
     const isFreelancerProfile = profile.role === 'FREELANCER';
-    const accentColor = isFreelancerProfile ? '#FF832A' : '#F15DAB';
+    // Buttons/borders use the viewer's own role color for consistency
+    const accentColor = theme.primary;
+    // Header gradient reflects the profile owner's role as a visual cue
     const headerGradient = isFreelancerProfile
-        ? ['rgba(255, 87, 0, 0.4)', 'rgba(0, 0, 0, 0)']
-        : ['rgba(241, 93, 171, 0.4)', 'rgba(0, 0, 0, 0)'];
+        ? ['rgba(242, 105, 48, 0.4)', 'rgba(0, 0, 0, 0)']
+        : ['rgba(237, 42, 145, 0.4)', 'rgba(0, 0, 0, 0)'];
 
     const p = profile.freelancerProfile || profile.creatorProfile || {};
     const name = p.name || (isFreelancerProfile ? 'Freelancer' : 'Creator');

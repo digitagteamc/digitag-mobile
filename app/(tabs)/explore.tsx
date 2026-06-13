@@ -1080,7 +1080,7 @@ export default function ExploreTab() {
             <View style={s.cardNameArea}>
               <View style={s.cardNameRow}>
                 <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
-                <Ionicons name="shield-checkmark" size={14} color="#f26930" style={{ marginLeft: 6, flexShrink: 0 }} />
+                <Ionicons name="shield-checkmark" size={14} color={accent} style={{ marginLeft: 6, flexShrink: 0 }} />
               </View>
               <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
                 <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>

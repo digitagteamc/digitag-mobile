@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
+import { useRoleTheme } from '../theme/useRoleTheme';
 import {
   getCollaborationWith,
   getPostById,
@@ -47,6 +48,7 @@ export default function PostDetail() {
   const router = useRouter();
   const { token, userId: myId } = useAuth();
   const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
   const { postId } = useLocalSearchParams<{ postId: string }>();
 
   const [post, setPost] = useState<any>(null);
@@ -73,8 +75,7 @@ export default function PostDetail() {
   useEffect(() => { load(); }, [load]);
 
   const owner = post?.owner || {};
-  const isFreelancer = owner.role === 'FREELANCER';
-  const accent = isFreelancer ? '#FF832A' : '#F15DAB';
+  const accent = theme.primary;
   const name = owner.name || (isFreelancer ? 'Freelancer' : 'Creator');
   const pic = owner.profilePicture || null;
   const roleLabel = owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : '';
@@ -150,7 +151,7 @@ export default function PostDetail() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#F15DAB" />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -197,9 +198,7 @@ export default function PostDetail() {
             </View>
           ) : (
             <LinearGradient
-              colors={isFreelancer
-                ? ['rgba(255,131,42,0.25)', 'rgba(10,10,10,0)']
-                : ['rgba(241,93,171,0.25)', 'rgba(10,10,10,0)']}
+              colors={[theme.soft, 'rgba(10,10,10,0)']}
               style={styles.bannerGradient}
             />
           )}

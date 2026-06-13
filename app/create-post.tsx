@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
-import { createPost } from '../services/userService';
+import { createPost, getFullProfile } from '../services/userService';
+import { useRoleTheme } from '../theme/useRoleTheme';
 
 const DRAFT_KEY = '@digitag_post_draft';
 
@@ -27,6 +28,7 @@ export default function CreatePost() {
   const router = useRouter();
   const { token } = useAuth();
   const { requireProfile } = useProfileGate();
+  const theme = useRoleTheme();
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -34,11 +36,25 @@ export default function CreatePost() {
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [collab, setCollab] = useState<CollabChoice | null>(null);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [profileCategories, setProfileCategories] = useState<string[]>([]);
   const [budget, setBudget] = useState('');
   const [isMonthly, setIsMonthly] = useState(false);
-  const [boostDuration, setBoostDuration] = useState(4); // Default 4 hours
+  const [boostDuration, setBoostDuration] = useState(4);
   const [submitting, setSubmitting] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
+
+  useEffect(() => {
+    if (token) {
+      getFullProfile(token).then(res => {
+        if (res.success && res.data?.profile) {
+          const cats: string[] = res.data.profile.categories ?? [];
+          setProfileCategories(cats);
+        }
+      });
+    }
+  }, [token]);
 
   useEffect(() => {
     AsyncStorage.getItem(DRAFT_KEY).then(raw => {
@@ -57,6 +73,7 @@ export default function CreatePost() {
                   setBody(draft.body || '');
                   setLocation(draft.location || '');
                   if (draft.collab) setCollab(draft.collab);
+                  if (draft.category) setSelectedCategory(draft.category);
                   setDraftRestored(true);
                 }
               },
@@ -72,11 +89,12 @@ export default function CreatePost() {
       Alert.alert('Nothing to save', 'Add some content before saving a draft.');
       return;
     }
-    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab }));
+    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory }));
     Alert.alert('Draft Saved', 'Your draft has been saved and will be restored next time you open this screen.');
   };
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : 'What do you want from creator';
+  const categoryLabel = selectedCategory ?? 'Select Category';
 
   const handlePost = async () => {
     if (!requireProfile('create a post')) return;
@@ -98,6 +116,7 @@ export default function CreatePost() {
           description,
           location: location.trim() || undefined,
           collaborationType: collab ?? 'UNPAID',
+          category: selectedCategory || undefined,
         },
         token,
       );
@@ -208,7 +227,7 @@ export default function CreatePost() {
 
           {isCollabOpen && (
             <LinearGradient
-              colors={['rgba(30, 30, 36, 0.95)', 'rgba(224, 47, 142, 0.45)']}
+              colors={['rgba(30, 30, 36, 0.95)', theme.softStrong]}
               style={styles.dropdownOptions}
             >
               <TouchableOpacity
@@ -232,6 +251,41 @@ export default function CreatePost() {
             </LinearGradient>
           )}
         </View>
+
+        {/* Category dropdown — only visible when profile categories are loaded */}
+        {profileCategories.length > 0 && (
+          <View style={styles.dropdownContainer}>
+            <TouchableOpacity
+              style={[styles.listBtn, isCategoryOpen && styles.listBtnActive]}
+              onPress={() => setIsCategoryOpen(v => !v)}
+            >
+              <View style={styles.listBtnLeft}>
+                <Text style={styles.listBtnText}>{categoryLabel}</Text>
+              </View>
+              <Ionicons name={isCategoryOpen ? 'chevron-up' : 'chevron-forward'} size={20} color="#fff" />
+            </TouchableOpacity>
+
+            {isCategoryOpen && (
+              <LinearGradient
+                colors={['rgba(30, 30, 36, 0.95)', theme.softStrong]}
+                style={styles.dropdownOptions}
+              >
+                {profileCategories.map(cat => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={styles.optionItem}
+                    onPress={() => {
+                      setSelectedCategory(cat);
+                      setIsCategoryOpen(false);
+                    }}
+                  >
+                    <Text style={styles.optionText}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </LinearGradient>
+            )}
+          </View>
+        )}
 
         {/* ── BUDGET INPUT ── */}
         <Text style={styles.sectionTitle}>Budget *</Text>
@@ -318,7 +372,7 @@ export default function CreatePost() {
 
       <View style={styles.bottomActions}>
         <TouchableOpacity
-          style={[styles.postBtn, submitting && styles.postBtnDisabled]}
+          style={[styles.postBtn, { backgroundColor: theme.primary }, submitting && styles.postBtnDisabled]}
           onPress={handlePost}
           disabled={submitting}
         >
@@ -327,8 +381,8 @@ export default function CreatePost() {
             : <Text style={styles.postBtnText}>Post</Text>
           }
         </TouchableOpacity>
-        <TouchableOpacity style={styles.draftBtn} onPress={handleDraft} disabled={submitting}>
-          <Text style={styles.draftBtnText}>Save as Draft</Text>
+        <TouchableOpacity style={[styles.draftBtn, { borderColor: theme.primary }]} onPress={handleDraft} disabled={submitting}>
+          <Text style={[styles.draftBtnText, { color: theme.primary }]}>Save as Draft</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -435,7 +489,6 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   postBtn: {
-    backgroundColor: '#e02f8eff',
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
@@ -454,13 +507,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderRadius: 30,
     borderWidth: 1,
-    borderColor: '#e02f8eff',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 18,
   },
   draftBtnText: {
-    color: '#e02f8eff',
     fontSize: 16,
     fontWeight: '400',
   },

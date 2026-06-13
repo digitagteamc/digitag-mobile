@@ -537,7 +537,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
         }}
       >
         <LinearGradient
-          colors={['transparent', userRole === 'FREELANCER' ? '#ed2a91' : '#f26930']}
+          colors={['transparent', userRole === 'FREELANCER' ? '#F26930' : '#ED2A91']}
           style={styles.figmaCardGradientBorder}
         >
           <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
