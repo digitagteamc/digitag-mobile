@@ -84,7 +84,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     buttonColors: ['transparent', 'transparent'],
     buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
     buttonShadowColor: 'transparent',
-    buttonTextColor: '#000000',
+    buttonTextColor: '#FFFFFF',
   },
 ];
 
