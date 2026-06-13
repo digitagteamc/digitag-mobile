@@ -1,6 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
-import { getCreatorById, getFeed, getFreelancerById, initiateCall, listCollaborations, sendCollaboration } from '@/services/userService';
+import { getCreatorById, getFeed, getFreelancerById, initiateCall, listCollaborations, openConversationWith, sendCollaboration } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -1000,9 +1000,16 @@ export default function ExploreTab() {
     } catch (e: any) { Alert.alert('Error', e.message); }
   };
 
-  const handleMessage = (ownerId?: string) => {
+  const handleMessage = async (ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('message this user')) return;
+    if (!ownerId) return;
+    const res = await openConversationWith(token, ownerId);
+    if (res.success && res.data?.id) {
+      router.push({ pathname: '/chat/[id]', params: { id: res.data.id } } as any);
+    } else {
+      Alert.alert('Chat Error', (res as any).error || 'Could not open conversation.');
+    }
   };
 
   const handleCall = useCallback(async (calleeId?: string) => {

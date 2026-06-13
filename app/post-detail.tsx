@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import {
+  getCollaborationWith,
   getPostById,
   initiateCall,
   openConversationWith,
@@ -50,13 +51,22 @@ export default function PostDetail() {
 
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [collabSent, setCollabSent] = useState(false);
+  const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
   const [collabBusy, setCollabBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !postId) { setLoading(false); return; }
     const res = await getPostById(postId, token);
-    if (res.success && res.data) setPost(res.data);
+    if (res.success && res.data) {
+      setPost(res.data);
+      const ownerId = res.data.owner?.id || res.data.userId;
+      if (ownerId) {
+        const collabRes = await getCollaborationWith(token, ownerId);
+        if (collabRes.success) {
+          setCollabStatus((collabRes.data?.status ?? 'NONE') as any);
+        }
+      }
+    }
     setLoading(false);
   }, [token, postId]);
 
@@ -76,13 +86,13 @@ export default function PostDetail() {
   };
 
   const handleCollab = async () => {
-    if (!token || !owner.id || collabBusy || collabSent) return;
+    if (!token || !owner.id || collabBusy) return;
     if (!requireProfile('send a collab request')) return;
     setCollabBusy(true);
     try {
       const res = await sendCollaboration(token, { receiverId: owner.id, postId, message: 'I would love to collaborate with you!' });
       if (res.success !== false) {
-        setCollabSent(true);
+        setCollabStatus('PENDING');
         Alert.alert('Collab Sent!', 'Your collaboration request has been sent.');
       } else {
         Alert.alert('Error', (res as any).error || 'Could not send collab request.');
@@ -246,37 +256,44 @@ export default function PostDetail() {
             </View>
           </View>
 
-          {/* Action buttons */}
+          {/* Action buttons — only for other users' posts */}
           {!isOwn && (
             <View style={styles.actionsWrap}>
-              {/* Collaborate */}
-              <TouchableOpacity
-                style={[styles.collabBtn, { backgroundColor: accent, opacity: collabSent ? 0.6 : 1 }]}
-                onPress={handleCollab}
-                disabled={collabBusy || collabSent}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={collabSent ? 'checkmark-circle-outline' : 'people-outline'}
-                  size={18}
-                  color="#fff"
-                />
-                <Text style={styles.collabBtnText}>
-                  {collabBusy ? 'Sending…' : collabSent ? 'Request Sent' : 'Collaborate'}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Message + Call */}
-              <View style={styles.secondaryActions}>
-                <TouchableOpacity style={[styles.secondaryBtn, { borderColor: accent }]} onPress={handleMessage}>
-                  <Ionicons name="chatbubble-ellipses-outline" size={18} color={accent} />
-                  <Text style={[styles.secondaryBtnText, { color: accent }]}>Message</Text>
+              {collabStatus === 'ACCEPTED' ? (
+                /* Collaboration accepted — show Message + Call */
+                <View style={styles.secondaryActions}>
+                  <TouchableOpacity style={[styles.secondaryBtn, { borderColor: accent }]} onPress={handleMessage}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color={accent} />
+                    <Text style={[styles.secondaryBtnText, { color: accent }]}>Message</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.secondaryBtn, { borderColor: accent }]} onPress={handleCall}>
+                    <Ionicons name="call-outline" size={18} color={accent} />
+                    <Text style={[styles.secondaryBtnText, { color: accent }]}>Call</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* Not yet collaborated — show Collaborate button */
+                <TouchableOpacity
+                  style={[
+                    styles.collabBtn,
+                    { backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
+                    collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
+                    collabBusy && { opacity: 0.6 },
+                  ]}
+                  onPress={handleCollab}
+                  disabled={collabBusy || collabStatus === 'PENDING'}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
+                    size={18}
+                    color={collabStatus === 'PENDING' ? '#f59e0b' : '#fff'}
+                  />
+                  <Text style={[styles.collabBtnText, collabStatus === 'PENDING' && { color: '#f59e0b' }]}>
+                    {collabBusy ? 'Sending…' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.secondaryBtn, { borderColor: accent }]} onPress={handleCall}>
-                  <Ionicons name="call-outline" size={18} color={accent} />
-                  <Text style={[styles.secondaryBtnText, { color: accent }]}>Call</Text>
-                </TouchableOpacity>
-              </View>
+              )}
             </View>
           )}
 
