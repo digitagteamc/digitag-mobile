@@ -22,9 +22,11 @@ import { useRoleTheme } from '../theme/useRoleTheme';
 import {
   getCollaborationWith,
   getPostById,
+  getSavedPostIds,
   initiateCall,
   openConversationWith,
   sendCollaboration,
+  toggleSavePost,
 } from '../services/userService';
 
 const { width: SW } = Dimensions.get('window');
@@ -55,6 +57,7 @@ export default function PostDetail() {
   const [loading, setLoading] = useState(true);
   const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
   const [collabBusy, setCollabBusy] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !postId) { setLoading(false); return; }
@@ -62,12 +65,12 @@ export default function PostDetail() {
     if (res.success && res.data) {
       setPost(res.data);
       const ownerId = res.data.owner?.id || res.data.userId;
-      if (ownerId) {
-        const collabRes = await getCollaborationWith(token, ownerId);
-        if (collabRes.success) {
-          setCollabStatus((collabRes.data?.status ?? 'NONE') as any);
-        }
-      }
+      const [collabRes, savedRes] = await Promise.all([
+        ownerId ? getCollaborationWith(token, ownerId) : Promise.resolve({ success: false }),
+        getSavedPostIds(token),
+      ]);
+      if (collabRes.success) setCollabStatus((collabRes.data?.status ?? 'NONE') as any);
+      if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
     }
     setLoading(false);
   }, [token, postId]);
@@ -143,6 +146,13 @@ export default function PostDetail() {
     }
   };
 
+  const handleSave = async () => {
+    if (!token || !postId) return;
+    setIsSaved(prev => !prev); // optimistic
+    const res = await toggleSavePost(postId, token, isSaved);
+    if (!res.success) setIsSaved(prev => !prev); // revert
+  };
+
   const handleShare = async () => {
     try {
       await Share.share({ message: `Check out this post on DigiTag!\nhttps://digitag.com/post/${postId}` });
@@ -181,9 +191,14 @@ export default function PostDetail() {
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.topTitle}>Post</Text>
-          <TouchableOpacity onPress={handleShare} style={styles.iconBtn}>
-            <Feather name="share-2" size={20} color="#fff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity onPress={handleSave} style={styles.iconBtn}>
+              <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={20} color={isSaved ? accent : '#fff'} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleShare} style={styles.iconBtn}>
+              <Feather name="share-2" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

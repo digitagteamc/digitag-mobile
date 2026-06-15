@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, G, Mask, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
-import { getCreatorById, getFeed, getFreelancerById, getFullProfile, initiateCall, listCollaborations, openConversationWith, sendCollaboration } from '../../services/userService';
+import { getCreatorById, getFeed, getFreelancerById, getFullProfile, getSavedPostIds, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -500,7 +500,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentOwnerIds, acceptedCollabOwnerIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentOwnerIds, acceptedCollabOwnerIds, savedPostIds, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -553,7 +553,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                 <Text style={styles.figmaCardRoleText}>{item.role}</Text>
               </View>
               <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
-                <Ionicons name="bookmark-outline" size={18} color="#fff" />
+                <Ionicons name={savedPostIds?.has(item.id) ? 'bookmark' : 'bookmark-outline'} size={18} color={savedPostIds?.has(item.id) ? postColor : '#fff'} />
               </TouchableOpacity>
             </View>
 
@@ -642,6 +642,7 @@ export default function Homepage() {
   const [pendingCount, setPendingCount] = useState(0);
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
   const [collabSentOwnerIds, setCollabSentOwnerIds] = useState<Set<string>>(new Set());
+  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
     title: '',
@@ -739,9 +740,18 @@ export default function Homepage() {
         }
       };
 
+      const fetchSavedIds = async () => {
+        if (!token || isGuest) return;
+        const res = await getSavedPostIds(token);
+        if (res.success && Array.isArray(res.data)) {
+          setSavedPostIds(new Set(res.data));
+        }
+      };
+
       fetchPosts();
       fetchUser();
       fetchCollabInfo();
+      fetchSavedIds();
     }, [token, isGuest, userRole, userId])
   );
 
@@ -762,7 +772,25 @@ export default function Homepage() {
     return `${diffDays}d ago`;
   };
 
-  const handleBookmark = async (postId: string) => { };
+  const handleBookmark = async (postId: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    const isSaved = savedPostIds.has(postId);
+    // Optimistic update
+    setSavedPostIds(prev => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(postId); else next.add(postId);
+      return next;
+    });
+    const res = await toggleSavePost(postId, token, isSaved);
+    if (!res.success) {
+      // Revert on failure
+      setSavedPostIds(prev => {
+        const next = new Set(prev);
+        if (isSaved) next.add(postId); else next.delete(postId);
+        return next;
+      });
+    }
+  };
 
   const handleShare = async (postId: string) => {
     try {
@@ -1208,6 +1236,7 @@ export default function Homepage() {
                   handleCollab={handleCollab}
                   collabSentOwnerIds={collabSentOwnerIds}
                   acceptedCollabOwnerIds={acceptedCollabOwnerIds}
+                  savedPostIds={savedPostIds}
                   userRole={userRole}
                 />
               )}

@@ -550,6 +550,36 @@ export const getPostById = async (id: string, token: string) => {
     }
 };
 
+export const toggleSavePost = async (postId: string, token: string, currentlySaved: boolean) => {
+    try {
+        const body = await request(`/posts/${postId}/save`, {
+            method: currentlySaved ? 'DELETE' : 'POST',
+            headers: authHeaders(token),
+        });
+        return { success: true, saved: !currentlySaved, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+export const getSavedPostIds = async (token: string) => {
+    try {
+        const body = await request('/posts/saved/ids', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data as string[] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] as string[] };
+    }
+};
+
+export const getSavedPosts = async (token: string) => {
+    try {
+        const body = await request('/posts/saved/list', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ───────────────────────── FEED ───────────────────────────── */
 
 /** GET /feed */
