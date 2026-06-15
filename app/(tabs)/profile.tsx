@@ -590,41 +590,6 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
-              {/* ══════════ MY POSTS ══════════ */}
-              <View className="mt-6 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[24px] overflow-hidden">
-                <TouchableOpacity
-                  className="flex-row items-center px-5 py-4 gap-4"
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/my-posts')}
-                >
-                  <View className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#F26930]/20 justify-center items-center">
-                    <Ionicons name="images-outline" size={20} color="#fff" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-white text-[17px] font-medium" style={{ fontFamily: 'Poppins_500Medium' }}>My Posts</Text>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>{myPosts.length} post{myPosts.length !== 1 ? 's' : ''}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#666" />
-                </TouchableOpacity>
-              </View>
-
-              {/* ══════════ MY COLLABS ══════════ */}
-              <View className="mt-4 mb-6 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[24px] overflow-hidden">
-                <TouchableOpacity
-                  className="flex-row items-center px-5 py-4 gap-4"
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/my-collabs')}
-                >
-                  <View className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-[#F26930]/20 justify-center items-center">
-                    <Ionicons name="people-outline" size={20} color="#fff" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-white text-[17px] font-medium" style={{ fontFamily: 'Poppins_500Medium' }}>My Collabs</Text>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>{myCollabs.length} collab{myCollabs.length !== 1 ? 's' : ''}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#666" />
-                </TouchableOpacity>
-              </View>
             </View>
           )}
 
