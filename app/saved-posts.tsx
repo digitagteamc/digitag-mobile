@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { getSavedPosts, toggleSavePost } from '../services/userService';
+import { useRoleTheme } from '../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -25,6 +27,7 @@ const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1611162617213-7d7a39e
 export default function SavedPostsScreen() {
   const router = useRouter();
   const { token, isGuest } = useAuth();
+  const theme = useRoleTheme();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
   const [posts, setPosts] = useState<any[]>([]);
@@ -32,9 +35,13 @@ export default function SavedPostsScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchSaved = useCallback(async () => {
-    // Backend does not yet expose saved-posts endpoints — reconnect when
-    // /posts/saved is added.
-    setPosts([]);
+    if (!token || isGuest) { setPosts([]); setLoading(false); return; }
+    const res = await getSavedPosts(token);
+    if (res.success && Array.isArray(res.data)) {
+      setPosts(res.data);
+    } else {
+      setPosts([]);
+    }
     setLoading(false);
   }, [token, isGuest]);
 
@@ -47,8 +54,9 @@ export default function SavedPostsScreen() {
   };
 
   const handleUnsave = async (postId: string) => {
-    // Optimistic removal — backend unsave endpoint is not implemented yet.
-    setPosts(prev => prev.filter(p => p.id !== postId));
+    if (!token) return;
+    setPosts(prev => prev.filter(p => p.id !== postId)); // optimistic
+    await toggleSavePost(postId, token, true);
   };
 
   // Backend shapePost returns a flat `owner` object: { id, role, name, profilePicture, location }.
@@ -115,7 +123,7 @@ export default function SavedPostsScreen() {
               const banner = post.imageUrl || FALLBACK_BANNER;
 
               return (
-                <View key={post.id} style={styles.card}>
+                <TouchableOpacity key={post.id} style={styles.card} activeOpacity={0.85} onPress={() => router.push({ pathname: '/post-detail', params: { postId: post.id } } as any)}>
                   {/* ── Hero image */}
                   <View style={styles.cardHero}>
                     <Image source={{ uri: banner }} style={styles.cardBanner} resizeMode="cover" />
@@ -126,7 +134,7 @@ export default function SavedPostsScreen() {
                       style={styles.bookmarkBtn}
                       onPress={() => handleUnsave(post.id)}
                     >
-                      <Ionicons name="bookmark" size={16} color="#F26930" />
+                      <Ionicons name="bookmark" size={16} color={theme.primary} />
                     </TouchableOpacity>
 
                     {/* Author row */}
@@ -164,7 +172,7 @@ export default function SavedPostsScreen() {
                       </View>
                     </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
             <View style={{ height: 40 }} />
