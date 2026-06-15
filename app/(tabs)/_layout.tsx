@@ -1,10 +1,11 @@
 import { Tabs, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
 import { Platform, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
 import { palette } from '../../theme/colors';
 
-export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 110 : 80;
+export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
 
 /**
  * Persistent bottom-nav layout. We mount expo-router's <Tabs /> with a custom
@@ -13,6 +14,8 @@ export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 110 : 80;
  */
 export default function TabsLayout() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
+    const sceneBottomPad = NAV_BAR_HEIGHT + (insets.bottom > 0 ? insets.bottom : 0);
 
     const isNavigating = React.useRef(false);
 
@@ -45,7 +48,7 @@ export default function TabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: { display: 'none' },
-                sceneStyle: { backgroundColor: palette.background, paddingBottom: NAV_BAR_HEIGHT },
+                sceneStyle: { backgroundColor: palette.background, paddingBottom: sceneBottomPad },
             }}
             backBehavior="initialRoute"
             tabBar={renderTabBar}

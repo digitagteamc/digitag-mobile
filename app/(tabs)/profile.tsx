@@ -455,8 +455,45 @@ export default function ProfileScreen() {
 
           {viewMode === 'main' ? (
             <>
+              {/* ══════════ MY POSTS ══════════ */}
+              <View className="mx-5 mt-4 mb-3 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[28px] overflow-hidden">
+                <View style={{ flexDirection: 'row' }}>
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/my-posts')}
+                  >
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="images-outline" size={20} color={theme.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Posts</Text>
+                      <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myPosts.length} post{myPosts.length !== 1 ? 's' : ''}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#555" />
+                  </TouchableOpacity>
+
+                  <View style={{ width: 1, backgroundColor: '#2A2A2A', marginVertical: 12 }} />
+
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
+                    activeOpacity={0.7}
+                    onPress={() => router.push('/my-collabs')}
+                  >
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="people-outline" size={20} color={theme.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Collabs</Text>
+                      <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myCollabs.length} collab{myCollabs.length !== 1 ? 's' : ''}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#555" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {/* ══════════ MENU CARD ══════════ */}
-              <View className="mx-5 mt-4 rounded-[28px] border border-[#2A2A2A] bg-[#0A0A0A] overflow-hidden">
+              <View className="mx-5 mt-2 rounded-[28px] border border-[#2A2A2A] bg-[#0A0A0A] overflow-hidden">
                 {MENU_ITEMS.map((item, index) => (
                   <React.Fragment key={item.id}>
                     <TouchableOpacity

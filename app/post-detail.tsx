@@ -76,7 +76,8 @@ export default function PostDetail() {
 
   const owner = post?.owner || {};
   const accent = theme.primary;
-  const name = owner.name || (isFreelancer ? 'Freelancer' : 'Creator');
+  const isOwnerFreelancer = owner.role === 'FREELANCER';
+  const name = owner.name || (isOwnerFreelancer ? 'Freelancer' : 'Creator');
   const pic = owner.profilePicture || null;
   const roleLabel = owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : '';
   const isPaid = post?.collaborationType === 'PAID';

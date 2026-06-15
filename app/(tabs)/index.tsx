@@ -2,8 +2,8 @@ import { useProfileGate } from '@/context/ProfileGateContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -120,6 +120,7 @@ const CATEGORIES = [
   { id: 'fashion', label: 'Fashion\nDesigners', image: imgFashion, icon: 'shirt-outline' as const },
   { id: 'property', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
   { id: 'voice', label: 'Voice Over', image: imgVoiceOver, icon: 'mic-outline' as const },
+  { id: 'models', label: 'Models', image: null, icon: 'walk-outline' as const },
 ];
 
 const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
@@ -672,7 +673,7 @@ export default function Homepage() {
       [CATEGORIES[1], CATEGORIES[6]],
       [CATEGORIES[2], CATEGORIES[7]],
       [CATEGORIES[3], CATEGORIES[8]],
-      [CATEGORIES[4]],
+      [CATEGORIES[4], CATEGORIES[9]],
     ];
   }, [userRole]);
 
@@ -688,62 +689,61 @@ export default function Homepage() {
     setAlertConfig({ visible: true, title, message });
   };
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        if (!token) { setPosts([]); setLoading(false); return; }
-        const res = await getFeed(token);
-        const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-        if (allPosts.length > 0) {
-          scrollX.setValue(allPosts.length * 10 * ITEM_SIZE);
-        }
-        setPosts(allPosts);
-      } catch (error) {
-        setPosts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchUser = async () => {
-      if (isGuest || !token) {
-        setUserName('Guest');
-        return;
-      }
-      const res = await getFullProfile(token);
-      if (res.success && res.data?.profile) {
-        const p = res.data.profile;
-        setUserName(p.name || '');
-        setUserTagId(p.tagId || null);
-        setUserAvatar(p.profilePicture || null);
-      }
-    };
-
-    const fetchCollabInfo = async () => {
-      if (!token || isGuest) return;
-      const res = await listCollaborations(token, { direction: 'all' });
-      if (res.success && Array.isArray(res.data)) {
-        const accepted = new Set<string>();
-        const sent = new Set<string>();
-        let pending = 0;
-        res.data.forEach((r: any) => {
-          if (r.status === 'ACCEPTED') {
-            const otherId = r.senderId === userId ? r.receiverId : r.senderId;
-            if (otherId) accepted.add(otherId);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchPosts = async () => {
+        try {
+          if (!token) { setPosts([]); setLoading(false); return; }
+          const res = await getFeed(token);
+          const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
+          if (allPosts.length > 0) {
+            scrollX.setValue(allPosts.length * 10 * ITEM_SIZE);
           }
-          if (r.senderId === userId) sent.add(r.receiverId);
-          if (r.status === 'PENDING' && r.receiverId === userId) pending++;
-        });
-        setAcceptedCollabOwnerIds(accepted);
-        setCollabSentOwnerIds(sent);
-        setPendingCount(pending);
-      }
-    };
+          setPosts(allPosts);
+        } catch {
+          setPosts([]);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    fetchPosts();
-    fetchUser();
-    fetchCollabInfo();
-  }, [token, isGuest, userRole, userId]);
+      const fetchUser = async () => {
+        if (isGuest || !token) { setUserName('Guest'); return; }
+        const res = await getFullProfile(token);
+        if (res.success && res.data?.profile) {
+          const p = res.data.profile;
+          setUserName(p.name || '');
+          setUserTagId(p.tagId || null);
+          setUserAvatar(p.profilePicture || null);
+        }
+      };
+
+      const fetchCollabInfo = async () => {
+        if (!token || isGuest) return;
+        const res = await listCollaborations(token, { direction: 'all' });
+        if (res.success && Array.isArray(res.data)) {
+          const accepted = new Set<string>();
+          const sent = new Set<string>();
+          let pending = 0;
+          res.data.forEach((r: any) => {
+            if (r.status === 'ACCEPTED') {
+              const otherId = r.senderId === userId ? r.receiverId : r.senderId;
+              if (otherId) accepted.add(otherId);
+            }
+            if (r.senderId === userId) sent.add(r.receiverId);
+            if (r.status === 'PENDING' && r.receiverId === userId) pending++;
+          });
+          setAcceptedCollabOwnerIds(accepted);
+          setCollabSentOwnerIds(sent);
+          setPendingCount(pending);
+        }
+      };
+
+      fetchPosts();
+      fetchUser();
+      fetchCollabInfo();
+    }, [token, isGuest, userRole, userId])
+  );
 
   const getOwnerName = (owner: any) => {
     if (owner?.name) return owner.name;
@@ -804,6 +804,7 @@ export default function Homepage() {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('call this user')) return;
     if (!calleeId) return;
+    const callee = cards.find(c => c.ownerId === calleeId);
     try {
       const res = await initiateCall(token, calleeId);
       if (res.success && res.data) {
@@ -815,8 +816,8 @@ export default function Homepage() {
             channelName: res.data.channelName,
             agoraToken: res.data.token,
             appId: res.data.appId,
-            remoteName: 'User',
-            remoteImage: '',
+            remoteName: callee?.name || 'User',
+            remoteImage: callee?.avatarUri || '',
           },
         } as any);
       } else {
@@ -1327,6 +1328,65 @@ export default function Homepage() {
             </TouchableOpacity>
           </View>
         </View>
+        {/* ══════════════ CONTACT / SUPPORT ══════════════ */}
+        <View style={styles.contactSection}>
+          <Text style={styles.contactSectionTitle}>Need Help?</Text>
+          <Text style={styles.contactSectionSub}>Our team is here for you</Text>
+
+          <TouchableOpacity
+            style={styles.contactRow}
+            onPress={() => Linking.openURL('mailto:support@thedigitag.ai')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.contactIcon}>
+              <Ionicons name="mail-outline" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactLabel}>Customer Support</Text>
+              <Text style={styles.contactValue}>support@thedigitag.ai</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#666" />
+          </TouchableOpacity>
+
+          <View style={styles.contactDivider} />
+
+          <TouchableOpacity
+            style={styles.contactRow}
+            onPress={() => Linking.openURL('https://wa.me/917680805720')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.contactIcon, { backgroundColor: '#25D366' }]}>
+              <Ionicons name="logo-whatsapp" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactLabel}>WhatsApp</Text>
+              <Text style={styles.contactValue}>+91 76808 05720</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#666" />
+          </TouchableOpacity>
+
+          <View style={styles.contactDivider} />
+
+          <TouchableOpacity
+            style={styles.contactRow}
+            onPress={() => Linking.openURL('https://www.instagram.com/thedigitag')}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={['#833ab4', '#fd1d1d', '#fcb045']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.contactIcon}
+            >
+              <Ionicons name="logo-instagram" size={20} color="#fff" />
+            </LinearGradient>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactLabel}>Instagram</Text>
+              <Text style={styles.contactValue}>@thedigitag</Text>
+            </View>
+            <Ionicons name="arrow-forward" size={16} color="#666" />
+          </TouchableOpacity>
+        </View>
+
         <CommunityModal visible={communityModalVisible} onClose={() => setCommunityModalVisible(false)} />
       </ScrollView>
 
@@ -1917,6 +1977,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
+  },
+
+  // CONTACT SECTION
+  contactSection: {
+    marginTop: 8,
+    backgroundColor: '#111',
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 40,
+  },
+  contactSectionTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 4,
+  },
+  contactSectionSub: {
+    color: '#888',
+    fontSize: 13,
+    fontFamily: 'Poppins_400Regular',
+    marginBottom: 20,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 6,
+  },
+  contactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#1E1E24',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactLabel: {
+    color: '#888',
+    fontSize: 11,
+    fontFamily: 'Poppins_400Regular',
+  },
+  contactValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins_500Medium',
+  },
+  contactDivider: {
+    height: 1,
+    backgroundColor: '#222',
+    marginVertical: 10,
   },
 
   modalOverlay: {

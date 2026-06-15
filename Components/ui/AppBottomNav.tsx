@@ -20,6 +20,7 @@ import Animated, {
     withTiming,
     cancelAnimation,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { fonts } from '../../theme/colors';
 import { useRoleTheme } from '../../theme/useRoleTheme';
@@ -180,10 +181,13 @@ export default function AppBottomNav({
 }: AppBottomNavProps) {
     const theme = useRoleTheme();
     const { userRole } = useAuth();
+    const insets = useSafeAreaInsets();
 
     const isHomeOrExplore = activeKey === 'home' || activeKey === 'explore';
     const showFab = isHomeOrExplore && !!onFabPress;
     const isFreelancer = userRole === 'FREELANCER';
+
+    const bottomPad = insets.bottom > 0 ? insets.bottom : 0;
 
     return (
         <View style={styles.wrap}>
@@ -196,7 +200,7 @@ export default function AppBottomNav({
             )}
 
             {/* Nav bar */}
-            <View style={styles.bar}>
+            <View style={[styles.bar, { paddingBottom: bottomPad }]}>
                 {TABS.map((tab) => (
                     <TabButton
                         key={tab.key}
@@ -223,7 +227,7 @@ const styles = StyleSheet.create({
         right: 0,
     },
 
-    /* ── Bar: Figma #1E1E24, radius-tl/tr 20, FIXED 80px height */
+    /* ── Bar: Figma #1E1E24, radius-tl/tr 20, height + safe bottom inset */
     bar: {
         backgroundColor: '#1E1E24',
         borderTopLeftRadius: 20,
@@ -232,8 +236,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-around',
         paddingHorizontal: 8,
-        /* Fixed height — never changes when switching tabs */
-        height: Platform.OS === 'ios' ? 110 : 80,  // 80px + 30px iOS home indicator
+        paddingTop: 10,
+        minHeight: Platform.OS === 'ios' ? 80 : 70,
         borderTopWidth: 1,
         borderTopColor: 'rgba(255,255,255,0.06)',
     },

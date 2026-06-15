@@ -433,6 +433,7 @@ type PostPayload = {
     collaborationType?: 'PAID' | 'UNPAID';
     imageUrl?: string;
     imageKey?: string;
+    category?: string;
 };
 
 /**

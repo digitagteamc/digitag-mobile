@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { Audio } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -24,6 +25,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { acceptCall, declineCall, endCall } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
+
+// Public domain ringtone URI used for outgoing ring while waiting for answer
+const RING_URI = 'https://www.soundjay.com/phone/sounds/phone-calling-1.mp3';
 
 function getInitials(name: string) {
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -58,11 +62,34 @@ export default function CallScreen() {
     const engineRef = useRef<IRtcEngine | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endedRef = useRef(false);
+    const ringSoundRef = useRef<Audio.Sound | null>(null);
 
     const [callMode, setCallMode] = useState<CallMode>((params.mode as CallMode) || 'outgoing');
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+    const stopRing = useCallback(async () => {
+        if (ringSoundRef.current) {
+            try {
+                await ringSoundRef.current.stopAsync();
+                await ringSoundRef.current.unloadAsync();
+            } catch { /* ignore */ }
+            ringSoundRef.current = null;
+        }
+    }, []);
+
+    const startRing = useCallback(async () => {
+        try {
+            await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false });
+            const { sound } = await Audio.Sound.createAsync(
+                { uri: RING_URI },
+                { isLooping: true, volume: 1.0 }
+            );
+            ringSoundRef.current = sound;
+            await sound.playAsync();
+        } catch { /* device may not support or no network */ }
+    }, []);
 
     const remoteName = params.remoteName || 'User';
     const initials = getInitials(remoteName);
@@ -107,18 +134,30 @@ export default function CallScreen() {
 
     useEffect(() => {
         if (params.mode === 'outgoing' && params.agoraToken && params.channelName && params.appId) {
+            startRing();
             joinChannel(params.agoraToken, params.channelName, params.appId);
+        } else if (params.mode === 'incoming') {
+            startRing();
         }
         return () => {
             endedRef.current = true;
             if (timerRef.current) clearInterval(timerRef.current);
             engineRef.current?.leaveChannel();
             engineRef.current?.release();
+            stopRing();
         };
     }, []);
 
+    // Stop ring when call becomes active
+    useEffect(() => {
+        if (callMode === 'active') {
+            stopRing();
+        }
+    }, [callMode]);
+
     const handleAccept = async () => {
         if (!token || !params.callId) return;
+        await stopRing();
         const res = await acceptCall(token, params.callId);
         if (res.success && res.data) {
             await joinChannel(res.data.token, res.data.channelName, res.data.appId);
@@ -132,6 +171,7 @@ export default function CallScreen() {
 
     const handleDecline = async () => {
         endedRef.current = true;
+        await stopRing();
         if (token && params.callId) await declineCall(token, params.callId);
         router.back();
     };
@@ -140,6 +180,7 @@ export default function CallScreen() {
         if (endedRef.current) return;
         endedRef.current = true;
         if (timerRef.current) clearInterval(timerRef.current);
+        await stopRing();
         engineRef.current?.leaveChannel();
         engineRef.current?.release();
         engineRef.current = null;
