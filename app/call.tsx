@@ -23,6 +23,7 @@ import {
 } from 'react-native-agora';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { clearIncomingCallNotification } from '../services/callNotification';
 import { acceptCall, declineCall, endCall } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
@@ -158,6 +159,7 @@ export default function CallScreen() {
     const handleAccept = async () => {
         if (!token || !params.callId) return;
         await stopRing();
+        await clearIncomingCallNotification(params.callId);
         const res = await acceptCall(token, params.callId);
         if (res.success && res.data) {
             await joinChannel(res.data.token, res.data.channelName, res.data.appId);
@@ -172,6 +174,7 @@ export default function CallScreen() {
     const handleDecline = async () => {
         endedRef.current = true;
         await stopRing();
+        if (params.callId) await clearIncomingCallNotification(params.callId);
         if (token && params.callId) await declineCall(token, params.callId);
         router.back();
     };
@@ -181,6 +184,7 @@ export default function CallScreen() {
         endedRef.current = true;
         if (timerRef.current) clearInterval(timerRef.current);
         await stopRing();
+        if (params.callId) await clearIncomingCallNotification(params.callId);
         engineRef.current?.leaveChannel();
         engineRef.current?.release();
         engineRef.current = null;

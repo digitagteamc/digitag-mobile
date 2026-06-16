@@ -13,6 +13,7 @@ import {
     useFonts
 } from '@expo-google-fonts/poppins';
 import messaging from '@react-native-firebase/messaging';
+import notifee, { EventType } from '@notifee/react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -20,7 +21,8 @@ import { Image, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
-import { registerFcmToken } from '../services/userService';
+import { clearIncomingCallNotification } from '../services/callNotification';
+import { declineCall, registerFcmToken } from '../services/userService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,6 +37,7 @@ function routeNotification(router: ReturnType<typeof useRouter>, data: Record<st
             break;
         case 'CALL_ENDED':
         case 'CALL_DECLINED':
+            if (data.callId) clearIncomingCallNotification(data.callId);
             try { router.back(); } catch { }
             break;
         case 'NEW_MESSAGE':
@@ -61,6 +64,7 @@ function NotificationHandler() {
 
     useEffect(() => {
         if (!token) return;
+        notifee.requestPermission().catch(() => { });
         messaging().getToken().then(fcmToken => {
             if (fcmToken) registerFcmToken(token, fcmToken);
         }).catch(() => { });
@@ -92,6 +96,42 @@ function NotificationHandler() {
             }
         });
     }, []);
+
+    // notifee full-screen incoming-call notification — tap/Answer/Decline handling
+    useEffect(() => {
+        const handlePress = async (data: any, actionId?: string) => {
+            const callId = data?.callId as string | undefined;
+            if (!callId) return;
+            if (actionId === 'decline') {
+                await clearIncomingCallNotification(callId);
+                if (token) await declineCall(token, callId);
+                return;
+            }
+            // 'answer' or default tap — open the incoming call screen
+            await clearIncomingCallNotification(callId);
+            router.push({
+                pathname: '/call',
+                params: { mode: 'incoming', callId, remoteName: data?.callerName },
+            } as any);
+        };
+
+        const unsubscribeForeground = notifee.onForegroundEvent(({ type, detail }) => {
+            if (type === EventType.PRESS) {
+                handlePress(detail.notification?.data, 'default');
+            } else if (type === EventType.ACTION_PRESS) {
+                handlePress(detail.notification?.data, detail.pressAction?.id);
+            }
+        });
+
+        // App launched from killed state by tapping the call notification
+        notifee.getInitialNotification().then(initial => {
+            if (initial?.notification?.data?.type === 'INCOMING_CALL') {
+                handlePress(initial.notification.data, 'default');
+            }
+        });
+
+        return () => unsubscribeForeground();
+    }, [token]);
 
     return null;
 }
