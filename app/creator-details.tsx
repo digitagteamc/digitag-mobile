@@ -32,16 +32,6 @@ import CustomAlert from '../Components/ui/CustomAlert';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function getInitials(name: string | null | undefined) {
-    if (!name) return 'U';
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase();
-}
 
 export default function CreatorDetails() {
     const router = useRouter();
@@ -258,13 +248,7 @@ export default function CreatorDetails() {
                     {/* Profile Card */}
                     <View style={styles.profileCard}>
                         <View style={styles.cardHeader}>
-                            {p.profilePicture ? (
-                                <Image source={{ uri: p.profilePicture }} style={styles.avatar} />
-                            ) : (
-                                <View style={[styles.avatar, styles.initialsAvatar, { borderColor: accentColor + '4D' }]}>
-                                    <Text style={[styles.initialsText, { color: accentColor }]}>{getInitials(name)}</Text>
-                                </View>
-                            )}
+                            <Image source={p.profilePicture ? { uri: p.profilePicture } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
                             <View style={styles.headerButtons}>
                                 {collabStatus === 'ACCEPTED' ? (
                                     <TouchableOpacity style={[styles.messageBtn, { backgroundColor: accentColor }]} onPress={openChat}>

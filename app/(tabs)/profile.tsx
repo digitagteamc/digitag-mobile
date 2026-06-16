@@ -9,6 +9,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StatusBar,
   Text,
   TouchableOpacity,
@@ -20,7 +21,6 @@ import { useAuth } from '../../context/AuthContext';
 import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
-const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
 
 interface ProfileData {
   name: string;
@@ -344,9 +344,14 @@ export default function ProfileScreen() {
                   <TouchableOpacity
                     style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
                     activeOpacity={0.7}
-                    onPress={() => {
+                    onPress={async () => {
                       setShowDropdown(false);
-                      // Share action
+                      try {
+                        await Share.share({
+                          message: `Check out my profile on Digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
+                          title: 'Digitag Profile',
+                        });
+                      } catch (_) {}
                     }}
                   >
                     <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' }}>
@@ -384,13 +389,11 @@ export default function ProfileScreen() {
                 activeOpacity={0.9}
                 className="w-24 h-24 rounded-full border-2 border-white/60 overflow-hidden bg-[#222]"
               >
-                {profile?.profilePicture ? (
-                  <Image source={{ uri: profile.profilePicture }} className="w-full h-full" resizeMode="cover" />
-                ) : (
-                  <LinearGradient colors={[theme.softStrong, theme.primary] as [string, string]} className="w-full h-full justify-center items-center">
-                    <Text className="text-white text-3xl font-bold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{initials(profile?.name || profile?.phone || 'U')}</Text>
-                  </LinearGradient>
-                )}
+                <Image
+                  source={profile?.profilePicture ? { uri: profile.profilePicture } : require('../../assets/images/icon.png')}
+                  className="w-full h-full"
+                  resizeMode="cover"
+                />
               </TouchableOpacity>
 
               {/* Text Info */}
@@ -455,41 +458,39 @@ export default function ProfileScreen() {
 
           {viewMode === 'main' ? (
             <>
-              {/* ══════════ MY POSTS ══════════ */}
+              {/* ══════════ MY POSTS & MY COLLABS ══════════ */}
               <View className="mx-5 mt-4 mb-3 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[28px] overflow-hidden">
-                <View style={{ flexDirection: 'row' }}>
-                  <TouchableOpacity
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
-                    activeOpacity={0.7}
-                    onPress={() => router.push('/my-posts')}
-                  >
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="images-outline" size={20} color={theme.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Posts</Text>
-                      <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myPosts.length} post{myPosts.length !== 1 ? 's' : ''}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="#555" />
-                  </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/my-posts')}
+                >
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="images-outline" size={20} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Posts</Text>
+                    <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myPosts.length} post{myPosts.length !== 1 ? 's' : ''}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#555" />
+                </TouchableOpacity>
 
-                  <View style={{ width: 1, backgroundColor: '#2A2A2A', marginVertical: 12 }} />
+                <View style={{ height: 1, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
 
-                  <TouchableOpacity
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
-                    activeOpacity={0.7}
-                    onPress={() => router.push('/my-collabs')}
-                  >
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="people-outline" size={20} color={theme.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Collabs</Text>
-                      <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myCollabs.length} collab{myCollabs.length !== 1 ? 's' : ''}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={18} color="#555" />
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
+                  activeOpacity={0.7}
+                  onPress={() => router.push('/my-collabs')}
+                >
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="people-outline" size={20} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Collabs</Text>
+                    <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myCollabs.length} collab{myCollabs.length !== 1 ? 's' : ''}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#555" />
+                </TouchableOpacity>
               </View>
 
               {/* ══════════ MENU CARD ══════════ */}
@@ -607,22 +608,11 @@ export default function ProfileScreen() {
           <View className="items-center gap-8">
             {/* Circle Image */}
             <View className="w-[280px] h-[280px] rounded-full overflow-hidden border-4 border-white/20 bg-[#222]">
-              {profile?.profilePicture ? (
-                <Image
-                  source={{ uri: profile.profilePicture! }}
-                  className="w-full h-full"
-                  resizeMode="cover"
-                />
-              ) : (
-                <LinearGradient
-                  colors={[theme.softStrong, theme.primary] as [string, string]}
-                  className="w-full h-full justify-center items-center"
-                >
-                  <Text className="text-white text-6xl font-bold" style={{ fontFamily: 'Poppins_700Bold' }}>
-                    {initials(profile?.name || 'U')}
-                  </Text>
-                </LinearGradient>
-              )}
+              <Image
+                source={profile?.profilePicture ? { uri: profile.profilePicture! } : require('../../assets/images/icon.png')}
+                className="w-full h-full"
+                resizeMode="cover"
+              />
             </View>
 
             {/* Edit Button */}

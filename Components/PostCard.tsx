@@ -13,7 +13,7 @@ export interface PostCardProps {
     id: string;
     ownerId?: string;
     ownerRole?: string;
-    bannerUri: string;
+    bannerUri: string | null;
     isInitials: boolean;
     initials: string;
     avatarUri?: string | null;
@@ -54,15 +54,13 @@ export default function PostCard({
           activeOpacity={0.7}
           onPress={() => onPostTap && onPostTap(item.id, item.ownerId)}
         >
-          {item.isInitials ? (
-            <View style={[styles.avatarCircle, { backgroundColor: postColor + '33' }]}>
-              <Text style={[styles.initialsText, { color: postColor }]}>{item.initials}</Text>
-            </View>
-          ) : (
-            <View style={styles.avatarCircle}>
+          <View style={styles.avatarCircle}>
+            {item.isInitials ? (
+              <Image source={require('../assets/images/icon.png')} style={styles.cardAvatarImg} resizeMode="cover" />
+            ) : (
               <Image source={{ uri: item.avatarUri! }} style={styles.cardAvatarImg} resizeMode="cover" />
-            </View>
-          )}
+            )}
+          </View>
           <View style={styles.headerNameBlock}>
             <Text style={styles.cardName}>{item.name}</Text>
             <Text style={styles.cardCategory}>{item.role}</Text>
@@ -102,7 +100,7 @@ export default function PostCard({
 
       {/* ── Banner Image with Floating Actions */}
       <View style={styles.cardBannerContainer}>
-        <Image source={{ uri: item.bannerUri }} style={styles.cardBanner} resizeMode="cover" />
+        <Image source={item.bannerUri ? { uri: item.bannerUri } : require('../assets/images/icon.png')} style={styles.cardBanner} resizeMode={item.bannerUri ? 'cover' : 'contain'} />
         <View style={styles.bannerOverlay} />
 
         {/* Floating Actions */}

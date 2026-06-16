@@ -44,7 +44,7 @@ const CARD_WIDTH = 250;
 const SPACING = 10;
 const ITEM_SIZE = CARD_WIDTH + SPACING;
 
-const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
+const FALLBACK_BANNER = null;
 const imgPhotography = require('../../assets/categories/Photography.gif');
 const imgEditor = require('../../assets/categories/editor.gif');
 const imgVideography = require('../../assets/categories/Videography.gif');
@@ -552,20 +552,23 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               <View style={styles.figmaCardRoleBadge}>
                 <Text style={styles.figmaCardRoleText}>{item.role}</Text>
               </View>
-              <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
-                <Ionicons name={savedPostIds?.has(item.id) ? 'bookmark' : 'bookmark-outline'} size={18} color={savedPostIds?.has(item.id) ? postColor : '#fff'} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleShare(item.id)}>
+                  <Ionicons name="share-social-outline" size={18} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
+                  <Ionicons name={savedPostIds?.has(item.id) ? 'bookmark' : 'bookmark-outline'} size={18} color={savedPostIds?.has(item.id) ? postColor : '#fff'} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Avatar */}
             <View style={styles.figmaCardAvatarWrap}>
-              {item.isInitials ? (
-                <View style={[styles.figmaCardAvatarImg, { backgroundColor: postColor + '33', justifyContent: 'center', alignItems: 'center' }]}>
-                  <Text style={{ color: postColor, fontSize: 18, fontWeight: 'bold' }}>{item.initials}</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: item.avatarUri }} style={styles.figmaCardAvatarImg} resizeMode="cover" />
-              )}
+              <Image
+                source={item.isInitials ? require('../../assets/images/icon.png') : { uri: item.avatarUri }}
+                style={styles.figmaCardAvatarImg}
+                resizeMode="cover"
+              />
             </View>
 
             {/* Name & Details */}
@@ -975,7 +978,7 @@ export default function Homepage() {
                     <Text style={styles.heroDesc}>{item.desc2}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
-                    <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1], marginTop: 0 }]} activeOpacity={0.8}>
+                    <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1], marginTop: 0 }]} activeOpacity={0.8} onPress={() => router.push('/help-support' as any)}>
                       <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
                     </TouchableOpacity>
 
@@ -1346,74 +1349,24 @@ export default function Homepage() {
           <View style={styles.bharatBtnRow}>
             <TouchableOpacity
               style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+              onPress={() => Linking.openURL('https://www.instagram.com/digitagapp/')}
             >
               <Text style={styles.bharatPinkBtnText}>The TeamC_official</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+              onPress={() => Linking.openURL('https://wa.me/917680805720')}
             >
               <Ionicons name="logo-whatsapp" size={14} color="#25D366" />
               <Text style={styles.bharatOutlineBtnText}> Let's Talk</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-        {/* ══════════════ CONTACT / SUPPORT ══════════════ */}
-        <View style={styles.contactSection}>
-          <Text style={styles.contactSectionTitle}>Need Help?</Text>
-          <Text style={styles.contactSectionSub}>Our team is here for you</Text>
-
-          <TouchableOpacity
-            style={styles.contactRow}
-            onPress={() => Linking.openURL('mailto:support@thedigitag.ai')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.contactIcon}>
-              <Ionicons name="mail-outline" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.contactLabel}>Customer Support</Text>
-              <Text style={styles.contactValue}>support@thedigitag.ai</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#666" />
-          </TouchableOpacity>
-
-          <View style={styles.contactDivider} />
-
-          <TouchableOpacity
-            style={styles.contactRow}
-            onPress={() => Linking.openURL('https://wa.me/917680805720')}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.contactIcon, { backgroundColor: '#25D366' }]}>
-              <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.contactLabel}>WhatsApp</Text>
-              <Text style={styles.contactValue}>+91 76808 05720</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#666" />
-          </TouchableOpacity>
-
-          <View style={styles.contactDivider} />
-
-          <TouchableOpacity
-            style={styles.contactRow}
-            onPress={() => Linking.openURL('https://www.instagram.com/thedigitag')}
-            activeOpacity={0.7}
-          >
-            <LinearGradient
-              colors={['#833ab4', '#fd1d1d', '#fcb045']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.contactIcon}
+            <TouchableOpacity
+              style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91', paddingHorizontal: 12 }]}
+              onPress={() => Linking.openURL('tel:+917680805720')}
             >
-              <Ionicons name="logo-instagram" size={20} color="#fff" />
-            </LinearGradient>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.contactLabel}>Instagram</Text>
-              <Text style={styles.contactValue}>@thedigitag</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={16} color="#666" />
-          </TouchableOpacity>
+              <Ionicons name="call-outline" size={16} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <CommunityModal visible={communityModalVisible} onClose={() => setCommunityModalVisible(false)} />

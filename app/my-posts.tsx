@@ -14,7 +14,7 @@ import { getMyPosts } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import PostCard from '../Components/PostCard';
 
-const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
+const FALLBACK_BANNER = null;
 
 export default function MyPostsScreen() {
   const router = useRouter();

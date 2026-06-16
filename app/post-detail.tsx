@@ -31,10 +31,6 @@ import {
 
 const { width: SW } = Dimensions.get('window');
 
-function getInitials(name: string | null | undefined) {
-  if (!name) return 'U';
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase();
-}
 
 function timeAgo(dateStr?: string) {
   if (!dateStr) return '';
@@ -155,7 +151,7 @@ export default function PostDetail() {
 
   const handleShare = async () => {
     try {
-      await Share.share({ message: `Check out this post on DigiTag!\nhttps://digitag.com/post/${postId}` });
+      await Share.share({ message: `Check out this post on DigiTag!\nhttps://thedigitag.ai/post/${postId}` });
     } catch {}
   };
 
@@ -221,13 +217,7 @@ export default function PostDetail() {
 
           {/* Owner row */}
           <TouchableOpacity style={styles.ownerRow} activeOpacity={0.8} onPress={goToProfile}>
-            {pic ? (
-              <Image source={{ uri: pic }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarInitials, { borderColor: accent + '66' }]}>
-                <Text style={[styles.initialsText, { color: accent }]}>{getInitials(name)}</Text>
-              </View>
-            )}
+            <Image source={pic ? { uri: pic } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
             <View style={styles.ownerInfo}>
               <Text style={styles.ownerName} numberOfLines={1}>{name}</Text>
               <Text style={[styles.ownerRole, { color: accent }]}>{roleLabel}</Text>

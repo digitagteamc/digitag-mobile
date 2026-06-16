@@ -12,17 +12,25 @@ import {
     Poppins_800ExtraBold,
     useFonts
 } from '@expo-google-fonts/poppins';
-import messaging from '@react-native-firebase/messaging';
+import messaging, { onMessage, getToken } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { Image, View } from 'react-native';
+import { useCallback, useEffect } from 'react';
+import { AppState, Image, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearIncomingCallNotification } from '../services/callNotification';
 import { declineCall, registerFcmToken } from '../services/userService';
+
+const PENDING_CALL_KEY = '@pending_incoming_call';
+
+// Guards against double-navigation when AppState and onForegroundEvent both fire
+// for the same tap (backgrounded body-tap case). JS is single-threaded so the
+// synchronous set inside pushToCall wins the race.
+let _callNavGuard = false;
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,7 +46,10 @@ function routeNotification(router: ReturnType<typeof useRouter>, data: Record<st
         case 'CALL_ENDED':
         case 'CALL_DECLINED':
             if (data.callId) clearIncomingCallNotification(data.callId);
-            try { router.back(); } catch { }
+            try {
+                if (router.canGoBack()) router.back();
+                else router.replace('/(tabs)' as any);
+            } catch { }
             break;
         case 'NEW_MESSAGE':
             if (data.conversationId) {
@@ -62,60 +73,81 @@ function NotificationHandler() {
     const router = useRouter();
     const { token } = useAuth();
 
+    // Single navigation entry point. Guard prevents double-navigation when
+    // AppState and onForegroundEvent both fire for the same user tap.
+    const pushToCall = useCallback((callId: string, callerName?: string) => {
+        if (_callNavGuard) return;
+        _callNavGuard = true;
+        clearIncomingCallNotification(callId).catch(() => {});
+        AsyncStorage.removeItem(PENDING_CALL_KEY).catch(() => {});
+        router.push({
+            pathname: '/call',
+            params: { mode: 'incoming', callId, remoteName: callerName },
+        } as any);
+        // Reset after 5s so the next call works
+        setTimeout(() => { _callNavGuard = false; }, 5000);
+    }, [router]);
+
+    // ── A. AppState listener — fires when app returns to foreground from background.
+    //       Handles: Accept button tapped while backgrounded (onBackgroundEvent runs
+    //       but nobody navigates until the app foregrounds and reads PENDING_CALL_KEY).
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', async (nextState) => {
+            if (nextState !== 'active') return;
+            const stored = await AsyncStorage.getItem(PENDING_CALL_KEY);
+            if (!stored) return;
+            try {
+                const parsed = JSON.parse(stored);
+                if (parsed?.callId) pushToCall(parsed.callId, parsed.callerName);
+            } catch {}
+        });
+        return () => sub.remove();
+    }, [pushToCall]);
+
+    // ── 1. FCM token registration + foreground message handler
     useEffect(() => {
         if (!token) return;
         notifee.requestPermission().catch(() => { });
-        messaging().getToken().then(fcmToken => {
+        const msgInstance = messaging();
+        getToken(msgInstance).then(fcmToken => {
             if (fcmToken) registerFcmToken(token, fcmToken);
         }).catch(() => { });
 
-        // Foreground messages — silent data-only for calls, show banner for rest
-        const unsubscribe = messaging().onMessage(async remoteMessage => {
+        const unsubscribe = onMessage(msgInstance, remoteMessage => {
             const data = remoteMessage.data as Record<string, string> | undefined;
             if (!data) return;
-            // Calls need immediate full-screen routing, not a banner
             if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
                 routeNotification(router, data);
             }
-            // Other types: the FCM notification payload already shows a system banner
-            // when the app is in foreground on Android with high-priority data messages.
         });
 
         return unsubscribe;
     }, [token]);
 
-    // Background / quit-state notification taps
+    // ── 2. Background FCM tap (app was backgrounded, not killed — non-call types)
     useEffect(() => {
-        messaging().onNotificationOpenedApp(remoteMessage => {
+        const unsubFcm = messaging().onNotificationOpenedApp(remoteMessage => {
             routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
         });
-
-        messaging().getInitialNotification().then(remoteMessage => {
-            if (remoteMessage) {
-                routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
-            }
-        });
+        return () => unsubFcm();
     }, []);
 
-    // notifee full-screen incoming-call notification — tap/Answer/Decline handling
+    // ── 3. Notifee foreground events (body tap or action button while app is active/foregrounded)
     useEffect(() => {
         const handlePress = async (data: any, actionId?: string) => {
             const callId = data?.callId as string | undefined;
             if (!callId) return;
             if (actionId === 'decline') {
-                await clearIncomingCallNotification(callId);
+                clearIncomingCallNotification(callId).catch(() => {});
+                AsyncStorage.removeItem(PENDING_CALL_KEY).catch(() => {});
                 if (token) await declineCall(token, callId);
                 return;
             }
-            // 'answer' or default tap — open the incoming call screen
-            await clearIncomingCallNotification(callId);
-            router.push({
-                pathname: '/call',
-                params: { mode: 'incoming', callId, remoteName: data?.callerName },
-            } as any);
+            // Body tap or Answer: pushToCall handles guard + cleanup
+            pushToCall(callId, data?.callerName);
         };
 
-        const unsubscribeForeground = notifee.onForegroundEvent(({ type, detail }) => {
+        const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
             if (type === EventType.PRESS) {
                 handlePress(detail.notification?.data, 'default');
             } else if (type === EventType.ACTION_PRESS) {
@@ -123,15 +155,8 @@ function NotificationHandler() {
             }
         });
 
-        // App launched from killed state by tapping the call notification
-        notifee.getInitialNotification().then(initial => {
-            if (initial?.notification?.data?.type === 'INCOMING_CALL') {
-                handlePress(initial.notification.data, 'default');
-            }
-        });
-
-        return () => unsubscribeForeground();
-    }, [token]);
+        return () => unsubscribe();
+    }, [token, pushToCall]);
 
     return null;
 }
@@ -139,10 +164,10 @@ function NotificationHandler() {
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 60 * 1000,        // Data stays fresh for 1 minute
-            gcTime: 5 * 60 * 1000,       // Garbage collect unused cache after 5 minutes
+            staleTime: 60 * 1000,
+            gcTime: 5 * 60 * 1000,
             retry: 2,
-            refetchOnWindowFocus: false,  // Don't refetch just because app comes to foreground
+            refetchOnWindowFocus: false,
         },
     },
 });
@@ -160,8 +185,6 @@ export default function RootLayout() {
         Inter_500Medium,
     });
 
-    // Hide the native splash immediately so its mesh never shows.
-    // We render our own GIF loading screen while fonts load.
     useEffect(() => {
         SplashScreen.hideAsync().catch(() => {});
     }, []);
@@ -207,6 +230,24 @@ export default function RootLayout() {
                             <Stack.Screen name="chat/[id]" options={{ animation: 'slide_from_right', animationDuration: 220 }} />
                             <Stack.Screen name="switch-role" />
                             <Stack.Screen name="call" options={{ animation: 'fade', gestureEnabled: false }} />
+                            <Stack.Screen name="post-detail" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="create-post" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="my-posts" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="my-collabs" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="saved-posts" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="help-support" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="about-digitag" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="report-issue" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="privacysettings" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="analytics" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="brand-coming-soon" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="agency-coming-soon" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="followers" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="following" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="suggestions" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="searchbar" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="profile/[tagId]" options={{ animation: 'fade', animationDuration: 200 }} />
+                            <Stack.Screen name="post/[postId]" options={{ animation: 'fade', animationDuration: 200 }} />
                         </Stack>
                     </ProfileGateProvider>
                 </AuthProvider>

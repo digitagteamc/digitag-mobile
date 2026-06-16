@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Image,
-    ImageBackground,
     PermissionsAndroid,
     Platform,
     StatusBar,
@@ -15,6 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     ChannelProfileType,
     ClientRoleType,
@@ -27,8 +27,7 @@ import { clearIncomingCallNotification } from '../services/callNotification';
 import { acceptCall, declineCall, endCall } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
-// Public domain ringtone URI used for outgoing ring while waiting for answer
-const RING_URI = 'https://www.soundjay.com/phone/sounds/phone-calling-1.mp3';
+const RING_ASSET = require('../assets/sounds/ringtone.mp3');
 
 function getInitials(name: string) {
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -37,9 +36,7 @@ function getInitials(name: string) {
 async function requestAudioPermission(): Promise<boolean> {
     if (Platform.OS !== 'android') return true;
     try {
-        const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
-        );
+        const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
         return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch {
         return false;
@@ -56,55 +53,72 @@ export default function CallScreen() {
         agoraToken: string; appId: string; remoteName: string;
         remoteImage?: string;
     }>();
-
     const insets = useSafeAreaInsets();
     const theme = useRoleTheme();
 
     const engineRef = useRef<IRtcEngine | null>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endedRef = useRef(false);
+    const timerStartedRef = useRef(false);
     const ringSoundRef = useRef<Audio.Sound | null>(null);
+
+    // Ref to always hold the latest handleEndCall so Agora handlers don't go stale
+    const handleEndCallRef = useRef<(() => Promise<void>) | undefined>(undefined);
 
     const [callMode, setCallMode] = useState<CallMode>((params.mode as CallMode) || 'outgoing');
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(false);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-    const stopRing = useCallback(async () => {
-        if (ringSoundRef.current) {
-            try {
-                await ringSoundRef.current.stopAsync();
-                await ringSoundRef.current.unloadAsync();
-            } catch { /* ignore */ }
-            ringSoundRef.current = null;
-        }
+    // ── Stop ring — synchronous-first to guarantee silence even on unmount
+    const stopRing = useCallback(() => {
+        const sound = ringSoundRef.current;
+        if (!sound) return;
+        ringSoundRef.current = null;
+        sound.stopAsync().catch(() => {});
+        sound.unloadAsync().catch(() => {});
     }, []);
 
+    // ── Start ring — guarded so it never plays after call ends
     const startRing = useCallback(async () => {
+        if (endedRef.current) return;
         try {
-            await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false });
+            await Audio.setAudioModeAsync({
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: true,
+            });
+            if (endedRef.current) return; // check again after async gap
             const { sound } = await Audio.Sound.createAsync(
-                { uri: RING_URI },
+                RING_ASSET,
                 { isLooping: true, volume: 1.0 }
             );
+            if (endedRef.current) {
+                // call ended while sound was loading — discard immediately
+                sound.unloadAsync().catch(() => {});
+                return;
+            }
             ringSoundRef.current = sound;
             await sound.playAsync();
-        } catch { /* device may not support or no network */ }
+        } catch { /* ignore */ }
     }, []);
-
-    const remoteName = params.remoteName || 'User';
-    const initials = getInitials(remoteName);
 
     const startTimer = useCallback(() => {
+        if (timerStartedRef.current) return;
+        timerStartedRef.current = true;
         timerRef.current = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
     }, []);
+
+    const safeNavigateBack = useCallback(() => {
+        if (router.canGoBack()) router.back();
+        else router.replace('/(tabs)' as any);
+    }, [router]);
 
     const joinChannel = useCallback(async (tkn: string, channel: string, appId: string) => {
         try {
             const hasPermission = await requestAudioPermission();
             if (!hasPermission) {
                 Alert.alert('Permission Denied', 'Microphone access is required for calls.');
-                router.back();
+                safeNavigateBack();
                 return;
             }
             const engine = createAgoraRtcEngine();
@@ -119,7 +133,8 @@ export default function CallScreen() {
                     startTimer();
                 },
                 onUserOffline: () => {
-                    if (!endedRef.current) handleEndCall();
+                    // always call the latest version via ref to avoid stale closure
+                    handleEndCallRef.current?.();
                 },
             });
             engine.joinChannel(tkn, channel, 0, {
@@ -129,68 +144,74 @@ export default function CallScreen() {
         } catch (err) {
             console.error('[Agora] Join error:', err);
             Alert.alert('Error', 'Could not connect to call');
-            router.back();
+            safeNavigateBack();
         }
-    }, [startTimer]);
+    }, [startTimer, safeNavigateBack]);
 
+    const handleEndCall = useCallback(async () => {
+        if (endedRef.current) return;
+        endedRef.current = true;
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        stopRing();
+        if (params.callId) await clearIncomingCallNotification(params.callId).catch(() => {});
+        engineRef.current?.leaveChannel();
+        engineRef.current?.release();
+        engineRef.current = null;
+        if (token && params.callId) await endCall(token, params.callId).catch(() => {});
+        safeNavigateBack();
+    }, [token, params.callId, stopRing, safeNavigateBack]);
+
+    // Keep the ref current so Agora's onUserOffline always calls the latest version
+    handleEndCallRef.current = handleEndCall;
+
+    const handleDecline = useCallback(async () => {
+        if (endedRef.current) return;
+        endedRef.current = true;
+        stopRing();
+        if (params.callId) await clearIncomingCallNotification(params.callId).catch(() => {});
+        if (token && params.callId) await declineCall(token, params.callId).catch(() => {});
+        safeNavigateBack();
+    }, [token, params.callId, stopRing, safeNavigateBack]);
+
+    const handleAccept = useCallback(async () => {
+        if (!token || !params.callId) return;
+        stopRing();
+        await clearIncomingCallNotification(params.callId).catch(() => {});
+        const res = await acceptCall(token, params.callId);
+        if (res.success && res.data) {
+            await joinChannel(res.data.token, res.data.channelName, res.data.appId);
+            // setCallMode / startTimer driven by onUserJoined to avoid double-start
+        } else {
+            Alert.alert('Error', 'Could not accept call');
+            safeNavigateBack();
+        }
+    }, [token, params.callId, stopRing, joinChannel, safeNavigateBack]);
+
+    // ── Lifecycle
     useEffect(() => {
-        if (params.mode === 'outgoing' && params.agoraToken && params.channelName && params.appId) {
+        if (params.mode === 'incoming') {
+            // Cancel the notification immediately so its channel sound stops;
+            // the in-app looping ring (expo-av) takes over from here.
+            if (params.callId) clearIncomingCallNotification(params.callId).catch(() => {});
+            startRing();
+        } else if (params.mode === 'outgoing' && params.agoraToken && params.channelName && params.appId) {
             startRing();
             joinChannel(params.agoraToken, params.channelName, params.appId);
-        } else if (params.mode === 'incoming') {
-            startRing();
         }
         return () => {
             endedRef.current = true;
             if (timerRef.current) clearInterval(timerRef.current);
+            stopRing();
+            if (params.callId) clearIncomingCallNotification(params.callId).catch(() => {});
             engineRef.current?.leaveChannel();
             engineRef.current?.release();
-            stopRing();
+            engineRef.current = null;
         };
     }, []);
 
-    // Stop ring when call becomes active
     useEffect(() => {
-        if (callMode === 'active') {
-            stopRing();
-        }
+        if (callMode === 'active') stopRing();
     }, [callMode]);
-
-    const handleAccept = async () => {
-        if (!token || !params.callId) return;
-        await stopRing();
-        await clearIncomingCallNotification(params.callId);
-        const res = await acceptCall(token, params.callId);
-        if (res.success && res.data) {
-            await joinChannel(res.data.token, res.data.channelName, res.data.appId);
-            setCallMode('active');
-            startTimer();
-        } else {
-            Alert.alert('Error', 'Could not accept call');
-            router.back();
-        }
-    };
-
-    const handleDecline = async () => {
-        endedRef.current = true;
-        await stopRing();
-        if (params.callId) await clearIncomingCallNotification(params.callId);
-        if (token && params.callId) await declineCall(token, params.callId);
-        router.back();
-    };
-
-    const handleEndCall = async () => {
-        if (endedRef.current) return;
-        endedRef.current = true;
-        if (timerRef.current) clearInterval(timerRef.current);
-        await stopRing();
-        if (params.callId) await clearIncomingCallNotification(params.callId);
-        engineRef.current?.leaveChannel();
-        engineRef.current?.release();
-        engineRef.current = null;
-        if (token && params.callId) await endCall(token, params.callId);
-        router.back();
-    };
 
     const toggleMute = () => {
         setIsMuted(prev => { engineRef.current?.muteLocalAudioStream(!prev); return !prev; });
@@ -205,67 +226,62 @@ export default function CallScreen() {
         return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     };
 
+    const remoteName = params.remoteName || 'User';
+    const initials = getInitials(remoteName);
+
+    const avatar = (
+        <View style={[styles.avatarBox, !params.remoteImage && { backgroundColor: theme.soft }]}>
+            {params.remoteImage ? (
+                <Image source={{ uri: params.remoteImage }} style={styles.avatarImage} />
+            ) : (
+                <Text style={[styles.avatarText, { color: theme.primary }]}>{initials}</Text>
+            )}
+        </View>
+    );
+
     if (callMode === 'incoming') {
         return (
             <View style={styles.root}>
                 <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-                <ImageBackground
-                    source={params.remoteImage ? { uri: params.remoteImage } : undefined}
+                <LinearGradient
+                    colors={['#0D0D14', '#1A1A2E', '#16213E']}
                     style={StyleSheet.absoluteFill}
-                >
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
+                />
+                {params.remoteImage && (
+                    <Image
+                        source={{ uri: params.remoteImage }}
+                        style={[StyleSheet.absoluteFill, { opacity: 0.25 }]}
+                        resizeMode="cover"
+                        blurRadius={8}
+                    />
+                )}
 
-                    <View style={styles.topControls}>
-                        <TouchableOpacity style={styles.topIconBtn} onPress={() => router.back()}>
-                            <Ionicons name="expand-outline" size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <View style={{ flexDirection: 'row', gap: 15 }}>
-                            <TouchableOpacity style={styles.topIconBtn}>
-                                <Ionicons name="person-add-outline" size={24} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.topIconBtn}>
-                                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
-                            </TouchableOpacity>
+                <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}>
+                    {/* Caller info */}
+                    <View style={styles.callerSection}>
+                        {avatar}
+                        <Text style={styles.remoteNameText}>{remoteName}</Text>
+                        <Text style={styles.statusText}>Incoming audio call</Text>
+                    </View>
+
+                    {/* Action buttons */}
+                    <BlurView intensity={30} tint="dark" style={styles.glassCard}>
+                        <View style={styles.incomingActions}>
+                            <View style={styles.actionItem}>
+                                <TouchableOpacity style={styles.declineBtn} onPress={handleDecline} activeOpacity={0.8}>
+                                    <Ionicons name="call" size={30} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+                                </TouchableOpacity>
+                                <Text style={styles.actionLabel}>Decline</Text>
+                            </View>
+                            <View style={styles.actionItem}>
+                                <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept} activeOpacity={0.8}>
+                                    <Ionicons name="call" size={30} color="#fff" />
+                                </TouchableOpacity>
+                                <Text style={styles.actionLabel}>Accept</Text>
+                            </View>
                         </View>
-                    </View>
-
-                    <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-                        <BlurView intensity={30} tint="dark" style={styles.glassCard}>
-                            <View style={styles.cardHeader}>
-                                <View style={[styles.avatarBox, !params.remoteImage && { backgroundColor: theme.soft }]}>
-                                    {params.remoteImage ? (
-                                        <Image source={{ uri: params.remoteImage }} style={styles.avatarImage} />
-                                    ) : (
-                                        <Text style={[styles.avatarText, { color: theme.primary }]}>{initials}</Text>
-                                    )}
-                                </View>
-                                <Text style={styles.remoteNameText}>{remoteName}</Text>
-                                <Text style={styles.statusText}>Incoming audio call</Text>
-                            </View>
-
-                            <View style={styles.divider} />
-
-                            <View style={styles.incomingActions}>
-                                <View style={styles.actionItem}>
-                                    <TouchableOpacity style={styles.declineBtnGlass} onPress={handleDecline} activeOpacity={0.8}>
-                                        <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
-                                    </TouchableOpacity>
-                                    <Text style={styles.actionLabel}>Decline</Text>
-                                </View>
-                                <View style={styles.actionItem}>
-                                    <TouchableOpacity
-                                        style={[styles.acceptBtnGlass, { backgroundColor: '#22C55E' }]}
-                                        onPress={handleAccept}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Ionicons name="call" size={28} color="#fff" />
-                                    </TouchableOpacity>
-                                    <Text style={styles.actionLabel}>Accept</Text>
-                                </View>
-                            </View>
-                        </BlurView>
-                    </View>
-                </ImageBackground>
+                    </BlurView>
+                </View>
             </View>
         );
     }
@@ -273,140 +289,95 @@ export default function CallScreen() {
     return (
         <View style={styles.root}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-            <ImageBackground
-                source={params.remoteImage ? { uri: params.remoteImage } : undefined}
+            <LinearGradient
+                colors={['#0D0D14', '#1A1A2E', '#16213E']}
                 style={StyleSheet.absoluteFill}
-            >
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.3)' }]} />
+            />
+            {params.remoteImage && (
+                <Image
+                    source={{ uri: params.remoteImage }}
+                    style={[StyleSheet.absoluteFill, { opacity: 0.25 }]}
+                    resizeMode="cover"
+                    blurRadius={8}
+                />
+            )}
 
-                <View style={styles.topControls}>
-                    <TouchableOpacity style={styles.topIconBtn} onPress={() => router.back()}>
-                        <Ionicons name="expand-outline" size={24} color="#fff" />
-                    </TouchableOpacity>
-                    <View style={{ flexDirection: 'row', gap: 15 }}>
-                        <TouchableOpacity style={styles.topIconBtn}>
-                            <Ionicons name="person-add-outline" size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.topIconBtn}>
-                            <Ionicons name="chatbubble-ellipses-outline" size={22} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
+            <View style={[styles.content, { paddingTop: insets.top + 60, paddingBottom: insets.bottom + 40 }]}>
+                {/* Remote info */}
+                <View style={styles.callerSection}>
+                    {avatar}
+                    <Text style={styles.remoteNameText}>{remoteName}</Text>
+                    {callMode === 'active' ? (
+                        <Text style={[styles.statusText, { color: '#22c55e' }]}>
+                            Connected · {formatTime(elapsedSeconds)}
+                        </Text>
+                    ) : (
+                        <Text style={styles.statusText}>Calling...</Text>
+                    )}
                 </View>
 
-                <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-                    <BlurView intensity={45} tint="dark" style={styles.glassCard}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.avatarBox, !params.remoteImage && { backgroundColor: theme.soft }]}>
-                                {params.remoteImage ? (
-                                    <Image source={{ uri: params.remoteImage }} style={styles.avatarImage} />
-                                ) : (
-                                    <Text style={[styles.avatarText, { color: theme.primary }]}>{initials}</Text>
-                                )}
-                            </View>
-                            <Text style={styles.remoteNameText}>{remoteName}</Text>
-                            {callMode === 'active' ? (
-                                <Text style={[styles.statusText, { color: '#22c55e' }]}>
-                                    Connected · {formatTime(elapsedSeconds)}
-                                </Text>
-                            ) : (
-                                <Text style={styles.statusText}>Calling...</Text>
-                            )}
-                        </View>
-
-                        <View style={styles.divider} />
-
-                        <View style={styles.controlsRow}>
-                            {/* Speaker */}
+                {/* Controls */}
+                <BlurView intensity={45} tint="dark" style={styles.glassCard}>
+                    <View style={styles.controlsRow}>
+                        <View style={styles.controlItem}>
                             <TouchableOpacity
-                                style={[styles.glassBtn, isSpeaker && { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                                style={[styles.glassBtn, isSpeaker && styles.glassBtnActive]}
                                 onPress={toggleSpeaker}
                             >
-                                <Ionicons name={isSpeaker ? 'volume-high' : 'volume-medium'} size={24} color="#fff" />
+                                <Ionicons name={isSpeaker ? 'volume-high' : 'volume-medium-outline'} size={24} color="#fff" />
                             </TouchableOpacity>
+                            <Text style={styles.controlLabel}>{isSpeaker ? 'Speaker' : 'Earpiece'}</Text>
+                        </View>
 
-                            {/* Mute */}
+                        <View style={styles.controlItem}>
+                            <TouchableOpacity style={styles.endBtn} onPress={handleEndCall} activeOpacity={0.8}>
+                                <Ionicons name="call" size={30} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
+                            </TouchableOpacity>
+                            <Text style={styles.controlLabel}>End</Text>
+                        </View>
+
+                        <View style={styles.controlItem}>
                             <TouchableOpacity
-                                style={[styles.glassBtn, isMuted && { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                                style={[styles.glassBtn, isMuted && styles.glassBtnActive]}
                                 onPress={toggleMute}
                             >
-                                <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={24} color="#fff" />
+                                <Ionicons name={isMuted ? 'mic-off' : 'mic-outline'} size={24} color="#fff" />
                             </TouchableOpacity>
-
-                            {/* End Call */}
-                            <TouchableOpacity style={styles.endBtnGlass} onPress={handleEndCall}>
-                                <Ionicons name="call" size={28} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
-                            </TouchableOpacity>
+                            <Text style={styles.controlLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
                         </View>
-                    </BlurView>
-                </View>
-            </ImageBackground>
+                    </View>
+                </BlurView>
+            </View>
         </View>
     );
-}
-
-// Minimal placeholder component for calling status
-function CallingDots({ color }: { color: string }) {
-    return <Text style={{ color: '#8A8A99' }}>Calling...</Text>;
 }
 
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#0D0D14',
     },
     content: {
         flex: 1,
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-    },
-
-    // ── Top Controls
-    topControls: {
-        position: 'absolute',
-        top: 60,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        zIndex: 10,
-    },
-    topIconBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        paddingHorizontal: 24,
     },
 
-    // ── Action Card
-    glassCard: {
-        width: '100%',
-        borderRadius: 32,
-        padding: 24,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
-        overflow: 'hidden',
-    },
-    cardHeader: {
+    // ── Caller info
+    callerSection: {
         alignItems: 'center',
-        paddingBottom: 20,
+        gap: 12,
     },
     avatarBox: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        marginBottom: 16,
+        width: 110,
+        height: 110,
+        borderRadius: 55,
         overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#2A2A32',
-        borderWidth: 2,
+        backgroundColor: '#2A2A3A',
+        borderWidth: 3,
         borderColor: 'rgba(255,255,255,0.2)',
     },
     avatarImage: {
@@ -414,96 +385,115 @@ const styles = StyleSheet.create({
         height: '100%',
     },
     avatarText: {
-        fontSize: 32,
+        fontSize: 36,
         fontFamily: 'Poppins_700Bold',
     },
     remoteNameText: {
         color: '#fff',
-        fontSize: 22,
+        fontSize: 26,
         fontFamily: 'Poppins_600SemiBold',
-        marginBottom: 4,
+        letterSpacing: -0.5,
     },
     statusText: {
-        color: '#B8B8C6',
+        color: '#9CA3AF',
+        fontSize: 14,
+        fontFamily: 'Poppins_400Regular',
+    },
+
+    // ── Glass card (action area)
+    glassCard: {
+        width: '100%',
+        borderRadius: 32,
+        padding: 28,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
+    },
+
+    // ── Incoming actions
+    incomingActions: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 60,
+    },
+    actionItem: {
+        alignItems: 'center',
+        gap: 10,
+    },
+    actionLabel: {
+        color: '#9CA3AF',
         fontSize: 13,
         fontFamily: 'Poppins_400Regular',
     },
-    divider: {
-        height: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        width: '100%',
-        marginBottom: 20,
+    declineBtn: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: '#EF4444',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 6,
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
+    },
+    acceptBtn: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
+        backgroundColor: '#22C55E',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 6,
+        shadowColor: '#22C55E',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
     },
 
-    // ── Buttons
+    // ── Active call controls
     controlsRow: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: 20,
+        gap: 28,
+    },
+    controlItem: {
+        alignItems: 'center',
+        gap: 8,
+    },
+    controlLabel: {
+        color: '#9CA3AF',
+        fontSize: 11,
+        fontFamily: 'Poppins_400Regular',
     },
     glassBtn: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         backgroundColor: 'rgba(255,255,255,0.1)',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    endBtnGlass: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+    glassBtnActive: {
+        backgroundColor: 'rgba(255,255,255,0.25)',
+    },
+    endBtn: {
+        width: 70,
+        height: 70,
+        borderRadius: 35,
         backgroundColor: '#EF4444',
         alignItems: 'center',
         justifyContent: 'center',
+        elevation: 6,
         shadowColor: '#EF4444',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.35,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-
-    // ── Incoming Actions
-    incomingActions: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: 40,
-    },
-    actionItem: {
-        alignItems: 'center',
-        gap: 8,
-    },
-    actionLabel: {
-        color: '#8A8A99',
-        fontSize: 12,
-        fontFamily: 'Poppins_400Regular',
-    },
-    declineBtnGlass: {
-        width: 65,
-        height: 65,
-        borderRadius: 33,
-        backgroundColor: '#EF4444',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#EF4444',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
-    },
-    acceptBtnGlass: {
-        width: 65,
-        height: 65,
-        borderRadius: 33,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOpacity: 0.4,
+        shadowRadius: 10,
     },
 });

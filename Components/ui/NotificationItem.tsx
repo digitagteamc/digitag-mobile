@@ -26,17 +26,6 @@ export interface NotificationItemProps {
     onNamePress?: () => void;
 }
 
-function getInitials(name: string | null | undefined) {
-    if (!name) return 'U';
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase();
-}
-
 export default function NotificationItem({
     name,
     subtitle,
@@ -53,17 +42,10 @@ export default function NotificationItem({
     onNamePress,
 }: NotificationItemProps) {
     const theme = getRoleTheme(role ?? null);
-    const initials = getInitials(name);
 
     const content = (
         <View style={styles.row}>
-            {avatarUri ? (
-                <Image source={{ uri: avatarUri }} style={styles.avatar} />
-            ) : (
-                <View style={[styles.avatar, styles.initialsAvatar, { backgroundColor: theme.softStrong, borderColor: theme.border }]}>
-                    <Text style={[styles.initialsText, { color: theme.primary }]}>{initials}</Text>
-                </View>
-            )}
+            <Image source={avatarUri ? { uri: avatarUri } : require('../../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
 
             <View style={styles.body}>
                 {onNamePress ? (

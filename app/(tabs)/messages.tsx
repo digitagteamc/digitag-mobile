@@ -17,16 +17,6 @@ import { useAuth } from '../../context/AuthContext';
 import { listConversations, openConversationWith, searchProfiles } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
-function getInitials(name: string | null | undefined) {
-    if (!name) return 'U';
-    return name
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase();
-}
 
 function formatTime(dateStr: string | null | undefined) {
     if (!dateStr) return '';
@@ -156,13 +146,7 @@ export default function MessagesTab() {
                                         }
                                     }}
                                 >
-                                    {item.profilePicture ? (
-                                        <Image source={{ uri: item.profilePicture }} style={styles.profileResultAvatar} resizeMode="cover" />
-                                    ) : (
-                                        <View style={[styles.profileResultAvatar, styles.profileResultAvatarFallback]}>
-                                            <Text style={styles.profileResultInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
-                                        </View>
-                                    )}
+                                    <Image source={item.profilePicture ? { uri: item.profilePicture } : require('../../assets/images/icon.png')} style={styles.profileResultAvatar} resizeMode="cover" />
                                     <View style={styles.profileResultText}>
                                         <Text style={styles.profileResultName}>{item.name}</Text>
                                         <Text style={styles.profileResultMeta}>
@@ -204,13 +188,7 @@ export default function MessagesTab() {
                         const unread = item.unreadCount || 0;
                         return (
                             <TouchableOpacity style={styles.row} activeOpacity={0.8} onPress={() => handleOpen(item)}>
-                                {pic ? (
-                                    <Image source={{ uri: pic }} style={styles.avatar} />
-                                ) : (
-                                    <View style={[styles.avatar, styles.initialsAvatar]}>
-                                        <Text style={styles.initialsText}>{getInitials(name)}</Text>
-                                    </View>
-                                )}
+                                <Image source={pic ? { uri: pic } : require('../../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
                                 <View style={styles.rowBody}>
                                     <Text style={styles.rowName} numberOfLines={1}>{name}</Text>
                                     <Text style={styles.rowPreview} numberOfLines={1}>{preview}</Text>

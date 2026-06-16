@@ -22,7 +22,7 @@ import { useRoleTheme } from '../theme/useRoleTheme';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
 
-const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800';
+const LOGO = require('../assets/images/icon.png');
 
 export default function SavedPostsScreen() {
   const router = useRouter();
@@ -120,13 +120,13 @@ export default function SavedPostsScreen() {
               const name = getOwnerName(owner);
               const initials = name.slice(0, 2).toUpperCase();
               const pic = owner.profilePicture || null;
-              const banner = post.imageUrl || FALLBACK_BANNER;
+              const banner = post.imageUrl ? { uri: post.imageUrl } : LOGO;
 
               return (
                 <TouchableOpacity key={post.id} style={styles.card} activeOpacity={0.85} onPress={() => router.push({ pathname: '/post-detail', params: { postId: post.id } } as any)}>
                   {/* ── Hero image */}
                   <View style={styles.cardHero}>
-                    <Image source={{ uri: banner }} style={styles.cardBanner} resizeMode="cover" />
+                    <Image source={banner} style={styles.cardBanner} resizeMode={post.imageUrl ? 'cover' : 'contain'} />
                     <View style={styles.heroOverlay} />
 
                     {/* Unsave / filled bookmark */}
@@ -139,15 +139,9 @@ export default function SavedPostsScreen() {
 
                     {/* Author row */}
                     <View style={styles.authorRow}>
-                      {pic ? (
-                        <View style={styles.avatarCircle}>
-                          <Image source={{ uri: pic }} style={styles.avatarImg} resizeMode="cover" />
-                        </View>
-                      ) : (
-                        <View style={styles.initialsCircle}>
-                          <Text style={styles.initialsText}>{initials}</Text>
-                        </View>
-                      )}
+                      <View style={styles.avatarCircle}>
+                        <Image source={pic ? { uri: pic } : LOGO} style={styles.avatarImg} resizeMode="cover" />
+                      </View>
                       <View>
                         <Text style={styles.authorName}>{name}</Text>
                         <Text style={styles.authorRole}>

@@ -38,7 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Ellipse, FeGaussianBlur, Filter, G, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
-const FALLBACK_BANNER = 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1000&auto=format&fit=crop';
+const FALLBACK_BANNER = null;
 
 const ActiveTabGlow = React.memo(() => (
   <View style={{ position: 'absolute', top: -30, alignSelf: 'center', zIndex: -1, opacity: 0.3 }}>
@@ -235,6 +235,16 @@ const CATEGORIES = [
     heroDesc: 'From reels to commercials, discover voice artists who make every script unforgettable.',
     gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
     charStyle: { right: -40, bottom: -63, width: 200, height: 200 }
+  },
+  {
+    id: 'models',
+    label: 'Models',
+    icon: imgStylingicon,
+    image: imgFashion,
+    heroLine1: 'Strike the Perfect', heroLine2: 'Pose', heroLine3: '',
+    heroDesc: 'Connect with professional models for your shoots, campaigns, and creative projects.',
+    gradient: ['#DB2777', '#9D174D'] as [string, string],
+    charStyle: { right: -35, bottom: -45, width: 230, height: 230 }
   },
   {
     id: 'property',
@@ -1069,13 +1079,11 @@ export default function ExploreTab() {
           {/* Avatar + Name */}
           <View style={s.cardTop}>
             <View style={s.cardAvatarWrap}>
-              {item.isInitials ? (
-                <View style={[s.cardAvatar, { backgroundColor: accent + '33' }]}>
-                  <Text style={[s.cardInitials, { color: accent }]}>{item.initials}</Text>
-                </View>
-              ) : (
-                <Image source={{ uri: item.avatarUri }} style={s.cardAvatar} resizeMode="cover" />
-              )}
+              <Image
+                source={item.isInitials ? require('../../assets/images/icon.png') : { uri: item.avatarUri }}
+                style={s.cardAvatar}
+                resizeMode="cover"
+              />
             </View>
             <View style={s.cardNameArea}>
               <View style={s.cardNameRow}>
