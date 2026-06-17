@@ -1,4 +1,4 @@
-package com.digitag.app
+package ai.thedigitag.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

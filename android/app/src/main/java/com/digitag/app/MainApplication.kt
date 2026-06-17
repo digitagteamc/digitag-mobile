@@ -1,4 +1,4 @@
-package com.digitag.app
+package ai.thedigitag.app
 
 import android.app.Application
 import android.content.res.Configuration

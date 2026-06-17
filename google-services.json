@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:592827124863:android:53954fcd6890d52c2f834a",
+        "android_client_info": {
+          "package_name": "ai.thedigitag.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcHR76U116I0_qX_B57-6ncz3MRlWLO_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:592827124863:android:166808a335c4b10d2f834a",
         "android_client_info": {
           "package_name": "com.digitag.app"

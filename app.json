@@ -13,11 +13,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.digitag.app",
+      "bundleIdentifier": "ai.thedigitag.app",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
-      "package": "com.digitag.app",
+      "package": "ai.thedigitag.app",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
