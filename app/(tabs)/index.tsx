@@ -797,11 +797,11 @@ export default function Homepage() {
 
   const handleShare = async (postId: string) => {
     try {
-      const url = `https://digitag.ai/post/${postId}`;
+      const url = `https://thedigitag.ai/post/${postId}`;
       await Share.share({
-        message: `Check out this post on Digitag: ${url}`,
+        message: `Check out this post on digitag: ${url}`,
         url: url,
-        title: 'Digitag Post',
+        title: 'digitag Post',
       });
     } catch (error: any) {
       Alert.alert('Error', error.message);

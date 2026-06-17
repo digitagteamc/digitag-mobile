@@ -348,8 +348,8 @@ export default function ProfileScreen() {
                       setShowDropdown(false);
                       try {
                         await Share.share({
-                          message: `Check out my profile on Digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
-                          title: 'Digitag Profile',
+                          message: `Check out my profile on digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
+                          title: 'digitag Profile',
                         });
                       } catch (_) {}
                     }}

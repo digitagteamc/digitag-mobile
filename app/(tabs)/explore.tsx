@@ -1006,7 +1006,7 @@ export default function ExploreTab() {
 
   const handleShare = async (postId: string) => {
     try {
-      await Share.share({ message: `Check out this post on Digitag! https://digitag.com/post/${postId}`, title: 'Digitag Post' });
+      await Share.share({ message: `Check out this post on digitag! https://thedigitag.ai/post/${postId}`, title: 'digitag Post' });
     } catch (e: any) { Alert.alert('Error', e.message); }
   };
 
