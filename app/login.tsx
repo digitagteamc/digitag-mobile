@@ -70,6 +70,44 @@ export default function LoginScreen() {
         return () => clearInterval(interval);
     }, [countdown]);
 
+    const autoVerifyingRef = useRef(false);
+
+    // Auto-verification listener — fires when Android SMS Retriever verifies automatically
+    useEffect(() => {
+        if (step !== 2) return;
+        // Skip the first immediate fire (current auth state) — only handle new sign-ins
+        let initialized = false;
+        const unsubscribe = auth().onAuthStateChanged(async (user) => {
+            if (!initialized) { initialized = true; return; }
+            if (!user || autoVerifyingRef.current) return;
+            autoVerifyingRef.current = true;
+            try {
+                setLoading(true);
+                const idToken = await user.getIdToken();
+                const cleanPhone = phoneNumber.replace(/\s+/g, '');
+                const res = await verifyFirebaseToken(idToken, role);
+                if (!res.success) { setOtpError(res.error || 'Verification failed.'); return; }
+                const verifiedRole = (res.user?.role as string | undefined) ?? role;
+                login({
+                    phone: cleanPhone,
+                    token: res.token,
+                    refreshToken: res.refreshToken,
+                    role: verifiedRole,
+                    id: res.user?.id,
+                    isProfileCompleted: Boolean(res.isProfileCompleted),
+                    profiles: res.profiles as any,
+                });
+                router.replace('/(tabs)');
+            } catch (e: any) {
+                setOtpError(e.message || 'Auto-verification failed.');
+                autoVerifyingRef.current = false;
+            } finally {
+                setLoading(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [step]);
+
 
     const { height: windowHeight } = useWindowDimensions();
     const screenHeight = Dimensions.get('screen').height;
@@ -122,9 +160,12 @@ export default function LoginScreen() {
         setOtpError(null);
 
         Keyboard.dismiss();
+        autoVerifyingRef.current = false;
 
         try {
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
+            // Clear any stale Firebase session before starting new OTP flow
+            await auth().signOut().catch(() => {});
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
             setConfirm(confirmation);
             setCountdown(60);
@@ -147,8 +188,12 @@ export default function LoginScreen() {
                 return;
             }
 
-            await confirm.confirm(otp);
-            const currentUser = auth().currentUser;
+            // If already auto-verified by Android SMS Retriever, skip confirm.confirm()
+            let currentUser = auth().currentUser;
+            if (!currentUser) {
+                await confirm.confirm(otp);
+                currentUser = auth().currentUser;
+            }
             if (!currentUser) throw new Error("Verification failed.");
 
             const idToken = await currentUser.getIdToken();
