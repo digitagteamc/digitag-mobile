@@ -70,11 +70,17 @@ export default function LoginScreen() {
         return () => clearInterval(interval);
     }, [countdown]);
 
+    const autoVerifyingRef = useRef(false);
+
     // Auto-verification listener — fires when Android SMS Retriever verifies automatically
     useEffect(() => {
         if (step !== 2) return;
+        // Skip the first immediate fire (current auth state) — only handle new sign-ins
+        let initialized = false;
         const unsubscribe = auth().onAuthStateChanged(async (user) => {
-            if (!user || loading) return;
+            if (!initialized) { initialized = true; return; }
+            if (!user || autoVerifyingRef.current) return;
+            autoVerifyingRef.current = true;
             try {
                 setLoading(true);
                 const idToken = await user.getIdToken();
@@ -94,6 +100,7 @@ export default function LoginScreen() {
                 router.replace('/(tabs)');
             } catch (e: any) {
                 setOtpError(e.message || 'Auto-verification failed.');
+                autoVerifyingRef.current = false;
             } finally {
                 setLoading(false);
             }
@@ -153,9 +160,12 @@ export default function LoginScreen() {
         setOtpError(null);
 
         Keyboard.dismiss();
+        autoVerifyingRef.current = false;
 
         try {
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
+            // Clear any stale Firebase session before starting new OTP flow
+            await auth().signOut().catch(() => {});
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
             setConfirm(confirmation);
             setCountdown(60);
