@@ -30,7 +30,10 @@
               "pathPrefix": "/profile"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         },
         {
           "action": "VIEW",
@@ -42,7 +45,10 @@
               "pathPrefix": "/post"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "adaptiveIcon": {
@@ -66,7 +72,12 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["expo-router", { "origin": "https://thedigitag.ai" }],
+      [
+        "expo-router",
+        {
+          "origin": "https://thedigitag.ai"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -84,11 +95,13 @@
       "reactCompiler": false
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": "https://thedigitag.ai"
+      },
       "eas": {
-        "projectId": "fa9d77f2-ba02-427d-8d4f-66a28ea8d185"
+        "projectId": "af41a154-0e43-4c6a-87e2-e402131d540d"
       }
     },
-    "owner": "elevaitelabs"
+    "owner": "digitag.teamc"
   }
 }
