@@ -70,6 +70,37 @@ export default function LoginScreen() {
         return () => clearInterval(interval);
     }, [countdown]);
 
+    // Auto-verification listener — fires when Android SMS Retriever verifies automatically
+    useEffect(() => {
+        if (step !== 2) return;
+        const unsubscribe = auth().onAuthStateChanged(async (user) => {
+            if (!user || loading) return;
+            try {
+                setLoading(true);
+                const idToken = await user.getIdToken();
+                const cleanPhone = phoneNumber.replace(/\s+/g, '');
+                const res = await verifyFirebaseToken(idToken, role);
+                if (!res.success) { setOtpError(res.error || 'Verification failed.'); return; }
+                const verifiedRole = (res.user?.role as string | undefined) ?? role;
+                login({
+                    phone: cleanPhone,
+                    token: res.token,
+                    refreshToken: res.refreshToken,
+                    role: verifiedRole,
+                    id: res.user?.id,
+                    isProfileCompleted: Boolean(res.isProfileCompleted),
+                    profiles: res.profiles as any,
+                });
+                router.replace('/(tabs)');
+            } catch (e: any) {
+                setOtpError(e.message || 'Auto-verification failed.');
+            } finally {
+                setLoading(false);
+            }
+        });
+        return () => unsubscribe();
+    }, [step]);
+
 
     const { height: windowHeight } = useWindowDimensions();
     const screenHeight = Dimensions.get('screen').height;
@@ -147,8 +178,12 @@ export default function LoginScreen() {
                 return;
             }
 
-            await confirm.confirm(otp);
-            const currentUser = auth().currentUser;
+            // If already auto-verified by Android SMS Retriever, skip confirm.confirm()
+            let currentUser = auth().currentUser;
+            if (!currentUser) {
+                await confirm.confirm(otp);
+                currentUser = auth().currentUser;
+            }
             if (!currentUser) throw new Error("Verification failed.");
 
             const idToken = await currentUser.getIdToken();
