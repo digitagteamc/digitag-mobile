@@ -121,19 +121,16 @@ export default function LoginScreen() {
         setPhoneError(null);
         setOtpError(null);
 
-        // Navigate to OTP screen immediately — no loading spinner shown
         Keyboard.dismiss();
-        animatedSetStep(2);
 
         try {
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
             setConfirm(confirmation);
             setCountdown(60);
+            animatedSetStep(2);
         } catch (error: any) {
-            // If Firebase fails, slide back to phone screen and surface the error
-            animatedSetStep(1);
-            showStatus('Error', error.message || 'Failed to send OTP.');
+            showStatus('Error', error.message || 'Failed to send OTP. Please try again.');
         }
     };
 
