@@ -5,12 +5,16 @@ node_modules
 .expo
 android/build
 android/.gradle
+android/.kotlin
 android/app/build
 android/app/.cxx
 ios/build
 ios/Pods
+release
 __tests__
 *.test.ts
 *.test.tsx
 *.spec.ts
 *.spec.tsx
+digitag-backend-key.pem
+*.zip
