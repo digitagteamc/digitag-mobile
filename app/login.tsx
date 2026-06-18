@@ -1,4 +1,5 @@
 import auth from '@react-native-firebase/auth';
+import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDownIcon, ChevronLeftIcon } from 'lucide-react-native';
@@ -331,7 +332,7 @@ export default function LoginScreen() {
                             </TouchableOpacity>
 
                             <Text className="text-[#3a3a4a] font-poppins-regular text-[11px] text-center mb-8">
-                                v1.0.3
+                                v{Constants.expoConfig?.version}
                             </Text>
                         </ScrollView>
                     </KeyboardAvoidingView>
