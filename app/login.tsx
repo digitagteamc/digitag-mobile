@@ -324,11 +324,15 @@ export default function LoginScreen() {
                             </Text>
 
                             <TouchableOpacity
-                                className="mt-6 mb-10"
+                                className="mt-6 mb-4"
                                 onPress={() => { loginAsGuest(); router.replace('/(tabs)'); }}
                             >
                                 <Text className="text-[#6A5B80] font-poppins-regular text-[14px] underline text-center">Skip for now</Text>
                             </TouchableOpacity>
+
+                            <Text className="text-[#3a3a4a] font-poppins-regular text-[11px] text-center mb-8">
+                                v1.0.3
+                            </Text>
                         </ScrollView>
                     </KeyboardAvoidingView>
                 </View>
