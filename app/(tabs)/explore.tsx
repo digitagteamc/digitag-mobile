@@ -1424,34 +1424,36 @@ export default function ExploreTab() {
                 <Feather name="x" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
-            {(filterModalType === 'language' ? LANGUAGE_OPTIONS
-              : filterModalType === 'location' ? LOCATION_OPTIONS
-              : filterModalType === 'price' ? PRICE_OPTIONS
-              : EXPERIENCE_OPTIONS
-            ).map((option) => {
-              const currentVal = filterModalType === 'language' ? selectedLanguage
-                : filterModalType === 'location' ? selectedLocation
-                : filterModalType === 'price' ? selectedPriceRange
-                : selectedExperience;
-              const isSelected = currentVal === option;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (filterModalType === 'language') setSelectedLanguage(isSelected ? null : option);
-                    else if (filterModalType === 'location') setSelectedLocation(isSelected ? null : option);
-                    else if (filterModalType === 'price') setSelectedPriceRange(isSelected ? null : option);
-                    else setSelectedExperience(isSelected ? null : option);
-                    setFilterModalType(null);
-                  }}
-                >
-                  <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
-                  {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
-                </TouchableOpacity>
-              );
-            })}
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {(filterModalType === 'language' ? LANGUAGE_OPTIONS
+                : filterModalType === 'location' ? LOCATION_OPTIONS
+                : filterModalType === 'price' ? PRICE_OPTIONS
+                : EXPERIENCE_OPTIONS
+              ).map((option) => {
+                const currentVal = filterModalType === 'language' ? selectedLanguage
+                  : filterModalType === 'location' ? selectedLocation
+                  : filterModalType === 'price' ? selectedPriceRange
+                  : selectedExperience;
+                const isSelected = currentVal === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (filterModalType === 'language') setSelectedLanguage(isSelected ? null : option);
+                      else if (filterModalType === 'location') setSelectedLocation(isSelected ? null : option);
+                      else if (filterModalType === 'price') setSelectedPriceRange(isSelected ? null : option);
+                      else setSelectedExperience(isSelected ? null : option);
+                      setFilterModalType(null);
+                    }}
+                  >
+                    <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
+                    {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1627,8 +1629,8 @@ const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalDismiss: { flex: 1 },
   modalContent: {
-    height: '30%', backgroundColor: '#1E1E24', borderTopLeftRadius: 30, borderTopRightRadius: 30,
-    padding: 24, borderTopWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
+    maxHeight: '70%', backgroundColor: '#1E1E24', borderTopLeftRadius: 30, borderTopRightRadius: 30,
+    padding: 24, paddingBottom: 36, borderTopWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
   },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 },
   modalTitle: { color: '#fff', fontSize: 18, fontFamily: 'Poppins_600SemiBold' },
