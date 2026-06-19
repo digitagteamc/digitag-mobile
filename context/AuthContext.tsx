@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { refreshToken as apiRefreshToken } from '../services/userService';
+import { refreshToken as apiRefreshToken, setRefreshTokenCallback } from '../services/userService';
 
 export type Role = 'CREATOR' | 'FREELANCER';
 
@@ -69,6 +69,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Restore session from AsyncStorage on app start
     useEffect(() => {
         restoreSession();
+    }, []);
+
+    // Wire up auto-refresh so userService can call it on 401
+    useEffect(() => {
+        setRefreshTokenCallback(async () => {
+            const stored = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+            if (!stored) return null;
+            try {
+                const res = await apiRefreshToken(stored);
+                if (res.success && res.data?.tokens) {
+                    const newAccess = res.data.tokens.accessToken;
+                    const newRefresh = res.data.tokens.refreshToken;
+                    await AsyncStorage.multiSet([
+                        [STORAGE_KEYS.TOKEN, newAccess],
+                        [STORAGE_KEYS.REFRESH_TOKEN, newRefresh],
+                    ]);
+                    setToken(newAccess);
+                    setRefreshTokenState(newRefresh);
+                    return newAccess;
+                }
+            } catch { }
+            return null;
+        });
     }, []);
 
     async function restoreSession() {
@@ -170,6 +193,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.multiSet(pairs);
     };
 
+    const setProfileCompletedPersist = (v: boolean) => {
+        setIsProfileCompleted(v);
+        AsyncStorage.setItem(STORAGE_KEYS.IS_PROFILE_COMPLETED, String(v)).catch(() => { });
+    };
+
     const setProfiles = (next: Partial<ProfileMap>) => {
         setProfilesState((prev) => {
             const merged = { ...prev, ...next };
@@ -226,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 isLoading,
                 hasOnboarded,
                 login,
-                setProfileCompleted: setIsProfileCompleted,
+                setProfileCompleted: setProfileCompletedPersist,
                 setProfiles,
                 setActiveRole,
                 loginAsGuest,
