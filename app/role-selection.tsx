@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { BackHandler, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, Image, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
@@ -262,6 +262,11 @@ export default function RoleSelectionScreen() {
     const { markOnboarded } = useAuth();
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
+    const { width: screenWidth } = useWindowDimensions();
+    // Adaptive card dimensions: horizontal padding 20 each side, 8dp gap between the two columns
+    const cardWidth = (screenWidth - 40 - 8) / 2;
+    const imgSize = Math.min(cardWidth * 0.88, 155);
+    const imgOverflow = imgSize * 0.48; // how much image floats above card top
 
     useEffect(() => {
         const backAction = () => {
@@ -366,7 +371,7 @@ export default function RoleSelectionScreen() {
                     </View>
 
                     {/* 2x2 Grid */}
-                    <View className="flex-row flex-wrap justify-between gap-y-[0px] -mt-6">
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 0, marginTop: -24 }}>
                         {roles.map((role) => {
                             const isSelected = selectedRole === role.id;
                             const size = cardSizes[role.id];
@@ -376,13 +381,13 @@ export default function RoleSelectionScreen() {
                                     key={role.id}
                                     activeOpacity={0.8}
                                     onPress={() => setSelectedRole(role.id)}
-                                    className="w-[48%]"
+                                    style={{ width: cardWidth }}
                                 >
-                                    <View className="relative pt-[70px]">
-                                        {/* Floating image */}
+                                    <View style={{ position: 'relative', paddingTop: imgOverflow }}>
+                                        {/* Floating image — adaptive to card width */}
                                         <Image
                                             source={role.image}
-                                            className="absolute top-0 w-[170px] h-[170px] z-10 self-center"
+                                            style={{ position: 'absolute', top: 0, width: imgSize, height: imgSize, zIndex: 10, alignSelf: 'center' }}
                                             resizeMode="contain"
                                         />
 
@@ -404,17 +409,20 @@ export default function RoleSelectionScreen() {
                                                 elevation: 6,
                                                 borderBottomWidth: 0.3,
                                                 borderBottomColor: isSelected ? role.primaryColor : 'transparent',
+                                                borderRadius: 20,
+                                                paddingBottom: 16,
+                                                paddingTop: imgOverflow + 8,
+                                                paddingHorizontal: 12,
+                                                alignItems: 'center',
                                             }}
-                                            className="rounded-[20px] pb-4 pt-[85px] px-3 items-center"
                                         >
                                             <Text
-                                                className="font-poppins-bold text-[18px] mb-1 text-center"
-                                                style={{ color: role.primaryColor }}
+                                                style={{ fontFamily: 'Poppins_700Bold', fontSize: Math.min(17, cardWidth * 0.1 + 10), marginBottom: 4, textAlign: 'center', color: role.primaryColor }}
                                             >
                                                 {role.title}
                                             </Text>
                                             <Text
-                                                className={`font-poppins-regular text-[11px] text-center leading-[15px] ${isSelected ? 'text-white' : 'text-[#88889D]'}`}
+                                                style={{ fontFamily: 'Poppins_400Regular', fontSize: Math.min(11, cardWidth * 0.065), textAlign: 'center', lineHeight: 15, color: isSelected ? '#fff' : '#88889D' }}
                                                 numberOfLines={3}
                                             >
                                                 {role.desc}

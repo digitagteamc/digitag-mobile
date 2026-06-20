@@ -219,7 +219,7 @@ export default function RootLayout() {
                         >
                             <Stack.Screen name="index" />
                             <Stack.Screen name="onboarding/splash1" options={{ animation: 'fade', animationDuration: 200 }} />
-                            <Stack.Screen name="login" options={{ animationDuration: 250 }} />
+                            <Stack.Screen name="login" options={{ animation: 'fade', animationDuration: 280 }} />
                             <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 200, contentStyle: { backgroundColor: '#060606' } }} />
                             <Stack.Screen name="signup" options={{ animationDuration: 280 }} />
                             <Stack.Screen name="role-selection" options={{ animation: 'fade', animationDuration: 200 }} />

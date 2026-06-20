@@ -13,6 +13,7 @@ import {
     Linking,
     Modal,
     Platform,
+    Pressable,
     ScrollView,
     Text,
     TextInput,
@@ -188,63 +189,61 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                 <ChevronDownIcon color="#FFFFFF" size={24} />
             </TouchableOpacity>
 
-            <Modal visible={modalVisible} transparent animationType="none">
-                <TouchableOpacity
-                    activeOpacity={1}
+            <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
+                <Pressable
+                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
                     onPress={() => setModalVisible(false)}
-                    className="flex-1 bg-black/40"
                 >
-                    <View
-                        className="absolute rounded-[24px] overflow-hidden border border-white/20 shadow-2xl elevation-10 bg-white/10"
+                    <Pressable
+                        onPress={(e) => e.stopPropagation()}
                         style={{
+                            position: 'absolute',
                             top: layout.y + layout.height - 30,
                             left: layout.x,
                             width: layout.width,
-                            maxHeight: 200,
+                            maxHeight: 220,
+                            borderRadius: 24,
+                            overflow: 'hidden',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.2)',
                         }}
                     >
                         <LinearGradient
-                            colors={['rgba(40, 40, 40, 0.95)', 'rgba(20, 20, 20, 0.98)']}
-                            className="absolute inset-0"
+                            colors={['rgba(40, 40, 40, 0.97)', 'rgba(20, 20, 20, 0.99)']}
+                            style={{ flex: 1 }}
                         />
-                        <View className="bg-white/10 p-2 flex-1">
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 8 }}>
                             {/* Close button */}
                             <TouchableOpacity
                                 onPress={() => setModalVisible(false)}
-                                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/10 items-center justify-center"
+                                style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
                                 activeOpacity={0.7}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
                                 <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
                             </TouchableOpacity>
-                            <ScrollView showsVerticalScrollIndicator={true} persistentScrollbar={true} className="py-2" indicatorStyle="white">
+                            <ScrollView showsVerticalScrollIndicator style={{ paddingVertical: 8 }} indicatorStyle="white">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
-                                    const label = itemLabel(option);
+                                    const lbl = itemLabel(option);
+                                    const sel = isSelected(option);
                                     return (
                                         <TouchableOpacity
                                             key={key}
                                             onPress={() => handleSelect(option)}
                                             activeOpacity={0.7}
-                                            className="px-6 py-4 mb-1 rounded-xl"
+                                            style={{ paddingHorizontal: 24, paddingVertical: 14, marginBottom: 4, borderRadius: 12, backgroundColor: sel ? 'rgba(240,44,140,0.13)' : 'transparent' }}
                                         >
-                                            <View className="flex-row items-center">
-                                                {isSelected(option) && (
-                                                    <View className="absolute left-0 right-0 h-full bg-[#F02C8C22] rounded-lg" style={{ width: '110%', height: '150%', marginLeft: '-5%' }} />
-                                                )}
-                                                <Text
-                                                    className={`font-poppins-medium text-[16px] ${isSelected(option) ? 'text-[#F02C8C]' : 'text-white'
-                                                        }`}
-                                                >
-                                                    {label}
-                                                </Text>
-                                            </View>
+                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 16, color: sel ? '#F02C8C' : '#fff' }}>
+                                                {lbl}
+                                            </Text>
                                         </TouchableOpacity>
                                     );
                                 })}
                             </ScrollView>
                         </View>
-                    </View>
-                </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
             </Modal>
         </View>
     );
@@ -253,7 +252,7 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
 const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {platform} <Text className="text-red-500">*</Text>
+            {platform}
         </Text>
         <View className="flex-row gap-2">
             <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
@@ -302,7 +301,7 @@ const InstagramVerifyRow = ({
 }: IgVerifyProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            Instagram <Text className="text-red-500">*</Text>
+            Instagram
         </Text>
         <View className="flex-row gap-2 mb-2">
             <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
@@ -317,7 +316,7 @@ const InstagramVerifyRow = ({
                     editable={!verified}
                 />
             </View>
-            <View className="flex-1 bg-[#1A1A1A] h-[56px] px-3 rounded-[12px] justify-center items-center">
+            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
                 <TextInput
                     placeholder="Followers"
                     placeholderTextColor="#555"
@@ -325,6 +324,7 @@ const InstagramVerifyRow = ({
                     value={followersValue}
                     onChangeText={onFollowersChange}
                     className="text-white font-poppins-regular text-[12px] text-center"
+                    editable={!verified}
                 />
             </View>
         </View>
@@ -569,7 +569,7 @@ export default function CreatorSignup() {
         email: '',
         primaryLanguage: '',
         otherLanguages: [] as string[],
-        categoryIds: [] as string[],
+        category: '',
         bio: '',
         portfolio: '',
         instagramHandle: '',
@@ -600,7 +600,7 @@ export default function CreatorSignup() {
                         ...prev,
                         name: p.name || '',
                         email: p.email || '',
-                        categoryIds: p.categories?.length > 0 ? p.categories : (p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : []),
+                        category: p.categories?.[0] || '',
                         primaryLanguage: p.language || p.languages?.[0] || '',
                         otherLanguages: p.language
                             ? (p.languages || []).filter((l: string) => l !== p.language)
@@ -648,7 +648,7 @@ export default function CreatorSignup() {
             form.name.trim() !== '' &&
             form.email.trim() !== '' &&
             form.primaryLanguage !== '' &&
-            form.categoryIds.length > 0 &&
+            form.category !== '' &&
             form.bio.trim() !== ''
         );
     }, [form]);
@@ -722,7 +722,7 @@ export default function CreatorSignup() {
             Alert.alert('Validation', 'Please enter a valid email address.'); return;
         }
         if (!form.primaryLanguage) { Alert.alert('Validation', 'Please select a primary language.'); return; }
-        if (form.categoryIds.length === 0) { Alert.alert('Validation', 'Please select at least one category.'); return; }
+        if (!form.category) { Alert.alert('Validation', 'Please select a category.'); return; }
         if (!form.bio.trim()) { Alert.alert('Validation', 'Bio is required.'); return; }
         setStep(2);
     };
@@ -757,7 +757,7 @@ export default function CreatorSignup() {
             const payload: any = {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
-                categories: form.categoryIds,
+                categories: form.category ? [form.category] : [],
                 language: form.primaryLanguage,
                 languages: form.primaryLanguage
                     ? [form.primaryLanguage, ...form.otherLanguages.filter(l => l !== form.primaryLanguage)]
@@ -834,7 +834,14 @@ export default function CreatorSignup() {
                             clearInterval(igPollRef.current!);
                             igPollRef.current = null;
                             setIgVerified(true);
-                            setIgVerifyModalVisible(true); // reopen modal to show success screen
+                            setIgVerifyModalVisible(true);
+                            // Re-fetch profile so auto-filled follower count appears
+                            if (token) {
+                                const profileRes = await getMyCreatorProfile(token);
+                                if (profileRes.success && profileRes.data?.instagramFollowers != null) {
+                                    setForm(prev => ({ ...prev, instagramFollowers: String(profileRes.data.instagramFollowers) }));
+                                }
+                            }
                         } else if (s === 'EXPIRED' || s === 'FAILED') {
                             clearInterval(igPollRef.current!);
                             igPollRef.current = null;
@@ -962,9 +969,8 @@ export default function CreatorSignup() {
                                 required
                                 placeholder="Select category"
                                 options={categories}
-                                selected={form.categoryIds}
-                                onSelect={(v: string[]) => setForm({ ...form, categoryIds: v })}
-                                multiSelect
+                                selected={form.category}
+                                onSelect={(v: string) => setForm({ ...form, category: v })}
                                 itemKey={(i: any) => i.id}
                                 itemLabel={(i: any) => i.name}
                             />
