@@ -34,13 +34,14 @@ export default function LoginScreen() {
     const params = useLocalSearchParams<{ role?: string }>();
     const role: SignupRole = (params.role?.toUpperCase() === 'FREELANCER') ? 'FREELANCER' : 'CREATOR';
 
-    const { login, loginAsGuest } = useAuth();
+    const { login } = useAuth();
 
     const [phoneNumber, setPhoneNumber] = useState('');
     const [otp, setOtp] = useState('');
     const [confirm, setConfirm] = useState<any>(null);
     const [devCode, setDevCode] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [sendingOtp, setSendingOtp] = useState(false);
     const [step, setStep] = useState(1); // 1: Phone, 2: OTP
     const [countdown, setCountdown] = useState(0);
     const otpInputRef = useRef<TextInput>(null);
@@ -162,6 +163,7 @@ export default function LoginScreen() {
 
         Keyboard.dismiss();
         autoVerifyingRef.current = false;
+        setSendingOtp(true);
 
         try {
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
@@ -173,6 +175,8 @@ export default function LoginScreen() {
             animatedSetStep(2);
         } catch (error: any) {
             showStatus('Error', error.message || 'Failed to send OTP. Please try again.');
+        } finally {
+            setSendingOtp(false);
         }
     };
 
@@ -305,7 +309,12 @@ export default function LoginScreen() {
                                 </Text>
                             ) : <View className="mb-3" />}
 
-                            {loading ? (
+                            {sendingOtp ? (
+                                <View className="items-center my-5">
+                                    <ActivityIndicator color="#C3CE21" />
+                                    <Text className="text-[#C3CE21] font-poppins-regular text-[13px] mt-2">Sending OTP...</Text>
+                                </View>
+                            ) : loading ? (
                                 <ActivityIndicator color="#C3CE21" className="my-5" />
                             ) : (
                                 <GradientButton title="Get OTP" onPress={handleRequestOtp} className="w-full mb-5" />
@@ -324,14 +333,7 @@ export default function LoginScreen() {
                                 >Privacy Policy</Text>
                             </Text>
 
-                            <TouchableOpacity
-                                className="mt-6 mb-4"
-                                onPress={() => { loginAsGuest(); router.replace('/(tabs)'); }}
-                            >
-                                <Text className="text-[#6A5B80] font-poppins-regular text-[14px] underline text-center">Skip for now</Text>
-                            </TouchableOpacity>
-
-                            <Text className="text-[#3a3a4a] font-poppins-regular text-[11px] text-center mb-8">
+                            <Text className="text-[#3a3a4a] font-poppins-regular text-[11px] text-center mb-8 mt-6">
                                 v{Constants.expoConfig?.version}
                             </Text>
                         </ScrollView>

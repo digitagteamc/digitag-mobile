@@ -894,6 +894,7 @@ export default function ExploreTab() {
       role: owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User',
       desc: p.description || '',
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
+      budget: p.budget || null,
       time: timeAgo(p.createdAt),
       avatarUri: owner.profilePicture || null,
       isInitials: !owner.profilePicture,
@@ -1142,6 +1143,17 @@ export default function ExploreTab() {
                 </View>
               </View>
             </View>
+            {!!item.budget && (
+              <View style={s.infoRow}>
+                <View style={[s.infoCell, { flex: 1 }]}>
+                  <Text style={s.infoLabel}>Budget</Text>
+                  <View style={s.infoValueRow}>
+                    <Ionicons name="wallet-outline" size={13} color="#a1a2a4" />
+                    <Text style={[s.infoValue, { color: '#fbbf24' }]} numberOfLines={1}>₹{item.budget}</Text>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Bottom Actions */}

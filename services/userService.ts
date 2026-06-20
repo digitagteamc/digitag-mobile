@@ -456,6 +456,7 @@ type PostPayload = {
     imageUrl?: string;
     imageKey?: string;
     category?: string;
+    budget?: string;
 };
 
 /**
@@ -475,6 +476,8 @@ export const createPost = async (
             form.append('description', payload.description);
             if (payload.location) form.append('location', payload.location);
             if (payload.collaborationType) form.append('collaborationType', payload.collaborationType);
+            if (payload.category) form.append('category', payload.category);
+            if (payload.budget) form.append('budget', payload.budget);
             form.append('image', {
                 uri: imageFile.uri,
                 name: imageFile.name || 'upload.jpg',

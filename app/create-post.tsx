@@ -24,34 +24,46 @@ const DRAFT_KEY = '@digitag_post_draft';
 
 type CollabChoice = 'UNPAID' | 'PAID';
 
-// Categories shown to CREATORS when posting (they need freelancer skills)
-const FREELANCER_SKILL_CATEGORIES = [
-  'Video Editing',
+const CREATOR_CATEGORIES = [
   'Photography',
-  'Graphic Design',
-  'Content Writing',
-  'Social Media',
-  'Music Production',
+  'Editors',
+  'Videography',
+  'Growth Specialist',
+  'Script Writers',
+  'Styling & makeup',
+  'Fashion Designers',
+  'Property Rental',
+  'Voice Over',
+  'Models',
 ];
 
-// Categories shown to FREELANCERS when posting (they target creator niches)
-const CREATOR_NICHE_CATEGORIES = [
-  'Fashion & Lifestyle',
-  'Beauty & Skincare',
-  'Fitness & Health',
+const FREELANCER_CATEGORIES = [
+  'Lifestyle & Living',
   'Tech',
-  'Food & Cooking',
-  'Travel',
-  'Lifestyle',
-  'Gaming',
   'Education',
-  'Business & Finance',
-  'Art & Creativity',
-  'Sports',
-  'Music',
-  'Parenting',
-  'Home & Garden',
+  'Photography',
+  'Food',
+  'Health',
+  'Automotive',
+  'Comedy & Memes',
   'Entertainment',
+  'Gaming & Anime',
+  'Learning',
+  'News/Media/Magazins',
+  'Sports',
+  'Travel',
+  'Beauty',
+  'Fitness',
+  'Fashion',
+  'Finance & Investments',
+  'Arts',
+  'Business & Startups',
+  'Community Pages',
+  'Family/Kids/Pets',
+  'Home & Decor',
+  'Law/Rights/Activism',
+  'Pets & Animals',
+  'Politics',
 ];
 
 export default function CreatePost() {
@@ -67,8 +79,7 @@ export default function CreatePost() {
     ? 'What do you want from freelancer?'
     : 'What do you want from creator?';
 
-  // Show opposite-role categories
-  const categoryOptions = isCreator ? FREELANCER_SKILL_CATEGORIES : CREATOR_NICHE_CATEGORIES;
+  const categoryOptions = isCreator ? CREATOR_CATEGORIES : FREELANCER_CATEGORIES;
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -131,7 +142,7 @@ export default function CreatePost() {
     setSubmitting(true);
     try {
       const res = await createPost(
-        { description, location: location.trim() || undefined, collaborationType: collab ?? 'UNPAID', category: selectedCategory || undefined },
+        { description, location: location.trim() || undefined, collaborationType: collab ?? 'UNPAID', category: selectedCategory || undefined, budget: budget.trim() || undefined },
         token,
       );
       if (res.success) {
