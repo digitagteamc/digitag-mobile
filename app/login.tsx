@@ -193,15 +193,16 @@ export default function LoginScreen() {
                 return;
             }
 
-            // If already auto-verified by Android SMS Retriever, skip confirm.confirm()
-            let currentUser = auth().currentUser;
-            if (!currentUser) {
+            // Always confirm the OTP — skip only if Android auto-verified via SMS Retriever
+            // (autoVerifyingRef is set true when onAuthStateChanged fires first)
+            if (!autoVerifyingRef.current) {
                 await confirm.confirm(otp);
-                currentUser = auth().currentUser;
             }
-            if (!currentUser) throw new Error("Verification failed.");
+            const currentUser = auth().currentUser;
+            if (!currentUser) throw new Error("Verification failed. Please request a new OTP.");
 
-            const idToken = await currentUser.getIdToken();
+            // Force-refresh the token to ensure we never send a stale cached JWT
+            const idToken = await currentUser.getIdToken(true);
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
             const res = await verifyFirebaseToken(idToken, role);
 
