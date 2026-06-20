@@ -72,45 +72,6 @@ export default function LoginScreen() {
         return () => clearInterval(interval);
     }, [countdown]);
 
-    const autoVerifyingRef = useRef(false);
-
-    // Auto-verification listener — fires when Android SMS Retriever verifies automatically
-    useEffect(() => {
-        if (step !== 2) return;
-        // Skip the first immediate fire (current auth state) — only handle new sign-ins
-        let initialized = false;
-        const unsubscribe = auth().onAuthStateChanged(async (user) => {
-            if (!initialized) { initialized = true; return; }
-            if (!user || autoVerifyingRef.current) return;
-            autoVerifyingRef.current = true;
-            try {
-                setLoading(true);
-                const idToken = await user.getIdToken();
-                const cleanPhone = phoneNumber.replace(/\s+/g, '');
-                const res = await verifyFirebaseToken(idToken, role);
-                if (!res.success) { setOtpError(res.error || 'Verification failed.'); return; }
-                const verifiedRole = (res.user?.role as string | undefined) ?? role;
-                login({
-                    phone: cleanPhone,
-                    token: res.token,
-                    refreshToken: res.refreshToken,
-                    role: verifiedRole,
-                    id: res.user?.id,
-                    isProfileCompleted: Boolean(res.isProfileCompleted),
-                    profiles: res.profiles as any,
-                });
-                router.replace('/(tabs)');
-            } catch (e: any) {
-                setOtpError(e.message || 'Auto-verification failed.');
-                autoVerifyingRef.current = false;
-            } finally {
-                setLoading(false);
-            }
-        });
-        return () => unsubscribe();
-    }, [step]);
-
-
     const { height: windowHeight } = useWindowDimensions();
     const screenHeight = Dimensions.get('screen').height;
     const offScreenY = screenHeight + 100;
@@ -162,13 +123,10 @@ export default function LoginScreen() {
         setOtpError(null);
 
         Keyboard.dismiss();
-        autoVerifyingRef.current = false;
         setSendingOtp(true);
 
         try {
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
-            // Clear any stale Firebase session before starting new OTP flow
-            await auth().signOut().catch(() => {});
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
             setConfirm(confirmation);
             setCountdown(60);
@@ -193,13 +151,9 @@ export default function LoginScreen() {
                 return;
             }
 
-            // If already auto-verified by Android SMS Retriever, skip confirm.confirm()
-            let currentUser = auth().currentUser;
-            if (!currentUser) {
-                await confirm.confirm(otp);
-                currentUser = auth().currentUser;
-            }
-            if (!currentUser) throw new Error("Verification failed.");
+            await confirm.confirm(otp);
+            const currentUser = auth().currentUser;
+            if (!currentUser) throw new Error('Verification failed.');
 
             const idToken = await currentUser.getIdToken();
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
@@ -275,32 +229,32 @@ export default function LoginScreen() {
                                 Enter your mobile number and we'll send {`\n`}you a verification code to get started
                             </Text>
 
-                    {/* Phone Input */}
-                    <View
-                        className={`flex-row bg-[#34264A] rounded-full px-5 py-[14px] items-center mb-2 w-full min-h-[60px] ${phoneError ? 'border border-red-500' : ''}`}
-                    >
-                        {/* Country Code */}
-                        <View className="flex-row items-center border-r border-[#4f4066] pr-[10px] mr-[10px]">
-                            <View className="w-7 h-7 rounded-full overflow-hidden mr-2 items-center justify-center bg-white">
-                                <Text style={{ fontSize: 18, lineHeight: 22 }}>🇮🇳</Text>
+                            {/* Phone Input */}
+                            <View
+                                className={`flex-row bg-[#34264A] rounded-full px-5 py-[14px] items-center mb-2 w-full min-h-[60px] ${phoneError ? 'border border-red-500' : ''}`}
+                            >
+                                {/* Country Code */}
+                                <View className="flex-row items-center border-r border-[#4f4066] pr-[10px] mr-[10px]">
+                                    <View className="w-7 h-7 rounded-full overflow-hidden mr-2 items-center justify-center bg-white">
+                                        <Text style={{ fontSize: 18, lineHeight: 22 }}>🇮🇳</Text>
+                                    </View>
+                                    <Text className="text-white font-poppins-semibold text-[14px] mr-1">+91</Text>
+                                    <ChevronDownIcon color="white" size={16} />
+                                </View>
+                                <TextInput
+                                    className="flex-1 text-white text-[16px] min-h-[30px]"
+                                    placeholder="Enter Mobile Number"
+                                    placeholderTextColor="#888"
+                                    keyboardType="phone-pad"
+                                    value={phoneNumber}
+                                    onChangeText={(v) => {
+                                        const digits = v.replace(/\D/g, '').slice(0, 10);
+                                        setPhoneNumber(digits);
+                                        if (phoneError) setPhoneError(null);
+                                    }}
+                                    maxLength={10}
+                                />
                             </View>
-                            <Text className="text-white font-poppins-semibold text-[14px] mr-1">+91</Text>
-                            <ChevronDownIcon color="white" size={16} />
-                        </View>
-                        <TextInput
-                            className="flex-1 text-white text-[16px] min-h-[30px]"
-                            placeholder="Enter Mobile Number"
-                            placeholderTextColor="#888"
-                            keyboardType="phone-pad"
-                            value={phoneNumber}
-                            onChangeText={(v) => {
-                                const digits = v.replace(/\D/g, '').slice(0, 10);
-                                setPhoneNumber(digits);
-                                if (phoneError) setPhoneError(null);
-                            }}
-                            maxLength={10}
-                        />
-                    </View>
 
                             {/* Phone inline error */}
                             {phoneError ? (
