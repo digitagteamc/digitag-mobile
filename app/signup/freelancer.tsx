@@ -11,6 +11,7 @@ import {
     KeyboardAvoidingView,
     Modal,
     Platform,
+    Pressable,
     ScrollView,
     Text,
     TextInput,
@@ -23,7 +24,9 @@ import { useAuth } from '../../context/AuthContext';
 import {
     createFreelancerProfile,
     getCategories,
+    getInstagramVerificationStatus,
     getMyFreelancerProfile,
+    startInstagramVerification,
     updateFreelancerProfile,
     uploadImage,
 } from '../../services/userService';
@@ -178,72 +181,183 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                 <ChevronDownIcon color="#FFFFFF" size={24} />
             </TouchableOpacity>
 
-            <Modal visible={modalVisible} transparent animationType="none">
-                <TouchableOpacity
-                    activeOpacity={1}
+            <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
+                <Pressable
+                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
                     onPress={() => setModalVisible(false)}
-                    className="flex-1 bg-black/40"
                 >
-                    <View
-                        className="absolute rounded-[24px] overflow-hidden border border-white/20 shadow-2xl elevation-10 bg-white/10"
+                    <Pressable
+                        onPress={(e) => e.stopPropagation()}
                         style={{
+                            position: 'absolute',
                             top: Math.max(20, layout.y + layout.height - 30),
                             left: layout.x,
                             width: layout.width,
-                            maxHeight: 200,
+                            maxHeight: 220,
+                            borderRadius: 24,
+                            overflow: 'hidden',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.2)',
                         }}
                     >
                         <LinearGradient
-                            colors={['rgba(40, 40, 40, 0.95)', 'rgba(20, 20, 20, 0.98)']}
-                            className="absolute inset-0"
+                            colors={['rgba(40, 40, 40, 0.97)', 'rgba(20, 20, 20, 0.99)']}
+                            style={{ flex: 1 }}
                         />
-                        <View className="bg-white/10 p-2 flex-1">
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 8 }}>
                             {/* Close button */}
                             <TouchableOpacity
                                 onPress={() => setModalVisible(false)}
-                                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/10 items-center justify-center"
+                                style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
                                 activeOpacity={0.7}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
                                 <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
                             </TouchableOpacity>
-                            <ScrollView showsVerticalScrollIndicator={false} className="py-2">
+                            <ScrollView showsVerticalScrollIndicator style={{ paddingVertical: 8 }} indicatorStyle="white">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
-                                    const label = itemLabel(option);
+                                    const lbl = itemLabel(option);
+                                    const sel = isSelected(option);
                                     return (
                                         <TouchableOpacity
                                             key={key}
                                             onPress={() => handleSelect(option)}
                                             activeOpacity={0.7}
-                                            className="px-6 py-4 mb-1 rounded-xl"
+                                            style={{ paddingHorizontal: 24, paddingVertical: 14, marginBottom: 4, borderRadius: 12, backgroundColor: sel ? 'rgba(242,105,48,0.13)' : 'transparent' }}
                                         >
-                                            <View className="flex-row items-center">
-                                                {isSelected(option) && (
-                                                    <View className="absolute left-0 right-0 h-full bg-[#F2693022] rounded-lg" style={{ width: '110%', height: '150%', marginLeft: '-5%' }} />
-                                                )}
-                                                <Text
-                                                    className={`font-poppins-medium text-[16px] ${isSelected(option) ? 'text-[#F26930]' : 'text-white'
-                                                        }`}
-                                                >
-                                                    {label}
-                                                </Text>
-                                            </View>
+                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 16, color: sel ? '#F26930' : '#fff' }}>
+                                                {lbl}
+                                            </Text>
                                         </TouchableOpacity>
                                     );
                                 })}
                             </ScrollView>
                         </View>
-                    </View>
-                </TouchableOpacity>
+                    </Pressable>
+                </Pressable>
             </Modal>
         </View>
+    );
+};
+
+const InstagramVerifyRow = ({
+    value, followersValue, onValueChange, onFollowersChange, verified, onVerifyPress, verifying,
+}: any) => (
+    <View className="mb-4">
+        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+        <View className="flex-row gap-2 mb-2">
+            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
+                <TextInput
+                    placeholder="instagram.com/username or @handle"
+                    placeholderTextColor="#555"
+                    value={value}
+                    onChangeText={onValueChange}
+                    className="text-white font-poppins-regular"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!verified}
+                />
+            </View>
+            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#1a1200]' : 'bg-[#1A1A1A]'}`}>
+                <TextInput
+                    placeholder="Followers"
+                    placeholderTextColor="#555"
+                    keyboardType="numeric"
+                    value={followersValue}
+                    onChangeText={onFollowersChange}
+                    className="text-white font-poppins-regular text-[12px] text-center"
+                    editable={!verified}
+                />
+            </View>
+        </View>
+        <TouchableOpacity
+            onPress={onVerifyPress}
+            disabled={verified || verifying || !value.trim()}
+            activeOpacity={0.8}
+            style={{
+                backgroundColor: verified ? '#16a34a' : verifying ? '#374151' : ACCENT,
+                borderRadius: 10, height: 40,
+                alignItems: 'center', justifyContent: 'center',
+                flexDirection: 'row', gap: 6,
+                opacity: !value.trim() && !verified ? 0.4 : 1,
+            }}
+        >
+            {verifying ? (
+                <ActivityIndicator size="small" color="#fff" />
+            ) : (
+                <Text className="text-white font-poppins-semibold text-[13px]">
+                    {verified ? '✓ Verified' : 'Verify via Instagram DM'}
+                </Text>
+            )}
+        </TouchableOpacity>
+    </View>
+);
+
+const IgVerifyModal = ({ visible, code, instagramUsername, digiTagInstagram, expiresAt, status, onClose }: any) => {
+    const [secondsLeft, setSecondsLeft] = React.useState(0);
+    React.useEffect(() => {
+        if (!visible || !expiresAt) return;
+        const update = () => setSecondsLeft(Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)));
+        update();
+        const t = setInterval(update, 1000);
+        return () => clearInterval(t);
+    }, [visible, expiresAt]);
+    const mins = Math.floor(secondsLeft / 60);
+    const secs = secondsLeft % 60;
+    return (
+        <Modal visible={visible} transparent animationType="slide">
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
+                <View style={{ backgroundColor: '#111', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 40 }}>
+                    {status === 'VERIFIED' ? (
+                        <>
+                            <Text style={{ color: '#16a34a', fontSize: 48, textAlign: 'center', marginBottom: 8 }}>✓</Text>
+                            <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Poppins_700Bold', textAlign: 'center', marginBottom: 8 }}>Instagram Verified!</Text>
+                            <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>@{instagramUsername} has been successfully verified.</Text>
+                            <TouchableOpacity onPress={onClose} style={{ backgroundColor: '#16a34a', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Done</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : status === 'EXPIRED' || status === 'FAILED' ? (
+                        <>
+                            <Text style={{ color: '#ef4444', fontSize: 40, textAlign: 'center', marginBottom: 8 }}>✕</Text>
+                            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', textAlign: 'center', marginBottom: 8 }}>Code Expired</Text>
+                            <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>The verification code expired. Tap Verify again to get a new code.</Text>
+                            <TouchableOpacity onPress={onClose} style={{ backgroundColor: ACCENT, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Try Again</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', marginBottom: 4 }}>Verify your Instagram</Text>
+                            <Text style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+                                Open Instagram and DM the code below to <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold' }}>@{digiTagInstagram}</Text>
+                            </Text>
+                            <View style={{ backgroundColor: '#1A1A1A', borderRadius: 16, padding: 20, alignItems: 'center', marginBottom: 20 }}>
+                                <Text style={{ color: '#888', fontSize: 12, marginBottom: 8 }}>Your verification code</Text>
+                                <Text style={{ color: ACCENT, fontSize: 36, fontFamily: 'Poppins_700Bold', letterSpacing: 8 }}>{code}</Text>
+                                <Text style={{ color: '#555', fontSize: 12, marginTop: 8 }}>
+                                    Expires in {mins}:{String(secs).padStart(2, '0')}
+                                </Text>
+                            </View>
+                            <Text style={{ color: '#666', fontSize: 12, textAlign: 'center', marginBottom: 20 }}>
+                                Waiting for your DM… keep this screen open or send the DM then return here.
+                            </Text>
+                            <TouchableOpacity onPress={onClose} style={{ borderWidth: 1, borderColor: '#333', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: '#888', fontFamily: 'Poppins_500Medium', fontSize: 15 }}>Close (verification continues)</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
     );
 };
 
 const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {platform} <Text className="text-red-500">*</Text>
+            {platform}
         </Text>
         <View className="flex-row gap-2">
             <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
@@ -285,12 +399,20 @@ export default function FreelancerSignup() {
     const [mode, setMode] = useState<'create' | 'update'>('create');
     const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
+    // Instagram verification states
+    const [igVerified, setIgVerified] = useState(false);
+    const [igVerifying, setIgVerifying] = useState(false);
+    const [igVerification, setIgVerification] = useState<{ id: string; code: string; instagramUsername: string; digiTagInstagram: string; expiresAt: string } | null>(null);
+    const [igVerifyModalVisible, setIgVerifyModalVisible] = useState(false);
+    const [igModalStatus, setIgModalStatus] = useState<string>('PENDING');
+    const igPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
     const [form, setForm] = useState({
         name: '',
         email: '',
         primaryLanguage: '',
         otherLanguages: [] as string[],
-        categoryIds: [] as string[],
+        category: '',
         bio: '',
         portfolioUrl: '',
         skillsInput: '',
@@ -331,7 +453,7 @@ export default function FreelancerSignup() {
                         ...prev,
                         name: p.name || '',
                         email: p.email || '',
-                        categoryIds: p.categories?.length > 0 ? p.categories : (p.categoryId ? p.categoryId.split(',').map((id: string) => id.trim()).filter(Boolean) : []),
+                        category: p.categories?.[0] || '',
                         primaryLanguage: p.language || p.languages?.[0] || '',
                         otherLanguages: p.language
                             ? (p.languages || []).filter((l: string) => l !== p.language)
@@ -376,12 +498,60 @@ export default function FreelancerSignup() {
         return () => backHandler.remove();
     }, [step]);
 
+    const handleIgVerify = async () => {
+        if (!form.instagramHandle.trim() || !token) return;
+        setIgVerifying(true);
+        try {
+            const res = await startInstagramVerification(token, form.instagramHandle.trim());
+            if (res.success && res.data) {
+                setIgVerification(res.data);
+                setIgModalStatus('PENDING');
+                setIgVerifyModalVisible(true);
+                igPollRef.current = setInterval(async () => {
+                    if (!res.data?.id) return;
+                    const statusRes = await getInstagramVerificationStatus(token, res.data.id);
+                    if (statusRes.success && statusRes.data) {
+                        const s = statusRes.data.status;
+                        setIgModalStatus(s);
+                        if (s === 'VERIFIED') {
+                            clearInterval(igPollRef.current!);
+                            igPollRef.current = null;
+                            setIgVerified(true);
+                            setIgVerifyModalVisible(true);
+                            const profileRes = await getMyFreelancerProfile(token);
+                            if (profileRes.success && profileRes.data?.instagramFollowers != null) {
+                                setForm(prev => ({ ...prev, instagramFollowers: String(profileRes.data.instagramFollowers) }));
+                            }
+                        } else if (s === 'EXPIRED' || s === 'FAILED') {
+                            clearInterval(igPollRef.current!);
+                            igPollRef.current = null;
+                        }
+                    }
+                }, 4000);
+            } else {
+                Alert.alert('Error', res.error || 'Could not start verification');
+            }
+        } catch (e: any) {
+            Alert.alert('Error', e?.message || 'Could not start verification');
+        } finally {
+            setIgVerifying(false);
+        }
+    };
+
+    const handleIgModalClose = () => {
+        setIgVerifyModalVisible(false);
+        if (igModalStatus === 'EXPIRED' || igModalStatus === 'FAILED') {
+            setIgVerification(null);
+            setIgModalStatus('PENDING');
+        }
+    };
+
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
             form.email.trim() !== '' &&
             form.primaryLanguage !== '' &&
-            form.categoryIds.length > 0 &&
+            form.category !== '' &&
             form.bio.trim() !== '' &&
             form.portfolioUrl.trim() !== ''
         );
@@ -447,7 +617,7 @@ export default function FreelancerSignup() {
     const stripHandle = (v: string) => v.trim().replace(/^@/, '');
 
     const handleNext = () => {
-        if (!form.name || !form.email || !form.primaryLanguage || form.categoryIds.length === 0 || !form.bio || !form.portfolioUrl) {
+        if (!form.name || !form.email || !form.primaryLanguage || !form.category || !form.bio || !form.portfolioUrl) {
             Alert.alert('Incomplete Form', 'Please fill in all required fields including primary language, bio and portfolio.');
             return;
         }
@@ -483,7 +653,7 @@ export default function FreelancerSignup() {
             const payload: any = {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
-                categories: form.categoryIds,
+                categories: form.category ? [form.category] : [],
                 language: form.primaryLanguage,
                 languages: form.primaryLanguage
                     ? [form.primaryLanguage, ...form.otherLanguages.filter(l => l !== form.primaryLanguage)]
@@ -635,9 +805,8 @@ export default function FreelancerSignup() {
                                 required
                                 placeholder="Select category"
                                 options={categories}
-                                selected={form.categoryIds}
-                                onSelect={(v: string[]) => setForm({ ...form, categoryIds: v })}
-                                multiSelect
+                                selected={form.category}
+                                onSelect={(v: string) => setForm({ ...form, category: v })}
                                 itemKey={(i: any) => i.id}
                                 itemLabel={(i: any) => i.name}
                             />
@@ -661,12 +830,14 @@ export default function FreelancerSignup() {
                             <View className="mt-4 mb-8">
                                 <Text className="text-white font-poppins-bold text-xl mb-6">Social media Platforms</Text>
 
-                                <SocialRow
-                                    platform="Instagram"
-                                    linkValue={form.instagramHandle}
+                                <InstagramVerifyRow
+                                    value={form.instagramHandle}
                                     followersValue={form.instagramFollowers}
-                                    onLinkChange={(v: string) => setForm({ ...form, instagramHandle: v })}
+                                    onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
                                     onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
+                                    verified={igVerified}
+                                    onVerifyPress={handleIgVerify}
+                                    verifying={igVerifying}
                                 />
                                 <SocialRow
                                     platform="YouTube"
@@ -802,6 +973,15 @@ export default function FreelancerSignup() {
                 </ScrollView>
             </KeyboardAvoidingView>
             <SuccessModal visible={showSuccessModal} onClose={handleSuccessClose} />
+            <IgVerifyModal
+                visible={igVerifyModalVisible}
+                code={igVerification?.code}
+                instagramUsername={igVerification?.instagramUsername}
+                digiTagInstagram={igVerification?.digiTagInstagram}
+                expiresAt={igVerification?.expiresAt}
+                status={igModalStatus}
+                onClose={handleIgModalClose}
+            />
         </SafeAreaView>
     );
 }

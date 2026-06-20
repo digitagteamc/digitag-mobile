@@ -24,10 +24,32 @@ export class ApiRequestError extends Error {
     }
 }
 
-async function request(path: string, options: RequestInit = {}) {
+// Token refresh callback — set by AuthContext to avoid circular imports
+let _refreshTokenFn: (() => Promise<string | null>) | null = null;
+export function setRefreshTokenCallback(fn: () => Promise<string | null>) {
+    _refreshTokenFn = fn;
+}
+
+async function request(path: string, options: RequestInit = {}, _retry = true) {
     const res = await fetch(`${API_BASE_URL}${path}`, options);
     let json: any = null;
     try { json = await res.json(); } catch { /* empty body */ }
+
+    // Auto-refresh on 401 (expired access token)
+    if (res.status === 401 && _retry && _refreshTokenFn) {
+        const newToken = await _refreshTokenFn();
+        if (newToken) {
+            const newOptions = {
+                ...options,
+                headers: {
+                    ...(options.headers as Record<string, string> || {}),
+                    Authorization: `Bearer ${newToken}`,
+                },
+            };
+            return request(path, newOptions, false);
+        }
+    }
+
     if (!res.ok) {
         throw new ApiRequestError(
             json?.message || `Request failed: ${res.status}`,
@@ -434,6 +456,7 @@ type PostPayload = {
     imageUrl?: string;
     imageKey?: string;
     category?: string;
+    budget?: string;
 };
 
 /**
@@ -453,6 +476,8 @@ export const createPost = async (
             form.append('description', payload.description);
             if (payload.location) form.append('location', payload.location);
             if (payload.collaborationType) form.append('collaborationType', payload.collaborationType);
+            if (payload.category) form.append('category', payload.category);
+            if (payload.budget) form.append('budget', payload.budget);
             form.append('image', {
                 uri: imageFile.uri,
                 name: imageFile.name || 'upload.jpg',

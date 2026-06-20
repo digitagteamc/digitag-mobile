@@ -96,6 +96,7 @@ export default function ChatScreen() {
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
     const [keyboardHeight, setKeyboardHeight] = useState(0);
+    const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
 
     const listRef = useRef<FlatList<ChatMessage> | null>(null);
     const inputRef = useRef<TextInput>(null);
@@ -333,6 +334,7 @@ export default function ChatScreen() {
                                         swipeableRefs.current.get(msg.id)?.close();
                                         setTimeout(() => inputRef.current?.focus(), 150);
                                     }}
+                                    onImagePress={(url) => setViewImageUrl(url)}
                                     swipeableRefs={swipeableRefs}
                                 />
                             );
@@ -488,6 +490,32 @@ export default function ChatScreen() {
                 </View>
             )}
 
+            {/* ── Full-screen image viewer ─────────────────────────────────────── */}
+            <Modal
+                visible={!!viewImageUrl}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={() => setViewImageUrl(null)}
+            >
+                <View style={{ flex: 1, backgroundColor: '#000' }}>
+                    <TouchableOpacity
+                        style={{ position: 'absolute', top: (insets.top || 0) + 12, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                        onPress={() => setViewImageUrl(null)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Ionicons name="close" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    {viewImageUrl && (
+                        <Image
+                            source={{ uri: viewImageUrl }}
+                            style={{ flex: 1 }}
+                            resizeMode="contain"
+                        />
+                    )}
+                </View>
+            </Modal>
+
             {/* ── WhatsApp-style context menu modal ─────────────────────────── */}
             <Modal
                 visible={!!ctxMsg}
@@ -558,10 +586,11 @@ interface MessageRowProps {
     userId: string;
     onLongPress: (msg: ChatMessage, mine: boolean) => void;
     onSwipeReply: (msg: ChatMessage) => void;
+    onImagePress: (url: string) => void;
     swipeableRefs: React.MutableRefObject<Map<string, Swipeable>>;
 }
 
-function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSwipeReply, swipeableRefs }: MessageRowProps) {
+function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSwipeReply, onImagePress, swipeableRefs }: MessageRowProps) {
     const bubbleColor = mine ? DARK_BUBBLE : otherColor;
     const hasQuote = item.content.startsWith('> ');
     let quoteText = '';
@@ -611,7 +640,9 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
                             </View>
                         )}
                         {item.imageUrl && (
-                            <Image source={{ uri: item.imageUrl }} style={styles.bubbleImage} resizeMode="cover" />
+                            <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress(item.imageUrl!)}>
+                                <Image source={{ uri: item.imageUrl }} style={styles.bubbleImage} resizeMode="cover" />
+                            </TouchableOpacity>
                         )}
                         {bodyText ? <Text style={styles.bubbleText}>{bodyText}</Text> : null}
                         {/* Time + read receipt inside bubble */}

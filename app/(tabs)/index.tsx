@@ -1018,7 +1018,11 @@ export default function Homepage() {
               />
               {/* Inner glow ring */}
               <View style={styles.glassInnerGlow} pointerEvents="none" />
-              <View style={styles.floatingHeaderInner}>
+              <TouchableOpacity
+                style={styles.floatingHeaderInner}
+                activeOpacity={0.75}
+                onPress={() => router.push('/(tabs)/profile' as any)}
+              >
                 <View style={styles.headerAvatarWrap}>
                   {userAvatar ? (
                     <Image source={{ uri: userAvatar }} style={styles.headerAvatar} />
@@ -1029,12 +1033,14 @@ export default function Homepage() {
                   )}
                 </View>
                 <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.headerName}>{userName}</Text>
+                  <Text style={styles.headerName}>{userName || 'Hi, User'}</Text>
                   {userTagId ? (
                     <Text style={styles.headerTag}><Text style={{ fontWeight: '600', color: '#fff' }}>{userTagId}</Text></Text>
-                  ) : null}
+                  ) : (
+                    !userName ? <Text style={[styles.headerTag, { color: 'rgba(255,255,255,0.4)' }]}>DigiTag</Text> : null
+                  )}
                 </View>
-              </View>
+              </TouchableOpacity>
             </BlurView>
 
             <View style={styles.headerRightIcons}>

@@ -139,15 +139,17 @@ const TabButton = React.memo(({
 function FabButton({
     isFreelancer,
     onPress,
+    bottomOffset,
 }: {
     isFreelancer: boolean;
     onPress: () => void;
+    bottomOffset: number;
 }) {
     const creatorColors = ['#F15DAB', '#E91E8C'] as const;
     const freelancerColors = ['rgba(255, 131, 42, 1)', 'rgba(203, 104, 50, 1)'] as const;
 
     return (
-        <View style={[styles.fab, { shadowColor: isFreelancer ? 'rgba(255, 87, 0, 0.4)' : 'rgba(241, 93, 171, 0.4)' }]}>
+        <View style={[styles.fab, { bottom: bottomOffset, shadowColor: isFreelancer ? 'rgba(255, 87, 0, 0.4)' : 'rgba(241, 93, 171, 0.4)' }]}>
             <TouchableOpacity
                 activeOpacity={0.82}
                 style={styles.fabTouchable}
@@ -188,6 +190,8 @@ export default function AppBottomNav({
     const isFreelancer = userRole === 'FREELANCER';
 
     const bottomPad = insets.bottom > 0 ? insets.bottom : 0;
+    const navBarHeight = (Platform.OS === 'ios' ? 80 : 70) + bottomPad;
+    const fabBottom = navBarHeight + 16;
 
     return (
         <View style={styles.wrap}>
@@ -196,6 +200,7 @@ export default function AppBottomNav({
                 <FabButton
                     isFreelancer={isFreelancer}
                     onPress={onFabPress!}
+                    bottomOffset={fabBottom}
                 />
             )}
 
@@ -285,7 +290,7 @@ const styles = StyleSheet.create({
     fab: {
         position: 'absolute',
         right: 20,
-        bottom: Platform.OS === 'ios' ? 125 : 95,
+        bottom: 86,
         width: FAB_SIZE,
         height: FAB_SIZE,
         borderRadius: FAB_SIZE / 2,
