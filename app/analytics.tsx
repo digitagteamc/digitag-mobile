@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,50 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
+import { getUserStats, listCollaborations } from '../services/userService';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
   const { token } = useAuth();
 
+  const [loading, setLoading] = useState(true);
+  const [approved, setApproved] = useState(0);
+  const [pending, setPending] = useState(0);
+  const [total, setTotal] = useState(0);
+
   useEffect(() => {
     if (!token) {
       router.replace('/login' as any);
+      return;
     }
+    const load = async () => {
+      setLoading(true);
+      try {
+        const [statsRes, pendingRes, approvedRes] = await Promise.all([
+          getUserStats(token),
+          listCollaborations(token, { direction: 'incoming', status: 'PENDING' }),
+          listCollaborations(token, { status: 'ACCEPTED' }),
+        ]);
+        if (statsRes.success && statsRes.data) {
+          setTotal(statsRes.data.collabCount ?? 0);
+        }
+        if (pendingRes.success) {
+          setPending(Array.isArray(pendingRes.data) ? pendingRes.data.length : 0);
+        }
+        if (approvedRes.success) {
+          setApproved(Array.isArray(approvedRes.data) ? approvedRes.data.length : 0);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, [token]);
 
   if (!token) return null;
@@ -30,8 +60,8 @@ export default function AnalyticsScreen() {
       <StatusBar barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={() => router.back()}
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
@@ -40,51 +70,56 @@ export default function AnalyticsScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.statsRow}>
-            <View style={styles.statCardSmall}>
-              <View style={styles.iconCircleWrapper}>
-                <View style={[styles.iconCircle, styles.approvedIconCircle]}>
-                   <Ionicons name="checkmark" size={20} color="#fff" />
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#F15DAB" size="large" />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.statsRow}>
+              <View style={styles.statCardSmall}>
+                <View style={styles.iconCircleWrapper}>
+                  <View style={[styles.iconCircle, styles.approvedIconCircle]}>
+                    <Ionicons name="checkmark" size={20} color="#fff" />
+                  </View>
+                  <View style={styles.dottedBorder} />
                 </View>
-                <View style={styles.dottedBorder} />
+                <Text style={styles.statLabel}>Approved request</Text>
+                <Text style={styles.statValue}>{approved}</Text>
               </View>
-              <Text style={styles.statLabel}>Approved request</Text>
-              <Text style={styles.statValue}>3</Text>
+
+              <View style={styles.statCardSmall}>
+                <View style={styles.iconCircleWrapper}>
+                  <View style={[styles.iconCircle, styles.pendingIconCircle]}>
+                    <View style={styles.innerDottedCircle} />
+                  </View>
+                </View>
+                <Text style={styles.statLabel}>Pending Request</Text>
+                <Text style={styles.statValue}>{pending}</Text>
+              </View>
             </View>
 
-            <View style={styles.statCardSmall}>
-              <View style={styles.iconCircleWrapper}>
-                <View style={[styles.iconCircle, styles.pendingIconCircle]}>
-                   <View style={styles.innerDottedCircle} />
+            <View style={styles.totalCard}>
+              <View style={styles.totalCardContent}>
+                <View>
+                  <Text style={styles.totalLabel}>Total Collaboration</Text>
+                  <Text style={styles.totalValue}>{total}</Text>
                 </View>
-              </View>
-              <Text style={styles.statLabel}>Pending Request</Text>
-              <Text style={styles.statValue}>5</Text>
-            </View>
-          </View>
 
-          {/* Bottom Card: Total Collaboration */}
-          <View style={styles.totalCard}>
-            <View style={styles.totalCardContent}>
-              <View>
-                <Text style={styles.totalLabel}>Total Collaboration</Text>
-                <Text style={styles.totalValue}>12</Text>
+                <TouchableOpacity onPress={() => router.push('/notifications' as any)}>
+                  <LinearGradient
+                    colors={['#F15DAB', '#ED2A91']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.viewRequestBtn}
+                  >
+                    <Text style={styles.viewRequestText}>View Request</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
-              
-              <TouchableOpacity onPress={() => router.push('/notifications' as any)}>
-                <LinearGradient
-                  colors={['#F15DAB', '#ED2A91']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.viewRequestBtn}
-                >
-                  <Text style={styles.viewRequestText}>View Request</Text>
-                </LinearGradient>
-              </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );

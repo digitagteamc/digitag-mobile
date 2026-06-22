@@ -103,7 +103,14 @@ export default function CreatorDetails() {
             const res = isFollowing
                 ? await unfollowUser(token, resolvedUserId)
                 : await followUser(token, resolvedUserId);
-            if (res.success) setIsFollowing(!isFollowing);
+            if (res.success) {
+                const wasFollowing = isFollowing;
+                setIsFollowing(!wasFollowing);
+                setStats((prev: any) => prev ? {
+                    ...prev,
+                    followerCount: (prev.followerCount ?? 0) + (wasFollowing ? -1 : 1),
+                } : prev);
+            }
         } finally {
             setFollowBusy(false);
         }
