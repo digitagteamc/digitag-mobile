@@ -57,6 +57,7 @@ export default function PostDetail() {
 
   const load = useCallback(async () => {
     if (!token || !postId) { setLoading(false); return; }
+    if (!requireProfile('view this post')) { setLoading(false); return; }
     const res = await getPostById(postId, token);
     if (res.success && res.data) {
       setPost(res.data);
@@ -69,7 +70,7 @@ export default function PostDetail() {
       if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
     }
     setLoading(false);
-  }, [token, postId]);
+  }, [token, postId, requireProfile]);
 
   useEffect(() => { load(); }, [load]);
 

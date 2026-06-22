@@ -259,7 +259,7 @@ const InstagramVerifyRow = ({
                     editable={!verified}
                 />
             </View>
-            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#1a1200]' : 'bg-[#1A1A1A]'}`}>
+            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#1a1200] border border-[#F26930]/30' : 'bg-[#1A1A1A]'}`}>
                 <TextInput
                     placeholder="Followers"
                     placeholderTextColor="#555"
@@ -267,7 +267,7 @@ const InstagramVerifyRow = ({
                     value={followersValue}
                     onChangeText={onFollowersChange}
                     className="text-white font-poppins-regular text-[12px] text-center"
-                    editable={!verified}
+                    editable={true}
                 />
             </View>
         </View>

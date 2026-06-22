@@ -94,6 +94,11 @@ export default function CreatePost() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    requireProfile('create a post');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     AsyncStorage.getItem(DRAFT_KEY).then(raw => {
       if (!raw) return;
       try {
