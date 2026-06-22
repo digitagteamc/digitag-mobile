@@ -700,8 +700,8 @@ export default function Homepage() {
           if (!token) { setPosts([]); setLoading(false); return; }
           const res = await getFeed(token);
           const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-          if (allPosts.length > 0) {
-            scrollX.setValue(allPosts.length * 10 * ITEM_SIZE);
+          if (allPosts.length > 1) {
+            scrollX.setValue(allPosts.length * ITEM_SIZE);
           }
           setPosts(allPosts);
         } catch {
@@ -899,7 +899,7 @@ export default function Homepage() {
     }
   };
 
-  const cards = posts.map(post => {
+  const cards = React.useMemo(() => posts.map(post => {
     const owner = post.owner || {};
     const name = getOwnerName(owner);
     const pic = owner.profilePicture || null;
@@ -922,11 +922,10 @@ export default function Homepage() {
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
     };
-  });
-
+  }), [posts]);
 
   const carouselData = React.useMemo(() => {
-    const copies = cards.length <= 1 ? 1 : 20;
+    const copies = cards.length <= 1 ? 1 : 3;
     return Array(copies).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` }));
   }, [cards]);
 
@@ -1224,7 +1223,7 @@ export default function Homepage() {
                 offset: ITEM_SIZE * index,
                 index,
               })}
-              initialScrollIndex={cards.length > 0 ? cards.length * 10 : 0}
+              initialScrollIndex={cards.length > 1 ? cards.length : 0}
               onScroll={Animated.event(
                 [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                 { useNativeDriver: true }
