@@ -106,6 +106,50 @@ export default function LoginScreen() {
         return () => backHandler.remove();
     }, [step, screenHeight]);
 
+    // Listen to Firebase Auth state for automatic SMS verification (Android auto-retrieval)
+    useEffect(() => {
+        if (step !== 2) return;
+
+        const unsubscribe = auth().onAuthStateChanged(async (user) => {
+            if (user && user.phoneNumber === `+91${phoneNumber.replace(/\s+/g, '')}`) {
+                setLoading(true);
+                setOtpError(null);
+                try {
+                    const idToken = await user.getIdToken();
+                    const cleanPhone = phoneNumber.replace(/\s+/g, '');
+                    const res = await verifyFirebaseToken(idToken, role);
+
+                    if (!res.success) {
+                        setOtpError(res.error || 'Invalid OTP.');
+                        return;
+                    }
+
+                    const verifiedRole = (res.user?.role as string | undefined) ?? role;
+                    const userIdFromBackend = res.user?.id;
+                    const profileDone = Boolean(res.isProfileCompleted);
+
+                    login({
+                        phone: cleanPhone,
+                        token: res.token,
+                        refreshToken: res.refreshToken,
+                        role: verifiedRole,
+                        id: userIdFromBackend,
+                        isProfileCompleted: profileDone,
+                        profiles: res.profiles as any,
+                    });
+
+                    router.replace('/(tabs)');
+                } catch (error: any) {
+                    setOtpError(error.message || 'Verification failed.');
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [step, phoneNumber, role]);
+
     // ── Validation ──
     const validatePhone = (v: string): string | null => {
         const digits = v.replace(/\D/g, '');
@@ -126,6 +170,10 @@ export default function LoginScreen() {
         setSendingOtp(true);
 
         try {
+            // Sign out of any previous Firebase session to ensure a clean new OTP flow
+            if (auth().currentUser) {
+                await auth().signOut();
+            }
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
             setConfirm(confirmation);
@@ -146,17 +194,23 @@ export default function LoginScreen() {
         setLoading(true);
         setOtpError(null);
         try {
-            if (!confirm) {
-                setOtpError('Session expired. Request OTP again.');
-                return;
+            const cleanPhone = phoneNumber.replace(/\s+/g, '');
+            const expectedPhone = `+91${cleanPhone}`;
+            let currentUser = auth().currentUser;
+
+            // If already signed in automatically via SMS retriever, skip confirm.confirm
+            if (!currentUser || currentUser.phoneNumber !== expectedPhone) {
+                if (!confirm) {
+                    setOtpError('Session expired. Request OTP again.');
+                    return;
+                }
+                await confirm.confirm(otp);
+                currentUser = auth().currentUser;
             }
 
-            await confirm.confirm(otp);
-            const currentUser = auth().currentUser;
             if (!currentUser) throw new Error('Verification failed.');
 
             const idToken = await currentUser.getIdToken();
-            const cleanPhone = phoneNumber.replace(/\s+/g, '');
             const res = await verifyFirebaseToken(idToken, role);
 
             if (!res.success) {

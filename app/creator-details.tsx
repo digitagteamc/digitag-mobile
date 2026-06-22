@@ -343,12 +343,12 @@ export default function CreatorDetails() {
                     <View style={styles.statsCard}>
                         <View style={styles.statBox}>
                             <Text style={styles.statLabel}>Followers</Text>
-                            <Text style={styles.statValue}>{stats?.followerCount || '85K'}</Text>
+                            <Text style={styles.statValue}>{stats?.followerCount ?? 0}</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>
                             <Text style={styles.statLabel}>Following</Text>
-                            <Text style={styles.statValue}>{stats?.followingCount || '15K'}</Text>
+                            <Text style={styles.statValue}>{stats?.followingCount ?? 0}</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>

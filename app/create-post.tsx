@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -213,14 +213,6 @@ export default function CreatePost() {
             textAlignVertical="top"
             maxLength={1800}
           />
-          <View style={styles.mediaActions}>
-            <TouchableOpacity style={styles.mediaIconBtn} onPress={() => Alert.alert('Coming Soon', 'Image uploads coming soon.')}>
-              <Ionicons name="image-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.mediaIconBtn} onPress={() => Alert.alert('Coming Soon', 'Video uploads coming soon.')}>
-              <Feather name="youtube" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* ── Location ── */}
@@ -442,9 +434,6 @@ const styles = StyleSheet.create({
   },
   titleInput: { color: '#fff', fontSize: 20, fontWeight: '600', marginBottom: 4 },
   bodyInput: { flex: 1, color: '#E0E0E0', fontSize: 15, minHeight: 100 },
-  mediaActions: { flexDirection: 'row', marginTop: 16, gap: 16 },
-  mediaIconBtn: { opacity: 0.9 },
-
   listBtn: {
     backgroundColor: '#1E1E24',
     borderRadius: 14,

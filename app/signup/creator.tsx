@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import {
+    getCategories,
     getInstagramVerificationStatus,
     getMyCreatorProfile,
     startInstagramVerification,
@@ -152,8 +153,8 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
 
     const handleOpen = () => {
         if (triggerRef.current) {
-            triggerRef.current.measure((x, y, width, height, pageX, pageY) => {
-                setLayout({ x: pageX, y: pageY, width, height });
+            triggerRef.current.measureInWindow((x, y, width, height) => {
+                setLayout({ x, y, width, height });
                 setModalVisible(true);
             });
         }
@@ -198,22 +199,22 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                         onPress={(e) => e.stopPropagation()}
                         style={{
                             position: 'absolute',
-                            top: layout.y + layout.height - 30,
+                            top: layout.y + layout.height + 4,
                             left: layout.x,
                             width: layout.width,
-                            maxHeight: 220,
-                            borderRadius: 24,
+                            maxHeight: 260,
+                            borderRadius: 16,
                             overflow: 'hidden',
                             borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.2)',
+                            borderColor: 'rgba(255,255,255,0.15)',
+                            backgroundColor: '#1E1E1E',
                         }}
                     >
                         <LinearGradient
-                            colors={['rgba(40, 40, 40, 0.97)', 'rgba(20, 20, 20, 0.99)']}
-                            style={{ flex: 1 }}
+                            colors={['rgba(40,40,40,0.98)', 'rgba(20,20,20,1)']}
+                            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                         />
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 8 }}>
-                            {/* Close button */}
+                        <View style={{ padding: 8 }}>
                             <TouchableOpacity
                                 onPress={() => setModalVisible(false)}
                                 style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
@@ -222,7 +223,7 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                             >
                                 <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
                             </TouchableOpacity>
-                            <ScrollView showsVerticalScrollIndicator style={{ paddingVertical: 8 }} indicatorStyle="white">
+                            <ScrollView showsVerticalScrollIndicator={false} style={{ paddingTop: 8, maxHeight: 220 }} indicatorStyle="white">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
                                     const lbl = itemLabel(option);
@@ -232,9 +233,9 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                                             key={key}
                                             onPress={() => handleSelect(option)}
                                             activeOpacity={0.7}
-                                            style={{ paddingHorizontal: 24, paddingVertical: 14, marginBottom: 4, borderRadius: 12, backgroundColor: sel ? 'rgba(240,44,140,0.13)' : 'transparent' }}
+                                            style={{ paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderRadius: 10, backgroundColor: sel ? 'rgba(240,44,140,0.15)' : 'transparent' }}
                                         >
-                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 16, color: sel ? '#F02C8C' : '#fff' }}>
+                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: sel ? '#F02C8C' : '#fff' }}>
                                                 {lbl}
                                             </Text>
                                         </TouchableOpacity>
@@ -548,7 +549,15 @@ export default function CreatorSignup() {
     const [prefilling, setPrefilling] = useState(true);
     const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
-    const [categories] = useState<{ id: string; name: string }[]>(CREATOR_CATEGORIES);
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>(CREATOR_CATEGORIES);
+
+    useEffect(() => {
+        getCategories({ role: 'CREATOR' }).then(res => {
+            if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
+            }
+        });
+    }, []);
 
     // Instagram verification state
     const [igVerified, setIgVerified] = useState(false);
@@ -708,7 +717,7 @@ export default function CreatorSignup() {
         );
     };
 
-    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '');
+    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '').replace(/[/?#].*$/, '');
 
     const isValidUrl = (v: string) => {
         try { new URL(v); return true; } catch { return false; }
@@ -1030,10 +1039,11 @@ export default function CreatorSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                className="h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 bg-[#F02C8C]"
+                                disabled={!isStep1Valid || !igVerified}
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep1Valid && igVerified ? 'bg-[#F02C8C]' : 'bg-[#2A2A2A]'}`}
                                 activeOpacity={0.8}
                             >
-                                <Text className="font-poppins-bold text-lg text-white">Next</Text>
+                                <Text className={`font-poppins-bold text-lg ${isStep1Valid && igVerified ? 'text-white' : 'text-[#666]'}`}>Next</Text>
                             </TouchableOpacity>
                         </>
                     ) : (

@@ -925,10 +925,10 @@ export default function Homepage() {
   });
 
 
-  const carouselData = React.useMemo(() =>
-    Array(20).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` })),
-    [cards]
-  );
+  const carouselData = React.useMemo(() => {
+    const copies = cards.length <= 1 ? 1 : 20;
+    return Array(copies).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` }));
+  }, [cards]);
 
   const carouselOffsets = React.useMemo(() =>
     carouselData.map((_, i) => i * ITEM_SIZE),

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../context/AuthContext';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const { token } = useAuth();
+
+  useEffect(() => {
+    if (!token) {
+      router.replace('/login' as any);
+    }
+  }, [token]);
+
+  if (!token) return null;
 
   return (
     <View style={styles.container}>
