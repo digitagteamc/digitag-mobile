@@ -126,7 +126,7 @@ export default function ProfileScreen() {
               profilePicture: p.profilePicture || null,
               bio: p.bio || null,
               category: p.category?.name || null,
-              categories: p.categories && p.categories.length > 0 ? p.categories : null,
+              categories: null,
               email: p.email || null,
               location: p.location || null,
               languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : null),
