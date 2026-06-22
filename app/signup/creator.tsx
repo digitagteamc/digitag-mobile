@@ -35,25 +35,6 @@ import {
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
 const LEVELS = ['Beginner', 'Intermediate', 'Pro'];
-const CREATOR_CATEGORIES = [
-    { id: 'Fashion & Lifestyle', name: 'Fashion & Lifestyle' },
-    { id: 'Beauty & Skincare', name: 'Beauty & Skincare' },
-    { id: 'Fitness & Health', name: 'Fitness & Health' },
-    { id: 'Tech', name: 'Tech' },
-    { id: 'Food & Cooking', name: 'Food & Cooking' },
-    { id: 'Travel', name: 'Travel' },
-    { id: 'Lifestyle', name: 'Lifestyle' },
-    { id: 'Gaming', name: 'Gaming' },
-    { id: 'Education', name: 'Education' },
-    { id: 'Business & Finance', name: 'Business & Finance' },
-    { id: 'Art & Creativity', name: 'Art & Creativity' },
-    { id: 'Sports', name: 'Sports' },
-    { id: 'Music', name: 'Music' },
-    { id: 'Parenting', name: 'Parenting' },
-    { id: 'Home & Garden', name: 'Home & Garden' },
-    { id: 'Entertainment', name: 'Entertainment' }
-];
-
 // --- Sub-components ---
 
 const CircularProgress = ({ current, total }: { current: number; total: number }) => {
@@ -549,11 +530,11 @@ export default function CreatorSignup() {
     const [prefilling, setPrefilling] = useState(true);
     const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
-    const [categories, setCategories] = useState<{ id: string; name: string }[]>(CREATOR_CATEGORIES);
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
     useEffect(() => {
         getCategories({ role: 'CREATOR' }).then(res => {
-            if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            if (res.success && Array.isArray(res.data)) {
                 setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
             }
         });
