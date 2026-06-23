@@ -405,35 +405,42 @@ export default function LoginScreen() {
                                     )}
 
                                     {/* 6-Digit OTP Boxes */}
-                                    <TouchableOpacity
-                                        activeOpacity={1}
-                                        onPress={() => otpInputRef.current?.focus()}
-                                        className="flex-row justify-between gap-[8px] mb-[20px] px-[4px]"
-                                    >
-                                        {[0, 1, 2, 3, 4, 5].map((index) => {
-                                            const digit = otp[index];
-                                            const isActive = otp.length === index;
-                                            return (
-                                                <View
-                                                    key={index}
-                                                    className={`flex-1 aspect-square rounded-[18px] border justify-center items-center ${isActive ? 'border-white' : 'border-white/10'}`}
-                                                >
-                                                    <Text className="text-white text-[22px] font-poppins-semibold">{digit || ''}</Text>
-                                                </View>
-                                            );
-                                        })}
-                                    </TouchableOpacity>
+                                    <View className="relative mb-[20px]">
+                                        <View
+                                            pointerEvents="none"
+                                            className="flex-row justify-between gap-[8px] px-[4px]"
+                                        >
+                                            {[0, 1, 2, 3, 4, 5].map((index) => {
+                                                const digit = otp[index];
+                                                const isActive = otp.length === index;
+                                                return (
+                                                    <View
+                                                        key={index}
+                                                        className={`flex-1 aspect-square rounded-[18px] border justify-center items-center ${isActive ? 'border-white' : 'border-white/10'}`}
+                                                    >
+                                                        <Text className="text-white text-[22px] font-poppins-semibold">{digit || ''}</Text>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
 
-                                    {/* Hidden real input — editable only when OTP screen is active */}
-                                    <TextInput
-                                        ref={otpInputRef}
-                                        className="absolute w-[1px] h-[1px] opacity-0"
-                                        value={otp}
-                                        onChangeText={setOtp}
-                                        keyboardType="number-pad"
-                                        maxLength={6}
-                                        editable={step === 2}
-                                    />
+                                        {/* Real input overlays the whole row (transparent, not 1px) so tap-to-focus
+                                            and the OS long-press "Paste" action both land on an actual text field
+                                            instead of a decorative box — pasting a copied OTP now works. */}
+                                        <TextInput
+                                            ref={otpInputRef}
+                                            className="absolute top-0 left-0 right-0 bottom-0 opacity-0"
+                                            value={otp}
+                                            onChangeText={(v) => setOtp(v.replace(/[^0-9]/g, '').slice(0, 6))}
+                                            keyboardType="number-pad"
+                                            textContentType="oneTimeCode"
+                                            autoComplete="sms-otp"
+                                            maxLength={6}
+                                            editable={step === 2}
+                                            caretHidden
+                                            contextMenuHidden={false}
+                                        />
+                                    </View>
 
                                     {/* OTP inline error */}
                                     {otpError ? (

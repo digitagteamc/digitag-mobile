@@ -17,7 +17,7 @@ import { getUserStats, listCollaborations } from '../services/userService';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, isProfileCompleted, userRole } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [approved, setApproved] = useState(0);
@@ -27,6 +27,11 @@ export default function AnalyticsScreen() {
   useEffect(() => {
     if (!token) {
       router.replace('/login' as any);
+      return;
+    }
+    if (!isProfileCompleted) {
+      const signupPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+      router.replace(signupPath as any);
       return;
     }
     const load = async () => {
@@ -53,7 +58,7 @@ export default function AnalyticsScreen() {
     load();
   }, [token]);
 
-  if (!token) return null;
+  if (!token || !isProfileCompleted) return null;
 
   return (
     <View style={styles.container}>

@@ -69,7 +69,7 @@ const FREELANCER_CATEGORIES = [
 export default function CreatePost() {
   const router = useRouter();
   const { token, userRole } = useAuth();
-  const { requireProfile } = useProfileGate();
+  const { requireProfile, isProfileCompleted } = useProfileGate();
   const theme = useRoleTheme();
 
   const isCreator = userRole === 'CREATOR';
@@ -94,9 +94,12 @@ export default function CreatePost() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    requireProfile('create a post');
+    if (!isProfileCompleted) {
+      requireProfile('create a post');
+      router.back();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isProfileCompleted]);
 
   useEffect(() => {
     AsyncStorage.getItem(DRAFT_KEY).then(raw => {
@@ -133,6 +136,17 @@ export default function CreatePost() {
     await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory }));
     Alert.alert('Draft Saved', 'Your draft has been saved.');
   };
+
+  // Silent debounced autosave — if the OS kills the app while the user is away
+  // (e.g. switched apps to grab a reference photo), the manual "Save Draft"
+  // button alone wouldn't have caught it, so persist on every change too.
+  useEffect(() => {
+    if (!title.trim() && !body.trim()) return;
+    const t = setTimeout(() => {
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory })).catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [title, body, location, collab, selectedCategory]);
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : collabPlaceholder;
   const categoryLabel = selectedCategory ?? 'Select Category';

@@ -631,7 +631,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
 export default function Homepage() {
   const router = useRouter();
-  const { token, isGuest, userRole, userId } = useAuth();
+  const { token, isGuest, userRole, userId, isProfileCompleted } = useAuth();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
@@ -899,7 +899,11 @@ export default function Homepage() {
     }
   };
 
-  const cards = React.useMemo(() => posts.map(post => {
+  const PREVIEW_POST_LIMIT = 3;
+  const visiblePosts = isProfileCompleted ? posts : posts.slice(0, PREVIEW_POST_LIMIT);
+  const hasMoreHiddenPosts = !isProfileCompleted && posts.length > PREVIEW_POST_LIMIT;
+
+  const cards = React.useMemo(() => visiblePosts.map(post => {
     const owner = post.owner || {};
     const name = getOwnerName(owner);
     const pic = owner.profilePicture || null;
@@ -922,7 +926,7 @@ export default function Homepage() {
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
     };
-  }), [posts]);
+  }), [visiblePosts]);
 
   const carouselData = React.useMemo(() => {
     const copies = cards.length <= 1 ? 1 : 3;
@@ -1252,6 +1256,31 @@ export default function Homepage() {
           </LinearGradient>
         )}
 
+        {hasMoreHiddenPosts && (
+          <View style={{ paddingHorizontal: 16, marginTop: 4, marginBottom: 12 }}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => requireProfile('see more posts')}
+              style={{
+                backgroundColor: '#0A0A0A',
+                borderWidth: 1,
+                borderColor: (userRole === 'FREELANCER' ? '#f26930' : '#ed2a91') + '55',
+                borderRadius: 18,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Text style={{ color: '#fff', fontFamily: 'Poppins_500Medium', fontSize: 14, flex: 1 }}>
+                Complete your profile to see more posts
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={{ paddingHorizontal: 16 }}>
           <TouchableOpacity
             style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
@@ -1273,7 +1302,10 @@ export default function Homepage() {
             <TouchableOpacity
               style={styles.createPostCard}
               activeOpacity={0.8}
-              onPress={() => router.push('/create-post' as any)}
+              onPress={() => {
+                if (!requireProfile('create a post')) return;
+                router.push('/create-post' as any);
+              }}
               onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
             >
               {createPostWidth > 0 && (

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -397,6 +398,8 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
 
 // --- Main Component ---
 
+const FREELANCER_DRAFT_KEY = '@draft_freelancer_profile';
+
 export default function FreelancerSignup() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -445,6 +448,11 @@ export default function FreelancerSignup() {
         twitterFollowers: '',
     });
 
+    // Restores in-progress signup data after the OS kills/reloads the app (e.g. while
+    // the user is away taking an IG screenshot or backgrounded mid-form) so they don't
+    // have to retype everything. Only applies when no server profile is found below.
+    const draftRestoredRef = useRef(false);
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -460,6 +468,8 @@ export default function FreelancerSignup() {
                 if (!cancelled && existing.success && existing.data) {
                     const p = existing.data;
                     setMode('update');
+                    draftRestoredRef.current = true; // editing real data — never overwrite with a stale draft
+                    AsyncStorage.removeItem(FREELANCER_DRAFT_KEY).catch(() => {});
                     const skills = Array.isArray(p.skills) ? p.skills : [];
                     setForm(prev => ({
                         ...prev,
@@ -488,6 +498,17 @@ export default function FreelancerSignup() {
                         snapchatHandle: p.snapchatHandle || '',
                         snapchatFollowers: p.snapchatFollowers?.toString() || '',
                     }));
+                } else if (!cancelled) {
+                    // No server profile — restore an in-progress draft, if any.
+                    try {
+                        const raw = await AsyncStorage.getItem(FREELANCER_DRAFT_KEY);
+                        if (raw && !cancelled) {
+                            const draft = JSON.parse(raw);
+                            if (draft?.form) setForm(prev => ({ ...prev, ...draft.form }));
+                            if (draft?.step) setStep(draft.step);
+                        }
+                    } catch {}
+                    draftRestoredRef.current = true;
                 }
             }
             if (!cancelled) setPrefilling(false);
@@ -497,6 +518,17 @@ export default function FreelancerSignup() {
             cancelled = true;
         };
     }, [token]);
+
+    // Debounced draft autosave — only while creating a brand-new profile, so an
+    // app kill (backgrounding for the IG verify flow, low-memory reclaim, etc.)
+    // doesn't wipe out everything the user already typed.
+    useEffect(() => {
+        if (prefilling || mode !== 'create' || !draftRestoredRef.current) return;
+        const t = setTimeout(() => {
+            AsyncStorage.setItem(FREELANCER_DRAFT_KEY, JSON.stringify({ form, step })).catch(() => {});
+        }, 500);
+        return () => clearTimeout(t);
+    }, [form, step, prefilling, mode]);
 
     useEffect(() => {
         const backAction = () => {
@@ -561,7 +593,7 @@ export default function FreelancerSignup() {
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
-            form.email.trim() !== '' &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
             form.bio.trim() !== '' &&
@@ -712,6 +744,7 @@ export default function FreelancerSignup() {
                 : await createFreelancerProfile(payload, token);
 
             if (result.success) {
+                AsyncStorage.removeItem(FREELANCER_DRAFT_KEY).catch(() => {});
                 setProfileCompleted(true);
                 setProfiles({ FREELANCER: true });
                 setShowSuccessModal(true);
@@ -844,15 +877,25 @@ export default function FreelancerSignup() {
                             <View className="mt-4 mb-8">
                                 <Text className="text-white font-poppins-bold text-xl mb-6">Social media Platforms</Text>
 
-                                <InstagramVerifyRow
-                                    value={form.instagramHandle}
-                                    followersValue={form.instagramFollowers}
-                                    onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
-                                    onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
-                                    verified={igVerified}
-                                    onVerifyPress={handleIgVerify}
-                                    verifying={igVerifying}
-                                />
+                                {mode === 'update' ? (
+                                    <View className="mb-4">
+                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+                                        <View className="bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center flex-row items-center">
+                                            <Text className="text-[#888] font-poppins-regular flex-1">@{form.instagramHandle || '—'}</Text>
+                                            <Text className="text-[#555] text-[11px] font-poppins-regular">Verified · Not editable</Text>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <InstagramVerifyRow
+                                        value={form.instagramHandle}
+                                        followersValue={form.instagramFollowers}
+                                        onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
+                                        onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
+                                        verified={igVerified}
+                                        onVerifyPress={handleIgVerify}
+                                        verifying={igVerifying}
+                                    />
+                                )}
                                 <SocialRow
                                     platform="YouTube"
                                     linkValue={form.youtubeHandle}
@@ -885,11 +928,11 @@ export default function FreelancerSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                disabled={!isStep1Valid}
-                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-2 mb-5 ${isStep1Valid ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
+                                disabled={!isStep1Valid || (mode === 'create' && !igVerified)}
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-2 mb-5 ${isStep1Valid && (mode === 'update' || igVerified) ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
-                                <Text className={`font-poppins-bold text-lg  ${isStep1Valid ? 'text-white' : 'text-[#F5F5F5]'}`}>Next</Text>
+                                <Text className={`font-poppins-bold text-lg  ${isStep1Valid && (mode === 'update' || igVerified) ? 'text-white' : 'text-[#F5F5F5]'}`}>Next</Text>
                             </TouchableOpacity>
                         </>
                     ) : (

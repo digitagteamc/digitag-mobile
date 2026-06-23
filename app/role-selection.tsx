@@ -263,9 +263,11 @@ export default function RoleSelectionScreen() {
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
     const { width: screenWidth } = useWindowDimensions();
-    // Adaptive card dimensions: horizontal padding 20 each side, 8dp gap between the two columns
-    const cardWidth = (screenWidth - 40 - 8) / 2;
-    const imgSize = Math.min(cardWidth * 0.88, 155);
+    // Adaptive card dimensions: horizontal padding 20 each side, 8dp gap between the two columns.
+    // Capped at 190 so very wide screens (large phones/tablets) don't stretch the cards into a
+    // shape where the fixed-size floating image looks disproportionately small ("shrinking").
+    const cardWidth = Math.min((screenWidth - 40 - 8) / 2, 190);
+    const imgSize = cardWidth * 0.88;
     const imgOverflow = imgSize * 0.48; // how much image floats above card top
 
     useEffect(() => {
@@ -325,43 +327,41 @@ export default function RoleSelectionScreen() {
                         </Text>
                     </View>
 
-                    {/* Feature Cards Row */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        className="mb-4"
-                        contentContainerStyle={{ paddingRight: 20 }}
-                    >
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
-                            {[
-                                { title: 'Collaborate', desc: 'Work with top pros', emoji: '🤝', color: '#FF618C', bg: 'rgba(255, 97, 140, 0.15)' },
-                                { title: 'Get Hired', desc: 'Land freelance gigs', emoji: '💼', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
-                                { title: 'Grow Brand', desc: 'Expand your reach', emoji: '🌐', color: '#8F38FF', bg: 'rgba(143, 56, 255, 0.15)' },
-                            ].map((feature, idx) => (
-                                <View
-                                    key={idx}
-                                    style={{ backgroundColor: feature.bg, borderColor: `${feature.color}44` }}
-                                    className="w-[120px] rounded-[14px] p-2 border-[1.1px]"
-                                >
-                                    <View className="mb-1 bg-black/20 w-7 h-7 rounded-[7px] items-center justify-center relative">
-                                        {feature.title === 'Grow Brand' && (
-                                            <View className="absolute w-4 h-4 bg-white rounded-full" />
-                                        )}
-                                        <Text className="text-[14px]">{feature.emoji}</Text>
-                                    </View>
-                                    <Text
-                                        className="font-poppins-semibold text-[16px]"
-                                        style={{ color: feature.color }}
-                                    >
-                                        {feature.title}
-                                    </Text>
-                                    <Text className="text-[#F2F2F2] font-poppins-regular text-[10px] mt-0.5 leading-[12px]">
-                                        {feature.desc}
-                                    </Text>
+                    {/* Feature Cards Row — width derived from screen width so all 3 always fit without scrolling */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                        {[
+                            { title: 'Collaborate', desc: 'Work with top pros', emoji: '🤝', color: '#FF618C', bg: 'rgba(255, 97, 140, 0.15)' },
+                            { title: 'Get Hired', desc: 'Land freelance gigs', emoji: '💼', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
+                            { title: 'Grow Brand', desc: 'Expand your reach', emoji: '🌐', color: '#8F38FF', bg: 'rgba(143, 56, 255, 0.15)' },
+                        ].map((feature, idx) => (
+                            <View
+                                key={idx}
+                                style={{ backgroundColor: feature.bg, borderColor: `${feature.color}44`, flex: 1 }}
+                                className="rounded-[14px] p-2 border-[1.1px]"
+                            >
+                                <View className="mb-1 bg-black/20 w-7 h-7 rounded-[7px] items-center justify-center relative">
+                                    {feature.title === 'Grow Brand' && (
+                                        <View className="absolute w-4 h-4 bg-white rounded-full" />
+                                    )}
+                                    <Text className="text-[14px]">{feature.emoji}</Text>
                                 </View>
-                            ))}
-                        </View>
-                    </ScrollView>
+                                <Text
+                                    className="font-poppins-semibold text-[15px]"
+                                    style={{ color: feature.color }}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                >
+                                    {feature.title}
+                                </Text>
+                                <Text
+                                    className="text-[#F2F2F2] font-poppins-regular text-[10px] mt-0.5 leading-[12px]"
+                                    numberOfLines={2}
+                                >
+                                    {feature.desc}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
 
                     {/* Profile Type Selection Header */}
                     <View className="mb-0 mt-[20px]">
@@ -371,7 +371,7 @@ export default function RoleSelectionScreen() {
                     </View>
 
                     {/* 2x2 Grid */}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 0, marginTop: -24 }}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 0, marginTop: -imgOverflow * 0.35, alignSelf: 'center', width: cardWidth * 2 + 8 }}>
                         {roles.map((role) => {
                             const isSelected = selectedRole === role.id;
                             const size = cardSizes[role.id];
