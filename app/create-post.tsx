@@ -1,4 +1,4 @@
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -69,7 +69,7 @@ const FREELANCER_CATEGORIES = [
 export default function CreatePost() {
   const router = useRouter();
   const { token, userRole } = useAuth();
-  const { requireProfile } = useProfileGate();
+  const { requireProfile, isProfileCompleted } = useProfileGate();
   const theme = useRoleTheme();
 
   const isCreator = userRole === 'CREATOR';
@@ -94,9 +94,12 @@ export default function CreatePost() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    requireProfile('create a post');
+    if (!isProfileCompleted) {
+      requireProfile('create a post');
+      router.back();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isProfileCompleted]);
 
   useEffect(() => {
     AsyncStorage.getItem(DRAFT_KEY).then(raw => {
@@ -133,6 +136,17 @@ export default function CreatePost() {
     await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory }));
     Alert.alert('Draft Saved', 'Your draft has been saved.');
   };
+
+  // Silent debounced autosave — if the OS kills the app while the user is away
+  // (e.g. switched apps to grab a reference photo), the manual "Save Draft"
+  // button alone wouldn't have caught it, so persist on every change too.
+  useEffect(() => {
+    if (!title.trim() && !body.trim()) return;
+    const t = setTimeout(() => {
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory })).catch(() => {});
+    }, 500);
+    return () => clearTimeout(t);
+  }, [title, body, location, collab, selectedCategory]);
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : collabPlaceholder;
   const categoryLabel = selectedCategory ?? 'Select Category';
@@ -213,14 +227,6 @@ export default function CreatePost() {
             textAlignVertical="top"
             maxLength={1800}
           />
-          <View style={styles.mediaActions}>
-            <TouchableOpacity style={styles.mediaIconBtn} onPress={() => Alert.alert('Coming Soon', 'Image uploads coming soon.')}>
-              <Ionicons name="image-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.mediaIconBtn} onPress={() => Alert.alert('Coming Soon', 'Video uploads coming soon.')}>
-              <Feather name="youtube" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* ── Location ── */}
@@ -442,9 +448,6 @@ const styles = StyleSheet.create({
   },
   titleInput: { color: '#fff', fontSize: 20, fontWeight: '600', marginBottom: 4 },
   bodyInput: { flex: 1, color: '#E0E0E0', fontSize: 15, minHeight: 100 },
-  mediaActions: { flexDirection: 'row', marginTop: 16, gap: 16 },
-  mediaIconBtn: { opacity: 0.9 },
-
   listBtn: {
     backgroundColor: '#1E1E24',
     borderRadius: 14,

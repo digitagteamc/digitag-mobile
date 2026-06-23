@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useProfileGate } from '../context/ProfileGateContext';
 import {
     followUser,
     getCollaborationWith,
@@ -35,7 +36,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CreatorDetails() {
     const router = useRouter();
-    const { token, userId: myId, isProfileCompleted } = useAuth();
+    const { token, userId: myId } = useAuth();
+    const { requireProfile, isProfileCompleted } = useProfileGate();
     const { id: paramId, userId: paramUserId, postId: paramPostId } = useLocalSearchParams<{ id?: string; userId?: string; postId?: string }>();
     const [resolvedUserId, setResolvedUserId] = useState<string | null>(paramUserId || paramId || null);
 
@@ -96,20 +98,37 @@ export default function CreatorDetails() {
 
     useEffect(() => { load(); }, [load]);
 
+    useEffect(() => {
+        if (!token) return;
+        if (!isProfileCompleted) {
+            requireProfile('view this profile');
+            router.back();
+        }
+    }, [token, isProfileCompleted]);
+
     const handleFollow = async () => {
+        if (!requireProfile('follow this creator')) return;
         if (!token || !resolvedUserId || followBusy) return;
         setFollowBusy(true);
         try {
             const res = isFollowing
                 ? await unfollowUser(token, resolvedUserId)
                 : await followUser(token, resolvedUserId);
-            if (res.success) setIsFollowing(!isFollowing);
+            if (res.success) {
+                const wasFollowing = isFollowing;
+                setIsFollowing(!wasFollowing);
+                setStats((prev: any) => prev ? {
+                    ...prev,
+                    followerCount: (prev.followerCount ?? 0) + (wasFollowing ? -1 : 1),
+                } : prev);
+            }
         } finally {
             setFollowBusy(false);
         }
     };
 
     const handleCollab = async () => {
+        if (!requireProfile('send a collaboration request')) return;
         if (!token || !resolvedUserId || collabBusy || collabSent) return;
         setCollabBusy(true);
         try {
@@ -127,6 +146,7 @@ export default function CreatorDetails() {
     };
 
     const openChat = async () => {
+        if (!requireProfile('message this user')) return;
         if (!token || !resolvedUserId) return;
         const res = await openConversationWith(token, resolvedUserId);
         if (res.success && res.data?.id) {
@@ -137,6 +157,7 @@ export default function CreatorDetails() {
     };
 
     const handleCall = async () => {
+        if (!requireProfile('call this user')) return;
         if (!token || !resolvedUserId) return;
         try {
             const res = await initiateCall(token, resolvedUserId);
@@ -343,12 +364,12 @@ export default function CreatorDetails() {
                     <View style={styles.statsCard}>
                         <View style={styles.statBox}>
                             <Text style={styles.statLabel}>Followers</Text>
-                            <Text style={styles.statValue}>{stats?.followerCount || '85K'}</Text>
+                            <Text style={styles.statValue}>{stats?.followerCount ?? 0}</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>
                             <Text style={styles.statLabel}>Following</Text>
-                            <Text style={styles.statValue}>{stats?.followingCount || '15K'}</Text>
+                            <Text style={styles.statValue}>{stats?.followingCount ?? 0}</Text>
                         </View>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>

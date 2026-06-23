@@ -64,7 +64,7 @@ const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_c
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { token, isGuest, userPhone, userRole, userId, logout, setProfiles } = useAuth();
+  const { token, isGuest, userPhone, userRole, userId, logout, setProfiles, isProfileCompleted } = useAuth();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
   const insets = useSafeAreaInsets();
 
@@ -126,7 +126,7 @@ export default function ProfileScreen() {
               profilePicture: p.profilePicture || null,
               bio: p.bio || null,
               category: p.category?.name || null,
-              categories: p.categories && p.categories.length > 0 ? p.categories : null,
+              categories: null,
               email: p.email || null,
               location: p.location || null,
               languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : null),
@@ -259,6 +259,29 @@ export default function ProfileScreen() {
     return (
       <View className="flex-1 bg-[#060606] justify-center items-center">
         <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (!isGuest && !isProfileCompleted) {
+    return (
+      <View className="flex-1 bg-[#060606] justify-center items-center px-8">
+        <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
+        <Text className="text-white text-2xl font-bold mb-2" style={{ fontFamily: 'Poppins_700Bold' }}>
+          Hi, {profile?.name || userPhone || 'there'}!
+        </Text>
+        <Text className="text-[#888] text-sm text-center mb-8" style={{ fontFamily: 'Poppins_400Regular' }}>
+          Complete your profile to unlock posts, follows, collaborations and more.
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.push((userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
+          style={{ backgroundColor: theme.primary, borderRadius: 99, paddingHorizontal: 32, paddingVertical: 14 }}
+        >
+          <Text className="text-white font-bold text-base" style={{ fontFamily: 'Poppins_700Bold' }}>Complete Profile</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleLogout} className="mt-6">
+          <Text className="text-red-400 text-sm" style={{ fontFamily: 'Poppins_500Medium' }}>Logout</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -413,45 +436,48 @@ export default function ProfileScreen() {
                   <Ionicons name="checkmark-circle" size={14} color={theme.primary} style={{ marginLeft: 4 }} />
                 </View>
 
-                {/* Social Icons Row */}
-                <View className="flex-row items-center mt-5 gap-3.5">
-                  <TouchableOpacity activeOpacity={0.8}>
-                    <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
-                      <Image 
-                        source={require('../../assets/skill-icons_instagram.png')} 
-                        className="w-full h-full" 
-                        resizeMode="cover" 
-                      />
-                    </View>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity activeOpacity={0.8}>
-                    <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
-                      <Image 
-                        source={require('../../assets/logos_facebook.png')} 
-                        className="w-full h-full" 
-                        resizeMode="cover" 
-                      />
-                    </View>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity activeOpacity={0.8}>
-                    <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
-                      <Image 
-                        source={require('../../assets/bi_threads-fill.png')} 
-                        className="w-full h-full" 
-                        resizeMode="cover" 
-                      />
-                    </View>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    className="w-9 h-9 rounded-xl bg-[#1DA1F2] items-center justify-center shadow-sm" 
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="logo-twitter" size={22} color="#fff" />
-                  </TouchableOpacity>
+                {/* Followers / Following */}
+                <View className="flex-row items-center mt-3 gap-5">
+                  <View className="flex-row items-baseline gap-1.5">
+                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(followerCount)}</Text>
+                    <Text className="text-[#888] text-[13px]" style={{ fontFamily: 'Poppins_400Regular' }}>Followers</Text>
+                  </View>
+                  <View className="flex-row items-baseline gap-1.5">
+                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(followingCount)}</Text>
+                    <Text className="text-[#888] text-[13px]" style={{ fontFamily: 'Poppins_400Regular' }}>Following</Text>
+                  </View>
                 </View>
+
+                {/* Social Icons Row — only the links the user actually provided */}
+                {(() => {
+                  const socials: { key: string; src?: any; icon?: any; color?: string; url: string }[] = [];
+                  if (profile?.instagramHandle) socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: `https://instagram.com/${profile.instagramHandle}` });
+                  if (profile?.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: `https://youtube.com/@${profile.youtubeHandle}` });
+                  if (profile?.twitterHandle) socials.push({ key: 'tw', icon: 'logo-twitter', color: '#1DA1F2', url: `https://twitter.com/${profile.twitterHandle}` });
+                  if (profile?.portfolioUrl) socials.push({ key: 'portfolio', icon: 'globe-outline', color: '#6366F1', url: profile.portfolioUrl });
+                  if (socials.length === 0) return null;
+                  return (
+                    <View className="flex-row items-center mt-5 gap-3.5">
+                      {socials.map(s => s.src ? (
+                        <TouchableOpacity key={s.key} activeOpacity={0.8} onPress={() => openLink(s.url)}>
+                          <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
+                            <Image source={s.src} className="w-full h-full" resizeMode="cover" />
+                          </View>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          key={s.key}
+                          className="w-9 h-9 rounded-xl items-center justify-center shadow-sm"
+                          style={{ backgroundColor: s.color }}
+                          activeOpacity={0.8}
+                          onPress={() => openLink(s.url)}
+                        >
+                          <Ionicons name={s.icon} size={20} color="#fff" />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  );
+                })()}
               </View>
             </View>
           </View>

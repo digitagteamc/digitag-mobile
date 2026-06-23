@@ -3,6 +3,7 @@ import React, { useCallback } from 'react';
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
+import { useProfileGate } from '../../context/ProfileGateContext';
 import { palette } from '../../theme/colors';
 
 export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
@@ -14,6 +15,7 @@ export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
  */
 export default function TabsLayout() {
     const router = useRouter();
+    const { requireProfile } = useProfileGate();
     const insets = useSafeAreaInsets();
     const sceneBottomPad = NAV_BAR_HEIGHT + (insets.bottom > 0 ? insets.bottom : 0);
 
@@ -37,7 +39,10 @@ export default function TabsLayout() {
                 <AppBottomNav
                     activeKey={activeKey}
                     onTabPress={handleTabPress}
-                    onFabPress={() => router.push('/create-post' as any)}
+                    onFabPress={() => {
+                        if (!requireProfile('create a post')) return;
+                        router.push('/create-post' as any);
+                    }}
                 />
             </View>
         );

@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,6 +11,7 @@ import {
     BackHandler,
     Image,
     KeyboardAvoidingView,
+    Linking,
     Modal,
     Platform,
     Pressable,
@@ -144,8 +147,8 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
 
     const handleOpen = () => {
         if (triggerRef.current) {
-            triggerRef.current.measure((x, y, width, height, pageX, pageY) => {
-                setLayout({ x: pageX, y: pageY, width, height });
+            triggerRef.current.measureInWindow((x, y, width, height) => {
+                setLayout({ x, y, width, height });
                 setModalVisible(true);
             });
         }
@@ -190,22 +193,22 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                         onPress={(e) => e.stopPropagation()}
                         style={{
                             position: 'absolute',
-                            top: Math.max(20, layout.y + layout.height - 30),
+                            top: layout.y + layout.height + 4,
                             left: layout.x,
                             width: layout.width,
-                            maxHeight: 220,
-                            borderRadius: 24,
+                            maxHeight: 260,
+                            borderRadius: 16,
                             overflow: 'hidden',
                             borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.2)',
+                            borderColor: 'rgba(255,255,255,0.15)',
+                            backgroundColor: '#1E1E1E',
                         }}
                     >
                         <LinearGradient
-                            colors={['rgba(40, 40, 40, 0.97)', 'rgba(20, 20, 20, 0.99)']}
-                            style={{ flex: 1 }}
+                            colors={['rgba(40,40,40,0.98)', 'rgba(20,20,20,1)']}
+                            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                         />
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 8 }}>
-                            {/* Close button */}
+                        <View style={{ padding: 8 }}>
                             <TouchableOpacity
                                 onPress={() => setModalVisible(false)}
                                 style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
@@ -214,7 +217,7 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                             >
                                 <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
                             </TouchableOpacity>
-                            <ScrollView showsVerticalScrollIndicator style={{ paddingVertical: 8 }} indicatorStyle="white">
+                            <ScrollView showsVerticalScrollIndicator={false} style={{ paddingTop: 8, maxHeight: 220 }} indicatorStyle="white">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
                                     const lbl = itemLabel(option);
@@ -224,9 +227,9 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                                             key={key}
                                             onPress={() => handleSelect(option)}
                                             activeOpacity={0.7}
-                                            style={{ paddingHorizontal: 24, paddingVertical: 14, marginBottom: 4, borderRadius: 12, backgroundColor: sel ? 'rgba(242,105,48,0.13)' : 'transparent' }}
+                                            style={{ paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderRadius: 10, backgroundColor: sel ? 'rgba(242,105,48,0.15)' : 'transparent' }}
                                         >
-                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 16, color: sel ? '#F26930' : '#fff' }}>
+                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: sel ? '#F26930' : '#fff' }}>
                                                 {lbl}
                                             </Text>
                                         </TouchableOpacity>
@@ -340,9 +343,18 @@ const IgVerifyModal = ({ visible, code, instagramUsername, digiTagInstagram, exp
                                     Expires in {mins}:{String(secs).padStart(2, '0')}
                                 </Text>
                             </View>
-                            <Text style={{ color: '#666', fontSize: 12, textAlign: 'center', marginBottom: 20 }}>
+                            <Text style={{ color: '#666', fontSize: 12, textAlign: 'center', marginBottom: 16 }}>
                                 Waiting for your DM… keep this screen open or send the DM then return here.
                             </Text>
+                            <TouchableOpacity
+                                onPress={() => {
+                                    Clipboard.setStringAsync(code);
+                                    Linking.openURL(`https://ig.me/m/${digiTagInstagram}`);
+                                }}
+                                style={{ backgroundColor: ACCENT, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 15 }}>Open Instagram DM</Text>
+                            </TouchableOpacity>
                             <TouchableOpacity onPress={onClose} style={{ borderWidth: 1, borderColor: '#333', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
                                 <Text style={{ color: '#888', fontFamily: 'Poppins_500Medium', fontSize: 15 }}>Close (verification continues)</Text>
                             </TouchableOpacity>
@@ -386,6 +398,8 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
 
 // --- Main Component ---
 
+const FREELANCER_DRAFT_KEY = '@draft_freelancer_profile';
+
 export default function FreelancerSignup() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -420,6 +434,7 @@ export default function FreelancerSignup() {
         availability: 'AVAILABLE',
         location: '',
         profilePicture: null as string | null,
+        profilePictureMimeType: 'image/jpeg',
         // Socials (if backend supports)
         instagramHandle: '',
         instagramFollowers: '',
@@ -432,6 +447,11 @@ export default function FreelancerSignup() {
         twitterHandle: '',
         twitterFollowers: '',
     });
+
+    // Restores in-progress signup data after the OS kills/reloads the app (e.g. while
+    // the user is away taking an IG screenshot or backgrounded mid-form) so they don't
+    // have to retype everything. Only applies when no server profile is found below.
+    const draftRestoredRef = useRef(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -448,6 +468,8 @@ export default function FreelancerSignup() {
                 if (!cancelled && existing.success && existing.data) {
                     const p = existing.data;
                     setMode('update');
+                    draftRestoredRef.current = true; // editing real data — never overwrite with a stale draft
+                    AsyncStorage.removeItem(FREELANCER_DRAFT_KEY).catch(() => {});
                     const skills = Array.isArray(p.skills) ? p.skills : [];
                     setForm(prev => ({
                         ...prev,
@@ -476,6 +498,17 @@ export default function FreelancerSignup() {
                         snapchatHandle: p.snapchatHandle || '',
                         snapchatFollowers: p.snapchatFollowers?.toString() || '',
                     }));
+                } else if (!cancelled) {
+                    // No server profile — restore an in-progress draft, if any.
+                    try {
+                        const raw = await AsyncStorage.getItem(FREELANCER_DRAFT_KEY);
+                        if (raw && !cancelled) {
+                            const draft = JSON.parse(raw);
+                            if (draft?.form) setForm(prev => ({ ...prev, ...draft.form }));
+                            if (draft?.step) setStep(draft.step);
+                        }
+                    } catch {}
+                    draftRestoredRef.current = true;
                 }
             }
             if (!cancelled) setPrefilling(false);
@@ -485,6 +518,17 @@ export default function FreelancerSignup() {
             cancelled = true;
         };
     }, [token]);
+
+    // Debounced draft autosave — only while creating a brand-new profile, so an
+    // app kill (backgrounding for the IG verify flow, low-memory reclaim, etc.)
+    // doesn't wipe out everything the user already typed.
+    useEffect(() => {
+        if (prefilling || mode !== 'create' || !draftRestoredRef.current) return;
+        const t = setTimeout(() => {
+            AsyncStorage.setItem(FREELANCER_DRAFT_KEY, JSON.stringify({ form, step })).catch(() => {});
+        }, 500);
+        return () => clearTimeout(t);
+    }, [form, step, prefilling, mode]);
 
     useEffect(() => {
         const backAction = () => {
@@ -549,7 +593,7 @@ export default function FreelancerSignup() {
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
-            form.email.trim() !== '' &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
             form.bio.trim() !== '' &&
@@ -586,7 +630,8 @@ export default function FreelancerSignup() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets?.[0]) {
-                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                            const asset = result.assets[0];
+                            setForm(prev => ({ ...prev, profilePicture: asset.uri, profilePictureMimeType: asset.mimeType || 'image/jpeg' }));
                         }
                     },
                 },
@@ -605,7 +650,8 @@ export default function FreelancerSignup() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets?.[0]) {
-                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                            const asset = result.assets[0];
+                            setForm(prev => ({ ...prev, profilePicture: asset.uri, profilePictureMimeType: asset.mimeType || 'image/jpeg' }));
                         }
                     },
                 },
@@ -636,7 +682,7 @@ export default function FreelancerSignup() {
             let profilePictureUrl = form.profilePicture;
             if (profilePictureUrl && !profilePictureUrl.startsWith('http')) {
                 const upRes = await uploadImage(
-                    { uri: profilePictureUrl, name: `profile_${Date.now()}.jpg`, type: 'image/jpeg' },
+                    { uri: profilePictureUrl, name: `profile_${Date.now()}.jpg`, type: form.profilePictureMimeType },
                     token,
                     'profiles',
                 );
@@ -698,6 +744,7 @@ export default function FreelancerSignup() {
                 : await createFreelancerProfile(payload, token);
 
             if (result.success) {
+                AsyncStorage.removeItem(FREELANCER_DRAFT_KEY).catch(() => {});
                 setProfileCompleted(true);
                 setProfiles({ FREELANCER: true });
                 setShowSuccessModal(true);
@@ -830,15 +877,25 @@ export default function FreelancerSignup() {
                             <View className="mt-4 mb-8">
                                 <Text className="text-white font-poppins-bold text-xl mb-6">Social media Platforms</Text>
 
-                                <InstagramVerifyRow
-                                    value={form.instagramHandle}
-                                    followersValue={form.instagramFollowers}
-                                    onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
-                                    onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
-                                    verified={igVerified}
-                                    onVerifyPress={handleIgVerify}
-                                    verifying={igVerifying}
-                                />
+                                {mode === 'update' ? (
+                                    <View className="mb-4">
+                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+                                        <View className="bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center flex-row items-center">
+                                            <Text className="text-[#888] font-poppins-regular flex-1">@{form.instagramHandle || '—'}</Text>
+                                            <Text className="text-[#555] text-[11px] font-poppins-regular">Verified · Not editable</Text>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <InstagramVerifyRow
+                                        value={form.instagramHandle}
+                                        followersValue={form.instagramFollowers}
+                                        onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
+                                        onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
+                                        verified={igVerified}
+                                        onVerifyPress={handleIgVerify}
+                                        verifying={igVerifying}
+                                    />
+                                )}
                                 <SocialRow
                                     platform="YouTube"
                                     linkValue={form.youtubeHandle}
@@ -871,11 +928,11 @@ export default function FreelancerSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                disabled={!isStep1Valid}
-                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-2 mb-5 ${isStep1Valid ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
+                                disabled={!isStep1Valid || (mode === 'create' && !igVerified)}
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-2 mb-5 ${isStep1Valid && (mode === 'update' || igVerified) ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
-                                <Text className={`font-poppins-bold text-lg  ${isStep1Valid ? 'text-white' : 'text-[#F5F5F5]'}`}>Next</Text>
+                                <Text className={`font-poppins-bold text-lg  ${isStep1Valid && (mode === 'update' || igVerified) ? 'text-white' : 'text-[#F5F5F5]'}`}>Next</Text>
                             </TouchableOpacity>
                         </>
                     ) : (

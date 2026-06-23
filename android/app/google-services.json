@@ -9,7 +9,15 @@
       "client_info": {
         "mobilesdk_app_id": "1:592827124863:android:53954fcd6890d52c2f834a",
         "android_client_info": {
-          "package_name": "ai.thedigitag.app"
+          "package_name": "ai.thedigitag.app",
+          "certificate_hash": [
+            "a150a4df9144139bb652bf359b588026f7a5abb7",
+            "49290922923d9c68caf350d68eefcf8faed2f81d",
+            "ddd20a635b49ab6489f93560ea8311d5d733217a",
+            "70a69e4d5514e9b18dcf6527811c141998b8f047",
+            "5e8f16062ea3cd2c4a0d547876baa6f38cabf625",
+            "08afb36e5962593b9f25073c600079a4a3a6c109"
+          ]
         }
       },
       "oauth_client": [],

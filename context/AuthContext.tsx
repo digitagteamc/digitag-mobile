@@ -135,11 +135,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setRefreshTokenState(newRefresh);
                         setUserPhone(storedPhone[1]);
                         setUserId(storedId[1]);
-                        setUserRole(storedRole[1]);
-                        setIsProfileCompleted(storedProfileDone[1] === 'true');
+                        const role = storedRole[1];
+                        setUserRole(role);
+
+                        let profilesMap = EMPTY_PROFILES;
                         if (storedProfiles[1]) {
-                            try { setProfilesState(JSON.parse(storedProfiles[1])); } catch { }
+                            try { profilesMap = JSON.parse(storedProfiles[1]); } catch { }
                         }
+                        setProfilesState(profilesMap);
+
+                        // Prefer the per-role completion flag (kept in sync by setActiveRole/setProfiles)
+                        // over the legacy flat flag, since the flat flag doesn't track role switches.
+                        const completedForRole = role && Object.prototype.hasOwnProperty.call(profilesMap, role)
+                            ? profilesMap[role as Role]
+                            : storedProfileDone[1] === 'true';
+                        setIsProfileCompleted(completedForRole);
                     }
                     // If refresh fails (expired/revoked), session stays null → user goes to login
                 } catch {

@@ -4,7 +4,7 @@ import { getCreatorById, getFeed, getFreelancerById, initiateCall, listCollabora
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -504,7 +504,7 @@ const Sparkles = React.memo(({ count = 3 }: { count?: number }) => {
 export default function ExploreTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { token, isGuest, userRole, userId } = useAuth();
+  const { token, isGuest, userRole, userId, isProfileCompleted } = useAuth();
   const { requireProfile } = useProfileGate();
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -562,7 +562,7 @@ export default function ExploreTab() {
     } catch { setPosts([]); } finally { setLoading(false); }
   }, [token]);
 
-  useEffect(() => { fetchPosts(); }, [fetchPosts]);
+  useFocusEffect(useCallback(() => { fetchPosts(); }, [fetchPosts]));
 
   useEffect(() => {
     if (!token || !userId) return;
@@ -950,7 +950,7 @@ export default function ExploreTab() {
     f26: ['Education'],
   };
 
-  const cards = useMemo(() => allCards.filter((item) => {
+  const filteredCards = useMemo(() => allCards.filter((item) => {
     if (activeCategory && activeCategory !== 'all') {
       if (userRole === 'FREELANCER') {
         // Filter creator posts by content category strings stored in CreatorProfile.categories[]
@@ -982,6 +982,10 @@ export default function ExploreTab() {
     }
     return true;
   }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
+
+  const EXPLORE_PREVIEW_LIMIT = 3;
+  const hasMoreHiddenCards = !isProfileCompleted && filteredCards.length > EXPLORE_PREVIEW_LIMIT;
+  const cards = isProfileCompleted ? filteredCards : filteredCards.slice(0, EXPLORE_PREVIEW_LIMIT);
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }
@@ -1363,6 +1367,33 @@ export default function ExploreTab() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
+        ListFooterComponent={
+          hasMoreHiddenCards ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => requireProfile('see more posts')}
+              style={{
+                backgroundColor: '#0A0A0A',
+                borderWidth: 1,
+                borderColor: (userRole === 'FREELANCER' ? '#f26930' : '#ed2a91') + '55',
+                borderRadius: 18,
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+                marginHorizontal: 16,
+                marginTop: 4,
+                marginBottom: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Text style={{ color: '#fff', fontFamily: 'Poppins_500Medium', fontSize: 14, flex: 1 }}>
+                Complete your profile to see more posts
+              </Text>
+              <Ionicons name="chevron-forward" size={18} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} />
+            </TouchableOpacity>
+          ) : null
+        }
         ListEmptyComponent={
           !loading ? (
             <View style={s.emptyState}>

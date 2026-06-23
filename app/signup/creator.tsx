@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import {
+    getCategories,
     getInstagramVerificationStatus,
     getMyCreatorProfile,
     startInstagramVerification,
@@ -34,25 +36,6 @@ import {
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
 const LEVELS = ['Beginner', 'Intermediate', 'Pro'];
-const CREATOR_CATEGORIES = [
-    { id: 'Fashion & Lifestyle', name: 'Fashion & Lifestyle' },
-    { id: 'Beauty & Skincare', name: 'Beauty & Skincare' },
-    { id: 'Fitness & Health', name: 'Fitness & Health' },
-    { id: 'Tech', name: 'Tech' },
-    { id: 'Food & Cooking', name: 'Food & Cooking' },
-    { id: 'Travel', name: 'Travel' },
-    { id: 'Lifestyle', name: 'Lifestyle' },
-    { id: 'Gaming', name: 'Gaming' },
-    { id: 'Education', name: 'Education' },
-    { id: 'Business & Finance', name: 'Business & Finance' },
-    { id: 'Art & Creativity', name: 'Art & Creativity' },
-    { id: 'Sports', name: 'Sports' },
-    { id: 'Music', name: 'Music' },
-    { id: 'Parenting', name: 'Parenting' },
-    { id: 'Home & Garden', name: 'Home & Garden' },
-    { id: 'Entertainment', name: 'Entertainment' }
-];
-
 // --- Sub-components ---
 
 const CircularProgress = ({ current, total }: { current: number; total: number }) => {
@@ -152,8 +135,8 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
 
     const handleOpen = () => {
         if (triggerRef.current) {
-            triggerRef.current.measure((x, y, width, height, pageX, pageY) => {
-                setLayout({ x: pageX, y: pageY, width, height });
+            triggerRef.current.measureInWindow((x, y, width, height) => {
+                setLayout({ x, y, width, height });
                 setModalVisible(true);
             });
         }
@@ -198,22 +181,22 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                         onPress={(e) => e.stopPropagation()}
                         style={{
                             position: 'absolute',
-                            top: layout.y + layout.height - 30,
+                            top: layout.y + layout.height + 4,
                             left: layout.x,
                             width: layout.width,
-                            maxHeight: 220,
-                            borderRadius: 24,
+                            maxHeight: 260,
+                            borderRadius: 16,
                             overflow: 'hidden',
                             borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.2)',
+                            borderColor: 'rgba(255,255,255,0.15)',
+                            backgroundColor: '#1E1E1E',
                         }}
                     >
                         <LinearGradient
-                            colors={['rgba(40, 40, 40, 0.97)', 'rgba(20, 20, 20, 0.99)']}
-                            style={{ flex: 1 }}
+                            colors={['rgba(40,40,40,0.98)', 'rgba(20,20,20,1)']}
+                            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                         />
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, padding: 8 }}>
-                            {/* Close button */}
+                        <View style={{ padding: 8 }}>
                             <TouchableOpacity
                                 onPress={() => setModalVisible(false)}
                                 style={{ position: 'absolute', top: 8, right: 8, zIndex: 10, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' }}
@@ -222,7 +205,7 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                             >
                                 <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
                             </TouchableOpacity>
-                            <ScrollView showsVerticalScrollIndicator style={{ paddingVertical: 8 }} indicatorStyle="white">
+                            <ScrollView showsVerticalScrollIndicator={false} style={{ paddingTop: 8, maxHeight: 220 }} indicatorStyle="white">
                                 {options.map((option: any) => {
                                     const key = itemKey(option);
                                     const lbl = itemLabel(option);
@@ -232,9 +215,9 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                                             key={key}
                                             onPress={() => handleSelect(option)}
                                             activeOpacity={0.7}
-                                            style={{ paddingHorizontal: 24, paddingVertical: 14, marginBottom: 4, borderRadius: 12, backgroundColor: sel ? 'rgba(240,44,140,0.13)' : 'transparent' }}
+                                            style={{ paddingHorizontal: 16, paddingVertical: 14, marginBottom: 2, borderRadius: 10, backgroundColor: sel ? 'rgba(240,44,140,0.15)' : 'transparent' }}
                                         >
-                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 16, color: sel ? '#F02C8C' : '#fff' }}>
+                                            <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: sel ? '#F02C8C' : '#fff' }}>
                                                 {lbl}
                                             </Text>
                                         </TouchableOpacity>
@@ -537,6 +520,8 @@ const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => v
 
 // --- Main Component ---
 
+const CREATOR_DRAFT_KEY = '@draft_creator_profile';
+
 export default function CreatorSignup() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -548,7 +533,15 @@ export default function CreatorSignup() {
     const [prefilling, setPrefilling] = useState(true);
     const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
-    const [categories] = useState<{ id: string; name: string }[]>(CREATOR_CATEGORIES);
+    const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
+    useEffect(() => {
+        getCategories({ role: 'CREATOR' }).then(res => {
+            if (res.success && Array.isArray(res.data)) {
+                setCategories(res.data.map((c: any) => ({ id: c.id, name: c.name })));
+            }
+        });
+    }, []);
 
     // Instagram verification state
     const [igVerified, setIgVerified] = useState(false);
@@ -587,6 +580,11 @@ export default function CreatorSignup() {
         profilePicture: null as string | null,
     });
 
+    // Restores in-progress signup data after the OS kills/reloads the app (e.g. while
+    // the user is away taking an IG screenshot or backgrounded mid-form) so they don't
+    // have to retype everything. Only applies when no server profile is found below.
+    const draftRestoredRef = useRef(false);
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -596,6 +594,8 @@ export default function CreatorSignup() {
                 if (!cancelled && existing.success && existing.data) {
                     const p = existing.data;
                     setMode('update');
+                    draftRestoredRef.current = true; // editing real data — never overwrite with a stale draft
+                    AsyncStorage.removeItem(CREATOR_DRAFT_KEY).catch(() => {});
                     setForm(prev => ({
                         ...prev,
                         name: p.name || '',
@@ -621,6 +621,17 @@ export default function CreatorSignup() {
                         snapchatHandle: p.snapchatHandle || '',
                         snapchatFollowers: p.snapchatFollowers?.toString() || '',
                     }));
+                } else if (!cancelled) {
+                    // No server profile — restore an in-progress draft, if any.
+                    try {
+                        const raw = await AsyncStorage.getItem(CREATOR_DRAFT_KEY);
+                        if (raw && !cancelled) {
+                            const draft = JSON.parse(raw);
+                            if (draft?.form) setForm(prev => ({ ...prev, ...draft.form }));
+                            if (draft?.step) setStep(draft.step);
+                        }
+                    } catch {}
+                    draftRestoredRef.current = true;
                 }
             }
             if (!cancelled) setPrefilling(false);
@@ -630,6 +641,17 @@ export default function CreatorSignup() {
             cancelled = true;
         };
     }, [token]);
+
+    // Debounced draft autosave — only while creating a brand-new profile, so an
+    // app kill (backgrounding for the IG verify flow, low-memory reclaim, etc.)
+    // doesn't wipe out everything the user already typed.
+    useEffect(() => {
+        if (prefilling || mode !== 'create' || !draftRestoredRef.current) return;
+        const t = setTimeout(() => {
+            AsyncStorage.setItem(CREATOR_DRAFT_KEY, JSON.stringify({ form, step })).catch(() => {});
+        }, 500);
+        return () => clearTimeout(t);
+    }, [form, step, prefilling, mode]);
 
     useEffect(() => {
         const backAction = () => {
@@ -646,7 +668,7 @@ export default function CreatorSignup() {
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
-            form.email.trim() !== '' &&
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
             form.bio.trim() !== ''
@@ -708,7 +730,7 @@ export default function CreatorSignup() {
         );
     };
 
-    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '');
+    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '').replace(/[/?#].*$/, '');
 
     const isValidUrl = (v: string) => {
         try { new URL(v); return true; } catch { return false; }
@@ -794,6 +816,7 @@ export default function CreatorSignup() {
                 : await submitCreatorApplication(payload, token);
 
             if (result.success) {
+                AsyncStorage.removeItem(CREATOR_DRAFT_KEY).catch(() => {});
                 setProfileCompleted(true);
                 setProfiles({ CREATOR: true });
                 setShowSuccessModal(true);
@@ -986,18 +1009,28 @@ export default function CreatorSignup() {
                             <View className="mt-4 mb-8">
                                 <Text className="text-white font-poppins-bold text-xl mb-6">Social Media Presence</Text>
 
-                                <InstagramVerifyRow
-                                    value={form.instagramHandle}
-                                    followersValue={form.instagramFollowers}
-                                    onValueChange={(v: string) => {
-                                        setForm({ ...form, instagramHandle: v });
-                                        if (igVerified) setIgVerified(false);
-                                    }}
-                                    onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
-                                    verified={igVerified}
-                                    onVerifyPress={handleIgVerify}
-                                    verifying={igVerifying}
-                                />
+                                {mode === 'update' ? (
+                                    <View className="mb-4">
+                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+                                        <View className="bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center flex-row items-center">
+                                            <Text className="text-[#888] font-poppins-regular flex-1">@{form.instagramHandle || '—'}</Text>
+                                            <Text className="text-[#555] text-[11px] font-poppins-regular">Verified · Not editable</Text>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <InstagramVerifyRow
+                                        value={form.instagramHandle}
+                                        followersValue={form.instagramFollowers}
+                                        onValueChange={(v: string) => {
+                                            setForm({ ...form, instagramHandle: v });
+                                            if (igVerified) setIgVerified(false);
+                                        }}
+                                        onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
+                                        verified={igVerified}
+                                        onVerifyPress={handleIgVerify}
+                                        verifying={igVerifying}
+                                    />
+                                )}
                                 <SocialRow
                                     platform="YouTube"
                                     linkValue={form.youtubeHandle}
@@ -1030,10 +1063,11 @@ export default function CreatorSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                className="h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 bg-[#F02C8C]"
+                                disabled={!isStep1Valid || (mode === 'create' && !igVerified)}
+                                className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep1Valid && (mode === 'update' || igVerified) ? 'bg-[#F02C8C]' : 'bg-[#2A2A2A]'}`}
                                 activeOpacity={0.8}
                             >
-                                <Text className="font-poppins-bold text-lg text-white">Next</Text>
+                                <Text className={`font-poppins-bold text-lg ${isStep1Valid && (mode === 'update' || igVerified) ? 'text-white' : 'text-[#666]'}`}>Next</Text>
                             </TouchableOpacity>
                         </>
                     ) : (

@@ -59,5 +59,6 @@ android/.gradle/
 android/app/.cxx/
 android/captures/
 android/local.properties
+android/app/release.keystore
 
 
