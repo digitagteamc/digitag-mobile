@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+  Image,
   Linking,
   Modal,
   Platform,
@@ -25,7 +26,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 interface AccountItem {
   id: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: any;
   label: string;
   onPress: () => void;
 }
@@ -79,22 +80,21 @@ export default function SettingsScreen() {
   ];
 
   const ACCOUNT_ITEMS: AccountItem[] = [
-     
     {
       id: 'privacy',
-      icon: 'shield-checkmark-outline',
+      icon: require('../assets/privacy-icon.png'),
       label: 'Privacy Settings',
       onPress: () => router.push('/privacysettings' as any),
     },
     {
       id: 'terms',
-      icon: 'document-text-outline',
+      icon: require('../assets/terms-icon.png'),
       label: 'Terms & Conditions',
       onPress: () => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => { }),
     },
     {
       id: 'privacy policy',
-      icon: 'reader-outline',
+      icon: require('../assets/privacy-icon.png'),
       label: 'Privacy Policy',
       onPress: () => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => { }),
     },
@@ -136,8 +136,12 @@ export default function SettingsScreen() {
                     activeOpacity={0.7}
                     onPress={item.onPress}
                   >
-                    <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                      <Ionicons name={item.icon} size={20} color="#E0E0E0" />
+                    <View className="w-10 h-10  items-center justify-center   mr-4">
+                      <Image 
+                        source={item.icon} 
+                        style={{ width: 36, height: 36 }} 
+                        resizeMode="contain" 
+                      />
                       {item.id === 'edit-profile' && (
                         <View className="absolute -bottom-1 -right-1 bg-[#6232FF] w-5 h-5 rounded-full items-center justify-center border border-[#121212]">
                           <Ionicons name="pencil" size={10} color="#fff" />
@@ -161,8 +165,12 @@ export default function SettingsScreen() {
             <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
               {/* Notifications row */}
               <View className="flex-row items-center py-3.5 px-3 border-b border-[#2A2A2A]">
-                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                  <Ionicons name="notifications-outline" size={20} color="#E0E0E0" />
+                <View className="w-10 h-10  items-center justify-center  mr-4">
+                  <Image 
+                    source={require('../assets/notification.png')} 
+                    style={{ width: 36, height: 36 }} 
+                    resizeMode="contain" 
+                  />
                 </View>
                 <Text className="text-[#E0E0E0] text-[15px] flex-1 font-poppins-medium">Notifications</Text>
                 <CustomSwitch
@@ -190,8 +198,12 @@ export default function SettingsScreen() {
                 activeOpacity={0.7}
                 onPress={() => setIsLanguageModalVisible(true)}
               >
-                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                  <Ionicons name="language-outline" size={20} color="#E0E0E0" />
+                <View className="w-10 h-10  items-center justify-center  mr-4">
+                  <Image 
+                    source={require('../assets/language-icon.png')} 
+                    style={{ width: 36, height: 36 }} 
+                    resizeMode="contain" 
+                  />
                 </View>
                 <Text className="text-[#E0E0E0] text-[15px] flex-1 font-poppins-medium">Language</Text>
                 <Text className="text-[#E0E0E0] text-[13px] mr-2 font-poppins-regular">{selectedLanguage}</Text>

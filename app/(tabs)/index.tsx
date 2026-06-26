@@ -953,7 +953,7 @@ export default function Homepage() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: 0 }}
+        contentContainerStyle={{ paddingBottom: 70 }}
         showsVerticalScrollIndicator={false}
         bounces={false}
         removeClippedSubviews={true}

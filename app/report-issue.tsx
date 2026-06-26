@@ -1,9 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   Platform,
   ScrollView,
   StatusBar,
@@ -18,10 +19,10 @@ type IssueType = 'bug' | 'performance' | 'ui' | 'account';
 type Severity = 'low' | 'medium' | 'high';
 
 const ISSUE_TYPES: { id: IssueType; icon: any; title: string; subtitle: string }[] = [
-  { id: 'bug', icon: 'bug-outline', title: 'Bug / Error', subtitle: 'App crashes or behaves unexpectedly' },
-  { id: 'performance', icon: 'speedometer-outline', title: 'Performance', subtitle: 'Slow loading or laggy experience' },
-  { id: 'ui', icon: 'brush-outline', title: 'UI / Design', subtitle: 'Visual glitch or layout issue' },
-  { id: 'account', icon: 'person-circle-outline', title: 'Account / Auth', subtitle: 'Login, sign-up or access problem' },
+  { id: 'bug', icon: require('../assets/bug-icon.png'), title: 'Bug / Error', subtitle: 'App crashes or behaves unexpectedly' },
+  { id: 'performance', icon: require('../assets/performance-icon.png'), title: 'Performance', subtitle: 'Slow loading or laggy experience' },
+  { id: 'ui', icon: require('../assets/UI-icon.png'), title: 'UI / Design', subtitle: 'Visual glitch or layout issue' },
+  { id: 'account', icon: require('../assets/account-icon.png'), title: 'Account / Auth', subtitle: 'Login, sign-up or access problem' },
 ];
 
 export default function ReportIssueScreen() {
@@ -55,7 +56,7 @@ export default function ReportIssueScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#080808' }}>
+    <View style={{ flex: 1, backgroundColor: '#060606' }}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
@@ -66,14 +67,14 @@ export default function ReportIssueScreen() {
           paddingTop: Math.max(insets.top, statusBarHeight) + 16,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-            <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12, padding: 4 }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12, padding: 2 }}>
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
-            <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Poppins_600SemiBold' }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Poppins_500Medium' }}>
               Report an Issue
             </Text>
           </View>
-          <Text style={{ color: '#888', fontSize: 13, fontFamily: 'Poppins_400Regular', marginLeft: 4 }}>
+          <Text style={{ color: '#E2E2E2', fontSize: 12, fontFamily: 'Poppins_400Regular', marginLeft: 4 }}>
             Help us improve Digitag by sharing what went wrong.
           </Text>
         </View>
@@ -85,7 +86,7 @@ export default function ReportIssueScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── ISSUE TYPE ── */}
-          <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 12 }}>
+          <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 12 }}>
             Issue Type
           </Text>
           <View style={{ gap: 10, marginBottom: 28 }}>
@@ -99,12 +100,12 @@ export default function ReportIssueScreen() {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    backgroundColor: '#131313',
+                    backgroundColor: '#1A1A1A',
                     borderWidth: 1,
                     borderColor: isSelected ? '#3A3A3A' : '#2A2A2A',
-                    borderRadius: 18,
-                    paddingHorizontal: 14,
-                    paddingVertical: 14,
+                    borderRadius: 20,
+                    paddingHorizontal: 10,
+                    paddingVertical: 8,
                   }}
                 >
                   <View style={{
@@ -112,27 +113,30 @@ export default function ReportIssueScreen() {
                     height: 40,
                     borderRadius: 20,
                     backgroundColor: '#1E1E1E',
-                    borderWidth: 1,
-                    borderColor: '#2A2A2A',
+                     
                     justifyContent: 'center',
                     alignItems: 'center',
                     marginRight: 14,
                   }}>
-                    <Ionicons name={item.icon} size={20} color="#D0D0D0" />
+                    <Image 
+                      source={item.icon} 
+                      style={{ width: 38, height: 38 }} 
+                      resizeMode="contain" 
+                    />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#E0E0E0', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 2 }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 1 }}>
                       {item.title}
                     </Text>
-                    <Text style={{ color: '#666', fontSize: 12, fontFamily: 'Poppins_400Regular' }}>
+                    <Text style={{ color: '#D6D6D6', fontSize: 10, fontFamily: 'Poppins_400Regular' }}>
                       {item.subtitle}
                     </Text>
                   </View>
                   {/* Radio button */}
                   <View style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 11,
+                    width: 18,
+                    height: 18,
+                    borderRadius: 18,
                     borderWidth: 2,
                     borderColor: isSelected ? '#F026A2' : '#3A3A3A',
                     backgroundColor: isSelected ? '#F026A2' : 'transparent',
@@ -149,19 +153,19 @@ export default function ReportIssueScreen() {
           </View>
 
           {/* ── DESCRIBE THE ISSUE ── */}
-          <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 12 }}>
+          <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>
             Describe The Issue
           </Text>
           <View style={{
-            backgroundColor: '#131313',
+            backgroundColor: '#1A1A1A',
             borderWidth: 1,
             borderColor: '#2A2A2A',
-            borderRadius: 18,
+            borderRadius: 20,
             paddingHorizontal: 16,
             paddingTop: 14,
             paddingBottom: 10,
             marginBottom: 28,
-            minHeight: 160,
+            minHeight: 148,
           }}>
             <TextInput
               value={description}
@@ -175,7 +179,7 @@ export default function ReportIssueScreen() {
                 fontSize: 14,
                 fontFamily: 'Poppins_400Regular',
                 flex: 1,
-                minHeight: 120,
+                minHeight: 110,
                 lineHeight: 22,
               }}
             />
@@ -185,31 +189,36 @@ export default function ReportIssueScreen() {
           </View>
 
           {/* ── SCREENSHOT ── */}
-          <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 12 }}>
+          <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>
             Screenshot
           </Text>
           <TouchableOpacity
             activeOpacity={0.7}
             style={{
-              backgroundColor: '#131313',
-              borderWidth: 1.5,
-              borderColor: '#2A2A2A',
+              width: '100%',
+              height: 90,
+              backgroundColor: '#1A1A1A',
+              borderWidth: 1,
+              borderColor: '#404040',
               borderStyle: 'dashed',
-              borderRadius: 18,
-              paddingVertical: 28,
+              borderRadius: 20,
+              flexDirection: 'row',
               alignItems: 'center',
+              gap: 10,
               marginBottom: 8,
             }}
           >
-            <Ionicons name="cloud-upload-outline" size={28} color="#666" style={{ marginBottom: 6 }} />
-            <Text style={{ color: '#888', fontSize: 14, fontFamily: 'Poppins_500Medium' }}>Upload Screenshot</Text>
+            <MaterialCommunityIcons name="upload-outline" size={24} color="#D0D0D0" style={{ marginLeft: 10 }} />
+            <Text style={{ color: '#D6D6D6', fontSize: 14, fontFamily: 'Poppins_500Medium' }}>
+              Upload Screenshot
+            </Text>
           </TouchableOpacity>
           <Text style={{ color: '#555', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 28 }}>
             Note: PNG/JPG up to 5MB
           </Text>
 
           {/* ── SEVERITY ── */}
-          <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 14 }}>
+          <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 10 }}>
             Severity
           </Text>
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 40 }}>
@@ -223,7 +232,7 @@ export default function ReportIssueScreen() {
                   onPress={() => setSeverity(s)}
                   style={{
                     paddingHorizontal: 22,
-                    paddingVertical: 10,
+                    paddingVertical: 6,
                     borderRadius: 30,
                     backgroundColor: isSelected ? cfg.bg : '#131313',
                     borderWidth: 1.5,
@@ -260,7 +269,7 @@ export default function ReportIssueScreen() {
                 elevation: 10,
               }}
             >
-              <Text style={{ color: '#fff', fontSize: 17, fontFamily: 'Poppins_600SemiBold' }}>
+              <Text style={{ color: '#fff', fontSize: 18, fontFamily: 'Poppins_500Medium' }}>
                 {isSubmitting ? 'Submitting…' : 'Submit Report'}
               </Text>
             </LinearGradient>

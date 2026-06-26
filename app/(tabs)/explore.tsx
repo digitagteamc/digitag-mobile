@@ -1250,6 +1250,8 @@ export default function ExploreTab() {
             snapToInterval={TAB_WIDTH}
             decelerationRate="fast"
             nestedScrollEnabled={true}
+                  
+
           >
             {availableCategories.map((cat) => {
               const isActive = cat.id === activeCategory;
@@ -1403,7 +1405,7 @@ export default function ExploreTab() {
             </View>
           ) : null
         }
-        contentContainerStyle={{ paddingBottom: 16 }}
+        contentContainerStyle={{ paddingBottom: 90 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
@@ -1506,7 +1508,7 @@ export default function ExploreTab() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000' },
-  scroll: { flex: 1 },
+  scroll: { flex: 5 },
 
   // Header
   header: { paddingHorizontal: 16, paddingBottom: 20, },
