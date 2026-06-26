@@ -331,7 +331,7 @@ export default function RoleSelectionScreen() {
                     <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
                         {[
                             { title: 'Collaborate', desc: 'Work with top pros', emoji: '🤝', color: '#FF618C', bg: 'rgba(255, 97, 140, 0.15)' },
-                            { title: 'Get Hired', desc: 'Land freelance gigs', emoji: '💼', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
+                            { title: 'Get Hired', desc: 'Earn from your skills', emoji: '💰', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
                             { title: 'Grow Brand', desc: 'Expand your reach', emoji: '🌐', color: '#8F38FF', bg: 'rgba(143, 56, 255, 0.15)' },
                         ].map((feature, idx) => (
                             <View

@@ -53,7 +53,7 @@ export default function TabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: { display: 'none' },
-                sceneStyle: { backgroundColor: palette.background, paddingBottom: sceneBottomPad },
+                sceneStyle: { backgroundColor: palette.background, paddingBottom: 90 },
             }}
             backBehavior="initialRoute"
             tabBar={renderTabBar}
