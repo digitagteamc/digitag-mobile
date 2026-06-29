@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
+    Image,
     Platform,
     ScrollView,
     StatusBar,
@@ -104,22 +105,22 @@ export default function PrivacySettingsScreen() {
             {/* Top purple glow gradient */}
             <LinearGradient
                 colors={['rgba(98, 50, 255, 0.15)', 'transparent']}
-                className="absolute top-0 left-0 right-0 h-[250px]"
+                className="absolute top-0 left-0 right-0 h-[400px]"
             />
 
             <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
                 {/* ── STICKY HEADER ── */}
                 <View
-                    className="px-5 mb-6"
+                    className="px-5 mb-4"
                     style={{ paddingTop: Math.max(insets.top, statusBarHeight) + 16 }}
                 >
                     <View className="flex-row items-center mb-2">
                         <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
                             <Ionicons name="arrow-back" size={24} color="#fff" />
                         </TouchableOpacity>
-                        <Text className="text-white text-[22px] font-poppins-semibold tracking-wide">Privacy Settings</Text>
+                        <Text className="text-white text-[24px] font-poppins-medium tracking-wide">Privacy Settings</Text>
                     </View>
-                    <Text className="text-[#8A8A8A] text-[14px] font-poppins-regular ml-9">Control who can see your information</Text>
+                    <Text className="text-[#E2E2E2] text-[12px] font-poppins-regular ml-2">Control who can see your information</Text>
                 </View>
 
                 <ScrollView
@@ -132,12 +133,16 @@ export default function PrivacySettingsScreen() {
                         <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
                             {/* Profile Visibility */}
                             <View className="flex-row items-center py-3.5 px-3 border-b border-[#2A2A2A]">
-                                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                                    <Ionicons name="eye-outline" size={20} color="#E0E0E0" />
+                                <View className="w-10 h-10 items-center justify-center mr-4">
+                                    <Image 
+                                        source={require('../assets/profile-visibilty-icon.png')} 
+                                        style={{ width: 36, height: 36 }} 
+                                        resizeMode="contain" 
+                                    />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium">Profile Visibility</Text>
-                                    <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Show my profile in search results</Text>
+                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Profile Visibility</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Show my profile in search results</Text>
                                 </View>
                                 <CustomSwitch value={profileVisibility} onValueChange={setProfileVisibility} />
                             </View>
@@ -156,12 +161,16 @@ export default function PrivacySettingsScreen() {
 
                             {/* Online Status */}
                             <View className="flex-row items-center py-3.5 px-3">
-                                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                                    <View className="w-3 h-3 rounded-full bg-[#10B981]" />
+                                <View className="w-10 h-10 items-center justify-center mr-4">
+                                    <Image 
+                                        source={require('../assets/show-online-icon.png')} 
+                                        style={{ width: 36, height: 36 }} 
+                                        resizeMode="contain" 
+                                    />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium">Show Online Status</Text>
-                                    <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Let others see when you're online</Text>
+                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Show Online Status</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Let others see when you're online</Text>
                                 </View>
                                 <CustomSwitch value={onlineStatus} onValueChange={setOnlineStatus} />
                             </View>
@@ -191,29 +200,37 @@ export default function PrivacySettingsScreen() {
 
                     {/* ── DATA & PRIVACY SECTION ── */}
                     <View className="px-5 mb-8">
-                        <Text className="text-white text-[17px] font-poppins-semibold mb-4">Data & Privacy</Text>
+                        <Text className="text-white text-[20px] font-poppins-medium mb-4">Data & Privacy</Text>
 
                         <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
                             {/* Data Sharing */}
                             <View className="flex-row items-center py-3.5 px-3 border-b border-[#2A2A2A]">
-                                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                                    <Ionicons name="share-social-outline" size={20} color="#E0E0E0" />
+                                <View className="w-10 h-10 items-center justify-center mr-4">
+                                    <Image 
+                                        source={require('../assets/data-sharing-icon.png')} 
+                                        style={{ width: 36, height: 36 }} 
+                                        resizeMode="contain" 
+                                    />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium">Data Sharing</Text>
-                                    <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Share data for personalized experience</Text>
+                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Data Sharing</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Share data for personalized experience</Text>
                                 </View>
                                 <CustomSwitch value={dataSharing} onValueChange={setDataSharing} />
                             </View>
 
                             {/* Download Data */}
                             <TouchableOpacity className="flex-row items-center py-3.5 px-3">
-                                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-[#F26930]/30 mr-4">
-                                    <Ionicons name="download-outline" size={20} color="#E0E0E0" />
+                                <View className="w-10 h-10 items-center justify-center mr-4">
+                                    <Image 
+                                        source={require('../assets/download-icon.png')} 
+                                        style={{ width: 36, height: 36 }} 
+                                        resizeMode="contain" 
+                                    />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="text-[#E0E0E0] text-[15px] font-poppins-medium">Download My Data</Text>
-                                    <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Get a copy of your information</Text>
+                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Download My Data</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Get a copy of your information</Text>
                                 </View>
                             </TouchableOpacity>
                         </View>
@@ -221,17 +238,17 @@ export default function PrivacySettingsScreen() {
 
                     {/* ── ACCOUNT DELETION ── */}
                     <View className="px-5 mb-8">
-                        <Text className="text-white text-[17px] font-poppins-semibold mb-4">Account Deletion</Text>
+                        <Text className="text-white text-[20px] font-poppins-medium mb-4">Account Deletion</Text>
                         <TouchableOpacity
                             className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-4"
                             onPress={handleDeleteAccount}
                             disabled={deleting}
                             activeOpacity={0.75}
                         >
-                            <Text className="text-[#FF3B30] text-[16px] font-poppins-bold mb-1">
+                            <Text className="text-[#E30000] text-[20px] font-poppins-medium mb-1">
                                 {deleting ? 'Deleting...' : 'DELETE ACCOUNT'}
                             </Text>
-                            <Text className="text-[#8A8A8A] text-[12px] font-poppins-regular">Permanently delete your account and all data</Text>
+                            <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Permanently delete your account and all data</Text>
                         </TouchableOpacity>
                     </View>
 

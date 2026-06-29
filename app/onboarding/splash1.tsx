@@ -1,289 +1,374 @@
-import GradientButton from '@/Components/ui/GradientButton';
-import SplashBackground from '@/Components/ui/SplashBackground';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
-import { BackHandler, Image, Linking, Platform, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
+} from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Defs, Stop, LinearGradient as SvgLinearGradient, Text as SvgText } from 'react-native-svg';
 
-const splashBubble = require('../../assets/images/splash_bubble.webp');
-const splashHeart = require('../../assets/images/splash_heart.webp');
+const splashWebp = require('../../assets/splash.webp');
 
-interface OnboardingStep {
-  gradientColors: readonly [string, string, ...string[]];
-  titles: string[];
-  subtitle: string;
-  buttonText: string;
-  dotColor?: string;
-  stepLabel?: string;
-  activeIndex?: number;
-  buttonColors?: readonly [string, string, ...string[]];
-  buttonLocations?: readonly [number, number, ...number[]];
-  buttonBorderColors?: readonly [string, string, ...string[]];
-  buttonShadowColor?: string;
-  buttonInsetTopColor?: string;
-  buttonInsetBottomColor?: string;
-  buttonTextColor?: string;
+// ─── Types ─────────────────────────────────────────────────────────────────
+type SlideLine = {
+  text: string;
+  color?: string;
+  gradient?: string[];
+  gradientCoords?: { x1: string; y1: string; x2: string; y2: string };
+};
+type Slide = { lines: SlideLine[]; subtitle: string };
+
+// ─── GradientText Helper ───────────────────────────────────────────────────
+function GradientText({
+  text,
+  colors,
+  fontSize,
+  coords = { x1: '0', y1: '0', x2: '1', y2: '0' },
+  style,
+}: {
+  text: string;
+  colors: string[];
+  fontSize: number;
+  coords?: { x1: string; y1: string; x2: string; y2: string };
+  style?: any;
+}) {
+  // Unique ID prevents text from disappearing during animations
+  const gradId = `grad-${text.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const containerH = fontSize * 1.4;
+  return (
+    <View style={[{ height: containerH, width: '100%', justifyContent: 'center' }, style]}>
+      <Svg height={containerH} width="100%" style={{ overflow: 'visible' }}>
+        <Defs>
+          <SvgLinearGradient id={gradId} x1={coords.x1} y1={coords.y1} x2={coords.x2} y2={coords.y2}>
+            <Stop offset="0" stopColor={colors[0]} stopOpacity="1" />
+            <Stop offset="1" stopColor={colors[1]} stopOpacity="1" />
+          </SvgLinearGradient>
+        </Defs>
+        <SvgText
+          fill={`url(#${gradId})`}
+          fontSize={fontSize}
+          fontFamily="Poppins-Bold"
+          fontWeight="700"
+          x="0"
+          y={containerH * 0.72}
+          textAnchor="start"
+        >
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
+  );
 }
 
-const ONBOARDING_STEPS: OnboardingStep[] = [
+// ─── SplashStep0 ────────────────────────────────────────────────────────────
+function SplashStep0({
+  screenH,
+  screenW,
+  isCompact,
+  onGetStarted,
+  slides,
+}: {
+  screenH: number;
+  screenW: number;
+  isCompact: boolean;
+  onGetStarted: () => void;
+  slides: Slide[];
+}) {
+  const [slideIndex, setSlideIndex] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setSlideIndex((prev) => (prev + 1) % slides.length);
+    }, 2500);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [slides.length]);
+
+  const activeSlide = slides[slideIndex];
+  const fontSize = isCompact ? 32 : 40;
+  // Hero image covers ~72% of screen height, matching Figma proportions
+  const heroHeight = screenH * 0.72;
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <StatusBar style="light" />
+
+      {/* Full-screen hero image */}
+      <Image
+        source={splashWebp}
+        style={[styles.heroImage, { height: screenH * 0.62 }]}
+        resizeMode="cover"
+      />
+
+      {/* Full-screen gradient overlay fading from transparent to black at bottom */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.55)', '#000000']}
+        locations={[0.55, 0.8, 1]}
+        style={styles.gradientOverlay}
+        pointerEvents="none"
+      />
+
+      {/* Bottom content panel — absolutely positioned */}
+      <SafeAreaView
+        edges={['bottom', 'left', 'right']}
+        style={styles.safeArea}
+      >
+        <View style={styles.contentWrapper}>
+          {/* Text section — flex: 1 so it pushes button to bottom */}
+          <View style={styles.topSection}>
+            <Animated.View
+              key={slideIndex}
+              entering={FadeIn.duration(350)}
+              exiting={FadeOut.duration(250)}
+              style={styles.headlineContainer}
+            >
+              {activeSlide.lines.map((line, i) => (
+                line.gradient ? (
+                  <GradientText
+                    key={i}
+                    text={line.text}
+                    colors={line.gradient}
+                    fontSize={fontSize}
+                    coords={line.gradientCoords}
+                  />
+                ) : (
+                  <Text
+                    key={i}
+                    style={[
+                      styles.headlineText,
+                      { fontSize, color: line.color || '#FFFFFF' }
+                    ]}
+                  >
+                    {line.text}
+                  </Text>
+                )
+              ))}
+            </Animated.View>
+
+            {/* Subtitle */}
+            <Animated.Text
+              key={`sub-${slideIndex}`}
+              entering={FadeIn.duration(350)}
+              style={styles.subtitleText}
+            >
+              {activeSlide.subtitle}
+            </Animated.Text>
+          </View>
+
+          {/* Fixed bottom section — button + pagination */}
+          <View style={styles.bottomSection}>
+            <TouchableOpacity
+              onPress={onGetStarted}
+              activeOpacity={0.85}
+              style={styles.buttonTouchable}
+            >
+              <LinearGradient
+                colors={['#FF611A', '#E526A6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Text style={styles.buttonText}>Get Started  →</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Pagination dots */}
+            <View style={styles.paginationContainer}>
+              {slides.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.paginationDot,
+                    {
+                      width: idx === slideIndex ? 20 : 8,
+                      backgroundColor: idx === slideIndex ? '#FF611A' : 'rgba(255,255,255,0.3)',
+                    }
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// ─── Constants ─────────────────────────────────────────────────────────────
+const SPLASH_SLIDES: Slide[] = [
   {
-    gradientColors: ['#000000', '#621487'],
-    titles: ["Bharat’s first", "collaboration", "platform."],
-    subtitle: "DigiTag",
-    buttonText: "Get Started",
-    buttonColors: ['transparent', 'transparent'],
-    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
-    buttonShadowColor: 'transparent',
+    lines: [
+      { text: 'Connect.', color: '#FFFFFF' },
+      {
+        text: 'Create.',
+        gradient: ['#ED2A91', '#FC6121'],
+        gradientCoords: { x1: '0', y1: '0', x2: '1', y2: '0' }
+      },
+      { text: 'Collaborate.', color: '#FFFFFF' },
+    ],
+    subtitle: 'The ultimate platform for creators & brands',
   },
   {
-    gradientColors: ['#000000', '#253477'],
-    titles: ["Discover Top", "Brands"],
-    subtitle: "Connect with fashion labels, beauty \nbrands, and lifestyle companies ready to collaborate.",
-    buttonText: "Next",
-    dotColor: "#405BFF",
-    stepLabel: "Step 1 of 4",
-    activeIndex: 0,
-    buttonColors: ['transparent', 'transparent'],
-    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
-    buttonShadowColor: 'transparent',
+    lines: [
+      { text: 'Show skills.', color: '#FFFFFF' },
+      {
+        text: 'Get projects.',
+        gradient: ['#F26930', '#ED2A91'],
+        gradientCoords: { x1: '0', y1: '0', x2: '1', y2: '1' }
+      },
+    ],
+    subtitle: 'Find projects and grow your career.',
   },
   {
-    gradientColors: ['#000000', '#ED2A91'],
-    titles: ["Book Expert", "Creators"],
-    subtitle: "Find makeup artists, hair stylists, photographers, editors & more for\nevery occasion.",
-    buttonText: "Next",
-    dotColor: "#E01E79",
-    stepLabel: "Step 2 of 4",
-    activeIndex: 1,
-    buttonColors: ['transparent', 'transparent'],
-    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
-    buttonShadowColor: 'transparent',
+    lines: [
+      { text: 'Grow Your.', color: '#FFFFFF' },
+      {
+        text: 'Brand Faster.',
+        gradient: ['#00D2FF', '#0071E3'],
+        gradientCoords: { x1: '0', y1: '0', x2: '1', y2: '1' }
+      },
+    ],
+    subtitle: 'Promote smarter. Grow faster.',
   },
   {
-    gradientColors: ['#000000', '#BD562C'],
-    titles: ["Grow & Earn", "Together"],
-    subtitle: "Launch campaigns, track\nperformance, and turn your\ncreativity into a thriving business.",
-    buttonText: "Next",
-    dotColor: "#FF6B35",
-    stepLabel: "Step 3 of 4",
-    activeIndex: 2,
-    buttonColors: ['transparent', 'transparent'],
-    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
-    buttonShadowColor: 'transparent',
-  },
-  {
-    gradientColors: ['#000000', '#E2F20F'],
-    titles: ["Scale Your", "Agency Faster"],
-    subtitle: "Handle clients, campaigns, and\nanalytics—all in one powerful\nplatform.",
-    buttonText: "Get Started",
-    dotColor: "#C1E300",
-    stepLabel: "Step 4 of 4",
-    activeIndex: 3,
-    buttonColors: ['transparent', 'transparent'],
-    buttonBorderColors: ['#FFFFFF', '#FFFFFF'],
-    buttonShadowColor: 'transparent',
-    buttonTextColor: '#FFFFFF',
+    lines: [
+      { text: 'Manage.', color: '#FFFFFF' },
+      {
+        text: 'Collaborations.',
+        gradient: ['#E2F20F', '#B2BD29'],
+        gradientCoords: { x1: '0', y1: '0', x2: '1', y2: '0' }
+      },
+    ],
+    subtitle: 'Connect brands with creators.',
   },
 ];
 
 export default function Splash1() {
   const router = useRouter();
-  const { step } = useLocalSearchParams<{ step?: string }>();
-  const { width: screenW, height: screenH } = useWindowDimensions();
-
-  // Initialize with step from params if valid, otherwise start at 0
-  const initialStep = step ? parseInt(step, 10) : 0;
-  const [currentStep, setCurrentStep] = useState(isNaN(initialStep) ? 0 : Math.min(initialStep, ONBOARDING_STEPS.length - 1));
-
-  const data = ONBOARDING_STEPS[currentStep];
-
-  // Responsive decorative sizes: scale with screen width but cap for tablets,
-  // and step down further on short phones so the 3D ornaments never crowd the
-  // text/button stack at the bottom of the screen.
+  const { height: screenH, width: screenW } = useWindowDimensions();
   const isCompact = screenH < 720;
-  const bubbleSize = Math.round(Math.min(150, screenW * (isCompact ? 0.30 : 0.36)));
-  const heartSize = Math.round(Math.min(130, screenW * (isCompact ? 0.26 : 0.32)));
-
-  // Reserve a content zone at the bottom ~42% of the viewport for text + CTA
-  // (or ~48% on short phones). Decorative ornaments sit outside that zone.
-  const contentReserve = isCompact ? 0.48 : 0.42;
-  const safeArea = screenH * (1 - contentReserve);
-
-  // Bubble pinned near bottom-left, Heart near middle-right
-  const bubbleBottom = isCompact ? 40 : 60;
-  const heartBottom = isCompact ? 160 : 190;
-  const titleFontSize = isCompact ? 26 : 32;
-  const titleLineHeight = isCompact ? 32 : 38;
-  const subtitleFontSize = currentStep === 0 ? (isCompact ? 20 : 24) : (isCompact ? 14 : 16);
-  const subtitleLineHeight = currentStep === 0 ? (isCompact ? 26 : 30) : (isCompact ? 22 : 26);
-
-  useEffect(() => {
-    const handleBackPress = () => {
-      if (currentStep > 0) {
-        setCurrentStep((prev) => prev - 1);
-        return true; // prevent default behavior
-      }
-      return false; // allow default behavior
-    };
-
-    const backHandlerSubscription = BackHandler.addEventListener('hardwareBackPress', handleBackPress);
-    return () => {
-      backHandlerSubscription.remove();
-    };
-  }, [currentStep]);
 
   const handleNext = () => {
-    if (currentStep < ONBOARDING_STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      router.replace('/role-selection');
-    }
-  };
-
-  const handleSkip = () => {
     router.replace('/role-selection');
   };
 
   return (
-    <SplashBackground gradientColors={data.gradientColors}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar style="light" />
-
-      <SafeAreaView className="flex-1" edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['top', 'bottom', 'left', 'right']}>
-
-        {/* Floating 3D decorations — positioned relative to screen height so
-            they never overlap the text/button area on any device size. */}
-        <Image
-          source={splashBubble}
-          style={{
-            position: 'absolute',
-            bottom: bubbleBottom,
-            left: -Math.round(bubbleSize * 0.4),
-            width: bubbleSize,
-            height: bubbleSize,
-            transform: [{ rotate: '12deg' }],
-            zIndex: 10,
-          }}
-          resizeMode="contain"
-        />
-        <Image
-          source={splashHeart}
-          style={{
-            position: 'absolute',
-            bottom: heartBottom,
-            right: -Math.round(heartSize * 0.4),
-            width: heartSize,
-            height: heartSize,
-            zIndex: 10,
-          }}
-          resizeMode="contain"
-        />
-
-        {/* Header (Skip) - Only show for onboarding steps */}
-        {currentStep > 0 && (
-          <Animated.View
-            entering={FadeIn}
-            exiting={FadeOut}
-            className="items-end px-5 pt-[10px] z-20"
-          >
-            <TouchableOpacity onPress={handleSkip}>
-              <Text className="font-poppins-regular text-white text-base">Skip</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        )}
-
-        <View className={`flex-1 justify-end items-center ${Platform.OS === 'ios' ? 'pb-8' : 'pb-6'} px-5 z-20`}>
-          <View className={`w-full items-center ${isCompact ? 'mb-6' : 'mb-10'} relative`}>
-            {/* Text Content */}
-            {currentStep > 0 && (
-              <Animated.View
-                key={`progress-${currentStep}`}
-                entering={FadeIn}
-                exiting={FadeOut}
-                className={`flex-row w-full justify-between items-center ${isCompact ? 'mb-[20px]' : 'mb-[30px]'} px-4`}
-              >
-                <View className="flex-row gap-2 items-center">
-                  {[0, 1, 2, 3].map((idx) => (
-                    <View
-                      key={idx}
-                      style={{
-                        backgroundColor: idx === data.activeIndex ? data.dotColor : 'rgba(255,255,255,0.2)'
-                      }}
-                      className={idx === data.activeIndex ? "w-6 h-1.5 rounded-full" : "w-1.5 h-1.5 rounded-full"}
-                    />
-                  ))}
-                </View>
-                <View className="bg-white/15 px-3 py-1.5 rounded-[20px]">
-                  <Text className="font-inter-medium text-white text-[12px] font-semibold">{data.stepLabel}</Text>
-                </View>
-              </Animated.View>
-            )}
-
-            {/* Text Content */}
-            <Animated.View
-              key={`content-${currentStep}`}
-              entering={FadeIn.duration(200)}
-              exiting={FadeOut.duration(150)}
-              className="w-full items-center"
-            >
-              <View className={`items-center ${isCompact ? 'mb-3' : 'mb-5'} px-4`}>
-                {data.titles.map((title, i) => (
-                  <Text
-                    key={i}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    className="font-poppins-bold text-white text-center"
-                    style={{ fontSize: titleFontSize, lineHeight: titleLineHeight }}
-                  >
-                    {title}
-                  </Text>
-                ))}
-              </View>
-              <View className="items-center px-4">
-                <Text
-                  className="font-poppins-regular text-[#E0E0E0] text-center px-2.5 pb-1"
-                  style={{ fontSize: subtitleFontSize, lineHeight: subtitleLineHeight }}
-                >
-                  {data.subtitle}
-                </Text>
-              </View>
-            </Animated.View>
-          </View>
-
-          <GradientButton
-            title={data.buttonText}
-            onPress={handleNext}
-            colors={data.buttonColors}
-            locations={data.buttonLocations}
-            borderColors={data.buttonBorderColors}
-            shadowColor={data.buttonShadowColor}
-            insetTopColor={data.buttonInsetTopColor}
-            insetBottomColor={data.buttonInsetBottomColor}
-            textStyle={{ color: data.buttonTextColor || '#FFFFFF' }}
-            className={`${currentStep === 0 ? "w-[250px]" : "w-[250px]"} ${isCompact ? 'mb-[20px]' : 'mb-[30px]'} z-20 py-2`}
-          />
-
-          {currentStep === 0 && (
-            <Animated.Text
-              entering={FadeIn}
-              className={`font-poppins-light ${isCompact ? 'text-[15px] leading-[20px]' : 'text-[18px] leading-[24px]'} text-[#b4b4b4] text-center mt-[5px] z-20`}
-            >
-              By Continuing. You accept our{' '}
-              <Text
-                className="text-white underline font-poppins-medium"
-                onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => {})}
-              >Terms & Conditions</Text>
-              {' '}and{' '}
-              <Text
-                className="text-white underline font-poppins-medium"
-                onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => {})}
-              >Privacy Policy</Text>
-            </Animated.Text>
-          )}
-        </View>
-      </SafeAreaView>
-    </SplashBackground>
+    <SplashStep0
+      screenH={screenH}
+      screenW={screenW}
+      isCompact={isCompact}
+      onGetStarted={handleNext}
+      slides={SPLASH_SLIDES}
+    />
   );
 }
+
+// ─── Styles ────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#060606',
+  },
+  heroImage: {
+    width: '100%',
+
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  contentWrapper: {
+    flex: 1,
+    paddingHorizontal: 24,
+    justifyContent: 'flex-end',
+    paddingBottom: 28,
+  },
+  topSection: {
+    marginBottom: 24,
+    alignItems: 'flex-start',
+  },
+  bottomSection: {
+    alignItems: 'center',
+  },
+  headlineContainer: {
+    alignItems: 'flex-start',
+    marginBottom: 10,
+    width: '100%',
+  },
+  headlineText: {
+    fontWeight: '700',
+    textAlign: 'left',
+    lineHeight: 42,
+    includeFontPadding: false,
+  },
+  subtitleText: {
+    fontWeight: '400',
+    color: '#C7C7E0',
+    textAlign: 'left',
+    lineHeight: 22,
+  },
+  buttonTouchable: {
+    borderRadius: 999,
+    overflow: 'hidden',
+    shadowColor: '#FF4D66',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 30,
+    elevation: 8,
+    alignSelf: 'center',
+    width: 260,
+    marginBottom: 20,
+  },
+  buttonGradient: {
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+  },
+  buttonText: {
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  paginationDot: {
+    height: 8,
+    borderRadius: 999,
+  },
+
+  // ─── Typography — font family & font size are defined here only ────────────
+  fontHeadline: {
+    fontFamily: 'Poppins-Bold',
+
+    fontSize: 40,
+  },
+  fontHeadlineCompact: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 32,
+  },
+  fontSubtitle: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 15,
+  },
+  fontButton: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+  },
+});

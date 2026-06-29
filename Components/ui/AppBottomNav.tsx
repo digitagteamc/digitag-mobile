@@ -230,11 +230,12 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
+        
     },
 
     /* ── Bar: Figma #1E1E24, radius-tl/tr 20, height + safe bottom inset */
     bar: {
-        backgroundColor: '#1E1E24',
+        backgroundColor: '#1e1e24',
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         flexDirection: 'row',
@@ -243,8 +244,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingTop: 10,
         minHeight: Platform.OS === 'ios' ? 80 : 70,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.06)',
+        
+        
     },
 
     /* Touchable wrapper — left-anchored so pill grows rightward */

@@ -7,6 +7,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  Modal,
   ScrollView,
   Share,
   StatusBar,
@@ -55,6 +56,11 @@ export default function PostDetail() {
   const [collabBusy, setCollabBusy] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
+  // Popup state
+  const [popupVisible, setPopupVisible] = useState(false);
+  const [popupType, setPopupType] = useState<'success' | 'error'>('success');
+  const [popupMessage, setPopupMessage] = useState('');
+
   const load = useCallback(async () => {
     if (!token || !postId) { setLoading(false); return; }
     if (!requireProfile('view this post')) { setLoading(false); return; }
@@ -66,7 +72,7 @@ export default function PostDetail() {
         ownerId ? getCollaborationWith(token, ownerId) : Promise.resolve({ success: false }),
         getSavedPostIds(token),
       ]);
-      if (collabRes.success) setCollabStatus((collabRes.data?.status ?? 'NONE') as any);
+      if (collabRes.success) setCollabStatus(((collabRes as any).data?.status ?? 'NONE') as any);
       if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
     }
     setLoading(false);
@@ -95,12 +101,18 @@ export default function PostDetail() {
       const res = await sendCollaboration(token, { receiverId: owner.id, postId, message: 'I would love to collaborate with you!' });
       if (res.success !== false) {
         setCollabStatus('PENDING');
-        Alert.alert('Collab Sent!', 'Your collaboration request has been sent.');
+        setPopupType('success');
+        setPopupMessage('Your collaboration request has been sent.');
+        setPopupVisible(true);
       } else {
-        Alert.alert('Error', (res as any).error || 'Could not send collab request.');
+        setPopupType('error');
+        setPopupMessage((res as any).error || 'Could not send collab request.');
+        setPopupVisible(true);
       }
     } catch {
-      Alert.alert('Error', 'Could not send collab request.');
+      setPopupType('error');
+      setPopupMessage('Could not send collab request.');
+      setPopupVisible(true);
     } finally {
       setCollabBusy(false);
     }
@@ -113,7 +125,9 @@ export default function PostDetail() {
     if (res.success && res.data?.id) {
       router.push({ pathname: '/chat/[id]', params: { id: res.data.id } } as any);
     } else {
-      Alert.alert('Chat Error', (res as any).error || 'Could not open conversation.');
+      setPopupType('error');
+      setPopupMessage((res as any).error || 'Could not open conversation.');
+      setPopupVisible(true);
     }
   };
 
@@ -136,10 +150,14 @@ export default function PostDetail() {
           },
         } as any);
       } else {
-        Alert.alert('Call Failed', (res as any).error || 'Could not start call.');
+        setPopupType('error');
+        setPopupMessage((res as any).error || 'Could not start call.');
+        setPopupVisible(true);
       }
     } catch (err: any) {
-      Alert.alert('Call Failed', err?.message || 'Network error.');
+      setPopupType('error');
+      setPopupMessage(err?.message || 'Network error.');
+      setPopupVisible(true);
     }
   };
 
@@ -305,6 +323,55 @@ export default function PostDetail() {
 
           <View style={{ height: 60 }} />
         </ScrollView>
+
+        {/* ── Custom Success/Error Popup ── */}
+        <Modal
+          visible={popupVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPopupVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalIconCircle}>
+                {popupType === 'success' ? (
+                  <>
+                    <Image 
+                      source={require('../assets/spark.gif')} 
+                      style={[StyleSheet.absoluteFill, { width: 80, height: 80, opacity: 0.6 }]} 
+                    />
+                    <Image 
+                      source={require('../assets/images/success.gif')} 
+                      style={{ width: 60, height: 60 }} 
+                    />
+                  </>
+                ) : (
+                  <Ionicons name="alert-circle" size={44} color="#FF4D4D" />
+                )}
+              </View>
+              
+              <Text style={styles.modalTitle}>
+                {popupType === 'success' ? 'Collab Sent!' : 'Error'}
+              </Text>
+              
+              <Text style={styles.modalMessage}>{popupMessage}</Text>
+              
+              <TouchableOpacity 
+                style={styles.modalButton}
+                onPress={() => setPopupVisible(false)}
+              >
+                <LinearGradient
+                  colors={popupType === 'success' ? [theme.primary, theme.primary + 'CC'] : ['#FF4D4D', '#FF8080']}
+                  style={styles.modalButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -486,5 +553,64 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
     letterSpacing: -0.3,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#1C1C24',
+    borderRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 30,
+    alignItems: 'center',
+  },
+  modalIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#272730',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontFamily: 'Poppins_700Bold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    color: '#A0A0AB',
+    fontSize: 15,
+    fontFamily: 'Poppins_400Regular',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  modalButton: {
+    width: '100%',
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+  },
+  modalButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_600SemiBold',
   },
 });
