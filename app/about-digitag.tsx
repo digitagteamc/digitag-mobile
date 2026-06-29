@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  Image,
   Linking,
   Platform,
   ScrollView,
@@ -16,19 +17,19 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 const FEATURES = [
   {
     id: 1,
-    icon: 'people-outline' as const,
+    icon: require('../assets/connect-icon.png'),
     title: 'Connect with Professionals',
     description: 'Network with agencies, creators, and brands in the digital marketing space',
   },
   {
     id: 2,
-    icon: 'document-text-outline' as const,
+    icon: require('../assets/post-req.png'),
     title: 'Post Requirements',
     description: 'Create and share your collaboration needs with the right audience',
   },
   {
     id: 3,
-    icon: 'settings-outline' as const,
+    icon: require('../assets/real-time.png'),
     title: 'Real-time Updates',
     description: 'Stay updated with instant notifications and live chat features',
   },
@@ -46,7 +47,7 @@ export default function AboutDigitagScreen() {
       {/* Top purple glow gradient */}
       <LinearGradient
         colors={['rgba(98, 50, 255, 0.20)', 'transparent']}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 280 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400 }}
       />
 
       <SafeAreaView style={{ flex: 1 }} edges={['bottom', 'left', 'right']}>
@@ -63,36 +64,36 @@ export default function AboutDigitagScreen() {
         >
           <TouchableOpacity
             onPress={() => router.back()}
-            style={{ marginRight: 12, padding: 4 }}
+            style={{ marginRight: 12, padding: 2 }}
           >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={{ color: '#fff', fontSize: 22, fontFamily: 'Poppins_600SemiBold' }}>
+          <Text style={{ color: '#fff', fontSize: 24, fontFamily: 'Poppins_500Medium' }}>
             About Digitag
           </Text>
         </View>
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 48 }}
+          contentContainerStyle={{ paddingBottom: 55 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ── OUR MISSION ── */}
-          <View style={{ paddingHorizontal: 20, marginBottom: 36 }}>
-            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', marginBottom: 14 }}>
+          <View style={{ paddingHorizontal: 20, marginBottom: 40 }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_500Medium', marginBottom: 14 }}>
               Our Mission
             </Text>
-            <Text style={{ color: '#8A8A8A', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 22, marginBottom: 14 }}>
+            <Text style={{ color: '#E1E1E1', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 4 }}>
               Digitag is a revolutionary platform designed to bridge the gap between agencies, content creators, and brands. We're building a community where collaboration happens seamlessly and opportunities are just a tap away.
             </Text>
-            <Text style={{ color: '#8A8A8A', fontSize: 14, fontFamily: 'Poppins_400Regular', lineHeight: 22 }}>
+            <Text style={{ color: '#E1E1E1', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18 }}>
               Our vision is to create the most trusted and efficient marketplace for digital collaborations, empowering professionals to grow their network and business.
             </Text>
           </View>
 
           {/* ── KEY FEATURES ── */}
           <View style={{ paddingHorizontal: 20, marginBottom: 36 }}>
-            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_600SemiBold', marginBottom: 14 }}>
+            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_500Medium', marginBottom: 10 }}>
               Key Features
             </Text>
             <View style={{
@@ -106,23 +107,22 @@ export default function AboutDigitagScreen() {
                 <React.Fragment key={feature.id}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 18 }}>
                     <View style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 21,
-                      backgroundColor: '#1A1A1A',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.1)',
+                      
                       justifyContent: 'center',
                       alignItems: 'center',
                       marginRight: 14,
                     }}>
-                      <Ionicons name={feature.icon} size={20} color="#E0E0E0" />
+                      <Image 
+                        source={feature.icon} 
+                        style={{ width: 38, height: 38 }} 
+                        resizeMode="contain" 
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#E0E0E0', fontSize: 15, fontFamily: 'Poppins_600SemiBold', marginBottom: 3 }}>
+                      <Text style={{ color: '#E0E0E0', fontSize: 16, fontFamily: 'Poppins_500Medium', marginBottom: 3 }}>
                         {feature.title}
                       </Text>
-                      <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 19 }}>
+                      <Text style={{ color: '#5A5E60', fontSize: 12, fontFamily: 'Poppins_400Regular', lineHeight:18 }}>
                         {feature.description}
                       </Text>
                     </View>
@@ -132,7 +132,7 @@ export default function AboutDigitagScreen() {
                   )}
                 </React.Fragment>
               ))}
-            </View>
+            </View> 
           </View>
 
           {/* ── LEGAL & PRIVACY ── */}
@@ -157,17 +157,15 @@ export default function AboutDigitagScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: '#1A1A1A',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.1)',
                   justifyContent: 'center',
                   alignItems: 'center',
                   marginRight: 14,
                 }}>
-                  <Ionicons name="shield-checkmark-outline" size={20} color="#E0E0E0" />
+                  <Image 
+                    source={require('../assets/legal-icon.png')} 
+                    style={{ width: 38, height: 38 }} 
+                    resizeMode="contain" 
+                  />
                 </View>
                 <Text style={{ color: '#E0E0E0', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>
                   Legal & Privacy

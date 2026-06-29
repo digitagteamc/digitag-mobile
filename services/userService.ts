@@ -833,6 +833,18 @@ export const editMessage = async (token: string, conversationId: string, message
     }
 };
 
+export const deleteMessage = async (token: string, conversationId: string, messageId: string) => {
+    try {
+        const body = await request(`/conversations/${conversationId}/messages/${messageId}`, {
+            method: 'DELETE',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /** POST /uploads/image — upload an image for use in chat messages. */
 export const uploadMessageImage = async (token: string, asset: { uri: string; mimeType?: string | null; fileName?: string | null }) => {
     try {
