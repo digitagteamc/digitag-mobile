@@ -45,6 +45,7 @@ const SPACING = 10;
 const ITEM_SIZE = CARD_WIDTH + SPACING;
 
 const FALLBACK_BANNER = null;
+// Static images instead of GIFs to reduce memory
 const imgPhotography = require('../../assets/categories/Photography.gif');
 const imgEditor = require('../../assets/categories/editor.gif');
 const imgVideography = require('../../assets/categories/Videography.gif');
@@ -55,6 +56,7 @@ const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
 const imgProperty = require('../../assets/categories/property-rental.gif');
 const imgVoiceOver = require('../../assets/categories/VoiceOver.gif');
 const imgModal = require('../../assets/categories/modal.gif');
+// Preload prevention - images will be required lazily
 
 const imgStars = require('../../assets/categories/stars.gif');
 const imgStarsOrange = require('../../assets/categories/star-orange.gif');
@@ -364,19 +366,10 @@ const Sparkles = React.memo(() => {
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
       <BlinkingStar style={{ position: 'absolute', top: 10, left: 120 }} size={24} />
-      <BlinkingStar style={{ position: 'absolute', top: 100, right: 10 }} size={16} />
-      <BlinkingStar style={{ position: 'absolute', bottom: 60, left: 40 }} size={20} />
-
       <BlinkingDot style={{ position: 'absolute', top: 40, left: 40 }} />
       <BlinkingDot style={{ position: 'absolute', top: 140, left: 180 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 60, right: 100 }} />
       <BlinkingDot style={{ position: 'absolute', bottom: 100, right: 150 }} />
       <BlinkingDot style={{ position: 'absolute', bottom: 40, right: 50 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 200, left: 20 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 20, right: 200 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 150, left: 100 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 100, left: '50%' }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 20, left: 200 }} />
     </View>
   );
 });
@@ -392,7 +385,10 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
   const translateY = useSharedValue(0);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      cancelAnimation(translateY);
+      return;
+    }
     translateY.value = withRepeat(
       withSequence(
         withTiming(-10, { duration: 1500 }),
@@ -438,7 +434,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
             overflow: 'hidden'
           }}
         >
-          <Sparkles />
+          {visible && <Sparkles />}
 
           <TouchableOpacity
             onPress={onClose}
@@ -516,11 +512,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
     (index + 1) * ITEM_SIZE,
   ];
 
-  const rotateY = scrollX.interpolate({
-    inputRange,
-    outputRange: ['15deg', '0deg', '-15deg'],
-    extrapolate: 'clamp',
-  });
+  // Removed rotateY for performance
 
   const scale = scrollX.interpolate({
     inputRange,
@@ -542,7 +534,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
       <Animated.View
         style={{
           width: CARD_WIDTH,
-          transform: [{ perspective: 1000 }, { rotateY }, { scale }],
+          transform: [{ scale }],
           opacity,
         }}
       >
@@ -938,7 +930,7 @@ export default function Homepage() {
   }), [visiblePosts]);
 
   const carouselData = React.useMemo(() => {
-    const copies = cards.length <= 1 ? 1 : 3;
+    const copies = 1;
     return Array(copies).fill(cards).flat().map((item, idx) => ({ ...item, _loopId: `${item.id}-${idx}` }));
   }, [cards]);
 
@@ -961,12 +953,13 @@ export default function Homepage() {
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>
           <Carousel
-            loop
+            loop={false}
             width={width}
             height={432}
             autoPlay={true}
+            windowSize={2}
             data={CAROUSEL_DATA}
-            scrollAnimationDuration={1000}
+            scrollAnimationDuration={800}
             onSnapToItem={(index) => setCurrentSlide(index)}
             renderItem={({ item }) => (
               <View style={{ flex: 1 }}>
@@ -998,7 +991,7 @@ export default function Homepage() {
                         onPress={() => setCommunityModalVisible(true)}
                       >
                         <View style={styles.communityBtnInner}>
-                          <HeroGradientText text="Creator Community" color={item.strokeColor[1]} fontSize={14} />
+                          <HeroGradientText text="Creator Community" color={item.strokeColor} fontSize={14} />
                           <Feather name="arrow-up-right" size={20} color={item.gradient[1]} style={{ marginLeft: -4 }} />
                         </View>
                       </TouchableOpacity>
@@ -1116,6 +1109,9 @@ export default function Homepage() {
               showsHorizontalScrollIndicator={false}
               snapToInterval={snapInterval}
               decelerationRate="fast"
+              initialNumToRender={2}
+              maxToRenderPerBatch={2}
+              windowSize={3}
               contentContainerStyle={{ paddingHorizontal: 2, gap: catGap }}
               onScroll={Animated.event(
                 [{ nativeEvent: { contentOffset: { x: scrollXCat } } }],
@@ -1147,6 +1143,8 @@ export default function Homepage() {
                         );
                       }
 
+                      const colIndex = availableCategoryColumns.indexOf(colItems);
+                      const showGif = colIndex < 3;
                       return (
                         <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)} activeOpacity={0.8}>
                           <LinearGradient
@@ -1156,7 +1154,7 @@ export default function Homepage() {
                             style={styles.catGradientBorder}
                           >
                             <View style={styles.catGridCard}>
-                              {cat.image ? (
+                              {showGif && cat.image ? (
                                 <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
                               ) : (
                                 <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
@@ -1226,7 +1224,7 @@ export default function Homepage() {
               windowSize={21}
               initialNumToRender={10}
               maxToRenderPerBatch={10}
-              removeClippedSubviews={false}
+              removeClippedSubviews={true}
               contentContainerStyle={{ paddingHorizontal: (width - ITEM_SIZE) / 2 }}
               data={carouselData}
               keyExtractor={(item: any) => item._loopId}
@@ -1301,11 +1299,7 @@ export default function Homepage() {
           <View style={{ marginTop: 20, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
-              <Image
-                source={userRole === 'FREELANCER' ? imgStarsOrange : imgStars}
-                style={{ width: 32, height: 32, aspectRatio: 1, marginLeft: -4, marginTop: -4 }}
-                resizeMode="contain"
-              />
+              <Ionicons name="star-outline" size={28} color="#ed2a91" style={{ marginLeft: -4, marginTop: -4 }} />
             </View>
             <TouchableOpacity
               style={styles.createPostCard}
@@ -1341,7 +1335,7 @@ export default function Homepage() {
                 </View>
               )}
               <View style={styles.createPostIconWrap}>
-                <Image source={userRole === 'FREELANCER' ? imgNewPost : imgPost} style={{ width: 64, height: 64 }} resizeMode="contain" />
+                <Ionicons name="add-circle-outline" size={64} color="#ed2a91" />
               </View>
               <Text style={styles.createPostText}>Create your first post</Text>
             </TouchableOpacity>
@@ -1374,7 +1368,7 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          <Image source={userRole === 'FREELANCER' ? imgLoveOrange : imgLove} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          <Ionicons name="heart-outline" size={48} color="#ed2a91" style={{ marginBottom: 4 }} />
           <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
             <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>

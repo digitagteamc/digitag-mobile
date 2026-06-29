@@ -175,12 +175,23 @@ export default function LoginScreen() {
                 await auth().signOut();
             }
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
-            const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
+            console.log("=== START OTP ===");
+console.log("PHONE:", cleanPhone);
+const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
+console.log("CONFIRMATION:", confirmation);
             setConfirm(confirmation);
             setCountdown(60);
             animatedSetStep(2);
+            setTimeout(() => {
+                otpInputRef.current?.focus();
+            }, 500);
         } catch (error: any) {
-            showStatus('Error', error.message || 'Failed to send OTP. Please try again.');
+            console.log("ERROR MESSAGE:", error?.message);
+console.log("ERROR CODE:", error?.code);
+console.log("ERROR NAME:", error?.name);
+console.log("NATIVE ERROR:", error);
+console.log("ERROR KEYS:", Object.getOwnPropertyNames(error || {}));
+showStatus("Error", error.message || "Failed to send OTP.");
         } finally {
             setSendingOtp(false);
         }
@@ -429,7 +440,7 @@ export default function LoginScreen() {
                                             instead of a decorative box — pasting a copied OTP now works. */}
                                         <TextInput
                                             ref={otpInputRef}
-                                            className="absolute top-0 left-0 right-0 bottom-0 opacity-0"
+                                            className="absolute top-0 left-0 right-0 bottom-0 opacity-[0.01]"
                                             value={otp}
                                             onChangeText={(v) => setOtp(v.replace(/[^0-9]/g, '').slice(0, 6))}
                                             keyboardType="number-pad"
