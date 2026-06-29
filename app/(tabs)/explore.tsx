@@ -564,21 +564,28 @@ export default function ExploreTab() {
 
   useFocusEffect(useCallback(() => { fetchPosts(); }, [fetchPosts]));
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!token || !userId) return;
     listCollaborations(token, { direction: 'all' }).then(res => {
       if (res.success && Array.isArray(res.data)) {
         const accepted = new Set<string>();
+        const pendingPostIds = new Set<string>();
         res.data.forEach((r: any) => {
           if (r.status === 'ACCEPTED') {
             const otherId = r.senderId === userId ? r.receiverId : r.senderId;
             if (otherId) accepted.add(otherId);
           }
+          if (r.status === 'PENDING' && r.senderId === userId && r.postId) {
+            pendingPostIds.add(r.postId);
+          }
         });
         setAcceptedCollabOwnerIds(accepted);
+        // Server is the source of truth on every visit — replaces any stale local-only
+        // "Request Sent" state and also restores it if the app was closed/reopened.
+        setCollabSentIds(pendingPostIds);
       }
     });
-  }, [token, userId]);
+  }, [token, userId]));
 
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 

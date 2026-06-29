@@ -172,6 +172,24 @@ export default function HelpSupportScreen() {
             </View>
           </View>
 
+          {/* ── DELETE ACCOUNT ── */}
+          <View className="px-5 mb-8">
+            <Text className="text-white text-[17px] font-poppins-semibold mb-4 ml-1">Account</Text>
+            <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
+              <TouchableOpacity
+                className="flex-row items-center py-3.5 px-3"
+                activeOpacity={0.7}
+                onPress={() => Linking.openURL('https://thedigitag.ai/delete-account').catch(() => {})}
+              >
+                <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-red-500/30 mr-4">
+                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                </View>
+                <Text className="text-[#EF4444] text-[15px] font-poppins-medium flex-1">Delete Account</Text>
+                <Ionicons name="chevron-forward" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* ── STILL NEED HELP ── */}
           <View className="px-5 mb-8">
             <View className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-5 items-center">

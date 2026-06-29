@@ -700,9 +700,11 @@ export default function Homepage() {
           if (!token) { setPosts([]); setLoading(false); return; }
           const res = await getFeed(token);
           const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-          if (allPosts.length > 1) {
-            scrollX.setValue(allPosts.length * ITEM_SIZE);
-          }
+          // Must match the post-preview cap applied below (cards/visiblePosts), otherwise
+          // scrollX starts at an offset the FlatList's actual item count doesn't have —
+          // causing a visible jump/re-snap that looks like the carousel "scrolling extra times".
+          const visibleCount = isProfileCompleted ? allPosts.length : Math.min(allPosts.length, 3);
+          scrollX.setValue(visibleCount > 1 ? visibleCount * ITEM_SIZE : 0);
           setPosts(allPosts);
         } catch {
           setPosts([]);
@@ -734,7 +736,7 @@ export default function Homepage() {
               const otherId = r.senderId === userId ? r.receiverId : r.senderId;
               if (otherId) accepted.add(otherId);
             }
-            if (r.senderId === userId) sent.add(r.receiverId);
+            if (r.status === 'PENDING' && r.senderId === userId) sent.add(r.receiverId);
             if (r.status === 'PENDING' && r.receiverId === userId) pending++;
           });
           setAcceptedCollabOwnerIds(accepted);
