@@ -34,7 +34,8 @@
           "fetch"
         ]
       },
-      "buildNumber": "2"
+      "buildNumber": "3",
+      "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
