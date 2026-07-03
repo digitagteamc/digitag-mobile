@@ -54,8 +54,8 @@ function GradientText({
         <SvgText
           fill={`url(#${gradId})`}
           fontSize={fontSize}
-          fontFamily="Poppins-Bold"
-          fontWeight="700"
+          fontFamily="Poppins_700Bold"
+         
           x="0"
           y={containerH * 0.72}
           textAnchor="start"
@@ -72,12 +72,14 @@ function SplashStep0({
   screenH,
   screenW,
   isCompact,
+  isTablet,
   onGetStarted,
   slides,
 }: {
   screenH: number;
   screenW: number;
   isCompact: boolean;
+  isTablet: boolean;
   onGetStarted: () => void;
   slides: Slide[];
 }) {
@@ -106,15 +108,19 @@ function SplashStep0({
       {/* Full-screen hero image */}
       <Image
         source={splashWebp}
-        style={[styles.heroImage, { height: screenH * 0.62 }]}
+        style={
+          isTablet
+            ? [StyleSheet.absoluteFillObject, styles.heroImage]
+            : [styles.heroImage, { height: screenH * 0.62 }]
+        }
         resizeMode="cover"
       />
 
       {/* Full-screen gradient overlay fading from transparent to black at bottom */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.55)', '#000000']}
-        locations={[0.55, 0.8, 1]}
-        style={styles.gradientOverlay}
+        colors={isTablet ? ['transparent', 'rgba(0,0,0,0.65)', '#000000'] : ['transparent', 'rgba(0,0,0,0.55)', '#000000']}
+        locations={isTablet ? [0.45, 0.75, 1] : [0.55, 0.8, 1]}
+        style={isTablet ? StyleSheet.absoluteFillObject : styles.gradientOverlay}
         pointerEvents="none"
       />
 
@@ -257,6 +263,7 @@ export default function Splash1() {
   const router = useRouter();
   const { height: screenH, width: screenW } = useWindowDimensions();
   const isCompact = screenH < 720;
+  const isTablet = screenW >= 768;
 
   const handleNext = () => {
     router.replace('/role-selection');
@@ -267,6 +274,7 @@ export default function Splash1() {
       screenH={screenH}
       screenW={screenW}
       isCompact={isCompact}
+      isTablet={isTablet}
       onGetStarted={handleNext}
       slides={SPLASH_SLIDES}
     />
@@ -281,7 +289,6 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-
   },
   gradientOverlay: {
     position: 'absolute',
@@ -310,13 +317,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   headlineText: {
-    fontWeight: '700',
+    fontFamily: 'Poppins_700Bold',
     textAlign: 'left',
     lineHeight: 42,
     includeFontPadding: false,
   },
   subtitleText: {
-    fontWeight: '400',
+    fontFamily: 'Poppins_400Regular',
     color: '#C7C7E0',
     textAlign: 'left',
     lineHeight: 22,
@@ -340,7 +347,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   buttonText: {
-    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
     color: '#FFFFFF',
   },
   paginationContainer: {
@@ -355,20 +362,20 @@ const styles = StyleSheet.create({
 
   // ─── Typography — font family & font size are defined here only ────────────
   fontHeadline: {
-    fontFamily: 'Poppins-Bold',
+    fontFamily: 'Poppins_700Bold',
 
     fontSize: 40,
   },
   fontHeadlineCompact: {
-    fontFamily: 'Poppins-Bold',
+    fontFamily: 'Poppins_700Bold',
     fontSize: 32,
   },
   fontSubtitle: {
-    fontFamily: 'Poppins-Regular',
+    fontFamily: 'Poppins_400Regular',
     fontSize: 15,
   },
   fontButton: {
-    fontFamily: 'Poppins-SemiBold',
+    fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
   },
 });

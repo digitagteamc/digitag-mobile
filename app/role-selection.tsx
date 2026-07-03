@@ -303,17 +303,17 @@ export default function RoleSelectionScreen() {
             />
 
             {/* Header - Back Button Only */}
-            <View className="px-4 pt-4 pb-2 mt-2">
+            {/* <View className="px-2 pt-2  mt-2">
                 <TouchableOpacity
                     onPress={() => router.replace('/onboarding/splash1?step=4')}
                     className="p-1 w-10"
                 >
                     <ChevronLeft color="#FFFFFF" size={28} />
                 </TouchableOpacity>
-            </View>
+            </View> */}
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-                <View className="px-5 pb-8">
+                <View className="px-5 pb-2 mt-4">
                     {/* Big Header Section */}
                     <View className="mb-2 mt-0 gap-[2px]">
                         <Text className="text-white font-poppins-bold text-[26px] leading-[30px]">
@@ -322,13 +322,13 @@ export default function RoleSelectionScreen() {
                         <Text className="text-[#7352DD] font-poppins-bold text-[26px] leading-[30px]">
                             Endless Opportunities.
                         </Text>
-                        <Text className="text-[#88889D] font-poppins-regular text-[12px] mt-3 mb-3 leading-5">
+                        <Text className="text-[#88889D] font-poppins-regular text-[12px] mt-1 mb-3 leading-5">
                             Discover, connect & collaborate — everything you need to grow {'\n'}your brand, skills, or audience.
                         </Text>
                     </View>
 
                     {/* Feature Cards Row — width derived from screen width so all 3 always fit without scrolling */}
-                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 6 }}>
                         {[
                             { title: 'Collaborate', desc: 'Work with top pros', emoji: '🤝', color: '#FF618C', bg: 'rgba(255, 97, 140, 0.15)' },
                             { title: 'Get Hired', desc: 'Earn from your skills', emoji: '💰', color: '#FFCC33', bg: 'rgba(255, 204, 51, 0.15)' },
@@ -354,7 +354,7 @@ export default function RoleSelectionScreen() {
                                     {feature.title}
                                 </Text>
                                 <Text
-                                    className="text-[#F2F2F2] font-poppins-regular text-[10px] mt-0.5 leading-[12px]"
+                                    className="text-[#F2F2F2] font-poppins-regular text-[10px]   leading-[12px]"
                                     numberOfLines={2}
                                 >
                                     {feature.desc}
@@ -364,7 +364,7 @@ export default function RoleSelectionScreen() {
                     </View>
 
                     {/* Profile Type Selection Header */}
-                    <View className="mb-0 mt-[20px]">
+                    <View className="mb-0 mt-[12px]">
                         <Text className="text-white font-poppins-bold text-[18px] mb-0">
                             Select Your Profile Type
                         </Text>

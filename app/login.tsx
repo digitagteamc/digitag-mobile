@@ -176,9 +176,9 @@ export default function LoginScreen() {
             }
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
             console.log("=== START OTP ===");
-console.log("PHONE:", cleanPhone);
-const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
-console.log("CONFIRMATION:", confirmation);
+            console.log("PHONE:", cleanPhone);
+            const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
+            console.log("CONFIRMATION:", confirmation);
             setConfirm(confirmation);
             setCountdown(60);
             animatedSetStep(2);
@@ -187,11 +187,11 @@ console.log("CONFIRMATION:", confirmation);
             }, 500);
         } catch (error: any) {
             console.log("ERROR MESSAGE:", error?.message);
-console.log("ERROR CODE:", error?.code);
-console.log("ERROR NAME:", error?.name);
-console.log("NATIVE ERROR:", error);
-console.log("ERROR KEYS:", Object.getOwnPropertyNames(error || {}));
-showStatus("Error", error.message || "Failed to send OTP.");
+            console.log("ERROR CODE:", error?.code);
+            console.log("ERROR NAME:", error?.name);
+            console.log("NATIVE ERROR:", error);
+            console.log("ERROR KEYS:", Object.getOwnPropertyNames(error || {}));
+            showStatus("Error", error.message || "Failed to send OTP.");
         } finally {
             setSendingOtp(false);
         }
@@ -254,27 +254,38 @@ showStatus("Error", error.message || "Failed to send OTP.");
     return (
         <View className="flex-1 bg-black">
             <LinearGradient
-                colors={['#000000', '#201242']}
+                colors={['#020821', '#020821']}
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            />
+            {/* Bottom Graphic */}
+            <Image
+                source={require('../assets/login-bottom.png')}
+                style={{ position: 'absolute', bottom: -190, left: 0, right: 0, width: '100%', aspectRatio: 1760 / 486 }}
+                resizeMode="contain"
             />
             <SafeAreaView className="flex-1" edges={['top', 'left', 'right']}>
                 {/* ── STEP 1: Phone ── */}
                 <View className="flex-1">
                     {/* Fixed Header Area */}
-                    <View className="px-[30px] pt-[5%] pb-4">
-                        {/* Back to role selection */}
-                        <TouchableOpacity
-                            className="w-11 h-11 rounded-full border border-[#4d4d63] justify-center items-center mb-6"
+                    <View style={{ position: 'relative' }} className="px-[30px] pt-[5%] pb-4">
+                        {/* Back button — absolutely positioned so it doesn't push logo down */}
+                        {/* <TouchableOpacity
+                            style={{ position: 'absolute', top: 12, left: 30, zIndex: 10, width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#4d4d63', justifyContent: 'center', alignItems: 'center' }}
                             onPress={() => router.replace('/role-selection')}
                         >
                             <ChevronLeftIcon color="white" size={22} />
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
 
-                        {/* Animated intro GIF */}
-                        <View className="justify-center items-center h-[160px]">
+                        {/* Intro Logo — starts at the very top */}
+                        <View className="justify-center items-center pt-2">
                             <Image
-                                source={require('../assets/videos/digitag-intro.gif')}
-                                style={{ width: 210, height: 160 }}
+                                source={require('../assets/digitag-Logo.png')}
+                                style={{ width: 130, height: 130 * (159 / 504) }}
+                                resizeMode="contain"
+                            />
+                            <Image
+                                source={require('../assets/login.png')}
+                                style={{ width: 410, height: 280 }}
                                 resizeMode="contain"
                             />
                         </View>
@@ -289,19 +300,22 @@ showStatus("Error", error.message || "Failed to send OTP.");
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator={false}
                         >
-                            <Text className="text-white font-poppins-bold text-[36px] text-center mb-4 mt-6">Login</Text>
-                            <Text className="text-[#A0A0B0] font-poppins-regular text-[13px] text-center mb-9 leading-5 px-3">
+
+                            <Text className="text-[20px] absolute right-0 mr-20">✨</Text>
+
+2                           <Text className="text-white font-poppins-semibold text-[42px] text-center mb-2  ">Login</Text>
+                            <Text className="text-[#A0A0B0] font-poppins-regular text-[12px] text-center mb-9 leading-5 px-3">
                                 Enter your mobile number and we'll send {`\n`}you a verification code to get started
                             </Text>
 
                             {/* Phone Input */}
                             <View
-                                className={`flex-row bg-[#34264A] rounded-full px-5 py-[14px] items-center mb-2 w-full min-h-[60px] ${phoneError ? 'border border-red-500' : ''}`}
+                                className={`flex-row rounded-full border-[#766B9C] border px-4 py-[8px] items-center mb-2 w-full min-h-[60px] ${phoneError ? 'border border-red-500' : ''}`}
                             >
                                 {/* Country Code */}
                                 <View className="flex-row items-center border-r border-[#4f4066] pr-[10px] mr-[10px]">
                                     <View className="w-7 h-7 rounded-full overflow-hidden mr-2 items-center justify-center bg-white">
-                                        <Text style={{ fontSize: 18, lineHeight: 22 }}>🇮🇳</Text>
+                                        <Text style={{ fontSize: 20, lineHeight: 22 }}>🇮🇳</Text>
                                     </View>
                                     <Text className="text-white font-poppins-semibold text-[14px] mr-1">+91</Text>
                                     <ChevronDownIcon color="white" size={16} />
@@ -309,7 +323,7 @@ showStatus("Error", error.message || "Failed to send OTP.");
                                 <TextInput
                                     className="flex-1 text-white text-[16px] min-h-[30px]"
                                     placeholder="Enter Mobile Number"
-                                    placeholderTextColor="#888"
+                                    placeholderTextColor="#999BAC"
                                     keyboardType="phone-pad"
                                     value={phoneNumber}
                                     onChangeText={(v) => {
@@ -343,12 +357,12 @@ showStatus("Error", error.message || "Failed to send OTP.");
                                 By continuing, I confirm that i am at least 18 years old, and agree to{' '}
                                 <Text
                                     className="text-[#D1E61A] font-poppins-bold"
-                                    onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => {})}
+                                    onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => { })}
                                 >Terms &amp; Conditions</Text>
                                 {' '}and{' '}
                                 <Text
                                     className="text-[#D1E61A] font-poppins-bold"
-                                    onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => {})}
+                                    onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => { })}
                                 >Privacy Policy</Text>
                             </Text>
 
