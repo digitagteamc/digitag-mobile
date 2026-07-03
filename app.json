@@ -2,7 +2,7 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitag",
@@ -14,7 +14,28 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
+        "NSCameraUsageDescription": "This app requires camera access to capture photos and videos.",
+        "NSMicrophoneUsageDescription": "This app requires microphone access to record audio.",
+        "NSPhotoLibraryUsageDescription": "This app requires photo library access to select images.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.592827124863-v1s5kjsu4ci5rgtf6t72shido94j0h44"
+            ]
+          }
+        ],
+        "UIBackgroundModes": [
+          "remote-notification",
+          "fetch"
+        ]
+      },
+      "buildNumber": "3",
+      "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
@@ -88,7 +109,12 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/auth",
+      [
+        "@react-native-firebase/auth",
+        {
+          "captchaOpenUrlFix": true
+        }
+      ],
       "@react-native-firebase/messaging"
     ],
     "experiments": {

@@ -1,10 +1,9 @@
 import { Tabs, useRouter } from 'expo-router';
 import React, { useCallback } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
 import { useProfileGate } from '../../context/ProfileGateContext';
-import { palette } from '../../theme/colors';
 
 export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
 
@@ -35,16 +34,14 @@ export default function TabsLayout() {
         };
 
         return (
-            <View>
-                <AppBottomNav
-                    activeKey={activeKey}
-                    onTabPress={handleTabPress}
-                    onFabPress={() => {
-                        if (!requireProfile('create a post')) return;
-                        router.push('/create-post' as any);
-                    }}
-                />
-            </View>
+            <AppBottomNav
+                activeKey={activeKey}
+                onTabPress={handleTabPress}
+                onFabPress={() => {
+                    if (!requireProfile('create a post')) return;
+                    router.push('/create-post' as any);
+                }}
+            />
         );
     }, [router]);
 
@@ -53,7 +50,7 @@ export default function TabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: { display: 'none' },
-                sceneStyle: { backgroundColor: palette.background, paddingBottom: sceneBottomPad },
+                sceneStyle: { backgroundColor: 'transparent' },
             }}
             backBehavior="initialRoute"
             tabBar={renderTabBar}

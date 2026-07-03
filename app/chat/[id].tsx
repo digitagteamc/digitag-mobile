@@ -24,8 +24,10 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../context/AuthContext';
 import {
+    deleteMessage as apiDeleteMessage,
     editMessage as apiEditMessage,
     sendMessage as apiSendMessage,
     getConversation,
@@ -47,6 +49,7 @@ interface ChatMessage {
     imageUrl?: string | null;
     isRead: boolean;
     isEdited?: boolean;
+    isDeleted?: boolean;
     createdAt: string;
     pending?: boolean;
     reactions?: Record<string, string[]>;
@@ -95,7 +98,6 @@ export default function ChatScreen() {
     // Long-press context menu state
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
-    const [keyboardHeight, setKeyboardHeight] = useState(0);
     const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
 
     const listRef = useRef<FlatList<ChatMessage> | null>(null);
@@ -114,6 +116,12 @@ export default function ChatScreen() {
         }
         if (msgsRes.success) setMessages(msgsRes.data || []);
         setLoading(false);
+        // Anchor to the latest message on open, same as WhatsApp — without this the
+        // inverted list can settle at an inconsistent initial offset once images/
+        // variable-height rows finish measuring.
+        requestAnimationFrame(() => {
+            listRef.current?.scrollToOffset({ offset: 0, animated: false });
+        });
     }, [token, id]);
 
     useEffect(() => { load(); }, [load]);
@@ -121,8 +129,15 @@ export default function ChatScreen() {
     useEffect(() => {
         if (!token || !id) return;
         const interval = setInterval(async () => {
-            const res = await listMessages(token, String(id), { limit: 50 });
-            if (res.success) setMessages(res.data || []);
+            const [msgsRes, convRes] = await Promise.all([
+                listMessages(token, String(id), { limit: 50 }),
+                getConversation(token, String(id)),
+            ]);
+            if (msgsRes.success) setMessages(msgsRes.data || []);
+            if (convRes.success && convRes.data?.other) {
+                setOther(convRes.data.other);
+                otherRef.current = convRes.data.other;
+            }
         }, 5000);
         return () => clearInterval(interval);
     }, [token, id]);
@@ -133,22 +148,6 @@ export default function ChatScreen() {
             listRef.current?.scrollToOffset({ offset: 0, animated: false });
         });
         return () => sub.remove();
-    }, []);
-
-    // Keyboard listener for Android to prevent stuck gap and lift input
-    useEffect(() => {
-        if (Platform.OS === 'android') {
-            const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
-                setKeyboardHeight(e.endCoordinates.height);
-            });
-            const hideSub = Keyboard.addListener('keyboardDidHide', () => {
-                setKeyboardHeight(0);
-            });
-            return () => {
-                showSub.remove();
-                hideSub.remove();
-            };
-        }
     }, []);
 
     // ── Camera / Gallery ────────────────────────────────────────────────────────
@@ -213,7 +212,9 @@ export default function ChatScreen() {
             setMessages((prev) => prev.map((m) => (m.id === optimisticId ? res.data : m)));
         } finally {
             setSending(false);
-            setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+            // List is inverted, so the bottom (newest message) is offset 0 — scrollToEnd()
+            // would instead jump to the oldest message at the opposite end of the list.
+            setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 80);
         }
     };
 
@@ -256,6 +257,39 @@ export default function ChatScreen() {
         setReplyTo(ctxMsg);
         setCtxMsg(null);
         setTimeout(() => inputRef.current?.focus(), 150);
+    };
+
+    const handleCtxCopy = async () => {
+        if (!ctxMsg) return;
+        await Clipboard.setStringAsync(ctxMsg.content || '');
+        setCtxMsg(null);
+    };
+
+    const handleCtxDelete = () => {
+        if (!ctxMsg || !token || !id) return;
+        const targetId = ctxMsg.id;
+        setCtxMsg(null);
+        Alert.alert(
+            'Delete message?',
+            'This message will be deleted for everyone in this chat.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setMessages((prev) => prev.map((m) =>
+                            m.id === targetId ? { ...m, content: '', imageUrl: null, isDeleted: true } : m
+                        ));
+                        const res = await apiDeleteMessage(token, String(id), targetId);
+                        if (!res.success) {
+                            Alert.alert('Delete Failed', (res as any).error || 'Could not delete message');
+                            load();
+                        }
+                    },
+                },
+            ],
+        );
     };
 
     // ── Call ────────────────────────────────────────────────────────────────────
@@ -426,10 +460,6 @@ export default function ChatScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-
-                    {Platform.OS === 'android' && keyboardHeight > 0 && (
-                        <View style={{ height: keyboardHeight + 6 }} />
-                    )}
                 </>
             )}
         </ImageBackground>
@@ -437,7 +467,7 @@ export default function ChatScreen() {
 
     return (
         <View style={[styles.root, { paddingTop: insets.top }]}>
-            <StatusBar barStyle="light-content" backgroundColor="#060606" />
+            <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
             {/* ── Header ─────────────────────────────────────────────────────── */}
             <View style={[styles.header, { borderBottomColor: myTheme.border }]}>
@@ -460,7 +490,7 @@ export default function ChatScreen() {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
                         <Text style={[styles.headerStatus, { color: myTheme.primary }]}>
-                            {formatLastSeen(other?.lastLoginAt)}
+                            {formatLastSeen(other?.lastActiveAt || other?.lastLoginAt)}
                         </Text>
                     </View>
                 </View>
@@ -475,20 +505,14 @@ export default function ChatScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* ── Body: Manual Keyboard Avoiding for Android ───────────── */}
-            {Platform.OS === 'ios' ? (
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior="padding"
-                    keyboardVerticalOffset={80}
-                >
-                    {renderMainContent()}
-                </KeyboardAvoidingView>
-            ) : (
-                <View style={{ flex: 1 }}>
-                    {renderMainContent()}
-                </View>
-            )}
+            {/* ── Body: keyboard pushes the composer up, WhatsApp-style ───────────── */}
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+            >
+                {renderMainContent()}
+            </KeyboardAvoidingView>
 
             {/* ── Full-screen image viewer ─────────────────────────────────────── */}
             <Modal
@@ -561,14 +585,20 @@ export default function ChatScreen() {
                         )}
 
                         {/* Copy */}
-                        <TouchableOpacity style={styles.ctxAction} onPress={() => {
-                            // Clipboard.setStringAsync(ctxMsg?.content || '');
-                            setCtxMsg(null);
-                            Alert.alert('Copied', 'Message copied to clipboard.');
-                        }}>
-                            <Ionicons name="copy-outline" size={18} color="#ccc" />
-                            <Text style={styles.ctxActionText}>Copy</Text>
-                        </TouchableOpacity>
+                        {!!ctxMsg?.content && (
+                            <TouchableOpacity style={styles.ctxAction} onPress={handleCtxCopy}>
+                                <Ionicons name="copy-outline" size={18} color="#ccc" />
+                                <Text style={styles.ctxActionText}>Copy</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {/* Delete — only own messages */}
+                        {ctxMine && (
+                            <TouchableOpacity style={styles.ctxAction} onPress={handleCtxDelete}>
+                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                <Text style={[styles.ctxActionText, { color: '#EF4444' }]}>Delete</Text>
+                            </TouchableOpacity>
+                        )}
                     </Pressable>
                 </Pressable>
             </Modal>
@@ -619,7 +649,7 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
             overshootLeft={false}
         >
             <Pressable
-                onLongPress={() => onLongPress(item, mine)}
+                onLongPress={() => { if (!item.isDeleted) onLongPress(item, mine); }}
                 delayLongPress={300}
                 style={[styles.bubbleWrapper, mine ? styles.rowRight : styles.rowLeft]}
             >
@@ -630,34 +660,45 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
                         { backgroundColor: bubbleColor },
                         mine ? styles.bubbleMine : styles.bubbleTheirs,
                     ]}>
-                        {/* Quoted reply */}
-                        {hasQuote && (
-                            <View style={[styles.quotedBar, {
-                                borderLeftColor: mine ? myColor : '#fff',
-                                backgroundColor: mine ? myColor + '22' : 'rgba(255,255,255,0.1)',
-                            }]}>
-                                <Text style={styles.quotedText} numberOfLines={2}>{quoteText}</Text>
+                        {item.isDeleted ? (
+                            <View style={styles.bubbleMeta}>
+                                <Ionicons name="ban-outline" size={14} color="rgba(255,255,255,0.45)" style={{ marginRight: 5 }} />
+                                <Text style={[styles.bubbleText, { color: 'rgba(255,255,255,0.45)', fontStyle: 'italic' }]}>
+                                    This message was deleted
+                                </Text>
                             </View>
+                        ) : (
+                            <>
+                                {/* Quoted reply */}
+                                {hasQuote && (
+                                    <View style={[styles.quotedBar, {
+                                        borderLeftColor: mine ? myColor : '#fff',
+                                        backgroundColor: mine ? myColor + '22' : 'rgba(255,255,255,0.1)',
+                                    }]}>
+                                        <Text style={styles.quotedText} numberOfLines={2}>{quoteText}</Text>
+                                    </View>
+                                )}
+                                {item.imageUrl && (
+                                    <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress(item.imageUrl!)}>
+                                        <Image source={{ uri: item.imageUrl }} style={styles.bubbleImage} resizeMode="cover" />
+                                    </TouchableOpacity>
+                                )}
+                                {bodyText ? <Text style={styles.bubbleText}>{bodyText}</Text> : null}
+                                {/* Time + read receipt inside bubble */}
+                                <View style={styles.bubbleMeta}>
+                                    {item.isEdited && <Text style={styles.editedLabel}>edited · </Text>}
+                                    <Text style={styles.bubbleTime}>{formatTime(item.createdAt)}</Text>
+                                    {mine && (
+                                        <Ionicons
+                                            name={item.pending ? 'checkmark' : 'checkmark-done'}
+                                            size={13}
+                                            color={item.isRead ? myColor : 'rgba(255,255,255,0.4)'}
+                                            style={{ marginLeft: 3 }}
+                                        />
+                                    )}
+                                </View>
+                            </>
                         )}
-                        {item.imageUrl && (
-                            <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress(item.imageUrl!)}>
-                                <Image source={{ uri: item.imageUrl }} style={styles.bubbleImage} resizeMode="cover" />
-                            </TouchableOpacity>
-                        )}
-                        {bodyText ? <Text style={styles.bubbleText}>{bodyText}</Text> : null}
-                        {/* Time + read receipt inside bubble */}
-                        <View style={styles.bubbleMeta}>
-                            {item.isEdited && <Text style={styles.editedLabel}>edited · </Text>}
-                            <Text style={styles.bubbleTime}>{formatTime(item.createdAt)}</Text>
-                            {mine && (
-                                <Ionicons
-                                    name={item.pending ? 'checkmark' : 'checkmark-done'}
-                                    size={13}
-                                    color={item.isRead ? myColor : 'rgba(255,255,255,0.4)'}
-                                    style={{ marginLeft: 3 }}
-                                />
-                            )}
-                        </View>
                     </View>
 
                     {/* Emoji reactions below bubble */}

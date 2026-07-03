@@ -52,12 +52,14 @@ interface ProfileData {
 }
 
 export const MENU_ITEMS = [
-  { id: 'my_profile', icon: 'person-outline' as const, label: 'My Profile' },
-  { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts' },
-  { id: 'settings', icon: 'settings-outline' as const, label: 'Settings' },
-  { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support' },
-  { id: 'about', icon: 'information-circle-outline' as const, label: 'About DigiTag' },
-  { id: 'report', icon: 'bug-outline' as const, label: 'Report App Issue' },
+  { id: 'my_profile', icon: 'person-outline' as const, label: 'My Profile', imgSrc: require('../../assets/myprofile-icon.png') },
+  { id: 'my_posts', icon: 'images-outline' as const, label: 'My Posts', imgSrc: require('../../assets/myposts.png') },
+  { id: 'my_collabs', icon: 'people-outline' as const, label: 'My Collabs', imgSrc: require('../../assets/mycollabs.png') },
+  { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts', imgSrc: require('../../assets/savedposts.png') },
+  { id: 'settings', icon: 'settings-outline' as const, label: 'Settings', imgSrc: require('../../assets/setting.png') },
+  { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support', imgSrc: require('../../assets/help.png') },
+  { id: 'about', icon: 'information-circle-outline' as const, label: 'About DigiTag', imgSrc: require('../../assets/about.png') },
+  { id: 'report', icon: 'bug-outline' as const, label: 'Report App Issue', imgSrc: require('../../assets/report-icon.png') },
 ];
 
 const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_collabs', 'report']);
@@ -286,25 +288,24 @@ export default function ProfileScreen() {
     );
   }
 
-  const iconBorderClass = profile?.role?.toUpperCase() === 'FREELANCER' ? 'border-[#F26930]/30' : 'border-[#ed2a91]/30';
+  const iconBorderClass = profile?.role?.toUpperCase() === 'FREELANCER' ? ' ' : ' ';
 
   return (
     <View className="flex-1 bg-[#060606]">
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-      <SafeAreaView className="flex-1" edges={['bottom', 'left', 'right']}>
+      <SafeAreaView className="flex-1" edges={['left', 'right']}>
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 50 }}
+          contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
         >
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
-            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px] opacity-60" resizeMode="cover" />
+            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  " resizeMode="cover" />
             {/* Dark overlay matching index.tsx gradient */}
             <LinearGradient colors={['rgba(0,0,0,0.2)', '#000']} className="absolute inset-0" />
-
             {/* Top Navigation Row */}
             <View className="flex-row justify-between items-center px-6" style={{ marginTop: Math.max(insets.top, statusBarHeight) + 8 }}>
               <TouchableOpacity onPress={() => {
@@ -405,12 +406,12 @@ export default function ProfileScreen() {
             )}
 
             {/* Profile Info Block */}
-            <View className="flex-row items-center px-6 mt-6 gap-5">
+            <View className="flex-row  px-6 mt-6 gap-5">
               {/* Avatar */}
               <TouchableOpacity
                 onPress={() => setIsPhotoModalOpen(true)}
                 activeOpacity={0.9}
-                className="w-24 h-24 rounded-full border-2 border-white/60 overflow-hidden bg-[#222]"
+                className="w-[68px] h-[68px] rounded-full border-2 border-white/60 overflow-hidden bg-[#222]"
               >
                 <Image
                   source={profile?.profilePicture ? { uri: profile.profilePicture } : require('../../assets/images/icon.png')}
@@ -421,11 +422,11 @@ export default function ProfileScreen() {
 
               {/* Text Info */}
               <View className="flex-1">
-                <Text className="text-white text-2xl font-bold tracking-tight" style={{ fontFamily: 'Poppins_700Bold' }}>
+                <Text className="text-white text-2xl   tracking-tight" style={{ fontFamily: 'Poppins_600SemiBold' }}>
                   {profile?.name || profile?.phone || ''}
                 </Text>
                 {profile?.tagId ? (
-                  <Text style={{ color: theme.primary, fontFamily: 'Poppins_400Regular', fontSize: 13, marginTop: 2 }}>{profile.tagId}</Text>
+                  <Text style={{ color: '#e1e1e1', fontFamily: 'Poppins_400Regular', fontSize: 13, marginTop: 2 }}>{profile.tagId}</Text>
                 ) : (
                   <Text className="text-[#a1a1a1] text-base font-normal mt-1" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.phone}</Text>
                 )}
@@ -450,10 +451,10 @@ export default function ProfileScreen() {
 
                 {/* Social Icons Row — only the links the user actually provided */}
                 {(() => {
-                  const socials: { key: string; src?: any; icon?: any; color?: string; url: string }[] = [];
+                  const socials: { key: string; src?: any; icon?: any; color?: string; url: string; platform?: string }[] = [];
                   if (profile?.instagramHandle) socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: `https://instagram.com/${profile.instagramHandle}` });
                   if (profile?.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: `https://youtube.com/@${profile.youtubeHandle}` });
-                  if (profile?.twitterHandle) socials.push({ key: 'tw', icon: 'logo-twitter', color: '#1DA1F2', url: `https://twitter.com/${profile.twitterHandle}` });
+                  if (profile?.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: `https://x.com/${profile.twitterHandle}` });
                   if (profile?.portfolioUrl) socials.push({ key: 'portfolio', icon: 'globe-outline', color: '#6366F1', url: profile.portfolioUrl });
                   if (socials.length === 0) return null;
                   return (
@@ -472,7 +473,11 @@ export default function ProfileScreen() {
                           activeOpacity={0.8}
                           onPress={() => openLink(s.url)}
                         >
-                          <Ionicons name={s.icon} size={20} color="#fff" />
+                          {s.platform === 'X' ? (
+                            <FontAwesome6 name={s.icon} size={18} color="#fff" />
+                          ) : (
+                            <Ionicons name={s.icon} size={20} color="#fff" />
+                          )}
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -481,90 +486,69 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
-
           {viewMode === 'main' ? (
-            <>
-              {/* ══════════ MY POSTS & MY COLLABS ══════════ */}
-              <View className="mx-5 mt-4 mb-3 bg-[#0A0A0A] border border-[#2A2A2A] rounded-[28px] overflow-hidden">
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/my-posts')}
+              <>
+                {/* ══════════ MENU CARD ══════════ */}
+                <View 
+                  className="mx-5 mt-4 rounded-[28px] border  bg-[#0A0A0A]"
+                  style={{
+                    shadowColor: '#fff',
+                    shadowOffset: { width: 0, height: 0 },
+                    shadowOpacity: 0.5,
+                    shadowRadius: 15,
+                    elevation: 10,
+                    borderColor: '#fff',
+                    borderWidth: 0.3,
+                  }}
                 >
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="images-outline" size={20} color={theme.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Posts</Text>
-                    <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myPosts.length} post{myPosts.length !== 1 ? 's' : ''}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#555" />
-                </TouchableOpacity>
+                {MENU_ITEMS.map((item, index) => {
+                  const isSpecial = item.id === 'my_posts' || item.id === 'my_collabs';
+                  const count = item.id === 'my_posts' ? myPosts.length : (item.id === 'my_collabs' ? myCollabs.length : null);
+                  const countLabel = count != null ? `${count} ${item.id === 'my_posts' ? 'post' : 'collab'}${count !== 1 ? 's' : ''}` : null;
 
-                <View style={{ height: 1, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
-
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 14 }}
-                  activeOpacity={0.7}
-                  onPress={() => router.push('/my-collabs')}
-                >
-                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#1A1A1A', borderWidth: 1, borderColor: theme.primary + '33', justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="people-outline" size={20} color={theme.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' }}>My Collabs</Text>
-                    <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{myCollabs.length} collab{myCollabs.length !== 1 ? 's' : ''}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#555" />
-                </TouchableOpacity>
+                  return (
+                    <React.Fragment key={item.id}>
+                      <TouchableOpacity
+                        className="flex-row items-center py-4 px-5 gap-4"
+                        activeOpacity={0.7}
+                        onPress={() => handleMenuPress(item.id)}
+                      >
+                        {/* Icon circle */}
+                        <View style={{ 
+                           
+                        }}>
+                          {item.imgSrc ? (
+                            <Image source={item.imgSrc} style={{ width: 36, height: 36 }} resizeMode="contain" />
+                          ) : (
+                            <Ionicons name={item.icon} size={20} color={isSpecial ? theme.primary : '#fff'} />
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text className="text-white text-[16px] font-medium" style={{ fontFamily: 'Poppins_500Medium' }}>{item.label}</Text>
+                          {countLabel && (
+                            <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{countLabel}</Text>
+                          )}
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#555" />
+                      </TouchableOpacity>
+                      {index < MENU_ITEMS.length - 1 && (
+                        <View className="h-[0.5px] bg-white/10 mx-5" />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </View>
-
-              {/* ══════════ MENU CARD ══════════ */}
-              <View className="mx-5 mt-2 rounded-[28px] border border-[#2A2A2A] bg-[#0A0A0A] overflow-hidden">
-                {MENU_ITEMS.map((item, index) => (
-                  <React.Fragment key={item.id}>
-                    <TouchableOpacity
-                      className="flex-row items-center py-4 px-5 gap-4"
-                      activeOpacity={0.7}
-                      onPress={() => handleMenuPress(item.id)}
-                    >
-                      {/* Icon circle */}
-                      <View className="w-10 h-10 rounded-full bg-[#1A1A1A] border border-white/10 justify-center items-center">
-                        <Ionicons name={item.icon} size={20} color="#fff" />
-                      </View>
-                      <Text className="text-white text-[16px] font-medium flex-1" style={{ fontFamily: 'Poppins_500Medium' }}>{item.label}</Text>
-                      <Ionicons name="chevron-forward" size={18} color="#555" />
-                    </TouchableOpacity>
-                    {index < MENU_ITEMS.length - 1 && (
-                      <View className="h-[0.5px] bg-[#2A2A2A] mx-5" />
-                    )}
-                  </React.Fragment>
-                ))}
-              </View>
-
-              {/* ══════════ LOGOUT BUTTON ══════════ */}
-              <TouchableOpacity
-                className="mx-5 mt-12 h-[72px] rounded-[24px] bg-[#FFE1E1] flex-row items-center px-6 gap-5 shadow-sm"
-                activeOpacity={0.8}
-                onPress={handleLogout}
-              >
-                <View className="w-11 h-11 rounded-full bg-[#FF0000] justify-center items-center shadow-sm">
-                  <Ionicons name="log-out" size={22} color="#fff" />
-                </View>
-                <Text className="text-[#FF0000] text-[18px] font-bold flex-1" style={{ fontFamily: 'Poppins_700Bold' }}>Logout</Text>
-                <Ionicons name="chevron-forward" size={22} color="#FF0000" />
-              </TouchableOpacity>
             </>
           ) : (
             <View className="px-4 mt-8">
               <Text className="text-white text-xl font-semibold mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Profile Details</Text>
 
               {/* Profile Details Card */}
-              <View className="bg-[#121212] border border-[#222] rounded-[24px] px-2 py-4 shadow-lg shadow-black/20">
+              <View className="  rounded-[24px] px-2 py-4  ">
                 {/* Email Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 border-b border-[#222]">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="mail-outline" size={18} color="#FFF" />
+                <View className="flex-row items-center gap-4 px-3 py-3  ">
+                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border `}>
+                    <Image source={require('../../assets/mailicon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Email</Text>
@@ -574,8 +558,8 @@ export default function ProfileScreen() {
 
                 {/* Bio Row */}
                 <View className="flex-row items-start gap-4 px-3 py-3 border-b border-[#222]">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="information-outline" size={24} color="#FFF" />
+                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
+                    <Image source={require('../../assets/myprofile-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                   </View>
                   <View className="flex-1">
                     <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Bio</Text>
@@ -584,9 +568,9 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Location Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 border-b border-[#222]">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="location-outline" size={18} color="#FFF" />
+                <View className="flex-row items-center gap-4 px-3 py-3 ">
+                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
+                    <Image source={require('../../assets/map-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                   </View>
                   <View>
                     <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Location</Text>
@@ -595,9 +579,9 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Category Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 border-b border-[#222]">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="shapes-outline" size={18} color="#FFF" />
+                <View className="flex-row items-center gap-4 px-3 py-3 ">
+                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
+                    <Image source={require('../../assets/category-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                   </View>
                   <View>
                     <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Category</Text>
@@ -608,7 +592,7 @@ export default function ProfileScreen() {
                 {/* Language Row */}
                 <View className="flex-row items-center gap-4 px-3 py-3">
                   <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Ionicons name="language-outline" size={18} color="#FFF" />
+                    <Image source={require('../../assets/language-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                   </View>
                   <View>
                     <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Language</Text>
@@ -619,8 +603,6 @@ export default function ProfileScreen() {
 
             </View>
           )}
-
-          <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
 

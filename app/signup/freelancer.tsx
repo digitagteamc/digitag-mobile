@@ -48,6 +48,19 @@ const AVAILABILITY_OPTIONS = [
 
 const ACCENT = '#F26930';
 
+const CITY_OPTIONS = [
+    'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 'Surat', 'Pune', 'Jaipur',
+    'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam', 'Pimpri-Chinchwad', 'Patna', 'Vadodara',
+    'Ghaziabad', 'Ludhiana', 'Agra', 'Nashik', 'Faridabad', 'Meerut', 'Rajkot', 'Kalyan-Dombivli', 'Vasai-Virar', 'Varanasi',
+    'Srinagar', 'Aurangabad', 'Dhanbad', 'Amritsar', 'Navi Mumbai', 'Allahabad', 'Ranchi', 'Howrah', 'Coimbatore', 'Jabalpur',
+    'Gwalior', 'Vijayawada', 'Jodhpur', 'Madurai', 'Raipur', 'Kota', 'Guwahati', 'Chandigarh', 'Solapur', 'Hubli-Dharwad',
+    'Mysore', 'Tiruchirappalli', 'Bareilly', 'Aligarh', 'Tiruppur', 'Gurugram', 'Moradabad', 'Jalandhar', 'Bhubaneswar', 'Salem',
+    'Warangal', 'Guntur', 'Bhiwandi', 'Saharanpur', 'Gorakhpur', 'Bikaner', 'Amravati', 'Noida', 'Jamshedpur', 'Bhilai',
+    'Cuttack', 'Firozabad', 'Kochi', 'Nellore', 'Bhavnagar', 'Dehradun', 'Durgapur', 'Asansol', 'Rourkela', 'Nanded',
+    'Kolhapur', 'Ajmer', 'Akola', 'Gulbarga', 'Jamnagar', 'Ujjain', 'Loni', 'Siliguri', 'Jhansi', 'Ulhasnagar',
+    'Jammu', 'Mangalore', 'Erode', 'Belgaum', 'Tirunelveli', 'Malegaon', 'Gaya', 'Udaipur', 'Panipat',
+];
+
 // --- Sub-components ---
 
 const CircularProgress = ({ current, total }: { current: number; total: number }) => {
@@ -118,6 +131,55 @@ const FormField = ({
         />
     </View>
 );
+
+const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText }: any) => {
+    const [focused, setFocused] = useState(false);
+
+    const suggestions = useMemo(() => {
+        const q = value.trim().toLowerCase();
+        if (!q) return [];
+        return CITY_OPTIONS.filter((c) => c.toLowerCase().startsWith(q)).slice(0, 6);
+    }, [value]);
+
+    return (
+        <View className="mb-5" style={{ zIndex: focused ? 1000 : 1 }}>
+            <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+                {label} {required && <Text className="text-red-500">*</Text>}
+            </Text>
+            <TextInput
+                placeholder={placeholder}
+                placeholderTextColor="#555"
+                value={value}
+                onChangeText={onChangeText}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setTimeout(() => setFocused(false), 150)}
+                className="bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular h-[56px]"
+            />
+            {focused && suggestions.length > 0 && (
+                <View
+                    style={{
+                        position: 'absolute', top: 86, left: 0, right: 0, maxHeight: 220,
+                        backgroundColor: '#1E1E1E', borderRadius: 16, borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.15)', overflow: 'hidden', zIndex: 1000,
+                    }}
+                >
+                    <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                        {suggestions.map((city) => (
+                            <TouchableOpacity
+                                key={city}
+                                onPress={() => { onChangeText(city); setFocused(false); }}
+                                activeOpacity={0.7}
+                                style={{ paddingHorizontal: 16, paddingVertical: 12 }}
+                            >
+                                <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: '#fff' }}>{city}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+        </View>
+    );
+};
 
 const SelectField = ({ label, required, placeholder, options, selected, onSelect, multiSelect, itemKey = (i: any) => i, itemLabel = (i: any) => i }: any) => {
     const [modalVisible, setModalVisible] = useState(false);
@@ -1005,9 +1067,10 @@ export default function FreelancerSignup() {
                                 onChangeText={(v: string) => setForm({ ...form, skillsInput: v })}
                             />
 
-                            <FormField
+                            <LocationField
                                 label="Location"
-                                placeholder="City, Country"
+                                required
+                                placeholder="Start typing your city"
                                 value={form.location}
                                 onChangeText={(v: string) => setForm({ ...form, location: v })}
                             />

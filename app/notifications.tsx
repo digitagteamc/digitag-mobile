@@ -5,6 +5,7 @@ import {
     ActivityIndicator,
     FlatList,
     RefreshControl,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -160,6 +161,7 @@ export default function NotificationsScreen() {
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+            <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
             <View style={styles.header}>
                 <IconButton onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}>
                     <Ionicons name="chevron-back" size={20} color="#fff" />

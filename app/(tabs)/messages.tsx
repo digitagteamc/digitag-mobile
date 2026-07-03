@@ -6,6 +6,7 @@ import {
     FlatList,
     Image,
     RefreshControl,
+    StatusBar,
     StyleSheet,
     Text,
     TextInput,
@@ -89,6 +90,7 @@ export default function MessagesTab() {
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+            <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
             <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
             <View style={styles.header}>
                 <TouchableOpacity

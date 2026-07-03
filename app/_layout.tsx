@@ -192,11 +192,7 @@ export default function RootLayout() {
     if (!loaded && !error) {
         return (
             <View style={{ flex: 1, backgroundColor: '#060606', alignItems: 'center', justifyContent: 'center' }}>
-                <Image
-                    source={require('../assets/videos/digitag-intro.gif')}
-                    style={{ width: 210, height: 210 }}
-                    resizeMode="contain"
-                />
+                <View style={{ width: 130, height: 130, borderRadius: 32, backgroundColor: '#020202' }} />
             </View>
         );
     }
