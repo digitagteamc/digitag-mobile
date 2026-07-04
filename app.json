@@ -2,7 +2,7 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitag",
@@ -34,12 +34,12 @@
           "fetch"
         ]
       },
-      "buildNumber": "3",
+      "buildNumber": "4",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 11,
+      "versionCode": 12,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
