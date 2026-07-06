@@ -45,17 +45,17 @@ const SPACING = 10;
 const ITEM_SIZE = CARD_WIDTH + SPACING;
 
 const FALLBACK_BANNER = null;
-// Static images instead of GIFs to reduce memory
-const imgPhotography = require('../../assets/categories/Photography.gif');
-const imgEditor = require('../../assets/categories/editor.gif');
-const imgVideography = require('../../assets/categories/Videography.gif');
-const imgGrowth = require('../../assets/categories/growth spcielist.gif');
-const imgScriptWriters = require('../../assets/categories/script-writing.gif');
-const imgStyling = require('../../assets/categories/Styling-makeup.gif');
-const imgFashion = require('../../assets/categories/Fashion-Designers.gif');
-const imgProperty = require('../../assets/categories/property-rental.gif');
-const imgVoiceOver = require('../../assets/categories/VoiceOver.gif');
-const imgModal = require('../../assets/categories/modal.gif');
+// Category images from freelancer tabs icons
+const imgPhotography = require('../../assets/tabs-icons-freelancer/Photography.png');
+const imgEditor = require('../../assets/tabs-icons-freelancer/editors.png');
+const imgVideography = require('../../assets/tabs-icons-freelancer/Videography.png');
+const imgGrowth = require('../../assets/tabs-icons-freelancer/GrowthSpecialist.png');
+const imgScriptWriters = require('../../assets/tabs-icons-freelancer/ScriptWriters.png');
+const imgStyling = require('../../assets/tabs-icons-freelancer/Stylingmakeup.png');
+const imgFashion = require('../../assets/tabs-icons-freelancer/FashionDesigners.png');
+const imgProperty = require('../../assets/tabs-icons-freelancer/PropertyRental.png');
+const imgVoiceOver = require('../../assets/tabs-icons-freelancer/VoiceOver.png');
+const imgModal = require('../../assets/tabs-icons-freelancer/Modals.png');
 // Preload prevention - images will be required lazily
 
 const imgStars = require('../../assets/categories/stars.gif');
@@ -1145,8 +1145,6 @@ export default function Homepage() {
                         );
                       }
 
-                      const colIndex = availableCategoryColumns.indexOf(colItems);
-                      const showGif = colIndex < 3;
                       return (
                         <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)} activeOpacity={0.8}>
                           <LinearGradient
@@ -1156,7 +1154,7 @@ export default function Homepage() {
                             style={styles.catGradientBorder}
                           >
                             <View style={styles.catGridCard}>
-                              {showGif && cat.image ? (
+                              {cat.image ? (
                                 <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
                               ) : (
                                 <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
@@ -1298,50 +1296,66 @@ export default function Homepage() {
           </TouchableOpacity>
 
           {/* ══════════════ CREATE POST ══════════════ */}
-          <View style={{ marginTop: 20, marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
-              <Ionicons name="star-outline" size={28} color="#ed2a91" style={{ marginLeft: -4, marginTop: -4 }} />
-            </View>
-            <TouchableOpacity
-              style={styles.createPostCard}
-              activeOpacity={0.8}
-              onPress={() => {
-                if (!requireProfile('create a post')) return;
-                router.push('/create-post' as any);
-              }}
-              onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
-            >
-              {createPostWidth > 0 && (
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                  <Svg height="100%" width="100%">
-                    <Defs>
-                      <SvgGradient id="dashedGrad" x1="0" y1="0" x2="1" y2="1">
-                        <Stop offset="0" stopColor="#ed2a91" stopOpacity="1" />
-                        <Stop offset="1" stopColor="#3b82f6" stopOpacity="1" />
-                      </SvgGradient>
-                    </Defs>
-                    <Rect
-                      x="0.5"
-                      y="0.5"
-                      width={createPostWidth - 1.5}
-                      height={178.5}
-                      rx={36}
-                      ry={36}
-                      stroke="url(#dashedGrad)"
-                      strokeWidth="0.4"
-                      strokeDasharray="8, 6"
-                      fill="transparent"
-                    />
-                  </Svg>
-                </View>
-              )}
-              <View style={styles.createPostIconWrap}>
-                <Ionicons name="add-circle-outline" size={64} color="#ed2a91" />
+          {(userRole === 'CREATOR' || userRole === 'FREELANCER') && (
+            <View style={{ marginTop: 20, marginBottom: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
+                <Image
+                  source={
+                    userRole === 'FREELANCER'
+                      ? require('../../assets/star-freelancer.png')
+                      : require('../../assets/star-creator.png')
+                  }
+                  style={{ width: 28, height: 28, marginLeft: -4, marginTop: -4 }}
+                  resizeMode="contain"
+                />
               </View>
-              <Text style={styles.createPostText}>Create your first post</Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={styles.createPostCard}
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (!requireProfile('create a post')) return;
+                  router.push('/create-post' as any);
+                }}
+                onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
+              >
+                {createPostWidth > 0 && (
+                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                    <Svg height="100%" width="100%">
+                      <Defs>
+                        <SvgGradient id="dashedGrad" x1="0" y1="0" x2="1" y2="1">
+                          <Stop offset="0" stopColor={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} stopOpacity="1" />
+                          <Stop offset="1" stopColor="#3b82f6" stopOpacity="1" />
+                        </SvgGradient>
+                      </Defs>
+                      <Rect
+                        x="0.5"
+                        y="0.5"
+                        width={createPostWidth - 1.5}
+                        height={178.5}
+                        rx={36}
+                        ry={36}
+                        stroke="url(#dashedGrad)"
+                        strokeWidth="0.4"
+                        strokeDasharray="8, 6"
+                        fill="transparent"
+                      />
+                    </Svg>
+                  </View>
+                )}
+                <Image
+                  source={
+                    userRole === 'FREELANCER'
+                      ? require('../../assets/newpost-freelancer.png')
+                      : require('../../assets/newpost.png')
+                  }
+                  style={{ width: 64, height: 64, marginBottom: 12 }}
+                  resizeMode="contain"
+                />
+                <Text style={styles.createPostText}>Create your first post</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
         </View>
 
@@ -1370,7 +1384,13 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          <Ionicons name="heart-outline" size={48} color="#ed2a91" style={{ marginBottom: 4 }} />
+          {userRole === 'CREATOR' ? (
+            <Image source={require('../../assets/love-creator.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          ) : userRole === 'FREELANCER' ? (
+            <Image source={require('../../assets/love-freelancer.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
+          ) : (
+            <Ionicons name="heart-outline" size={48} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} style={{ marginBottom: 4 }} />
+          )}
           <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
             <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>

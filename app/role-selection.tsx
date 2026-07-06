@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgLinearGradient } from 'react-native-svg';
 
 const creatorImg = require('../assets/images/creator.webp');
-const brandImg = require('../assets/images/brand.webp');
+const brandImg = require('../assets/images/brand.png');
 const agencyImg = require('../assets/images/agency.webp');
 const freelancerImg = require('../assets/images/freelancer.webp');
 
