@@ -23,6 +23,7 @@ import { useRoleTheme } from '../theme/useRoleTheme';
 import {
   getCollaborationWith,
   getPostById,
+  getReportStatus,
   getSavedPostIds,
   initiateCall,
   openConversationWith,
@@ -57,6 +58,7 @@ export default function PostDetail() {
   const [collabBusy, setCollabBusy] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isReported, setIsReported] = useState(false);
 
   // Popup state
   const [popupVisible, setPopupVisible] = useState(false);
@@ -70,12 +72,14 @@ export default function PostDetail() {
     if (res.success && res.data) {
       setPost(res.data);
       const ownerId = res.data.owner?.id || res.data.userId;
-      const [collabRes, savedRes] = await Promise.all([
+      const [collabRes, savedRes, reportRes] = await Promise.all([
         ownerId ? getCollaborationWith(token, ownerId) : Promise.resolve({ success: false }),
         getSavedPostIds(token),
+        getReportStatus(token, 'POST', postId),
       ]);
       if (collabRes.success) setCollabStatus(((collabRes as any).data?.status ?? 'NONE') as any);
       if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
+      if (reportRes.success) setIsReported(Boolean((reportRes as any).data?.reported));
     }
     setLoading(false);
   }, [token, postId, requireProfile]);
@@ -216,8 +220,12 @@ export default function PostDetail() {
               <Feather name="share-2" size={20} color="#fff" />
             </TouchableOpacity>
             {!isOwn && (
-              <TouchableOpacity onPress={() => setShowReportModal(true)} style={styles.iconBtn}>
-                <Feather name="flag" size={20} color="#fff" />
+              <TouchableOpacity
+                onPress={() => !isReported && setShowReportModal(true)}
+                disabled={isReported}
+                style={styles.iconBtn}
+              >
+                <Feather name="flag" size={20} color={isReported ? accent : '#fff'} />
               </TouchableOpacity>
             )}
           </View>
@@ -387,6 +395,7 @@ export default function PostDetail() {
             targetId={postId}
             targetName={`${name}'s post`}
             onClose={() => setShowReportModal(false)}
+            onSubmitted={() => setIsReported(true)}
           />
         )}
       </SafeAreaView>

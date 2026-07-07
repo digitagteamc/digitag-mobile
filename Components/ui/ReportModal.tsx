@@ -24,11 +24,13 @@ export default function ReportModal({ visible, type, targetId, targetName, onClo
     const [details, setDetails] = useState('');
     const [busy, setBusy] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const reset = () => {
         setSelectedReason(null);
         setDetails('');
         setSubmitted(false);
+        setError(null);
     };
 
     const handleClose = () => {
@@ -39,10 +41,15 @@ export default function ReportModal({ visible, type, targetId, targetName, onClo
     const handleSubmit = async () => {
         if (!token || !selectedReason || busy) return;
         setBusy(true);
+        setError(null);
         try {
             const reason = selectedReason === 'Other' && details.trim() ? details.trim() : selectedReason;
             const res = await createReport(token, { type, targetId, targetName, reason });
-            if (res.success) setSubmitted(true);
+            if (res.success) {
+                setSubmitted(true);
+            } else {
+                setError(res.error || 'Could not submit report. Please try again.');
+            }
         } finally {
             setBusy(false);
         }
@@ -110,9 +117,12 @@ export default function ReportModal({ visible, type, targetId, targetName, onClo
                             value={details}
                             onChangeText={setDetails}
                             multiline
+                            scrollEnabled
                             maxLength={500}
                         />
                     )}
+
+                    {error && <Text style={styles.errorText}>{error}</Text>}
 
                     <TouchableOpacity
                         onPress={handleSubmit}
@@ -218,8 +228,16 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontFamily: 'Poppins_400Regular',
         minHeight: 80,
+        maxHeight: 120,
         textAlignVertical: 'top',
         marginBottom: 16,
+    },
+    errorText: {
+        color: '#FF6B78',
+        fontSize: 12,
+        fontFamily: 'Poppins_400Regular',
+        textAlign: 'center',
+        marginBottom: 12,
     },
     confirmBtn: {
         width: '100%',

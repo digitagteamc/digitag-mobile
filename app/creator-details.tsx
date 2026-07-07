@@ -23,6 +23,7 @@ import {
     getCollaborationWith,
     getFollowStatus,
     getPostById,
+    getReportStatus,
     getUserById,
     getUserStats,
     initiateCall,
@@ -57,6 +58,7 @@ export default function CreatorDetails() {
     const [collabBusy, setCollabBusy] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
     const [blockBusy, setBlockBusy] = useState(false);
+    const [isReported, setIsReported] = useState(false);
     const [showActionMenu, setShowActionMenu] = useState(false);
     const [showBlockConfirm, setShowBlockConfirm] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
@@ -88,16 +90,18 @@ export default function CreatorDetails() {
             if (!uid) { setLoading(false); return; }
             setResolvedUserId(uid);
 
-            const [userRes, followRes, statsRes, collabRes, blockRes] = await Promise.all([
+            const [userRes, followRes, statsRes, collabRes, blockRes, reportRes] = await Promise.all([
                 getUserById(uid, token),
                 getFollowStatus(token, uid),
                 getUserStats(token, uid),
                 getCollaborationWith(token, uid),
                 getBlockStatus(token, uid),
+                getReportStatus(token, 'USER', uid),
             ]);
             if (userRes.success) setProfile(userRes.data || null);
             if (followRes.success) setIsFollowing(Boolean(followRes.data?.isFollowing));
             if (statsRes.success) setStats(statsRes.data || null);
+            if (reportRes.success) setIsReported(Boolean(reportRes.data?.reported));
             if (blockRes.success) setIsBlocked(Boolean(blockRes.data?.isBlocked));
             if (collabRes.success) {
                 const status = collabRes.data?.status ?? 'NONE';
@@ -441,11 +445,12 @@ export default function CreatorDetails() {
                 <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowActionMenu(false)}>
                     <View style={styles.menuCard}>
                         <TouchableOpacity
-                            style={styles.menuRow}
+                            style={[styles.menuRow, isReported && { opacity: 0.5 }]}
+                            disabled={isReported}
                             onPress={() => { setShowActionMenu(false); setShowReportModal(true); }}
                         >
-                            <Ionicons name="flag-outline" size={20} color="#fff" />
-                            <Text style={styles.menuRowText}>Report User</Text>
+                            <Ionicons name={isReported ? 'checkmark-circle-outline' : 'flag-outline'} size={20} color="#fff" />
+                            <Text style={styles.menuRowText}>{isReported ? 'Reported' : 'Report User'}</Text>
                         </TouchableOpacity>
                         <View style={styles.menuDivider} />
                         <TouchableOpacity
@@ -482,6 +487,7 @@ export default function CreatorDetails() {
                     targetId={resolvedUserId}
                     targetName={name}
                     onClose={() => setShowReportModal(false)}
+                    onSubmitted={() => setIsReported(true)}
                 />
             )}
         </View>

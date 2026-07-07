@@ -998,6 +998,19 @@ export const createReport = async (
     }
 };
 
+/** GET /reports/status?type=&targetId= */
+export const getReportStatus = async (token: string, type: 'USER' | 'POST', targetId: string) => {
+    try {
+        const body = await request(`/reports/status?type=${type}&targetId=${targetId}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? { reported: false } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /** GET /users/:id/followers */
 export const getFollowers = async (token: string, userId?: string) => {
     try {

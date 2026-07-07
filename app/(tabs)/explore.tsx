@@ -1,6 +1,6 @@
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
-import { getCreatorById, getFeed, getFreelancerById, initiateCall, listCollaborations, openConversationWith, sendCollaboration } from '@/services/userService';
+import { getCreatorById, getFeed, getFreelancerById, getSavedPostIds, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -525,6 +525,7 @@ export default function ExploreTab() {
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+  const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
@@ -563,6 +564,31 @@ export default function ExploreTab() {
   }, [token]);
 
   useFocusEffect(useCallback(() => { fetchPosts(); }, [fetchPosts]));
+
+  useFocusEffect(useCallback(() => {
+    if (!token || isGuest) return;
+    getSavedPostIds(token).then(res => {
+      if (res.success && Array.isArray(res.data)) setSavedPostIds(new Set(res.data));
+    });
+  }, [token, isGuest]));
+
+  const handleBookmark = useCallback(async (postId: string) => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    const isSaved = savedPostIds.has(postId);
+    setSavedPostIds(prev => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(postId); else next.add(postId);
+      return next;
+    });
+    const res = await toggleSavePost(postId, token, isSaved);
+    if (!res.success) {
+      setSavedPostIds(prev => {
+        const next = new Set(prev);
+        if (isSaved) next.add(postId); else next.delete(postId);
+        return next;
+      });
+    }
+  }, [isGuest, token, router, savedPostIds]);
 
   useFocusEffect(useCallback(() => {
     if (!token || !userId) return;
@@ -911,6 +937,8 @@ export default function ExploreTab() {
       location: owner.location || '',
       category: owner.category?.slug || '',
       categories: Array.isArray(owner.categories) ? owner.categories : [],
+      categorySlugs: Array.isArray(owner.categorySlugs) ? owner.categorySlugs : [],
+      categoryNames: Array.isArray(owner.categoryNames) ? owner.categoryNames : [],
     };
   }), [posts]);
 
@@ -960,17 +988,19 @@ export default function ExploreTab() {
   const filteredCards = useMemo(() => allCards.filter((item) => {
     if (activeCategory && activeCategory !== 'all') {
       if (userRole === 'FREELANCER') {
-        // Filter creator posts by content category strings stored in CreatorProfile.categories[]
+        // Filter creator posts by resolved category names (owner.categorySlugs/categoryNames
+        // are resolved server-side from the raw category-UUIDs profiles store)
         const matchStrings = FREELANCER_CATEGORY_SLUG_MAP[activeCategory] || [];
-        const itemCategories: string[] = item.categories || [];
+        const itemCategoryNames: string[] = item.categoryNames || [];
         const matchesContent = matchStrings.some(s =>
-          itemCategories.some(c => c.toLowerCase().includes(s.toLowerCase()))
+          itemCategoryNames.some(c => c.toLowerCase().includes(s.toLowerCase()))
         );
         if (!matchesContent) return false;
       } else {
-        // Filter freelancer posts by backend category slug
+        // Filter freelancer posts by resolved backend category slug
         const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
-        if (!slugs.some(s => item.category?.toLowerCase().includes(s))) return false;
+        const itemCategorySlugs: string[] = item.categorySlugs || [];
+        if (!slugs.some(s => itemCategorySlugs.some(cs => cs.toLowerCase().includes(s)))) return false;
       }
     }
     if (selectedLanguage) {
@@ -1107,8 +1137,12 @@ export default function ExploreTab() {
               </TouchableOpacity>
             </View>
             {/* Bookmark */}
-            <TouchableOpacity style={s.bookmarkBtn}>
-              <Ionicons name="bookmark-outline" size={18} color="#fff" />
+            <TouchableOpacity style={s.bookmarkBtn} onPress={() => handleBookmark(item.id)}>
+              <Ionicons
+                name={savedPostIds.has(item.id) ? 'bookmark' : 'bookmark-outline'}
+                size={18}
+                color={savedPostIds.has(item.id) ? accent : '#fff'}
+              />
             </TouchableOpacity>
           </View>
 
@@ -1229,7 +1263,7 @@ export default function ExploreTab() {
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, collabSentIds, acceptedCollabOwnerIds]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
 
   const listHeader = useMemo(() => (
     <View>

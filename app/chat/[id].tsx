@@ -479,7 +479,12 @@ export default function ChatScreen() {
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                <View style={styles.headerMid}>
+                <TouchableOpacity
+                    style={styles.headerMid}
+                    activeOpacity={0.75}
+                    disabled={!other?.id}
+                    onPress={() => other?.id && router.push({ pathname: '/creator-details', params: { userId: other.id } } as any)}
+                >
                     {pic ? (
                         <Image source={{ uri: pic }} style={[styles.headerAvatar, { borderColor: myTheme.border }]} />
                     ) : (
@@ -493,7 +498,7 @@ export default function ChatScreen() {
                             {formatLastSeen(other?.lastActiveAt || other?.lastLoginAt)}
                         </Text>
                     </View>
-                </View>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
