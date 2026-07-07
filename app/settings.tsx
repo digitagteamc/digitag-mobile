@@ -87,6 +87,12 @@ export default function SettingsScreen() {
       onPress: () => router.push('/privacysettings' as any),
     },
     {
+      id: 'blocked',
+      icon: require('../assets/privacy-icon.png'),
+      label: 'Blocked Accounts',
+      onPress: () => router.push('/blocked-users' as any),
+    },
+    {
       id: 'terms',
       icon: require('../assets/terms-icon.png'),
       label: 'Terms & Conditions',

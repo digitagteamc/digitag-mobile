@@ -2,7 +2,7 @@ import auth from '@react-native-firebase/auth';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDownIcon, ChevronLeftIcon } from 'lucide-react-native';
+import { Check, ChevronDownIcon, ChevronLeftIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -49,6 +49,7 @@ export default function LoginScreen() {
     // Inline validation errors
     const [phoneError, setPhoneError] = useState<string | null>(null);
     const [otpError, setOtpError] = useState<string | null>(null);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
 
     // Status Modal state
     const [statusModal, setStatusModal] = useState({
@@ -384,6 +385,41 @@ export default function LoginScreen() {
                                 </Text>
                             ) : <View className="mb-3" />}
 
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={() => setAgreedToTerms((prev) => !prev)}
+                                className="flex-row items-start mb-5"
+                            >
+                                <View
+                                    style={{
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: 5,
+                                        borderWidth: 1.5,
+                                        borderColor: agreedToTerms ? '#7352DD' : '#4d4d63',
+                                        backgroundColor: agreedToTerms ? '#7352DD' : 'transparent',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        marginRight: 10,
+                                        marginTop: 1,
+                                    }}
+                                >
+                                    {agreedToTerms && <Check color="#FFFFFF" size={13} strokeWidth={3} />}
+                                </View>
+                                <Text className="text-[#A0A0B0] font-poppins-regular text-[11px] leading-[18px] flex-1">
+                                    By continuing, I confirm that i am at least 18 years old, and agree to{' '}
+                                    <Text
+                                        className="text-[#D1E61A] font-poppins-bold"
+                                        onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => { })}
+                                    >Terms &amp; Conditions</Text>
+                                    {' '}and{' '}
+                                    <Text
+                                        className="text-[#D1E61A] font-poppins-bold"
+                                        onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => { })}
+                                    >Privacy Policy</Text>
+                                </Text>
+                            </TouchableOpacity>
+
                             {sendingOtp ? (
                                 <View className="items-center my-5">
                                     <ActivityIndicator color="#C3CE21" />
@@ -391,22 +427,16 @@ export default function LoginScreen() {
                                 </View>
                             ) : loading ? (
                                 <ActivityIndicator color="#C3CE21" className="my-5" />
-                            ) : (
+                            ) : agreedToTerms ? (
                                 <GradientButton title="Get OTP" onPress={handleRequestOtp} className="w-full mb-5" />
+                            ) : (
+                                <TouchableOpacity
+                                    activeOpacity={1}
+                                    className="w-full h-[60px] rounded-full bg-[#1C1C28] border border-white/5 items-center justify-center mb-5"
+                                >
+                                    <Text className="text-[#5A5A6D] font-poppins-semibold text-[20px]">Get OTP</Text>
+                                </TouchableOpacity>
                             )}
-
-                            <Text className="text-[#A0A0B0] font-poppins-regular text-[11px] text-center mt-5 leading-[18px]">
-                                By continuing, I confirm that i am at least 18 years old, and agree to{' '}
-                                <Text
-                                    className="text-[#D1E61A] font-poppins-bold"
-                                    onPress={() => Linking.openURL('https://thedigitag.ai/terms-and-conditions').catch(() => { })}
-                                >Terms &amp; Conditions</Text>
-                                {' '}and{' '}
-                                <Text
-                                    className="text-[#D1E61A] font-poppins-bold"
-                                    onPress={() => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => { })}
-                                >Privacy Policy</Text>
-                            </Text>
 
                             <Text className="text-[#3a3a4a] font-poppins-regular text-[11px] text-center mb-8 mt-6">
                                 v{Constants.expoConfig?.version}

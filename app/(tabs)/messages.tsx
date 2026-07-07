@@ -85,13 +85,11 @@ export default function MessagesTab() {
 
     // UI colors based on viewer's role
     const theme = useRoleTheme();
-    const blobColor = theme.soft;
     const accentColor = theme.primary;
 
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
             <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
-            <View style={[styles.bgBlob, { backgroundColor: blobColor }]} />
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.headerIconBtn}
@@ -214,15 +212,6 @@ export default function MessagesTab() {
 
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#0A0A10' },
-
-    bgBlob: {
-        position: 'absolute',
-        width: 405,
-        height: 400,
-        borderRadius: 340,
-        backgroundColor: 'rgba(237, 42, 145, 0.15)',
-        filter: 'blur(65px)',
-    },
 
     header: {
         flexDirection: 'row',

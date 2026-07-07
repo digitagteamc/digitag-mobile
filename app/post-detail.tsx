@@ -29,6 +29,7 @@ import {
   sendCollaboration,
   toggleSavePost,
 } from '../services/userService';
+import ReportModal from '../Components/ui/ReportModal';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -55,6 +56,7 @@ export default function PostDetail() {
   const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
   const [collabBusy, setCollabBusy] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Popup state
   const [popupVisible, setPopupVisible] = useState(false);
@@ -213,6 +215,11 @@ export default function PostDetail() {
             <TouchableOpacity onPress={handleShare} style={styles.iconBtn}>
               <Feather name="share-2" size={20} color="#fff" />
             </TouchableOpacity>
+            {!isOwn && (
+              <TouchableOpacity onPress={() => setShowReportModal(true)} style={styles.iconBtn}>
+                <Feather name="flag" size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -372,6 +379,16 @@ export default function PostDetail() {
             </View>
           </View>
         </Modal>
+
+        {postId && (
+          <ReportModal
+            visible={showReportModal}
+            type="POST"
+            targetId={postId}
+            targetName={`${name}'s post`}
+            onClose={() => setShowReportModal(false)}
+          />
+        )}
       </SafeAreaView>
     </View>
   );

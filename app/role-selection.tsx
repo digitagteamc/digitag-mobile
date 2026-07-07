@@ -2,7 +2,6 @@ import GradientButton from '@/Components/ui/GradientButton';
 import { useAuth } from '@/context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { BackHandler, Image, ScrollView, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

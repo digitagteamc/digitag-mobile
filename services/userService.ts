@@ -925,6 +925,79 @@ export const getFollowStatus = async (token: string, userId: string) => {
     }
 };
 
+/* ─────────────────────────── BLOCKS ──────────────────────── */
+
+/** POST /blocks/:userId */
+export const blockUser = async (token: string, userId: string) => {
+    try {
+        const body = await request(`/blocks/${userId}`, {
+            method: 'POST',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** DELETE /blocks/:userId */
+export const unblockUser = async (token: string, userId: string) => {
+    try {
+        const body = await request(`/blocks/${userId}`, {
+            method: 'DELETE',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /blocks/:userId/status */
+export const getBlockStatus = async (token: string, userId: string) => {
+    try {
+        const body = await request(`/blocks/${userId}/status`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? { isBlocked: false } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /blocks */
+export const getBlockedUsers = async (token: string) => {
+    try {
+        const body = await request('/blocks', {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] };
+    }
+};
+
+/* ─────────────────────────── REPORTS ─────────────────────── */
+
+/** POST /reports */
+export const createReport = async (
+    token: string,
+    payload: { type: 'USER' | 'POST'; targetId: string; targetName: string; reason: string },
+) => {
+    try {
+        const body = await request('/reports', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify(payload),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /** GET /users/:id/followers */
 export const getFollowers = async (token: string, userId?: string) => {
     try {

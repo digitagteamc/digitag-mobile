@@ -16,7 +16,10 @@
       "Bash(curl -s -o /dev/null -w \"health=%{http_code}\\\\n\" \"http://127.0.0.1:5000/api/v1/health\")",
       "Bash(node -e \"require\\('./src/routes/index.js'\\); console.log\\('routes load OK'\\)\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:5000/api/v1/health)",
-      "Bash(node src/server.js)"
+      "Bash(node src/server.js)",
+      "Bash(NODE_ENV=development PORT=5050 nohup npm run dev)",
+      "Bash(disown)",
+      "Read(//private/tmp/**)"
     ],
     "additionalDirectories": [
       "e:\\DigiTag\\DigiTag-Backend\\src\\modules"

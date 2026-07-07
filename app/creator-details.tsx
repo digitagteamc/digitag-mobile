@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Dimensions,
     Image,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
@@ -16,7 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import {
+    blockUser,
     followUser,
+    getBlockStatus,
     getCollaborationWith,
     getFollowStatus,
     getPostById,
@@ -25,11 +28,14 @@ import {
     initiateCall,
     openConversationWith,
     sendCollaboration,
+    unblockUser,
     unfollowUser,
 } from '../services/userService';
 import { fonts } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import CustomAlert from '../Components/ui/CustomAlert';
+import ConfirmActionModal from '../Components/ui/ConfirmActionModal';
+import ReportModal from '../Components/ui/ReportModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -49,6 +55,11 @@ export default function CreatorDetails() {
     const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
     const [collabSent, setCollabSent] = useState(false);
     const [collabBusy, setCollabBusy] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false);
+    const [blockBusy, setBlockBusy] = useState(false);
+    const [showActionMenu, setShowActionMenu] = useState(false);
+    const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
     const [alertConfig, setAlertConfig] = useState({
         visible: false,
         title: '',
@@ -77,15 +88,17 @@ export default function CreatorDetails() {
             if (!uid) { setLoading(false); return; }
             setResolvedUserId(uid);
 
-            const [userRes, followRes, statsRes, collabRes] = await Promise.all([
+            const [userRes, followRes, statsRes, collabRes, blockRes] = await Promise.all([
                 getUserById(uid, token),
                 getFollowStatus(token, uid),
                 getUserStats(token, uid),
                 getCollaborationWith(token, uid),
+                getBlockStatus(token, uid),
             ]);
             if (userRes.success) setProfile(userRes.data || null);
             if (followRes.success) setIsFollowing(Boolean(followRes.data?.isFollowing));
             if (statsRes.success) setStats(statsRes.data || null);
+            if (blockRes.success) setIsBlocked(Boolean(blockRes.data?.isBlocked));
             if (collabRes.success) {
                 const status = collabRes.data?.status ?? 'NONE';
                 setCollabStatus(status as any);
@@ -124,6 +137,29 @@ export default function CreatorDetails() {
             }
         } finally {
             setFollowBusy(false);
+        }
+    };
+
+    const handleBlock = async () => {
+        if (!token || !resolvedUserId || blockBusy) return;
+        setBlockBusy(true);
+        try {
+            const res = isBlocked
+                ? await unblockUser(token, resolvedUserId)
+                : await blockUser(token, resolvedUserId);
+            if (res.success) {
+                const wasBlocked = isBlocked;
+                setIsBlocked(!wasBlocked);
+                setShowBlockConfirm(false);
+                showAlert(
+                    wasBlocked ? 'User Unblocked' : 'User Blocked',
+                    wasBlocked
+                        ? 'You can now see their content again.'
+                        : 'You will no longer see their content in your feed.'
+                );
+            }
+        } finally {
+            setBlockBusy(false);
         }
     };
 
@@ -261,7 +297,7 @@ export default function CreatorDetails() {
                                     <Ionicons name="call-outline" size={24} color="#fff" />
                                 </TouchableOpacity>
                             )}
-                            <TouchableOpacity style={styles.topIconBtn}>
+                            <TouchableOpacity style={styles.topIconBtn} onPress={() => setShowActionMenu(true)}>
                                 <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
                             </TouchableOpacity>
                         </View>
@@ -400,6 +436,54 @@ export default function CreatorDetails() {
                 onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
                 role={profile?.role as any}
             />
+
+            <Modal visible={showActionMenu} transparent animationType="fade" onRequestClose={() => setShowActionMenu(false)}>
+                <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={() => setShowActionMenu(false)}>
+                    <View style={styles.menuCard}>
+                        <TouchableOpacity
+                            style={styles.menuRow}
+                            onPress={() => { setShowActionMenu(false); setShowReportModal(true); }}
+                        >
+                            <Ionicons name="flag-outline" size={20} color="#fff" />
+                            <Text style={styles.menuRowText}>Report User</Text>
+                        </TouchableOpacity>
+                        <View style={styles.menuDivider} />
+                        <TouchableOpacity
+                            style={styles.menuRow}
+                            onPress={() => { setShowActionMenu(false); setShowBlockConfirm(true); }}
+                        >
+                            <Ionicons name={isBlocked ? 'checkmark-circle-outline' : 'ban-outline'} size={20} color="#FF6B78" />
+                            <Text style={[styles.menuRowText, { color: '#FF6B78' }]}>
+                                {isBlocked ? 'Unblock User' : 'Block User'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            <ConfirmActionModal
+                visible={showBlockConfirm}
+                title={isBlocked ? 'Unblock User?' : 'Block User?'}
+                message={
+                    isBlocked
+                        ? `${name} will be able to appear in your feed again.`
+                        : `${name} won't be able to reach you, and their posts will disappear from your feed.`
+                }
+                confirmLabel={isBlocked ? 'Unblock' : 'Block'}
+                busy={blockBusy}
+                onConfirm={handleBlock}
+                onDismiss={() => setShowBlockConfirm(false)}
+            />
+
+            {resolvedUserId && (
+                <ReportModal
+                    visible={showReportModal}
+                    type="USER"
+                    targetId={resolvedUserId}
+                    targetName={name}
+                    onClose={() => setShowReportModal(false)}
+                />
+            )}
         </View>
     );
 }
@@ -439,6 +523,38 @@ const styles = StyleSheet.create({
     },
     topIconBtn: {
         padding: 5,
+    },
+    menuOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        paddingTop: 60,
+        paddingRight: 16,
+    },
+    menuCard: {
+        backgroundColor: '#17171F',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
+        overflow: 'hidden',
+        minWidth: 180,
+    },
+    menuRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+    menuRowText: {
+        color: '#fff',
+        fontSize: 14,
+        fontFamily: fonts.medium,
+    },
+    menuDivider: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     scrollContent: {
         paddingTop: 0,

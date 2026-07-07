@@ -240,6 +240,7 @@ export default function RootLayout() {
                             <Stack.Screen name="agency-coming-soon" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="followers" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="following" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="blocked-users" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="suggestions" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="searchbar" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="profile/[tagId]" options={{ animation: 'fade', animationDuration: 200 }} />
