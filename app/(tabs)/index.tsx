@@ -35,7 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
-import { getCreatorById, getFeed, getFreelancerById, getFullProfile, getSavedPostIds, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
+import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -864,19 +864,15 @@ export default function Homepage() {
   };
 
   const handleSeePortfolio = async (ownerId?: string, ownerRole?: string) => {
+    // Uses the public profile endpoint — viewing a portfolio link is browsing,
+    // same as the rest of the profile, so it works for guests too.
     setSelectedPortfolioLink(null);
     setPortfolioLoading(true);
     setPortfolioModalVisible(true);
     try {
-      if (!token || !ownerId) { setPortfolioLoading(false); return; }
-      let profileData: any = null;
-      if (ownerRole === 'FREELANCER') {
-        const res = await getFreelancerById(ownerId, token);
-        profileData = res.success ? res.data : null;
-      } else {
-        const res = await getCreatorById(ownerId, token);
-        profileData = res.success ? res.data : null;
-      }
+      if (!ownerId) { setPortfolioLoading(false); return; }
+      const res = await getUserById(ownerId, token);
+      const profileData = res.success ? (res.data?.creatorProfile || res.data?.freelancerProfile) : null;
       const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
       setSelectedPortfolioLink(link);
     } catch (e) {

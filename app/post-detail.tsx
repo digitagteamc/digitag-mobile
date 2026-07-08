@@ -22,11 +22,10 @@ import { useProfileGate } from '../context/ProfileGateContext';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import {
   getCollaborationWith,
-  getCreatorById,
-  getFreelancerById,
   getPostById,
   getReportStatus,
   getSavedPostIds,
+  getUserById,
   initiateCall,
   openConversationWith,
   sendCollaboration,
@@ -196,19 +195,15 @@ export default function PostDetail() {
   // full profile to read their portfolio link, since the post/feed payload
   // doesn't include it.
   const handleSeePortfolio = async () => {
+    // Uses the public profile endpoint — viewing a portfolio link is browsing,
+    // same as the rest of the profile, so it works for guests too.
     setSelectedPortfolioLink(null);
     setPortfolioLoading(true);
     setPortfolioModalVisible(true);
     try {
-      if (!token || !owner.id) { setPortfolioLoading(false); return; }
-      let profileData: any = null;
-      if (owner.role === 'FREELANCER') {
-        const res = await getFreelancerById(owner.id, token);
-        profileData = res.success ? res.data : null;
-      } else {
-        const res = await getCreatorById(owner.id, token);
-        profileData = res.success ? res.data : null;
-      }
+      if (!owner.id) { setPortfolioLoading(false); return; }
+      const res = await getUserById(owner.id, token);
+      const profileData = res.success ? (res.data?.creatorProfile || res.data?.freelancerProfile) : null;
       const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
       setSelectedPortfolioLink(link);
     } catch {
