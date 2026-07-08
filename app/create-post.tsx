@@ -19,6 +19,7 @@ import React, { useEffect, useState } from 'react';
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
+import { useLocationSuggestions } from '../hooks/useLocationSuggestions';
 import { createPost } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
@@ -87,6 +88,7 @@ export default function CreatePost() {
   const [body, setBody] = useState('');
   const [location, setLocation] = useState('');
   const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const { suggestions: locationSuggestions } = useLocationSuggestions(location);
   const [collab, setCollab] = useState<CollabChoice | null>(null);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -270,14 +272,30 @@ export default function CreatePost() {
           <Ionicons name={isLocationOpen ? 'chevron-up' : 'chevron-forward'} size={20} color="#fff" />
         </TouchableOpacity>
         {isLocationOpen && (
-          <TextInput
-            style={[styles.inlineInput, { borderColor: theme.primary }]}
-            placeholder="e.g. Mumbai, IN"
-            placeholderTextColor="#555"
-            value={location}
-            onChangeText={setLocation}
-            maxLength={120}
-          />
+          <>
+            <TextInput
+              style={[styles.inlineInput, { borderColor: theme.primary }]}
+              placeholder="e.g. Mumbai, IN"
+              placeholderTextColor="#555"
+              value={location}
+              onChangeText={setLocation}
+              maxLength={120}
+            />
+            {locationSuggestions.length > 0 && (
+              <LinearGradient colors={['rgba(30,30,36,0.98)', theme.softStrong]} style={styles.dropdownOptions}>
+                {locationSuggestions.map((s) => (
+                  <TouchableOpacity
+                    key={s.id}
+                    style={styles.optionItem}
+                    onPress={() => { setLocation(s.label); setIsLocationOpen(false); }}
+                  >
+                    <Ionicons name="location-outline" size={16} color={theme.primary} />
+                    <Text style={styles.optionText} numberOfLines={1}>{s.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </LinearGradient>
+            )}
+          </>
         )}
 
         {/* ── Collab Type ── */}
@@ -298,7 +316,7 @@ export default function CreatePost() {
                 { value: 'PAID' as CollabChoice, label: 'Paid Collab', icon: 'cash-outline' },
                 { value: 'UNPAID' as CollabChoice, label: 'Free Collab', icon: 'gift-outline' },
               ].map(opt => (
-                <TouchableOpacity key={opt.value} style={styles.optionItem} onPress={() => { setCollab(opt.value); setIsCollabOpen(false); }}>
+                <TouchableOpacity key={opt.value} style={styles.optionItem} onPress={() => { setCollab(opt.value); if (opt.value === 'UNPAID') setBudget(''); setIsCollabOpen(false); }}>
                   <Ionicons name={opt.icon as any} size={16} color={theme.primary} />
                   <Text style={styles.optionText}>{opt.label}</Text>
                 </TouchableOpacity>
@@ -337,18 +355,22 @@ export default function CreatePost() {
           )}
         </View>
 
-        {/* ── Budget ── */}
-        <Text style={styles.sectionTitle}>Budget</Text>
-        <View style={styles.budgetInputContainer}>
-          <TextInput
-            style={styles.budgetInput}
-            placeholder="₹1000-5000"
-            placeholderTextColor="#555"
-            value={budget}
-            onChangeText={setBudget}
-            keyboardType="numeric"
-          />
-        </View>
+        {/* ── Budget (Paid Collab only) ── */}
+        {collab === 'PAID' && (
+          <>
+            <Text style={styles.sectionTitle}>Budget</Text>
+            <View style={styles.budgetInputContainer}>
+              <TextInput
+                style={styles.budgetInput}
+                placeholder="₹1000-5000"
+                placeholderTextColor="#555"
+                value={budget}
+                onChangeText={setBudget}
+                keyboardType="numeric"
+              />
+            </View>
+          </>
+        )}
 
         {/* ── Boost Duration ── */}
         <View style={styles.boostCard}>

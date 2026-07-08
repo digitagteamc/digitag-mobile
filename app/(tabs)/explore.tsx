@@ -952,7 +952,7 @@ export default function ExploreTab() {
       initials: getInitials(name),
       experience: owner.experience || '',
       languages: owner.languages || '',
-      location: owner.location || '',
+      location: p.location || owner.location || '',
       category: owner.category?.slug || '',
       categories: Array.isArray(owner.categories) ? owner.categories : [],
       categorySlugs: Array.isArray(owner.categorySlugs) ? owner.categorySlugs : [],

@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
+import { useLocationSuggestions } from '../../hooks/useLocationSuggestions';
 import {
     createFreelancerProfile,
     getCategories,
@@ -47,19 +48,6 @@ const AVAILABILITY_OPTIONS = [
 ];
 
 const ACCENT = '#F26930';
-
-const CITY_OPTIONS = [
-    'Mumbai', 'Delhi', 'Bengaluru', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 'Surat', 'Pune', 'Jaipur',
-    'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam', 'Pimpri-Chinchwad', 'Patna', 'Vadodara',
-    'Ghaziabad', 'Ludhiana', 'Agra', 'Nashik', 'Faridabad', 'Meerut', 'Rajkot', 'Kalyan-Dombivli', 'Vasai-Virar', 'Varanasi',
-    'Srinagar', 'Aurangabad', 'Dhanbad', 'Amritsar', 'Navi Mumbai', 'Allahabad', 'Ranchi', 'Howrah', 'Coimbatore', 'Jabalpur',
-    'Gwalior', 'Vijayawada', 'Jodhpur', 'Madurai', 'Raipur', 'Kota', 'Guwahati', 'Chandigarh', 'Solapur', 'Hubli-Dharwad',
-    'Mysore', 'Tiruchirappalli', 'Bareilly', 'Aligarh', 'Tiruppur', 'Gurugram', 'Moradabad', 'Jalandhar', 'Bhubaneswar', 'Salem',
-    'Warangal', 'Guntur', 'Bhiwandi', 'Saharanpur', 'Gorakhpur', 'Bikaner', 'Amravati', 'Noida', 'Jamshedpur', 'Bhilai',
-    'Cuttack', 'Firozabad', 'Kochi', 'Nellore', 'Bhavnagar', 'Dehradun', 'Durgapur', 'Asansol', 'Rourkela', 'Nanded',
-    'Kolhapur', 'Ajmer', 'Akola', 'Gulbarga', 'Jamnagar', 'Ujjain', 'Loni', 'Siliguri', 'Jhansi', 'Ulhasnagar',
-    'Jammu', 'Mangalore', 'Erode', 'Belgaum', 'Tirunelveli', 'Malegaon', 'Gaya', 'Udaipur', 'Panipat',
-];
 
 // --- Sub-components ---
 
@@ -134,12 +122,7 @@ const FormField = ({
 
 const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText }: any) => {
     const [focused, setFocused] = useState(false);
-
-    const suggestions = useMemo(() => {
-        const q = value.trim().toLowerCase();
-        if (!q) return [];
-        return CITY_OPTIONS.filter((c) => c.toLowerCase().startsWith(q)).slice(0, 6);
-    }, [value]);
+    const { suggestions } = useLocationSuggestions(value);
 
     return (
         <View className="mb-5" style={{ zIndex: focused ? 1000 : 1 }}>
@@ -164,14 +147,14 @@ const LocationField = ({ label = 'Location', required, placeholder, value, onCha
                     }}
                 >
                     <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                        {suggestions.map((city) => (
+                        {suggestions.map((place) => (
                             <TouchableOpacity
-                                key={city}
-                                onPress={() => { onChangeText(city); setFocused(false); }}
+                                key={place.id}
+                                onPress={() => { onChangeText(place.label); setFocused(false); }}
                                 activeOpacity={0.7}
                                 style={{ paddingHorizontal: 16, paddingVertical: 12 }}
                             >
-                                <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: '#fff' }}>{city}</Text>
+                                <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 15, color: '#fff' }} numberOfLines={1}>{place.label}</Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
