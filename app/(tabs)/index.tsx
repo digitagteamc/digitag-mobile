@@ -58,12 +58,12 @@ const imgVoiceOver = require('../../assets/tabs-icons-freelancer/VoiceOver.png')
 const imgModal = require('../../assets/tabs-icons-freelancer/Modals.png');
 // Preload prevention - images will be required lazily
 
-const imgStars = require('../../assets/categories/stars.gif');
-const imgStarsOrange = require('../../assets/categories/star-orange.gif');
-const imgPost = require('../../assets/categories/post.gif');
-const imgNewPost = require('../../assets/categories/newpost.gif');
-const imgLove = require('../../assets/categories/love.gif');
-const imgLoveOrange = require('../../assets/categories/love-orange.gif');
+// const imgStars = require('../../assets/categories/stars.gif');
+// const imgStarsOrange = require('../../assets/categories/star-orange.gif');
+// const imgPost = require('../../assets/categories/post.gif');
+// const imgNewPost = require('../../assets/categories/newpost.gif');
+// const imgLove = require('../../assets/categories/love.gif');
+// const imgLoveOrange = require('../../assets/categories/love-orange.gif');
 const imgTargetNew = require('../../assets/categories/targetnew.png');
 const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
@@ -131,33 +131,33 @@ const CATEGORIES = [
   { id: 'models', label: 'Models', image: imgModal, icon: 'walk-outline' as const },
 ];
 
-const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
-const f_tech = require('../../assets/freelancer-icons/Tech.webp');
-const f_education = require('../../assets/freelancer-icons/Education.webp');
-const f_photography = require('../../assets/freelancer-icons/Photography.webp');
-const f_food = require('../../assets/freelancer-icons/Food.webp');
-const f_health = require('../../assets/freelancer-icons/Health.webp');
-const f_automotive = require('../../assets/freelancer-icons/Automotive.webp');
-const f_comedy = require('../../assets/freelancer-icons/Comedy-Memes.webp');
-const f_entertainment = require('../../assets/freelancer-icons/Entertainment.webp');
-const f_gaming = require('../../assets/freelancer-icons/Gaming-Anime.webp');
-const f_learning = require('../../assets/freelancer-icons/Learning.webp');
-const f_news = require('../../assets/freelancer-icons/News-Media-Magazins.webp');
-const f_sports = require('../../assets/freelancer-icons/Sports.webp');
+const f_lifestyle = require('../../assets/creator-categories/Lifestyle-Living.png');
+const f_tech = require('../../assets/creator-categories/Tech.png');
+const f_education = require('../../assets/creator-categories/Education.png');
+const f_photography = require('../../assets/creator-categories/Photography.png');
+const f_food = require('../../assets/creator-categories/Food.png');
+const f_health = require('../../assets/creator-categories/Health.png');
+const f_automotive = require('../../assets/creator-categories/Automotive.png');
+const f_comedy = require('../../assets/creator-categories/Comedy-Memes.png');
+const f_entertainment = require('../../assets/creator-categories/Entertainment.png');
+const f_gaming = require('../../assets/creator-categories/Gaming-Anime.png');
+const f_learning = require('../../assets/creator-categories/Learning.png');
+const f_news = require('../../assets/creator-categories/News-Media-Magazins.png');
+const f_sports = require('../../assets/creator-categories/Sports.png');
 
-const f_travel = require('../../assets/freelancer-icons/Travel.webp');
-const f_beauty = require('../../assets/freelancer-icons/Beauty.webp');
-const f_fitness = require('../../assets/freelancer-icons/Fitness.webp');
-const f_fashion = require('../../assets/freelancer-icons/Fashion.webp');
-const f_finance = require('../../assets/freelancer-icons/Finance-Investments.webp');
-const f_arts = require('../../assets/freelancer-icons/Arts.webp');
-const f_business = require('../../assets/freelancer-icons/Business-Startups.webp');
-const f_community = require('../../assets/freelancer-icons/communitypages.webp');
-const f_family = require('../../assets/freelancer-icons/FamilyPets.webp');
-const f_home = require('../../assets/freelancer-icons/modern-house.webp');
-const f_law = require('../../assets/freelancer-icons/Law-Rights-Activism.webp');
-const f_pets = require('../../assets/freelancer-icons/pets-animals.webp');
-const f_politics = require('../../assets/freelancer-icons/Politics.webp');
+const f_travel = require('../../assets/creator-categories/Travel.png');
+const f_beauty = require('../../assets/creator-categories/Beauty.png');
+const f_fitness = require('../../assets/creator-categories/Fitness.png');
+const f_fashion = require('../../assets/creator-categories/Fashion.png');
+const f_finance = require('../../assets/creator-categories/Finance-Investments.png');
+const f_arts = require('../../assets/creator-categories/Arts.png');
+const f_business = require('../../assets/creator-categories/Business-Startups.png');
+const f_community = require('../../assets/creator-categories/Community-Pages.png');
+const f_family = require('../../assets/creator-categories/Family-Kids-Pets.png');
+const f_home = require('../../assets/creator-categories/Home-Decor.png');
+const f_law = require('../../assets/creator-categories/Law-Rights-Activism.png');
+const f_pets = require('../../assets/creator-categories/Pets-Animals.png');
+const f_politics = require('../../assets/creator-categories/Politics.png');
 
 const FREELANCER_CATEGORIES = [
   { id: 'f1', label: 'Lifestyle &\nLiving', image: f_lifestyle },
@@ -701,11 +701,11 @@ export default function Homepage() {
           if (!token) { setPosts([]); setLoading(false); return; }
           const res = await getFeed(token);
           const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-          // Must match the post-preview cap applied below (cards/visiblePosts), otherwise
-          // scrollX starts at an offset the FlatList's actual item count doesn't have —
-          // causing a visible jump/re-snap that looks like the carousel "scrolling extra times".
+          // Center on the middle post so its left/right neighbors both peek into
+          // view on open, showing all 3 preview posts at once (per design).
           const visibleCount = isProfileCompleted ? allPosts.length : Math.min(allPosts.length, 3);
-          scrollX.setValue(visibleCount > 1 ? visibleCount * ITEM_SIZE : 0);
+          const initialIndex = visibleCount >= 3 ? 1 : 0;
+          scrollX.setValue(initialIndex * ITEM_SIZE);
           setPosts(allPosts);
         } catch {
           setPosts([]);
@@ -955,7 +955,7 @@ export default function Homepage() {
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>
           <Carousel
-            loop={false}
+            loop={true}
             width={width}
             height={432}
             autoPlay={true}
@@ -1233,7 +1233,7 @@ export default function Homepage() {
                 offset: ITEM_SIZE * index,
                 index,
               })}
-              initialScrollIndex={cards.length > 1 ? cards.length : 0}
+              initialScrollIndex={cards.length >= 3 ? 1 : 0}
               onScroll={Animated.event(
                 [{ nativeEvent: { contentOffset: { x: scrollX } } }],
                 { useNativeDriver: true }

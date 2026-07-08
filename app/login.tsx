@@ -45,6 +45,12 @@ export default function LoginScreen() {
     const [step, setStep] = useState(1); // 1: Phone, 2: OTP
     const [countdown, setCountdown] = useState(0);
     const otpInputRef = useRef<TextInput>(null);
+    const phoneScrollRef = useRef<ScrollView>(null);
+    const phoneFieldY = useRef(0);
+
+    const scrollToPhoneField = () => {
+        phoneScrollRef.current?.scrollTo({ y: Math.max(phoneFieldY.current - 100, 0), animated: true });
+    };
 
     // Inline validation errors
     const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -309,50 +315,47 @@ export default function LoginScreen() {
             <SafeAreaView className="flex-1" edges={['top', 'left', 'right']}>
                 {/* ── STEP 1: Phone ── */}
                 <View className="flex-1">
-                    {/* Fixed Header Area */}
-                    <View style={{ position: 'relative' }} className="px-[30px] pt-[5%] pb-4">
-                        {/* Back button — absolutely positioned so it doesn't push logo down */}
-                        {/* <TouchableOpacity
-                            style={{ position: 'absolute', top: 12, left: 30, zIndex: 10, width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#4d4d63', justifyContent: 'center', alignItems: 'center' }}
-                            onPress={() => router.replace('/role-selection')}
-                        >
-                            <ChevronLeftIcon color="white" size={22} />
-                        </TouchableOpacity> */}
-
-                        {/* Intro Logo — starts at the very top */}
-                        <View className="justify-center items-center pt-2">
-                            <Image
-                                source={require('../assets/digitag-Logo.png')}
-                                style={{ width: 130, height: 130 * (159 / 504) }}
-                                resizeMode="contain"
-                            />
-                            <Image
-                                source={require('../assets/login.png')}
-                                style={{ width: 410, height: 280 }}
-                                resizeMode="contain"
-                            />
-                        </View>
-                    </View>
-
                     <KeyboardAvoidingView
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                         style={{ flex: 1 }}
                     >
                         <ScrollView
+                            ref={phoneScrollRef}
                             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 30 }}
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator={false}
                         >
+                            {/* Header Area — now inside the ScrollView, at the top of the page */}
+                            <View style={{ position: 'relative' }} className="pt-[5%] pb-4">
+                                {/* Intro Logo */}
+                                <View className="justify-center items-center pt-2">
+                                    <Image
+                                        source={require('../assets/digitag-Logo.png')}
+                                        style={{ width: 130, height: 130 * (159 / 504) }}
+                                        resizeMode="contain"
+                                    />
+                                    <Image
+                                        source={require('../assets/login.png')}
+                                        style={{ width: 410, height: 280 }}
+                                        resizeMode="contain"
+                                    />
+                                </View>
+                            </View>
 
-                            <Text className="text-[20px] absolute right-0 mr-20">✨</Text>
+                            
 
-2                           <Text className="text-white font-poppins-semibold text-[42px] text-center mb-2  ">Login</Text>
+                          <View className="flex-row items-center justify-center mb-2">
+                              <Text className="text-white font-poppins-semibold text-[42px] text-center">Login</Text>
+                              <Text className="text-[20px] ml-1 absolute right-0 bottom-20 mr-20">✨</Text>
+                          </View>
+
                             <Text className="text-[#A0A0B0] font-poppins-regular text-[12px] text-center mb-9 leading-5 px-3">
                                 Enter your mobile number and we'll send {`\n`}you a verification code to get started
                             </Text>
 
                             {/* Phone Input */}
                             <View
+                                onLayout={(e) => { phoneFieldY.current = e.nativeEvent.layout.y; }}
                                 className={`flex-row rounded-full border-[#766B9C] border px-4 py-[8px] items-center mb-2 w-full min-h-[60px] ${phoneError ? 'border border-red-500' : ''}`}
                             >
                                 {/* Country Code */}
@@ -374,6 +377,7 @@ export default function LoginScreen() {
                                         setPhoneNumber(digits);
                                         if (phoneError) setPhoneError(null);
                                     }}
+                                    onFocus={scrollToPhoneField}
                                     maxLength={10}
                                 />
                             </View>

@@ -90,32 +90,43 @@ const imgFashionicon = require('../../assets/tabs_icons/fashionicon.webp');
 const imgPropertyicon = require('../../assets/tabs_icons/Propertyicon.webp');
 const imgVoiceicon = require('../../assets/tabs_icons/VoiceOvericon.webp');
 
-const f_lifestyle = require('../../assets/freelancer-icons/Lifestyle-Living.webp');
-const f_tech = require('../../assets/freelancer-icons/Tech.webp');
-const f_education = require('../../assets/freelancer-icons/Education.webp');
-const f_photography = require('../../assets/freelancer-icons/Photography.webp');
-const f_food = require('../../assets/freelancer-icons/Food.webp');
-const f_health = require('../../assets/freelancer-icons/Health.webp');
-const f_automotive = require('../../assets/freelancer-icons/Automotive.webp');
-const f_comedy = require('../../assets/freelancer-icons/Comedy-Memes.webp');
-const f_entertainment = require('../../assets/freelancer-icons/Entertainment.webp');
-const f_gaming = require('../../assets/freelancer-icons/Gaming-Anime.webp');
-const f_learning = require('../../assets/freelancer-icons/Learning.webp');
-const f_news = require('../../assets/freelancer-icons/News-Media-Magazins.webp');
-const f_sports = require('../../assets/freelancer-icons/Sports.webp');
-const f_travel = require('../../assets/freelancer-icons/Travel.webp');
-const f_beauty = require('../../assets/freelancer-icons/Beauty.webp');
-const f_fitness = require('../../assets/freelancer-icons/Fitness.webp');
-const f_fashion = require('../../assets/freelancer-icons/Fashion.webp');
-const f_finance = require('../../assets/freelancer-icons/Finance-Investments.webp');
-const f_arts = require('../../assets/freelancer-icons/Arts.webp');
-const f_business = require('../../assets/freelancer-icons/Business-Startups.webp');
-const f_community = require('../../assets/freelancer-icons/communitypages.webp');
-const f_family = require('../../assets/freelancer-icons/FamilyPets.webp');
-const f_home = require('../../assets/freelancer-icons/modern-house.webp');
-const f_law = require('../../assets/freelancer-icons/Law-Rights-Activism.webp');
-const f_pets = require('../../assets/freelancer-icons/pets-animals.webp');
-const f_politics = require('../../assets/freelancer-icons/Politics.webp');
+const tf_photography = require('../../assets/tabs-icons-freelancer/Photography.png');
+const tf_editor = require('../../assets/tabs-icons-freelancer/editors.png');
+const tf_videography = require('../../assets/tabs-icons-freelancer/Videography.png');
+const tf_growth = require('../../assets/tabs-icons-freelancer/GrowthSpecialist.png');
+const tf_script = require('../../assets/tabs-icons-freelancer/ScriptWriters.png');
+const tf_styling = require('../../assets/tabs-icons-freelancer/Stylingmakeup.png');
+const tf_fashion = require('../../assets/tabs-icons-freelancer/FashionDesigners.png');
+const tf_voice = require('../../assets/tabs-icons-freelancer/VoiceOver.png');
+const tf_models = require('../../assets/tabs-icons-freelancer/Modals.png');
+const tf_property = require('../../assets/tabs-icons-freelancer/PropertyRental.png');
+
+const f_lifestyle = require('../../assets/creator-categories/Lifestyle-Living.png');
+const f_tech = require('../../assets/creator-categories/Tech.png');
+const f_education = require('../../assets/creator-categories/Education.png');
+const f_photography = require('../../assets/creator-categories/Photography.png');
+const f_food = require('../../assets/creator-categories/Food.png');
+const f_health = require('../../assets/creator-categories/Health.png');
+const f_automotive = require('../../assets/creator-categories/Automotive.png');
+const f_comedy = require('../../assets/creator-categories/Comedy-Memes.png');
+const f_entertainment = require('../../assets/creator-categories/Entertainment.png');
+const f_gaming = require('../../assets/creator-categories/Gaming-Anime.png');
+const f_learning = require('../../assets/creator-categories/Learning.png');
+const f_news = require('../../assets/creator-categories/News-Media-Magazins.png');
+const f_sports = require('../../assets/creator-categories/Sports.png');
+const f_travel = require('../../assets/creator-categories/Travel.png');
+const f_beauty = require('../../assets/creator-categories/Beauty.png');
+const f_fitness = require('../../assets/creator-categories/Fitness.png');
+const f_fashion = require('../../assets/creator-categories/Fashion.png');
+const f_finance = require('../../assets/creator-categories/Finance-Investments.png');
+const f_arts = require('../../assets/creator-categories/Arts.png');
+const f_business = require('../../assets/creator-categories/Business-Startups.png');
+const f_community = require('../../assets/creator-categories/Community-Pages.png');
+const f_family = require('../../assets/creator-categories/Family-Kids-Pets.png');
+const f_home = require('../../assets/creator-categories/Home-Decor.png');
+const f_law = require('../../assets/creator-categories/Law-Rights-Activism.png');
+const f_pets = require('../../assets/creator-categories/Pets-Animals.png');
+const f_politics = require('../../assets/creator-categories/Politics.png');
 
 const fh_lifestyle = require('../../assets/categories-freelancers/Lifestyle-Living1.webp');
 const fh_tech = require('../../assets/categories-freelancers/Tech1.webp');
@@ -149,7 +160,7 @@ const CATEGORIES = [
   {
     id: 'all',
     label: 'All',
-    icon: imgGrowthicon,
+    icon: tf_growth,
     image: imgPhotography,
     heroLine1: 'Explore Our Creators', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Discover top talents and connect with the right people for any project.',
@@ -159,7 +170,7 @@ const CATEGORIES = [
   {
     id: 'photography',
     label: 'Photography',
-    icon: imgPhotographyicon,
+    icon: tf_photography,
     image: imgPhotography,
     heroLine1: 'Capture Every Moment', heroLine2: 'Beautifully', heroLine3: '',
     heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.',
@@ -169,7 +180,7 @@ const CATEGORIES = [
   {
     id: 'editor',
     label: 'Editor',
-    icon: imgEditoricon,
+    icon: tf_editor,
     image: imgEditor,
     heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
@@ -179,7 +190,7 @@ const CATEGORIES = [
   {
     id: 'videography',
     label: 'Videography',
-    icon: imgVideographyicon,
+    icon: tf_videography,
     image: imgVideography,
     heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
@@ -189,7 +200,7 @@ const CATEGORIES = [
   {
     id: 'growth',
     label: 'Growth\nSpecialist',
-    icon: imgGrowthicon,
+    icon: tf_growth,
     image: imgGrowth,
     heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '',
     heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.',
@@ -199,7 +210,7 @@ const CATEGORIES = [
   {
     id: 'script',
     label: 'Script Writers',
-    icon: imgScriptWritersicon,
+    icon: tf_script,
     image: imgScriptWriters,
     heroLine1: 'Turning Ideas into ', heroLine2: 'Powerful Scripts', heroLine3: '',
     heroDesc: 'Creative scripts crafted for films, ads, reels, podcasts, and digital content.',
@@ -209,7 +220,7 @@ const CATEGORIES = [
   {
     id: 'styling',
     label: 'Styling &\nmakeup',
-    icon: imgStylingicon,
+    icon: tf_styling,
     image: imgStyling,
     heroLine1: 'Beauty Styled to ', heroLine2: 'Perfection', heroLine3: '',
     heroDesc: 'Expert makeup and styling designed to elevate every look with elegance and precision.',
@@ -219,7 +230,7 @@ const CATEGORIES = [
   {
     id: 'fashion',
     label: 'Fashion\nDesigners',
-    icon: imgFashionicon,
+    icon: tf_fashion,
     image: imgFashion,
     heroLine1: 'Where Style Meets ', heroLine2: 'Creativity', heroLine3: '',
     heroDesc: 'From modern trends to timeless looks, discover fashion designs made to stand out.',
@@ -229,7 +240,7 @@ const CATEGORIES = [
   {
     id: 'voice',
     label: 'Voice\nOver',
-    icon: imgVoiceicon,
+    icon: tf_voice,
     image: imgVoiceicon,
     heroLine1: 'The Perfect Voice for', heroLine2: '  Your Content', heroLine3: '',
     heroDesc: 'From reels to commercials, discover voice artists who make every script unforgettable.',
@@ -239,7 +250,7 @@ const CATEGORIES = [
   {
     id: 'models',
     label: 'Models',
-    icon: imgStylingicon,
+    icon: tf_models,
     image: imgFashion,
     heroLine1: 'Strike the Perfect', heroLine2: 'Pose', heroLine3: '',
     heroDesc: 'Connect with professional models for your shoots, campaigns, and creative projects.',
@@ -249,7 +260,7 @@ const CATEGORIES = [
   {
     id: 'property',
     label: 'Property\nRental',
-    icon: imgPropertyicon,
+    icon: tf_property,
     image: imgProperty,
     heroLine1: 'Spaces Designed for   ', heroLine2: ' Better Living', heroLine3: '',
     heroDesc: 'Explore premium rental homes, apartments, and workspaces tailored to your needs.',

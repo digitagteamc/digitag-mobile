@@ -355,8 +355,8 @@ export default function ProfileScreen() {
                       router.push(editPath as any);
                     }}
                   >
-                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="pencil-outline" size={18} color="#fff" />
+                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                      <Image source={require('../../assets/edit.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                     </View>
                     <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Edit Profile</Text>
                   </TouchableOpacity>
@@ -378,8 +378,8 @@ export default function ProfileScreen() {
                       } catch (_) {}
                     }}
                   >
-                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A2A', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="share-social-outline" size={18} color="#fff" />
+                    <View style={{  justifyContent: 'center', alignItems: 'center' }}>
+                      <Image source={require('../../assets/share.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                     </View>
                     <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Share Profile</Text>
                   </TouchableOpacity>
@@ -544,7 +544,18 @@ export default function ProfileScreen() {
               <Text className="text-white text-xl font-semibold mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Profile Details</Text>
 
               {/* Profile Details Card */}
-              <View className="  rounded-[24px] px-2 py-4  ">
+              <View
+                className="rounded-[24px] px-2 py-4 border bg-[#0A0A0A]"
+                style={{
+                  shadowColor: '#fff',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.5,
+                  shadowRadius: 15,
+                  elevation: 10,
+                  borderColor: '#fff',
+                  borderWidth: 0.3,
+                }}
+              >
                 {/* Email Row */}
                 <View className="flex-row items-center gap-4 px-3 py-3  ">
                   <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border `}>
@@ -557,7 +568,7 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Bio Row */}
-                <View className="flex-row items-start gap-4 px-3 py-3 border-b border-[#222]">
+                <View className="flex-row items-start gap-4 px-3 py-3  border-[#222]">
                   <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
                     <Image source={require('../../assets/myprofile-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
                   </View>
