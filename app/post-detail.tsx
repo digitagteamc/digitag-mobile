@@ -4,9 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
+  Linking,
   Modal,
   ScrollView,
   Share,
@@ -22,6 +22,8 @@ import { useProfileGate } from '../context/ProfileGateContext';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import {
   getCollaborationWith,
+  getCreatorById,
+  getFreelancerById,
   getPostById,
   getReportStatus,
   getSavedPostIds,
@@ -64,6 +66,11 @@ export default function PostDetail() {
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupType, setPopupType] = useState<'success' | 'error'>('success');
   const [popupMessage, setPopupMessage] = useState('');
+
+  // Portfolio modal state (same pattern as the Home screen's "See Portfolio")
+  const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
+  const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!token || !postId) { setLoading(false); return; }
@@ -180,6 +187,32 @@ export default function PostDetail() {
     } catch {}
   };
 
+  // Same pattern as the Home screen's "See Portfolio" — fetches the owner's
+  // full profile to read their portfolio link, since the post/feed payload
+  // doesn't include it.
+  const handleSeePortfolio = async () => {
+    setSelectedPortfolioLink(null);
+    setPortfolioLoading(true);
+    setPortfolioModalVisible(true);
+    try {
+      if (!token || !owner.id) { setPortfolioLoading(false); return; }
+      let profileData: any = null;
+      if (owner.role === 'FREELANCER') {
+        const res = await getFreelancerById(owner.id, token);
+        profileData = res.success ? res.data : null;
+      } else {
+        const res = await getCreatorById(owner.id, token);
+        profileData = res.success ? res.data : null;
+      }
+      const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
+      setSelectedPortfolioLink(link);
+    } catch {
+      setSelectedPortfolioLink(null);
+    } finally {
+      setPortfolioLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -204,20 +237,25 @@ export default function PostDetail() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[accent + 'B3', accent + '40', 'transparent']}
+        style={styles.headerGlow}
+        pointerEvents="none"
+      />
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
 
         {/* Top bar */}
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="arrow-back" size={26} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.topTitle}>Post</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Text style={styles.topTitle}>Post View</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity onPress={handleSave} style={styles.iconBtn}>
-              <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={20} color={isSaved ? accent : '#fff'} />
+              <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={19} color={isSaved ? accent : '#fff'} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleShare} style={styles.iconBtn}>
-              <Feather name="share-2" size={20} color="#fff" />
+              <Feather name="share-2" size={18} color="#fff" />
             </TouchableOpacity>
             {!isOwn && (
               <TouchableOpacity
@@ -225,7 +263,7 @@ export default function PostDetail() {
                 disabled={isReported}
                 style={styles.iconBtn}
               >
-                <Feather name="flag" size={20} color={isReported ? accent : '#fff'} />
+                <Feather name="flag" size={18} color={isReported ? accent : '#fff'} />
               </TouchableOpacity>
             )}
           </View>
@@ -233,65 +271,70 @@ export default function PostDetail() {
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-          {/* Banner */}
+          {/* Post image, if present */}
           {post.imageUrl ? (
             <View style={styles.bannerWrap}>
               <Image source={{ uri: post.imageUrl }} style={styles.bannerImg} resizeMode="cover" />
-              <LinearGradient
-                colors={['transparent', 'rgba(10,10,10,0.85)']}
-                style={StyleSheet.absoluteFillObject}
-              />
             </View>
-          ) : (
-            <LinearGradient
-              colors={[theme.soft, 'rgba(10,10,10,0)']}
-              style={styles.bannerGradient}
-            />
-          )}
+          ) : null}
 
-          {/* Owner row */}
-          <TouchableOpacity style={styles.ownerRow} activeOpacity={0.8} onPress={goToProfile}>
-            <Image source={pic ? { uri: pic } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
-            <View style={styles.ownerInfo}>
-              <Text style={styles.ownerName} numberOfLines={1}>{name}</Text>
-              <Text style={[styles.ownerRole, { color: accent }]}>{roleLabel}</Text>
+          {/* Main profile card */}
+          <View style={styles.card}>
+            <View style={styles.cardTopRow}>
+              <Image source={pic ? { uri: pic } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
+              <View style={styles.identityCol}>
+                <Text style={styles.ownerName} numberOfLines={1}>{name}</Text>
+                <View style={styles.roleRow}>
+                  {!!roleLabel && <Text style={styles.ownerRole}>{roleLabel}</Text>}
+                  {post.category ? (
+                    <View style={[styles.pillOutline, { borderColor: accent }]}>
+                      <Ionicons name="star" size={11} color={accent} />
+                      <Text style={[styles.pillOutlineText, { color: accent }]} numberOfLines={1}>{post.category}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
             </View>
-            <View style={[styles.viewProfileBtn, { borderColor: accent }]}>
+
+            <TouchableOpacity style={[styles.viewProfileBtn, { borderColor: accent }]} activeOpacity={0.8} onPress={goToProfile}>
               <Text style={[styles.viewProfileText, { color: accent }]}>View Profile</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {/* Badges row */}
-          <View style={styles.badgeRow}>
-            <View style={[styles.badge, { backgroundColor: isPaid ? 'rgba(34,197,94,0.12)' : 'rgba(167,139,250,0.12)', borderColor: isPaid ? '#22c55e' : '#a78bfa' }]}>
-              <Ionicons name={isPaid ? 'cash-outline' : 'gift-outline'} size={12} color={isPaid ? '#22c55e' : '#a78bfa'} />
-              <Text style={[styles.badgeText, { color: isPaid ? '#22c55e' : '#a78bfa' }]}>
-                {isPaid ? 'Paid Collab' : 'Free Collab'}
-              </Text>
-            </View>
-            {post.category ? (
-              <View style={[styles.badge, { backgroundColor: accent + '18', borderColor: accent + '55' }]}>
-                <Text style={[styles.badgeText, { color: accent }]}>{post.category}</Text>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Description */}
-          <View style={styles.descCard}>
-            <Text style={styles.descText}>{post.description}</Text>
-          </View>
-
-          {/* Meta info */}
-          <View style={styles.metaRow}>
-            {post.location ? (
+            <View style={styles.metaRow}>
+              {post.location ? (
+                <View style={styles.metaItem}>
+                  <Ionicons name="location-outline" size={15} color="#8A8A99" />
+                  <Text style={styles.metaTextLight} numberOfLines={1}>{post.location}</Text>
+                </View>
+              ) : null}
               <View style={styles.metaItem}>
-                <Ionicons name="location-outline" size={14} color="#8A8A99" />
-                <Text style={styles.metaText} numberOfLines={1}>{post.location}</Text>
+                <Ionicons name="time-outline" size={14} color="#8A8A99" />
+                <Text style={styles.metaText}>{timeAgo(post.createdAt)}</Text>
+              </View>
+            </View>
+
+            {post.description ? (
+              <View style={styles.aboutSection}>
+                <Text style={styles.aboutHeading}>About</Text>
+                <Text style={styles.descText}>{post.description}</Text>
               </View>
             ) : null}
-            <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={14} color="#8A8A99" />
-              <Text style={styles.metaText}>{timeAgo(post.createdAt)}</Text>
+
+            <View style={styles.dashedDivider} />
+
+            <View style={styles.badgeRow}>
+              {isPaid && (
+                <View style={[styles.pillSolid, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: '#22c55e' }]}>
+                  <Ionicons name="cash-outline" size={13} color="#22c55e" />
+                  <Text style={[styles.pillSolidText, { color: '#22c55e' }]}>₹ 10K-15K/Month</Text>
+                </View>
+              )}
+              <View style={[styles.pillSolid, { backgroundColor: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.15)', borderColor: isPaid ? '#22c55e' : '#a78bfa' }]}>
+                <Ionicons name={isPaid ? 'videocam-outline' : 'gift-outline'} size={13} color={isPaid ? '#22c55e' : '#a78bfa'} />
+                <Text style={[styles.pillSolidText, { color: isPaid ? '#22c55e' : '#a78bfa' }]}>
+                  {isPaid ? 'Paid Collab' : 'Free Collab'}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -299,39 +342,49 @@ export default function PostDetail() {
           {!isOwn && (
             <View style={styles.actionsWrap}>
               {collabStatus === 'ACCEPTED' ? (
-                /* Collaboration accepted — show Message + Call */
-                <View style={styles.secondaryActions}>
-                  <TouchableOpacity style={[styles.secondaryBtn, { borderColor: accent }]} onPress={handleMessage}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={18} color={accent} />
-                    <Text style={[styles.secondaryBtnText, { color: accent }]}>Message</Text>
+                <>
+                  <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent }]} onPress={handleSeePortfolio} activeOpacity={0.8}>
+                    <Ionicons name="briefcase-outline" size={18} color={accent} />
+                    <Text style={[styles.outlineBtnText, { color: accent }]}>Portfolio</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.secondaryBtn, { borderColor: accent }]} onPress={handleCall}>
-                    <Ionicons name="call-outline" size={18} color={accent} />
-                    <Text style={[styles.secondaryBtnText, { color: accent }]}>Call</Text>
+                  <View style={styles.secondaryActions}>
+                    <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent, flex: 1 }]} onPress={handleMessage} activeOpacity={0.8}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={18} color={accent} />
+                      <Text style={[styles.outlineBtnText, { color: accent }]}>Message</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[styles.filledBtn, { backgroundColor: accent, flex: 1 }]} onPress={handleCall} activeOpacity={0.8}>
+                      <Ionicons name="call-outline" size={18} color="#fff" />
+                      <Text style={styles.filledBtnText}>Call</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.primaryActionsRow}>
+                  <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent, flex: 0.85 }]} onPress={handleSeePortfolio} activeOpacity={0.8}>
+                    <Ionicons name="briefcase-outline" size={18} color={accent} />
+                    <Text style={[styles.outlineBtnText, { color: accent }]}>Portfolio</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.filledBtn,
+                      { flex: 1.25, backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
+                      collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
+                      collabBusy && { opacity: 0.6 },
+                    ]}
+                    onPress={handleCollab}
+                    disabled={collabBusy || collabStatus === 'PENDING'}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
+                      size={18}
+                      color={collabStatus === 'PENDING' ? '#f59e0b' : '#fff'}
+                    />
+                    <Text style={[styles.filledBtnText, collabStatus === 'PENDING' && { color: '#f59e0b' }]}>
+                      {collabBusy ? 'Sending…' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
-              ) : (
-                /* Not yet collaborated — show Collaborate button */
-                <TouchableOpacity
-                  style={[
-                    styles.collabBtn,
-                    { backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
-                    collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
-                    collabBusy && { opacity: 0.6 },
-                  ]}
-                  onPress={handleCollab}
-                  disabled={collabBusy || collabStatus === 'PENDING'}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons
-                    name={collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
-                    size={18}
-                    color={collabStatus === 'PENDING' ? '#f59e0b' : '#fff'}
-                  />
-                  <Text style={[styles.collabBtnText, collabStatus === 'PENDING' && { color: '#f59e0b' }]}>
-                    {collabBusy ? 'Sending…' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
-                  </Text>
-                </TouchableOpacity>
               )}
             </View>
           )}
@@ -351,27 +404,27 @@ export default function PostDetail() {
               <View style={styles.modalIconCircle}>
                 {popupType === 'success' ? (
                   <>
-                    <Image 
-                      source={require('../assets/spark.gif')} 
-                      style={[StyleSheet.absoluteFill, { width: 80, height: 80, opacity: 0.6 }]} 
+                    <Image
+                      source={require('../assets/spark.gif')}
+                      style={[StyleSheet.absoluteFill, { width: 80, height: 80, opacity: 0.6 }]}
                     />
-                    <Image 
-                      source={require('../assets/images/success.gif')} 
-                      style={{ width: 60, height: 60 }} 
+                    <Image
+                      source={require('../assets/images/success.gif')}
+                      style={{ width: 60, height: 60 }}
                     />
                   </>
                 ) : (
                   <Ionicons name="alert-circle" size={44} color="#FF4D4D" />
                 )}
               </View>
-              
+
               <Text style={styles.modalTitle}>
                 {popupType === 'success' ? 'Collab Sent!' : 'Error'}
               </Text>
-              
+
               <Text style={styles.modalMessage}>{popupMessage}</Text>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.modalButton}
                 onPress={() => setPopupVisible(false)}
               >
@@ -384,6 +437,46 @@ export default function PostDetail() {
                   <Text style={styles.modalButtonText}>OK</Text>
                 </LinearGradient>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── Portfolio Modal (same pattern as Home screen's "See Portfolio") ── */}
+        <Modal
+          visible={portfolioModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPortfolioModalVisible(false)}
+        >
+          <View style={styles.portfolioModalOverlay}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setPortfolioModalVisible(false)} />
+            <View style={styles.portfolioModalContent}>
+              <View style={styles.portfolioModalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Feather name="link" size={20} color="#fff" />
+                  <Text style={styles.portfolioModalTitle}>Portfolio Links</Text>
+                </View>
+                <TouchableOpacity style={styles.portfolioModalCloseBtn} onPress={() => setPortfolioModalVisible(false)}>
+                  <Feather name="x" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              {portfolioLoading ? (
+                <ActivityIndicator color={accent} style={{ marginTop: 16 }} />
+              ) : selectedPortfolioLink ? (
+                <TouchableOpacity
+                  style={styles.portfolioLinkContainer}
+                  onPress={() => {
+                    let url = selectedPortfolioLink;
+                    if (!url.startsWith('http://') && !url.startsWith('https://')) { url = 'https://' + url; }
+                    Linking.openURL(url);
+                  }}
+                >
+                  <Text style={styles.portfolioLinkText}>{selectedPortfolioLink}</Text>
+                  <Feather name="arrow-up-right" size={20} color={accent} />
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.noPortfolioText}>No portfolio link provided.</Text>
+              )}
             </View>
           </View>
         </Modal>
@@ -409,6 +502,14 @@ const styles = StyleSheet.create({
   errorText: { color: '#fff', fontSize: 16, marginBottom: 16 },
   backBtn2: { paddingVertical: 10, paddingHorizontal: 20 },
 
+  headerGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+  },
+
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -418,15 +519,15 @@ const styles = StyleSheet.create({
   },
   topTitle: {
     color: '#fff',
-    fontSize: 17,
-    fontFamily: 'Poppins_500Medium',
+    fontSize: 24,
+    fontFamily: 'Poppins_700Bold',
     letterSpacing: -0.3,
   },
   iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -435,100 +536,82 @@ const styles = StyleSheet.create({
 
   bannerWrap: {
     width: SW,
-    height: 240,
-    marginBottom: -40,
+    height: 200,
+    marginBottom: 16,
   },
   bannerImg: { width: '100%', height: '100%' },
-  bannerGradient: { height: 140, width: SW, marginBottom: -20 },
 
-  ownerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  card: {
     marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 16,
+    marginBottom: 20,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 28,
+    padding: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     backgroundColor: '#2A2A2A',
   },
-  avatarInitials: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-  },
-  initialsText: { fontSize: 18, fontWeight: '700' },
-  ownerInfo: { flex: 1, marginLeft: 12 },
+  identityCol: { flex: 1, marginLeft: 14 },
   ownerName: {
     color: '#fff',
-    fontSize: 15,
-    fontFamily: 'Poppins_500Medium',
+    fontSize: 20,
+    fontFamily: 'Poppins_600SemiBold',
     letterSpacing: -0.3,
   },
   ownerRole: {
-    fontSize: 12,
+    color: '#9A9AA5',
+    fontSize: 13,
     fontFamily: 'Poppins_400Regular',
-    marginTop: 1,
+    marginTop: 4,
   },
-  viewProfileBtn: {
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  pillOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
   },
-  viewProfileText: {
+  pillOutlineText: {
     fontSize: 11,
     fontFamily: 'Poppins_500Medium',
   },
 
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  viewProfileBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
     borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 14,
   },
-  badgeText: { fontSize: 12, fontFamily: 'Poppins_400Regular' },
-
-  descCard: {
-    marginHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-  },
-  descText: {
-    color: '#E0E0E0',
-    fontSize: 14,
-    fontFamily: 'Poppins_400Regular',
-    lineHeight: 22,
+  viewProfileText: {
+    fontSize: 13,
+    fontFamily: 'Poppins_500Medium',
   },
 
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
-    paddingHorizontal: 16,
-    marginBottom: 24,
+    marginTop: 16,
   },
   metaItem: {
     flexDirection: 'row',
@@ -542,20 +625,82 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     flexShrink: 1,
   },
+  metaTextLight: {
+    color: '#E0E0E0',
+    fontSize: 13,
+    fontFamily: 'Poppins_400Regular',
+    flexShrink: 1,
+  },
+
+  aboutSection: { marginTop: 18 },
+  aboutHeading: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 6,
+  },
+  descText: {
+    color: '#B0B0BB',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    lineHeight: 21,
+  },
+
+  dashedDivider: {
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginTop: 18,
+    marginBottom: 16,
+  },
+
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  pillSolid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  pillSolidText: { fontSize: 12, fontFamily: 'Poppins_500Medium' },
 
   actionsWrap: {
     paddingHorizontal: 16,
     gap: 12,
   },
-  collabBtn: {
+  primaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  outlineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 15,
-    borderRadius: 14,
+    borderRadius: 26,
+    borderWidth: 1.5,
   },
-  collabBtnText: {
+  outlineBtnText: {
+    fontSize: 15,
+    fontFamily: 'Poppins_500Medium',
+    letterSpacing: -0.3,
+  },
+  filledBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 26,
+  },
+  filledBtnText: {
     color: '#fff',
     fontSize: 15,
     fontFamily: 'Poppins_500Medium',
@@ -565,23 +710,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  secondaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    paddingVertical: 13,
-    borderRadius: 14,
-    borderWidth: 1.5,
-  },
-  secondaryBtnText: {
-    fontSize: 14,
-    fontFamily: 'Poppins_500Medium',
-    letterSpacing: -0.3,
-  },
 
-  // Modal Styles
+  // Success/Error modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
@@ -638,5 +768,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
+  },
+
+  // Portfolio modal styles (mirrors the Home screen's portfolio modal)
+  portfolioModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  portfolioModalContent: {
+    minHeight: 180,
+    backgroundColor: '#1E1E24',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    padding: 24,
+    borderTopWidth: 1,
+    borderColor: 'rgba(156,156,156,0.3)',
+  },
+  portfolioModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  portfolioModalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: 'Poppins_600SemiBold',
+  },
+  portfolioModalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  portfolioLinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  portfolioLinkText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins_500Medium',
+  },
+  noPortfolioText: {
+    color: '#8A8A99',
+    fontSize: 14,
+    fontFamily: 'Poppins_400Regular',
+    marginTop: 10,
   },
 });

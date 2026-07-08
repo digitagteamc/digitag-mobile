@@ -22,7 +22,7 @@ import {
     View,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '../../context/AuthContext';
@@ -99,6 +99,15 @@ export default function ChatScreen() {
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
     const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
+    // Android: windowSoftInputMode="adjustResize" doesn't actually resize this screen
+    // (translucent/edge-to-edge status bar), and KeyboardAvoidingView's built-in "height"
+    // behavior leaves a stale gap once the keyboard hides. useAnimatedKeyboard tracks the
+    // keyboard's real native animation frame-by-frame on the UI thread, so the composer
+    // rises in perfect sync with the keyboard — no lag, no leftover gap.
+    const keyboard = useAnimatedKeyboard();
+    const androidKeyboardStyle = useAnimatedStyle(() => ({
+        marginBottom: Platform.OS === 'android' ? keyboard.height.value : 0,
+    }));
 
     const listRef = useRef<FlatList<ChatMessage> | null>(null);
     const inputRef = useRef<TextInput>(null);
@@ -513,10 +522,12 @@ export default function ChatScreen() {
             {/* ── Body: keyboard pushes the composer up, WhatsApp-style ───────────── */}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
             >
-                {renderMainContent()}
+                <Animated.View style={[{ flex: 1 }, androidKeyboardStyle]}>
+                    {renderMainContent()}
+                </Animated.View>
             </KeyboardAvoidingView>
 
             {/* ── Full-screen image viewer ─────────────────────────────────────── */}

@@ -74,7 +74,7 @@ function FaqAccordion({ item }: { item: FaqItem }) {
             {item.answer}
           </Text>
         </View>
-      )}
+    )}
     </View>
   );
 }
@@ -89,19 +89,19 @@ export default function HelpSupportScreen() {
       id: 'email',
       icon: 'mail-outline' as const,
       label: 'Email',
-      action: () => Linking.openURL('mailto:support@digitag.in').catch(() => {}),
+      action: () => Linking.openURL('mailto:support@thedigitag.ai').catch(() => {}),
     },
     {
       id: 'call',
       icon: 'call-outline' as const,
       label: 'Call',
-      action: () => Linking.openURL('tel:+911800000000').catch(() => {}),
+      action: () => Linking.openURL('tel:+917680805720').catch(() => {}),
     },
     {
       id: 'chat',
       icon: 'chatbubble-outline' as const,
       label: 'Chat',
-      action: () => {},
+      action: () => Linking.openURL('https://wa.me/917680805720').catch(() => {}),
     },
   ];
 

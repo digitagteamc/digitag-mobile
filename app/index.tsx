@@ -193,12 +193,6 @@ export default function Index() {
             withTiming(0, { duration: 450, easing: Easing.out(Easing.cubic) })
         );
 
-        // ── Phase 5: Fade whole screen to black before navigate ──
-        const fadeTimer = setTimeout(() => {
-            screenOpacity.value = withTiming(0, { duration: 400 });
-        }, INTRO_DURATION_MS - 420);
-
-        return () => clearTimeout(fadeTimer);
     }, []);
 
     // ── Navigation ──
