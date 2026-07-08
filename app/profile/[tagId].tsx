@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { searchProfiles } from '../../services/userService';
+import { getUserIdByTag } from '../../services/userService';
 
 // Deep link handler: digitag://profile/[tagId] or https://thedigitag.ai/profile/[tagId]
 // Resolves the tagId (public handle) to a userId then opens creator-details.
@@ -24,17 +24,12 @@ export default function ProfileDeepLink() {
             return;
         }
 
-        searchProfiles(token, tagId as string, 20)
+        getUserIdByTag(token, tagId as string)
             .then(res => {
-                const handle = (tagId as string).toLowerCase();
-                const exact = res.data?.find(
-                    (u: any) => (u.tagId ?? '').toLowerCase() === handle
-                ) ?? res.data?.[0];
-
-                if (exact?.id) {
+                if (res.success && res.data?.userId) {
                     router.replace({
                         pathname: '/creator-details',
-                        params: { userId: exact.id },
+                        params: { userId: res.data.userId },
                     } as any);
                 } else {
                     router.replace('/(tabs)' as any);

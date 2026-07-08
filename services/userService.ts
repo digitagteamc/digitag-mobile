@@ -288,6 +288,19 @@ export const getUserStats = async (token: string, id?: string) => {
     }
 };
 
+/** GET /users/by-tag/:tagId — resolves a public tagId (share-link handle) to a userId */
+export const getUserIdByTag = async (token: string, tagId: string) => {
+    try {
+        const body = await request(`/users/by-tag/${encodeURIComponent(tagId)}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data as { userId: string } | null };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /** GET /users/:id */
 export const getUserById = async (id: string, token: string) => {
     try {

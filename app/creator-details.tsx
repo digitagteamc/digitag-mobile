@@ -248,7 +248,7 @@ export default function CreatorDetails() {
 
     const p = profile.freelancerProfile || profile.creatorProfile || {};
     const name = p.name || (isFreelancerProfile ? 'Freelancer' : 'Creator');
-    const category = profile.category?.name || (isFreelancerProfile ? 'Photography' : 'Beauty');
+    const category = p.categoryNames?.[0] || null;
     const bio = p.bio || (isFreelancerProfile
         ? 'Fashion & lifestyle content creator with a passion for sustainable fashion. I create engaging content for brands that align with my values.'
         : 'Creates engaging beauty content like makeup tutorials, skincare tips, and product reviews.');
@@ -270,11 +270,8 @@ export default function CreatorDetails() {
         { bg: 'rgba(1, 47, 47, 0.5)', border: '#012F2F', text: '#7CFFD6' },
         { bg: 'rgba(55, 30, 0, 0.5)', border: '#371E00', text: '#FFB87C' },
     ];
-    const rawSkills: string[] = (isFreelancerProfile ? p.skills : p.categories) || [];
-    const categoryName = profile.category?.name || p.category?.name;
-    const skillLabels = rawSkills.length > 0
-        ? rawSkills
-        : categoryName ? [categoryName] : [];
+    const rawSkills: string[] = (isFreelancerProfile ? p.skills : p.categoryNames) || [];
+    const skillLabels = rawSkills;
     const specializations = skillLabels.map((label: string, idx: number) => ({
         label,
         ...CHIP_COLORS[idx % CHIP_COLORS.length],
