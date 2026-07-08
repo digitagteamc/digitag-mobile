@@ -812,8 +812,9 @@ export default function Homepage() {
   };
 
   const handlePostTap = (postId: string, ownerId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('view this post')) return;
+    // Viewing a post is browsing, not an account action — guests can open it freely.
+    // Logged-in users with an incomplete profile still get the completion nudge.
+    if (token && !requireProfile('view this post')) return;
     router.push({ pathname: '/post-detail', params: { postId } } as any);
   };
 
