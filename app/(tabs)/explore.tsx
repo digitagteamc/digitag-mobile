@@ -269,6 +269,269 @@ const CATEGORIES = [
   },
 ];
 
+const FREELANCER_CATEGORIES = [
+  {
+    id: 'f1',
+    label: 'Lifestyle &\nLiving',
+    icon: f_lifestyle,
+    image: fh_lifestyle,
+    heroLine1: 'Elevate Your Everyday  ', heroLine2: 'Lifestyle ', heroLine3: '',
+    heroDesc: 'Modern lifestyle inspiration for fashion, wellness, travel, home, and everyday living.',
+    gradient: ['rgba(136, 21, 250, 1)', 'rgba(136, 21, 250, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f2',
+    label: 'Tech',
+    icon: f_tech,
+    image: fh_tech,
+    heroLine1: 'Technology That Powers  ', heroLine2: ' the Future ', heroLine3: '',
+    heroDesc: 'Modern technology experiences crafted for speed, creativity, and growth.',
+    gradient: ['rgba(170, 7, 121, 1)', 'rgba(68, 3, 48, 1))'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f3',
+    label: 'Education',
+    icon: f_education,
+    image: fh_education,
+    heroLine1: 'Unlock Your Learning ', heroLine2: ' Potential ', heroLine3: '',
+    heroDesc: 'Modern education experiences designed for ambitious learners and future creators.',
+    gradient: ['rgba(11, 145, 212, 1) ', 'rgba(4, 97, 144, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f4',
+    label: 'Photography',
+    icon: f_photography,
+    image: fh_photography,
+    heroLine1: 'Where Creativity ', heroLine2: ' Meets Photography', heroLine3: '',
+    heroDesc: 'From portraits to brand shoots, every frame is crafted to stand out beautifully.',
+    gradient: ['#D97706', '#B45309'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f5',
+    label: 'Food',
+    icon: f_food,
+    image: fh_food,
+    heroLine1: 'Eat Fresh. Feel Happy.', heroLine2: ' ', heroLine3: '',
+    heroDesc: 'Tasty food experiences crafted for every foodie and every occasion.',
+    gradient: ['rgba(68, 7, 201, 1)', 'rgba(68, 7, 201, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f6',
+    label: 'Health',
+    icon: f_health,
+    image: fh_health,
+    heroLine1: 'Your Health, Your  ', heroLine2: '  Priority', heroLine3: '',
+    heroDesc: 'Smart wellness solutions designed for modern lifestyles and everyday care.',
+    gradient: ['#0D9488', '#0F766E'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f7',
+    label: 'Automotive',
+    icon: f_automotive,
+    image: fh_automotive,
+    heroLine1: 'Performance Meets ', heroLine2: '  Innovation', heroLine3: '',
+    heroDesc: 'Automotive experiences crafted for passionate drivers and modern lifestyles.',
+    gradient: ['rgba(244, 102, 13, 1)', 'rgba(99, 40, 4, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f8',
+    label: 'Comedy &\nMemes',
+    icon: f_comedy,
+    image: fh_comedy,
+    heroLine1: 'Scroll Less, Laugh More', heroLine2: ' ', heroLine3: '',
+    heroDesc: 'Your daily dose of humor, memes, and endless entertainment.',
+    gradient: ['rgba(4, 63, 96, 1)', 'rgba(8, 130, 198, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f9',
+    label: 'Entertainment',
+    icon: f_entertainment,
+    image: fh_entertainment,
+    heroLine1: 'Endless Entertainment', heroLine2: ' Starts Here', heroLine3: '',
+    heroDesc: 'Trending content, creators, music, and media all in one exciting experience.',
+    gradient: ['rgba(13, 121, 244, 1)', 'rgba(8, 71, 142, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f10',
+    label: 'Gaming &\nAnime',
+    icon: f_gaming,
+    image: fh_gaming,
+    heroLine1: 'Game. Stream. Anime.', heroLine2: ' Repeat.', heroLine3: '',
+    heroDesc: 'Everything you love about gaming and anime in one exciting experience.',
+    gradient: ['rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f11',
+    label: 'Learning',
+    icon: f_learning,
+    image: fh_learning,
+    heroLine1: 'Keep Learning, Keep  ', heroLine2: ' Growing', heroLine3: '',
+    heroDesc: 'Modern learning experiences for ambitious minds and future creators.',
+    gradient: ['rgba(170, 7, 121, 1)', 'rgba(170, 7, 121, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f12',
+    label: 'News, Media\n& Magazins',
+    icon: f_news,
+    image: fh_news,
+    heroLine1: 'Delivering Powerful', heroLine2: ' Headlines & Stories', heroLine3: '',
+    heroDesc: 'Collaborate with experienced journalists, editors, and digital publishers.',
+    gradient: ['rgba(11, 145, 212, 1)', 'rgba(4, 97, 144, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f13',
+    label: 'Sports',
+    icon: f_sports,
+    image: fh_sports,
+    heroLine1: 'Unleash Peak Athletic', heroLine2: ' Performance', heroLine3: '',
+    heroDesc: 'Connect with sports analysts, personal trainers, athletes, and fitness influencers.',
+    gradient: ['rgba(68, 7, 201, 1)', 'rgba(68, 7, 201, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f14',
+    label: 'Travel',
+    icon: f_travel,
+    image: fh_travel,
+    heroLine1: 'Explore Breathtaking', heroLine2: ' Destinations Across Earth', heroLine3: '',
+    heroDesc: 'Partner with travel vloggers, itinerary planners, and adventure storytellers.',
+    gradient: ['rgba(244, 102, 13, 1)', 'rgba(244, 102, 13, 1)'] as [string, string],
+    charStyle: { right: -20, bottom: -30, width: 170, height: 170, opacity: 1 }
+  },
+  {
+    id: 'f15',
+    label: 'Beauty',
+    icon: f_beauty,
+    image: fh_beauty,
+    heroLine1: 'Redefining Aesthetics and', heroLine2: ' Modern Glamour', heroLine3: '',
+    heroDesc: 'Work with makeup artists, skincare experts, beauty influencers, and stylists.',
+    gradient: ['rgba(13, 121, 244, 1)', 'rgba(13, 121, 244, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f16',
+    label: 'Fitness',
+    icon: f_fitness,
+    image: fh_fitness,
+    heroLine1: 'Transform Your Body and', heroLine2: ' Push Your Limits', heroLine3: '',
+    heroDesc: 'Discover elite coaches, workout programmers, and physique transformation experts.',
+    gradient: ['rgba(156, 13, 244, 1)', 'rgba(91, 8, 142, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f17',
+    label: 'Fashion',
+    icon: f_fashion,
+    image: fh_fashion,
+    heroLine1: 'Setting the Trend with', heroLine2: ' Impeccable Style', heroLine3: '',
+    heroDesc: 'Hire wardrobe stylists, fashion designers, models, and trendsetters for your campaign.',
+    gradient: ['rgba(4, 63, 96, 1)', 'rgba(8, 130, 198, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f18',
+    label: 'Finance &\nInvestments',
+    icon: f_finance,
+    image: fh_finance,
+    heroLine1: 'Securing Wealth and', heroLine2: ' Financial Freedom', heroLine3: '',
+    heroDesc: 'Connect with certified financial planners, market analysts, and investment advisors.',
+    gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f19',
+    label: 'Arts',
+    icon: f_arts,
+    image: fh_arts,
+    heroLine1: 'Expressive Masterpieces', heroLine2: ' Crafted with Soul', heroLine3: '',
+    heroDesc: 'Discover traditional painters, digital illustrators, sculptors, and creative visionaries.',
+    gradient: ['rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f20',
+    label: 'Business &\nStartups',
+    icon: f_business,
+    image: fh_business,
+    heroLine1: 'Scaling Enterprises to', heroLine2: ' Unprecedented Heights', heroLine3: '',
+    heroDesc: 'Collaborate with startup consultants, business strategists, and visionary entrepreneurs.',
+    gradient: ['rgba(170, 7, 121, 1)', 'rgba(68, 3, 48, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f21',
+    label: 'Community\nPages',
+    icon: f_community,
+    image: fh_community,
+    heroLine1: 'Building Meaningful', heroLine2: ' Connections Together', heroLine3: '',
+    heroDesc: 'Engage with community managers, moderators, and active group organizers.',
+    gradient: ['#D946EF', '#A21CAF'] as [string, string],
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f22',
+    label: 'Family, Kids\n& Pets',
+    icon: f_family,
+    image: fh_family,
+    heroLine1: 'Heartwarming Content', heroLine2: ' for the Whole Family', heroLine3: '',
+    heroDesc: 'Partner with parenting bloggers, family lifestyle creators, and child development experts.',
+    gradient: ['rgba(11, 145, 212, 1)', 'rgba(4, 97, 144, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f23',
+    label: 'Home &\nDecor',
+    icon: f_home,
+    image: fh_home,
+    heroLine1: 'Transforming Spaces into', heroLine2: ' Beautiful Sanctuaries', heroLine3: '',
+    heroDesc: 'Work with interior designers, DIY experts, home organizers, and decor specialists.',
+    gradient: ['rgba(68, 7, 201, 1)', 'rgba(34, 4, 99, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f24',
+    label: 'Law, Rights\n& Activism',
+    icon: f_law,
+    image: fh_law,
+    heroLine1: 'Standing for Justice and', heroLine2: ' Powerful Advocacy', heroLine3: '',
+    heroDesc: 'Connect with legal consultants, human rights advocates, and policy commentators.',
+    gradient: ['rgba(244, 102, 13, 1)', 'rgba(99, 40, 4, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f25',
+    label: 'Pets &\nAnimals',
+    icon: f_pets,
+    image: fh_pets,
+    heroLine1: 'Celebrating Our Beloved', heroLine2: ' Animal Companions', heroLine3: '',
+    heroDesc: 'Discover expert pet trainers, veterinarians, animal photographers, and pet influencers.',
+    gradient: ['rgba(13, 121, 244, 1)', 'rgba(8, 71, 142, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+  },
+  {
+    id: 'f26',
+    label: 'Politics',
+    icon: f_politics,
+    image: fh_politics,
+    heroLine1: 'Informed Perspectives and', heroLine2: ' Civic Discourse', heroLine3: '',
+    heroDesc: 'Engage with political analysts, commentators, debate hosts, and campaign strategists.',
+    gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+  },
+];
+
 function getInitials(name: string | null | undefined) {
   if (!name) return 'U';
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -521,13 +784,19 @@ export default function ExploreTab() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { category: paramCategory } = useLocalSearchParams<{ category?: string }>();
+  // The category tile tapped on Home comes from whichever list matches the viewer's own
+  // role (CATEGORIES for a Creator browsing Freelancers, FREELANCER_CATEGORIES for a
+  // Freelancer browsing Creators) — check both, since we don't know userRole yet here.
+  const isValidCategoryParam = (id?: string) =>
+    !!id && (CATEGORIES.some(c => c.id === id) || FREELANCER_CATEGORIES.some(c => c.id === id));
+
   const [activeCategory, setActiveCategory] = useState(
-    paramCategory && CATEGORIES.find(c => c.id === paramCategory) ? paramCategory : CATEGORIES[0].id
+    isValidCategoryParam(paramCategory) ? (paramCategory as string) : CATEGORIES[0].id
   );
 
   useEffect(() => {
-    if (paramCategory && CATEGORIES.find(c => c.id === paramCategory)) {
-      setActiveCategory(paramCategory);
+    if (isValidCategoryParam(paramCategory)) {
+      setActiveCategory(paramCategory as string);
     }
   }, [paramCategory]);
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
@@ -626,268 +895,6 @@ export default function ExploreTab() {
 
   const onRefresh = async () => { setRefreshing(true); await fetchPosts(); setRefreshing(false); };
 
-  const FREELANCER_CATEGORIES = [
-    {
-      id: 'f1',
-      label: 'Lifestyle &\nLiving',
-      icon: f_lifestyle,
-      image: fh_lifestyle,
-      heroLine1: 'Elevate Your Everyday  ', heroLine2: 'Lifestyle ', heroLine3: '',
-      heroDesc: 'Modern lifestyle inspiration for fashion, wellness, travel, home, and everyday living.',
-      gradient: ['rgba(136, 21, 250, 1)', 'rgba(136, 21, 250, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f2',
-      label: 'Tech',
-      icon: f_tech,
-      image: fh_tech,
-      heroLine1: 'Technology That Powers  ', heroLine2: ' the Future ', heroLine3: '',
-      heroDesc: 'Modern technology experiences crafted for speed, creativity, and growth.',
-      gradient: ['rgba(170, 7, 121, 1)', 'rgba(68, 3, 48, 1))'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f3',
-      label: 'Education',
-      icon: f_education,
-      image: fh_education,
-      heroLine1: 'Unlock Your Learning ', heroLine2: ' Potential ', heroLine3: '',
-      heroDesc: 'Modern education experiences designed for ambitious learners and future creators.',
-      gradient: ['rgba(11, 145, 212, 1) ', 'rgba(4, 97, 144, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f4',
-      label: 'Photography',
-      icon: f_photography,
-      image: fh_photography,
-      heroLine1: 'Where Creativity ', heroLine2: ' Meets Photography', heroLine3: '',
-      heroDesc: 'From portraits to brand shoots, every frame is crafted to stand out beautifully.',
-      gradient: ['#D97706', '#B45309'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f5',
-      label: 'Food',
-      icon: f_food,
-      image: fh_food,
-      heroLine1: 'Eat Fresh. Feel Happy.', heroLine2: ' ', heroLine3: '',
-      heroDesc: 'Tasty food experiences crafted for every foodie and every occasion.',
-      gradient: ['rgba(68, 7, 201, 1)', 'rgba(68, 7, 201, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f6',
-      label: 'Health',
-      icon: f_health,
-      image: fh_health,
-      heroLine1: 'Your Health, Your  ', heroLine2: '  Priority', heroLine3: '',
-      heroDesc: 'Smart wellness solutions designed for modern lifestyles and everyday care.',
-      gradient: ['#0D9488', '#0F766E'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f7',
-      label: 'Automotive',
-      icon: f_automotive,
-      image: fh_automotive,
-      heroLine1: 'Performance Meets ', heroLine2: '  Innovation', heroLine3: '',
-      heroDesc: 'Automotive experiences crafted for passionate drivers and modern lifestyles.',
-      gradient: ['rgba(244, 102, 13, 1)', 'rgba(99, 40, 4, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f8',
-      label: 'Comedy &\nMemes',
-      icon: f_comedy,
-      image: fh_comedy,
-      heroLine1: 'Scroll Less, Laugh More', heroLine2: ' ', heroLine3: '',
-      heroDesc: 'Your daily dose of humor, memes, and endless entertainment.',
-      gradient: ['rgba(4, 63, 96, 1)', 'rgba(8, 130, 198, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f9',
-      label: 'Entertainment',
-      icon: f_entertainment,
-      image: fh_entertainment,
-      heroLine1: 'Endless Entertainment', heroLine2: ' Starts Here', heroLine3: '',
-      heroDesc: 'Trending content, creators, music, and media all in one exciting experience.',
-      gradient: ['rgba(13, 121, 244, 1)', 'rgba(8, 71, 142, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f10',
-      label: 'Gaming &\nAnime',
-      icon: f_gaming,
-      image: fh_gaming,
-      heroLine1: 'Game. Stream. Anime.', heroLine2: ' Repeat.', heroLine3: '',
-      heroDesc: 'Everything you love about gaming and anime in one exciting experience.',
-      gradient: ['rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f11',
-      label: 'Learning',
-      icon: f_learning,
-      image: fh_learning,
-      heroLine1: 'Keep Learning, Keep  ', heroLine2: ' Growing', heroLine3: '',
-      heroDesc: 'Modern learning experiences for ambitious minds and future creators.',
-      gradient: ['rgba(170, 7, 121, 1)', 'rgba(170, 7, 121, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f12',
-      label: 'News, Media\n& Magazins',
-      icon: f_news,
-      image: fh_news,
-      heroLine1: 'Delivering Powerful', heroLine2: ' Headlines & Stories', heroLine3: '',
-      heroDesc: 'Collaborate with experienced journalists, editors, and digital publishers.',
-      gradient: ['rgba(11, 145, 212, 1)', 'rgba(4, 97, 144, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f13',
-      label: 'Sports',
-      icon: f_sports,
-      image: fh_sports,
-      heroLine1: 'Unleash Peak Athletic', heroLine2: ' Performance', heroLine3: '',
-      heroDesc: 'Connect with sports analysts, personal trainers, athletes, and fitness influencers.',
-      gradient: ['rgba(68, 7, 201, 1)', 'rgba(68, 7, 201, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f14',
-      label: 'Travel',
-      icon: f_travel,
-      image: fh_travel,
-      heroLine1: 'Explore Breathtaking', heroLine2: ' Destinations Across Earth', heroLine3: '',
-      heroDesc: 'Partner with travel vloggers, itinerary planners, and adventure storytellers.',
-      gradient: ['rgba(244, 102, 13, 1)', 'rgba(244, 102, 13, 1)'] as [string, string],
-      charStyle: { right: -20, bottom: -30, width: 170, height: 170, opacity: 1 }
-    },
-    {
-      id: 'f15',
-      label: 'Beauty',
-      icon: f_beauty,
-      image: fh_beauty,
-      heroLine1: 'Redefining Aesthetics and', heroLine2: ' Modern Glamour', heroLine3: '',
-      heroDesc: 'Work with makeup artists, skincare experts, beauty influencers, and stylists.',
-      gradient: ['rgba(13, 121, 244, 1)', 'rgba(13, 121, 244, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f16',
-      label: 'Fitness',
-      icon: f_fitness,
-      image: fh_fitness,
-      heroLine1: 'Transform Your Body and', heroLine2: ' Push Your Limits', heroLine3: '',
-      heroDesc: 'Discover elite coaches, workout programmers, and physique transformation experts.',
-      gradient: ['rgba(156, 13, 244, 1)', 'rgba(91, 8, 142, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f17',
-      label: 'Fashion',
-      icon: f_fashion,
-      image: fh_fashion,
-      heroLine1: 'Setting the Trend with', heroLine2: ' Impeccable Style', heroLine3: '',
-      heroDesc: 'Hire wardrobe stylists, fashion designers, models, and trendsetters for your campaign.',
-      gradient: ['rgba(4, 63, 96, 1)', 'rgba(8, 130, 198, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f18',
-      label: 'Finance &\nInvestments',
-      icon: f_finance,
-      image: fh_finance,
-      heroLine1: 'Securing Wealth and', heroLine2: ' Financial Freedom', heroLine3: '',
-      heroDesc: 'Connect with certified financial planners, market analysts, and investment advisors.',
-      gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f19',
-      label: 'Arts',
-      icon: f_arts,
-      image: fh_arts,
-      heroLine1: 'Expressive Masterpieces', heroLine2: ' Crafted with Soul', heroLine3: '',
-      heroDesc: 'Discover traditional painters, digital illustrators, sculptors, and creative visionaries.',
-      gradient: ['rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f20',
-      label: 'Business &\nStartups',
-      icon: f_business,
-      image: fh_business,
-      heroLine1: 'Scaling Enterprises to', heroLine2: ' Unprecedented Heights', heroLine3: '',
-      heroDesc: 'Collaborate with startup consultants, business strategists, and visionary entrepreneurs.',
-      gradient: ['rgba(170, 7, 121, 1)', 'rgba(68, 3, 48, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f21',
-      label: 'Community\nPages',
-      icon: f_community,
-      image: fh_community,
-      heroLine1: 'Building Meaningful', heroLine2: ' Connections Together', heroLine3: '',
-      heroDesc: 'Engage with community managers, moderators, and active group organizers.',
-      gradient: ['#D946EF', '#A21CAF'] as [string, string],
-      charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f22',
-      label: 'Family, Kids\n& Pets',
-      icon: f_family,
-      image: fh_family,
-      heroLine1: 'Heartwarming Content', heroLine2: ' for the Whole Family', heroLine3: '',
-      heroDesc: 'Partner with parenting bloggers, family lifestyle creators, and child development experts.',
-      gradient: ['rgba(11, 145, 212, 1)', 'rgba(4, 97, 144, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f23',
-      label: 'Home &\nDecor',
-      icon: f_home,
-      image: fh_home,
-      heroLine1: 'Transforming Spaces into', heroLine2: ' Beautiful Sanctuaries', heroLine3: '',
-      heroDesc: 'Work with interior designers, DIY experts, home organizers, and decor specialists.',
-      gradient: ['rgba(68, 7, 201, 1)', 'rgba(34, 4, 99, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f24',
-      label: 'Law, Rights\n& Activism',
-      icon: f_law,
-      image: fh_law,
-      heroLine1: 'Standing for Justice and', heroLine2: ' Powerful Advocacy', heroLine3: '',
-      heroDesc: 'Connect with legal consultants, human rights advocates, and policy commentators.',
-      gradient: ['rgba(244, 102, 13, 1)', 'rgba(99, 40, 4, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f25',
-      label: 'Pets &\nAnimals',
-      icon: f_pets,
-      image: fh_pets,
-      heroLine1: 'Celebrating Our Beloved', heroLine2: ' Animal Companions', heroLine3: '',
-      heroDesc: 'Discover expert pet trainers, veterinarians, animal photographers, and pet influencers.',
-      gradient: ['rgba(13, 121, 244, 1)', 'rgba(8, 71, 142, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
-    },
-    {
-      id: 'f26',
-      label: 'Politics',
-      icon: f_politics,
-      image: fh_politics,
-      heroLine1: 'Informed Perspectives and', heroLine2: ' Civic Discourse', heroLine3: '',
-      heroDesc: 'Engage with political analysts, commentators, debate hosts, and campaign strategists.',
-      gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
-      charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
-    },
-  ];
 
   const availableCategories = useMemo(() => {
     if (userRole === 'FREELANCER') {
