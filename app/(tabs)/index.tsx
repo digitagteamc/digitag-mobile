@@ -698,7 +698,7 @@ export default function Homepage() {
     useCallback(() => {
       const fetchPosts = async () => {
         try {
-          if (!token) { setPosts([]); setLoading(false); return; }
+          // Browsing the feed doesn't require an account — token is optional here.
           const res = await getFeed(token);
           const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
           // Center on the middle post so its left/right neighbors both peek into

@@ -68,6 +68,13 @@ export const authHeaders = (token: string): Headers => ({
     'Expires': '0'
 });
 
+// Same as authHeaders, but for endpoints a guest (no token) can also call —
+// omits Authorization entirely instead of sending "Bearer null".
+export const optionalAuthHeaders = (token?: string | null): Headers => {
+    const { Authorization, ...rest } = authHeaders(token || '');
+    return token ? { ...rest, Authorization } : rest;
+};
+
 /* ─────────────────────────── AUTH ─────────────────────────── */
 
 /** POST /auth/send-otp — backend returns OTP policy (cooldown, expiry, length). */
@@ -275,12 +282,12 @@ export const checkCreatorStatus = async (token: string) => {
 };
 
 /** GET /users/:id/stats — followerCount, followingCount, collabCount */
-export const getUserStats = async (token: string, id?: string) => {
+export const getUserStats = async (token: string | null, id?: string) => {
     try {
         const path = id ? `/users/${id}/stats` : '/users/me/stats';
         const body = await request(path, {
             method: 'GET',
-            headers: authHeaders(token),
+            headers: optionalAuthHeaders(token),
         });
         return { success: true, data: body?.data as { followerCount: number; followingCount: number; collabCount: number } | null };
     } catch (error: any) {
@@ -288,12 +295,12 @@ export const getUserStats = async (token: string, id?: string) => {
     }
 };
 
-/** GET /users/by-tag/:tagId — resolves a public tagId (share-link handle) to a userId */
-export const getUserIdByTag = async (token: string, tagId: string) => {
+/** GET /users/by-tag/:tagId — resolves a public tagId (share-link handle) to a userId. Works for guests too. */
+export const getUserIdByTag = async (token: string | null, tagId: string) => {
     try {
         const body = await request(`/users/by-tag/${encodeURIComponent(tagId)}`, {
             method: 'GET',
-            headers: authHeaders(token),
+            headers: optionalAuthHeaders(token),
         });
         return { success: true, data: body?.data as { userId: string } | null };
     } catch (error: any) {
@@ -301,12 +308,12 @@ export const getUserIdByTag = async (token: string, tagId: string) => {
     }
 };
 
-/** GET /users/:id */
-export const getUserById = async (id: string, token: string) => {
+/** GET /users/:id — public profile browsing, works with or without a token */
+export const getUserById = async (id: string, token: string | null) => {
     try {
         const body = await request(`/users/${id}`, {
             method: 'GET',
-            headers: authHeaders(token),
+            headers: optionalAuthHeaders(token),
         });
         return { success: true, data: body?.data };
     } catch (error: any) {
@@ -553,13 +560,13 @@ export const deletePost = async (id: string, token: string) => {
 /** GET /posts/user/:userId — posts authored by a specific user */
 export const getUserPosts = async (
     userId: string,
-    token: string,
+    token: string | null,
     params: Record<string, string> = {},
 ) => {
     try {
         const qs = new URLSearchParams(params);
         const path = `/posts/user/${userId}${qs.toString() ? `?${qs}` : ''}`;
-        const body = await request(path, { method: 'GET', headers: authHeaders(token) });
+        const body = await request(path, { method: 'GET', headers: optionalAuthHeaders(token) });
         return { success: true, data: body?.data ?? [], meta: body?.meta };
     } catch (error: any) {
         return { success: false, error: error.message };
@@ -579,11 +586,11 @@ export const getMyPosts = async (token: string, params: Record<string, string> =
 };
 
 /** GET /posts/:id */
-export const getPostById = async (id: string, token: string) => {
+export const getPostById = async (id: string, token: string | null) => {
     try {
         const body = await request(`/posts/${id}`, {
             method: 'GET',
-            headers: authHeaders(token),
+            headers: optionalAuthHeaders(token),
         });
         return { success: true, data: body?.data };
     } catch (error: any) {
@@ -624,11 +631,11 @@ export const getSavedPosts = async (token: string) => {
 /* ───────────────────────── FEED ───────────────────────────── */
 
 /** GET /feed */
-export const getFeed = async (token: string, params: Record<string, string> = {}) => {
+export const getFeed = async (token: string | null, params: Record<string, string> = {}) => {
     try {
         const qs = new URLSearchParams(params);
         const path = `/feed${qs.toString() ? `?${qs}` : ''}`;
-        const body = await request(path, { method: 'GET', headers: authHeaders(token) });
+        const body = await request(path, { method: 'GET', headers: optionalAuthHeaders(token) });
         return { success: true, data: body?.data ?? [], meta: body?.meta };
     } catch (error: any) {
         return { success: false, error: error.message };

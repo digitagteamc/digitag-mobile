@@ -73,20 +73,24 @@ export default function PostDetail() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
   const load = useCallback(async () => {
-    if (!token || !postId) { setLoading(false); return; }
-    if (!requireProfile('view this post')) { setLoading(false); return; }
+    if (!postId) { setLoading(false); return; }
+    // Guests can view a post without an account; only logged-in users are held to the
+    // profile-completion gate that was already enforced here.
+    if (token && !requireProfile('view this post')) { setLoading(false); return; }
     const res = await getPostById(postId, token);
     if (res.success && res.data) {
       setPost(res.data);
-      const ownerId = res.data.owner?.id || res.data.userId;
-      const [collabRes, savedRes, reportRes] = await Promise.all([
-        ownerId ? getCollaborationWith(token, ownerId) : Promise.resolve({ success: false }),
-        getSavedPostIds(token),
-        getReportStatus(token, 'POST', postId),
-      ]);
-      if (collabRes.success) setCollabStatus(((collabRes as any).data?.status ?? 'NONE') as any);
-      if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
-      if (reportRes.success) setIsReported(Boolean((reportRes as any).data?.reported));
+      if (token) {
+        const ownerId = res.data.owner?.id || res.data.userId;
+        const [collabRes, savedRes, reportRes] = await Promise.all([
+          ownerId ? getCollaborationWith(token, ownerId) : Promise.resolve({ success: false }),
+          getSavedPostIds(token),
+          getReportStatus(token, 'POST', postId),
+        ]);
+        if (collabRes.success) setCollabStatus(((collabRes as any).data?.status ?? 'NONE') as any);
+        if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
+        if (reportRes.success) setIsReported(Boolean((reportRes as any).data?.reported));
+      }
     }
     setLoading(false);
   }, [token, postId, requireProfile]);

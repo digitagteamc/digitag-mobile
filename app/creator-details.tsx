@@ -75,11 +75,11 @@ export default function CreatorDetails() {
     const theme = useRoleTheme();
 
     const load = useCallback(async () => {
-        if (!token) { setLoading(false); return; }
         try {
             let uid = resolvedUserId;
 
-            // Resolve UID from postId if needed
+            // Resolve UID from postId if needed — works for guests too, profile
+            // browsing doesn't require an account.
             if (!uid && paramPostId) {
                 const postRes = await getPostById(paramPostId, token);
                 if (postRes.success && postRes.data) {
@@ -90,23 +90,35 @@ export default function CreatorDetails() {
             if (!uid) { setLoading(false); return; }
             setResolvedUserId(uid);
 
-            const [userRes, followRes, statsRes, collabRes, blockRes, reportRes] = await Promise.all([
-                getUserById(uid, token),
-                getFollowStatus(token, uid),
-                getUserStats(token, uid),
-                getCollaborationWith(token, uid),
-                getBlockStatus(token, uid),
-                getReportStatus(token, 'USER', uid),
-            ]);
-            if (userRes.success) setProfile(userRes.data || null);
-            if (followRes.success) setIsFollowing(Boolean(followRes.data?.isFollowing));
-            if (statsRes.success) setStats(statsRes.data || null);
-            if (reportRes.success) setIsReported(Boolean(reportRes.data?.reported));
-            if (blockRes.success) setIsBlocked(Boolean(blockRes.data?.isBlocked));
-            if (collabRes.success) {
-                const status = collabRes.data?.status ?? 'NONE';
-                setCollabStatus(status as any);
-                if (status === 'ACCEPTED') setCollabSent(true);
+            if (token) {
+                const [userRes, followRes, statsRes, collabRes, blockRes, reportRes] = await Promise.all([
+                    getUserById(uid, token),
+                    getFollowStatus(token, uid),
+                    getUserStats(token, uid),
+                    getCollaborationWith(token, uid),
+                    getBlockStatus(token, uid),
+                    getReportStatus(token, 'USER', uid),
+                ]);
+                if (userRes.success) setProfile(userRes.data || null);
+                if (followRes.success) setIsFollowing(Boolean(followRes.data?.isFollowing));
+                if (statsRes.success) setStats(statsRes.data || null);
+                if (reportRes.success) setIsReported(Boolean(reportRes.data?.reported));
+                if (blockRes.success) setIsBlocked(Boolean(blockRes.data?.isBlocked));
+                if (collabRes.success) {
+                    const status = collabRes.data?.status ?? 'NONE';
+                    setCollabStatus(status as any);
+                    if (status === 'ACCEPTED') setCollabSent(true);
+                }
+            } else {
+                // Guest — only the public profile/stat data. Follow/collab/block/report
+                // status are viewer-specific and require an account, so they stay at
+                // their defaults until the guest signs up.
+                const [userRes, statsRes] = await Promise.all([
+                    getUserById(uid, token),
+                    getUserStats(token, uid),
+                ]);
+                if (userRes.success) setProfile(userRes.data || null);
+                if (statsRes.success) setStats(statsRes.data || null);
             }
         } finally {
             setLoading(false);
@@ -145,6 +157,7 @@ export default function CreatorDetails() {
     };
 
     const handleBlock = async () => {
+        if (!requireProfile('block this user')) return;
         if (!token || !resolvedUserId || blockBusy) return;
         setBlockBusy(true);
         try {
@@ -444,7 +457,11 @@ export default function CreatorDetails() {
                         <TouchableOpacity
                             style={[styles.menuRow, isReported && { opacity: 0.5 }]}
                             disabled={isReported}
-                            onPress={() => { setShowActionMenu(false); setShowReportModal(true); }}
+                            onPress={() => {
+                                setShowActionMenu(false);
+                                if (!requireProfile('report this user')) return;
+                                setShowReportModal(true);
+                            }}
                         >
                             <Ionicons name={isReported ? 'checkmark-circle-outline' : 'flag-outline'} size={20} color="#fff" />
                             <Text style={styles.menuRowText}>{isReported ? 'Reported' : 'Report User'}</Text>

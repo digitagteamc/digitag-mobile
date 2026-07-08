@@ -836,7 +836,7 @@ export default function ExploreTab() {
   };
 
   const fetchPosts = useCallback(async () => {
-    if (!token) { setPosts([]); setLoading(false); return; }
+    // Browsing the feed doesn't require an account — token is optional here.
     try {
       const res = await getFeed(token);
       setPosts(Array.isArray(res.data) ? res.data : []);

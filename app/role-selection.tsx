@@ -1,5 +1,6 @@
 import GradientButton from '@/Components/ui/GradientButton';
 import { useAuth } from '@/context/AuthContext';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -258,7 +259,7 @@ function FigmaConicBorder({
 
 export default function RoleSelectionScreen() {
     const router = useRouter();
-    const { markOnboarded } = useAuth();
+    const { markOnboarded, loginAsGuest } = useAuth();
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [cardSizes, setCardSizes] = useState<Record<string, { width: number; height: number }>>({});
     const { width: screenWidth } = useWindowDimensions();
@@ -291,6 +292,12 @@ export default function RoleSelectionScreen() {
             return;
         }
         router.replace({ pathname: '/login', params: { role: selectedRole.toUpperCase() } });
+    };
+
+    const handleBrowseAsGuest = async () => {
+        await markOnboarded();
+        loginAsGuest();
+        router.replace('/(tabs)/explore');
     };
 
     return (
@@ -457,6 +464,16 @@ export default function RoleSelectionScreen() {
                         <Text className="text-[#5A5A6D] font-poppins-semibold text-[20px]">Next</Text>
                     </TouchableOpacity>
                 )}
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleBrowseAsGuest}
+                    className="w-full flex-row items-center justify-center gap-1 mt-4"
+                >
+                    <Text className="text-[#88889D] font-poppins-medium text-[14px]">
+                        Just browsing? Explore without an account
+                    </Text>
+                    <Ionicons name="arrow-forward" size={14} color="#88889D" />
+                </TouchableOpacity>
             </View>
 
         </SafeAreaView>

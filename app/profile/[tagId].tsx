@@ -14,11 +14,8 @@ export default function ProfileDeepLink() {
     useEffect(() => {
         if (isLoading) return;
 
-        if (!token) {
-            router.replace('/login' as any);
-            return;
-        }
-
+        // Resolving a shared profile link is browsing, not an account action —
+        // works the same for a guest as for a logged-in user.
         if (!tagId) {
             router.replace('/(tabs)' as any);
             return;
