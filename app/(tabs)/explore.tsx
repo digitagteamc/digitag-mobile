@@ -1039,8 +1039,11 @@ export default function ExploreTab() {
   }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
 
   const EXPLORE_PREVIEW_LIMIT = 3;
-  const hasMoreHiddenCards = !isProfileCompleted && filteredCards.length > EXPLORE_PREVIEW_LIMIT;
-  const cards = isProfileCompleted ? filteredCards : filteredCards.slice(0, EXPLORE_PREVIEW_LIMIT);
+  // Same as Home: the preview cap nudges a logged-in user to finish their profile.
+  // Guests have no profile to complete, so it doesn't apply to them (Apple 5.1.1).
+  const isExploreCapped = !isGuest && !isProfileCompleted;
+  const hasMoreHiddenCards = isExploreCapped && filteredCards.length > EXPLORE_PREVIEW_LIMIT;
+  const cards = isExploreCapped ? filteredCards.slice(0, EXPLORE_PREVIEW_LIMIT) : filteredCards;
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     if (isGuest || !token) { router.push('/role-selection'); return; }

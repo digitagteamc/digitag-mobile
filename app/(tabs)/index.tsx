@@ -703,7 +703,7 @@ export default function Homepage() {
           const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
           // Center on the middle post so its left/right neighbors both peek into
           // view on open, showing all 3 preview posts at once (per design).
-          const visibleCount = isProfileCompleted ? allPosts.length : Math.min(allPosts.length, 3);
+          const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
           const initialIndex = visibleCount >= 3 ? 1 : 0;
           scrollX.setValue(initialIndex * ITEM_SIZE);
           setPosts(allPosts);
@@ -903,8 +903,12 @@ export default function Homepage() {
   };
 
   const PREVIEW_POST_LIMIT = 3;
-  const visiblePosts = isProfileCompleted ? posts : posts.slice(0, PREVIEW_POST_LIMIT);
-  const hasMoreHiddenPosts = !isProfileCompleted && posts.length > PREVIEW_POST_LIMIT;
+  // The preview cap is a "finish your profile to see more" nudge for logged-in users —
+  // it doesn't apply to guests, who have no profile to complete and would otherwise hit
+  // a dead-end wall after 3 posts (exactly what Apple 5.1.1 flagged).
+  const isCapped = !isGuest && !isProfileCompleted;
+  const visiblePosts = isCapped ? posts.slice(0, PREVIEW_POST_LIMIT) : posts;
+  const hasMoreHiddenPosts = isCapped && posts.length > PREVIEW_POST_LIMIT;
 
   const cards = React.useMemo(() => visiblePosts.map(post => {
     const owner = post.owner || {};
