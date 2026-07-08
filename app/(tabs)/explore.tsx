@@ -235,7 +235,7 @@ const CATEGORIES = [
     heroLine1: 'Where Style Meets ', heroLine2: 'Creativity', heroLine3: '',
     heroDesc: 'From modern trends to timeless looks, discover fashion designs made to stand out.',
     gradient: ['#BE185D', '#9D174D'] as [string, string],
-    charStyle: { right: -35, bottom: -55, width: 192, height: 190 }
+    charStyle: { right: -35, bottom: -55, width: 170, height: 165 }
   },
   {
     id: 'voice',
@@ -255,7 +255,7 @@ const CATEGORIES = [
     heroLine1: 'Strike the Perfect', heroLine2: 'Pose', heroLine3: '',
     heroDesc: 'Connect with professional models for your shoots, campaigns, and creative projects.',
     gradient: ['#DB2777', '#9D174D'] as [string, string],
-    charStyle: { right: -35, bottom: -45, width: 230, height: 230 }
+    charStyle: { right: -30, bottom: -45, width: 170, height: 165 }
   },
   {
     id: 'property',
