@@ -111,8 +111,8 @@ export default function PostDetail() {
   };
 
   const handleCollab = async () => {
-    if (!token || !owner.id || collabBusy) return;
     if (!requireProfile('send a collab request')) return;
+    if (!token || !owner.id || collabBusy) return;
     setCollabBusy(true);
     try {
       const res = await sendCollaboration(token, { receiverId: owner.id, postId, message: 'I would love to collaborate with you!' });
@@ -136,8 +136,8 @@ export default function PostDetail() {
   };
 
   const handleMessage = async () => {
-    if (!token || !owner.id) return;
     if (!requireProfile('message this user')) return;
+    if (!token || !owner.id) return;
     const res = await openConversationWith(token, owner.id);
     if (res.success && res.data?.id) {
       router.push({ pathname: '/chat/[id]', params: { id: res.data.id } } as any);
@@ -149,8 +149,8 @@ export default function PostDetail() {
   };
 
   const handleCall = async () => {
-    if (!token || !owner.id) return;
     if (!requireProfile('call this user')) return;
+    if (!token || !owner.id) return;
     try {
       const res = await initiateCall(token, owner.id);
       if (res.success && res.data) {
@@ -179,6 +179,7 @@ export default function PostDetail() {
   };
 
   const handleSave = async () => {
+    if (!requireProfile('save this post')) return;
     if (!token || !postId) return;
     setIsSaved(prev => !prev); // optimistic
     const res = await toggleSavePost(postId, token, isSaved);
@@ -263,7 +264,11 @@ export default function PostDetail() {
             </TouchableOpacity>
             {!isOwn && (
               <TouchableOpacity
-                onPress={() => !isReported && setShowReportModal(true)}
+                onPress={() => {
+                  if (isReported) return;
+                  if (!requireProfile('report this post')) return;
+                  setShowReportModal(true);
+                }}
                 disabled={isReported}
                 style={styles.iconBtn}
               >
