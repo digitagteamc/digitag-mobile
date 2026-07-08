@@ -470,6 +470,8 @@ type PostPayload = {
     imageKey?: string;
     category?: string;
     budget?: string;
+    /** Omit entirely to keep the post live forever. */
+    boostHours?: 4 | 12 | 24 | 48;
 };
 
 /**
@@ -491,6 +493,7 @@ export const createPost = async (
             if (payload.collaborationType) form.append('collaborationType', payload.collaborationType);
             if (payload.category) form.append('category', payload.category);
             if (payload.budget) form.append('budget', payload.budget);
+            if (payload.boostHours) form.append('boostHours', String(payload.boostHours));
             form.append('image', {
                 uri: imageFile.uri,
                 name: imageFile.name || 'upload.jpg',

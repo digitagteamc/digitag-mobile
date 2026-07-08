@@ -92,7 +92,8 @@ export default function CreatePost() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [budget, setBudget] = useState('');
-  const [boostDuration, setBoostDuration] = useState(4);
+  // null = user's choice not to boost — the post stays visible forever.
+  const [boostDuration, setBoostDuration] = useState<number | null>(null);
   const [instantRequirement, setInstantRequirement] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -169,7 +170,14 @@ export default function CreatePost() {
     setSubmitting(true);
     try {
       const res = await createPost(
-        { description, location: location.trim() || undefined, collaborationType: collab ?? 'UNPAID', category: selectedCategory || undefined, budget: budget.trim() || undefined },
+        {
+          description,
+          location: location.trim() || undefined,
+          collaborationType: collab ?? 'UNPAID',
+          category: selectedCategory || undefined,
+          budget: budget.trim() || undefined,
+          boostHours: (boostDuration ?? undefined) as 4 | 12 | 24 | 48 | undefined,
+        },
         token,
       );
       if (res.success) {
@@ -375,7 +383,7 @@ export default function CreatePost() {
               return (
                 <TouchableOpacity
                   key={item.h}
-                  onPress={() => setBoostDuration(item.h)}
+                  onPress={() => setBoostDuration(active ? null : item.h)}
                   style={[styles.durationPill, active && styles.activeDurationPill]}
                 >
                   {active ? (
@@ -392,28 +400,36 @@ export default function CreatePost() {
             })}
           </View>
 
-          <View style={styles.sliderContainer}>
-            <View style={styles.sliderLine}>
-              <LinearGradient
-                colors={['#CC00FF', '#7000FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.sliderFill, { width: `${(boostDuration / 48) * 100}%` }]}
-              />
-              <View style={[styles.sliderThumb, { left: `${(boostDuration / 48) * 100}%` }]} />
+          {boostDuration === null ? (
+            <View style={styles.boostFooter}>
+              <Text style={styles.footerLabel}>No duration selected — this post will stay visible forever until you delete it.</Text>
             </View>
-          </View>
+          ) : (
+            <>
+              <View style={styles.sliderContainer}>
+                <View style={styles.sliderLine}>
+                  <LinearGradient
+                    colors={['#CC00FF', '#7000FF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.sliderFill, { width: `${(boostDuration / 48) * 100}%` }]}
+                  />
+                  <View style={[styles.sliderThumb, { left: `${(boostDuration / 48) * 100}%` }]} />
+                </View>
+              </View>
 
-          <View style={styles.boostFooter}>
-            <View>
-              <Text style={styles.footerLabel}>Active for</Text>
-              <Text style={styles.footerValue}>{boostDuration} hours</Text>
-            </View>
-            <View style={styles.endsAtPill}>
-              <Text style={styles.endsAtLabel}>Ends at</Text>
-              <Text style={styles.endsAtValue}>{formatTimeEndsAt(boostDuration)}</Text>
-            </View>
-          </View>
+              <View style={styles.boostFooter}>
+                <View>
+                  <Text style={styles.footerLabel}>Active for</Text>
+                  <Text style={styles.footerValue}>{boostDuration} hours</Text>
+                </View>
+                <View style={styles.endsAtPill}>
+                  <Text style={styles.endsAtLabel}>Ends at</Text>
+                  <Text style={styles.endsAtValue}>{formatTimeEndsAt(boostDuration)}</Text>
+                </View>
+              </View>
+            </>
+          )}
 
           {/* ── Instant Requirement Checkbox (Commented out as requested) ── */}
           {/* <TouchableOpacity 
