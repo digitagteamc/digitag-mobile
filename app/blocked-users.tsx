@@ -23,8 +23,11 @@ export default function BlockedUsersScreen() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Blocking is account-only — a guest reaching this screen (e.g. via Settings)
+    // has nothing to show here and would otherwise spin forever (setLoading(false)
+    // was never reached on the old early return).
+    if (!token) { router.replace('/role-selection' as any); return; }
     const fetchBlocked = async () => {
-      if (!token) return;
       try {
         const res = await getBlockedUsers(token);
         if (res.success) {

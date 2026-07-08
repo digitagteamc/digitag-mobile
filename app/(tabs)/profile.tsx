@@ -183,6 +183,13 @@ export default function ProfileScreen() {
   };
 
   const handleMenuPress = (id: string) => {
+    // A guest has no account to complete — send them to sign up instead of the
+    // "finish your profile" modal, which would otherwise push them straight into
+    // the signup form with no token to attach it to.
+    if (PROFILE_REQUIRED_ITEMS.has(id) && (isGuest || !token)) {
+      router.push('/role-selection');
+      return;
+    }
     if (PROFILE_REQUIRED_ITEMS.has(id) && isProfileIncomplete()) {
       setShowCompleteProfileModal(true);
       return;

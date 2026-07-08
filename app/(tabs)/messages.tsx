@@ -138,7 +138,7 @@ export default function MessagesTab() {
                                     style={styles.profileResultItem}
                                     activeOpacity={0.75}
                                     onPress={async () => {
-                                        if (!token) return;
+                                        if (!token) { router.push('/role-selection' as any); return; }
                                         setSearch('');
                                         const res = await openConversationWith(token, item.userId);
                                         if (res.success && res.data?.id) {

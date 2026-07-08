@@ -29,6 +29,7 @@ export default function PrivacySettingsScreen() {
     const [deleting, setDeleting] = useState(false);
 
     const handleDeleteAccount = () => {
+        if (!token) { router.push('/role-selection' as any); return; }
         Alert.alert(
             'Delete Account',
             'This will permanently delete your account, all your posts, collaborations, and messages. This cannot be undone.',
