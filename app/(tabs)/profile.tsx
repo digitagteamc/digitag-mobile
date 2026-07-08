@@ -358,6 +358,7 @@ export default function ProfileScreen() {
                     activeOpacity={0.7}
                     onPress={() => {
                       setShowDropdown(false);
+                      if (isGuest || !token) { router.push('/role-selection'); return; }
                       const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
                       router.push(editPath as any);
                     }}
@@ -377,6 +378,7 @@ export default function ProfileScreen() {
                     activeOpacity={0.7}
                     onPress={async () => {
                       setShowDropdown(false);
+                      if (isGuest || !token) { router.push('/role-selection'); return; }
                       try {
                         await Share.share({
                           message: `Check out my profile on digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
@@ -645,6 +647,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               onPress={() => {
                 setIsPhotoModalOpen(false);
+                if (isGuest || !token) { router.push('/role-selection'); return; }
                 const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
                 router.push({ pathname: editPath, params: { step: '2' } } as any);
               }}
