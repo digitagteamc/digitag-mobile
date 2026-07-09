@@ -1185,3 +1185,26 @@ export const deleteAccount = async (token: string) => {
         return { success: false, error: error.message };
     }
 };
+
+/* ─────────────────────── SUBSCRIPTIONS (Razorpay) ─────────────────────── */
+
+export const createSubscription = async (token: string) => {
+    try {
+        const body = await request('/subscriptions', { method: 'POST', headers: authHeaders(token) });
+        return { success: true, data: body?.data as { subscriptionId: string; keyId: string } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+export const getMySubscription = async (token: string) => {
+    try {
+        const body = await request('/subscriptions/me', { method: 'GET', headers: authHeaders(token) });
+        return {
+            success: true,
+            data: body?.data as { isPremium: boolean; subscription: { status: string; currentStart: string | null; currentEnd: string | null } | null },
+        };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
