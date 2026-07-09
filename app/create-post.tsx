@@ -372,7 +372,8 @@ export default function CreatePost() {
           </>
         )}
 
-        {/* ── Boost Duration ── */}
+        {/* ── Boost Duration (Creator only) ── */}
+        {isCreator && (
         <View style={styles.boostCard}>
           {/* Background Blobs (Clipped to card shape) */}
           <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 24 }]}>
@@ -465,6 +466,7 @@ export default function CreatePost() {
             <Text style={styles.requirementText}>Instant Requirement</Text>
           </TouchableOpacity> */}
         </View>
+        )}
 
         {/* ── Post + Draft buttons (inside scroll so nothing is hidden) ── */}
         <View style={styles.actionButtons}>
