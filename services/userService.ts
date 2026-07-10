@@ -829,12 +829,16 @@ export const listMessages = async (
 };
 
 /** POST /conversations/:id/messages */
-export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string) => {
+export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string, replyToId?: string) => {
     try {
         const body = await request(`/conversations/${conversationId}/messages`, {
             method: 'POST',
             headers: authHeaders(token),
-            body: JSON.stringify({ content: content || '', ...(imageUrl ? { imageUrl } : {}) }),
+            body: JSON.stringify({
+                content: content || '',
+                ...(imageUrl ? { imageUrl } : {}),
+                ...(replyToId ? { replyToId } : {}),
+            }),
         });
         return { success: true, data: body?.data };
     } catch (error: any) {

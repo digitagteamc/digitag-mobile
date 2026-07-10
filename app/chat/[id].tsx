@@ -10,7 +10,6 @@ import {
     Image,
     ImageBackground,
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
@@ -42,6 +41,14 @@ const chatBg = require('../../assets/bg-chat.webp');
 const DARK_BUBBLE = '#1E1E26';
 const REACTIONS = ['❤️', '👍', '😂', '😮', '🙏', '😢'];
 
+interface QuotedMessage {
+    id: string;
+    content: string;
+    imageUrl?: string | null;
+    senderId: string;
+    isDeleted?: boolean;
+}
+
 interface ChatMessage {
     id: string;
     conversationId: string;
@@ -54,6 +61,16 @@ interface ChatMessage {
     createdAt: string;
     pending?: boolean;
     reactions?: Record<string, string[]>;
+    replyTo?: QuotedMessage | null;
+}
+
+/** One-line description of a message for quote previews: text, or 📷 for images. */
+function describeMessage(msg: { content?: string; imageUrl?: string | null; isDeleted?: boolean } | null | undefined) {
+    if (!msg || msg.isDeleted) return 'Message deleted';
+    // Strip the legacy text-encoded "> quote\n\n" prefix from old messages.
+    const text = (msg.content || '').replace(/^> .+\n\n/, '').trim();
+    if (text) return text;
+    return msg.imageUrl ? '📷 Photo' : '';
 }
 
 function getInitials(name: string | null | undefined) {
@@ -100,14 +117,19 @@ export default function ChatScreen() {
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
     const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
-    // Android: windowSoftInputMode="adjustResize" doesn't actually resize this screen
-    // (translucent/edge-to-edge status bar), and KeyboardAvoidingView's built-in "height"
-    // behavior leaves a stale gap once the keyboard hides. useAnimatedKeyboard tracks the
-    // keyboard's real native animation frame-by-frame on the UI thread, so the composer
-    // rises in perfect sync with the keyboard — no lag, no leftover gap.
+    // Single keyboard-compensation mechanism for BOTH platforms. useAnimatedKeyboard
+    // tracks the keyboard's real native animation frame-by-frame on the UI thread, so
+    // the composer rises in perfect sync. Do NOT wrap this screen in a
+    // KeyboardAvoidingView as well — running both compensations at once is what caused
+    // the big black band between the composer and the keyboard on iOS.
+    // On iOS the keyboard frame overlaps the home-indicator area the composer already
+    // pads for (insets.bottom), so subtract it to sit flush against the keyboard.
     const keyboard = useAnimatedKeyboard();
-    const androidKeyboardStyle = useAnimatedStyle(() => ({
-        marginBottom: Platform.OS === 'android' ? keyboard.height.value : 0,
+    const bottomInset = insets.bottom;
+    const keyboardStyle = useAnimatedStyle(() => ({
+        marginBottom: Platform.OS === 'android'
+            ? keyboard.height.value
+            : Math.max(keyboard.height.value - bottomInset, 0),
     }));
 
     const listRef = useRef<FlatList<ChatMessage> | null>(null);
@@ -210,6 +232,7 @@ export default function ChatScreen() {
             id: optimisticId, conversationId: String(id), senderId: userId!,
             content: text, imageUrl: imageToSend ? imageToSend.uri : null,
             isRead: false, createdAt: new Date().toISOString(), pending: true,
+            replyTo: replyTo ? { id: replyTo.id, content: replyTo.content, imageUrl: replyTo.imageUrl, senderId: replyTo.senderId } : null,
         };
         setMessages((prev) => [...prev, optimistic]);
         setInput('');
@@ -223,10 +246,7 @@ export default function ChatScreen() {
                 const upRes = await uploadMessageImage(token, imageToSend);
                 if (upRes.success && upRes.data?.url) uploadedUrl = upRes.data.url;
             }
-            const finalContent = capturedReplyTo
-                ? `> ${capturedReplyTo.content.slice(0, 80)}${capturedReplyTo.content.length > 80 ? '…' : ''}\n\n${text}`
-                : text;
-            const res = await apiSendMessage(token, String(id), finalContent, uploadedUrl);
+            const res = await apiSendMessage(token, String(id), text, uploadedUrl, capturedReplyTo?.id);
             if (!res.success) {
                 setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
                 setInput(text);
@@ -403,8 +423,11 @@ export default function ChatScreen() {
                             <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={[styles.contextBar, { borderLeftColor: myTheme.primary }]}>
                                 <View style={styles.contextBarInner}>
                                     <Ionicons name="return-down-forward" size={13} color={myTheme.primary} />
+                                    {replyTo.imageUrl ? (
+                                        <Image source={{ uri: replyTo.imageUrl }} style={styles.contextBarThumb} resizeMode="cover" />
+                                    ) : null}
                                     <Text style={[styles.contextBarText, { color: myTheme.primary }]} numberOfLines={1}>
-                                        {replyTo.content.replace(/^> .+\n\n/, '').slice(0, 60)}
+                                        {describeMessage(replyTo).slice(0, 60)}
                                     </Text>
                                 </View>
                                 <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -538,15 +561,9 @@ export default function ChatScreen() {
                     imageStyle={{ opacity: 0.65 }}
                     resizeMode="cover"
                 />
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={0}
-                >
-                    <Animated.View style={[{ flex: 1 }, androidKeyboardStyle]}>
-                        {renderMainContent()}
-                    </Animated.View>
-                </KeyboardAvoidingView>
+                <Animated.View style={[{ flex: 1 }, keyboardStyle]}>
+                    {renderMainContent()}
+                </Animated.View>
             </View>
 
             {/* ── Full-screen image viewer ─────────────────────────────────────── */}
@@ -657,14 +674,18 @@ interface MessageRowProps {
 
 function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSwipeReply, onImagePress, swipeableRefs }: MessageRowProps) {
     const bubbleColor = mine ? DARK_BUBBLE : otherColor;
-    const hasQuote = item.content.startsWith('> ');
-    let quoteText = '';
+    // Real replies carry a replyTo record; older messages used a text-encoded
+    // "> quote\n\nbody" format, still parsed so history renders correctly.
+    const legacyQuote = !item.replyTo && item.content.startsWith('> ');
+    let quoteText = item.replyTo ? describeMessage(item.replyTo) : '';
+    let quoteImage = item.replyTo && !item.replyTo.isDeleted ? item.replyTo.imageUrl : null;
     let bodyText = item.content;
-    if (hasQuote) {
+    if (legacyQuote) {
         const lines = item.content.split('\n\n');
         quoteText = lines[0].replace(/^> /, '');
         bodyText = lines.slice(1).join('\n\n');
     }
+    const hasQuote = Boolean(item.replyTo) || legacyQuote;
 
     const reactionEntries = Object.entries(item.reactions || {}).filter(([, users]) => users.length > 0);
 
@@ -710,7 +731,10 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
                                         borderLeftColor: mine ? myColor : '#fff',
                                         backgroundColor: mine ? myColor + '22' : 'rgba(255,255,255,0.1)',
                                     }]}>
-                                        <Text style={styles.quotedText} numberOfLines={2}>{quoteText}</Text>
+                                        {quoteImage ? (
+                                            <Image source={{ uri: quoteImage }} style={styles.quotedThumb} resizeMode="cover" />
+                                        ) : null}
+                                        <Text style={[styles.quotedText, { flexShrink: 1 }]} numberOfLines={2}>{quoteText}</Text>
                                     </View>
                                 )}
                                 {item.imageUrl && (
@@ -795,7 +819,8 @@ const styles = StyleSheet.create({
     bubbleMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 2 },
     bubbleTime: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontFamily: 'Poppins_400Regular' },
     editedLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_400Regular' },
-    quotedBar: { borderLeftWidth: 3, paddingLeft: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 4 },
+    quotedBar: { borderLeftWidth: 3, paddingLeft: 8, paddingRight: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    quotedThumb: { width: 34, height: 34, borderRadius: 4 },
     quotedText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Poppins_400Regular', lineHeight: 17 },
     reactionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 3, marginHorizontal: 4 },
     reactionChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2 },
@@ -812,6 +837,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12, paddingVertical: 8, marginBottom: 4, borderRadius: 10,
     },
     contextBarInner: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
+    contextBarThumb: { width: 28, height: 28, borderRadius: 4 },
     contextBarText: { fontSize: 12, fontFamily: 'Poppins_400Regular', flex: 1 },
     imagePreviewRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 8, marginBottom: 6 },
     imagePreview: { width: 60, height: 60, borderRadius: 10 },
