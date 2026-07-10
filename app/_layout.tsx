@@ -57,9 +57,15 @@ function routeNotification(router: ReturnType<typeof useRouter>, data: Record<st
             }
             break;
         case 'COLLAB_REQUEST':
+            // A new request that landed in MY incoming list.
+            router.push('/notifications' as any);
+            break;
         case 'COLLAB_ACCEPTED':
         case 'COLLAB_DECLINED':
-            router.push('/notifications' as any);
+            // This push goes to the person who SENT the request — /notifications only
+            // shows requests sent TO me, which would be empty/irrelevant here. My Collabs
+            // shows the status of requests I sent, so that's the useful destination.
+            router.push('/my-collabs' as any);
             break;
         case 'NEW_POST':
             router.push('/(tabs)/explore' as any);

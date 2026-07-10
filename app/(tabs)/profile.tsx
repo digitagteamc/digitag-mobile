@@ -448,14 +448,22 @@ export default function ProfileScreen() {
 
                 {/* Followers / Following */}
                 <View className="flex-row items-center mt-3 gap-5">
-                  <View className="flex-row items-baseline gap-1.5">
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    className="flex-row items-baseline gap-1.5"
+                    onPress={() => router.push('/followers' as any)}
+                  >
                     <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(followerCount)}</Text>
                     <Text className="text-[#888] text-[13px]" style={{ fontFamily: 'Poppins_400Regular' }}>Followers</Text>
-                  </View>
-                  <View className="flex-row items-baseline gap-1.5">
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    className="flex-row items-baseline gap-1.5"
+                    onPress={() => router.push('/following' as any)}
+                  >
                     <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(followingCount)}</Text>
                     <Text className="text-[#888] text-[13px]" style={{ fontFamily: 'Poppins_400Regular' }}>Following</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Social Icons Row — only the links the user actually provided */}
