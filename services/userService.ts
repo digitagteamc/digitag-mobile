@@ -828,6 +828,20 @@ export const listMessages = async (
     }
 };
 
+/** GET /conversations/:id/calls — call history between the two participants,
+ *  rendered inline in the chat thread rather than a separate screen. */
+export const getConversationCalls = async (token: string, conversationId: string) => {
+    try {
+        const body = await request(`/conversations/${conversationId}/calls`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] };
+    }
+};
+
 /** POST /conversations/:id/messages */
 export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string, replyToId?: string) => {
     try {

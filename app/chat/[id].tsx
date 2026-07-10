@@ -31,6 +31,7 @@ import {
     editMessage as apiEditMessage,
     sendMessage as apiSendMessage,
     getConversation,
+    getConversationCalls,
     initiateCall,
     listMessages,
     uploadMessageImage,
@@ -73,6 +74,49 @@ function describeMessage(msg: { content?: string; imageUrl?: string | null; isDe
     return msg.imageUrl ? '📷 Photo' : '';
 }
 
+/** A completed/missed/declined call, shown inline in the chat thread — same
+ *  timeline as messages, not a separate call-log screen. */
+interface CallLogEntry {
+    id: string;
+    callerId: string;
+    calleeId: string;
+    status: 'RINGING' | 'ACTIVE' | 'ENDED' | 'DECLINED' | 'MISSED';
+    startedAt: string | null;
+    endedAt: string | null;
+    createdAt: string;
+}
+
+/** Timeline item: either a chat message or a call-log entry, merged and sorted
+ *  by time so calls appear inline exactly where they happened, WhatsApp-style. */
+type TimelineItem =
+    | { kind: 'message'; key: string; at: string; message: ChatMessage }
+    | { kind: 'call'; key: string; at: string; call: CallLogEntry };
+
+function mergeTimeline(messages: ChatMessage[], calls: CallLogEntry[]): TimelineItem[] {
+    const items: TimelineItem[] = [
+        ...messages.map((m): TimelineItem => ({ kind: 'message', key: `m-${m.id}`, at: m.createdAt, message: m })),
+        ...calls.map((c): TimelineItem => ({ kind: 'call', key: `c-${c.id}`, at: c.createdAt, call: c })),
+    ];
+    items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    return items;
+}
+
+function formatCallDuration(startedAt: string | null, endedAt: string | null) {
+    if (!startedAt || !endedAt) return null;
+    const seconds = Math.max(0, Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000));
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function describeCall(call: CallLogEntry, mine: boolean) {
+    if (call.status === 'MISSED') return mine ? 'No answer' : 'Missed call';
+    if (call.status === 'DECLINED') return mine ? 'Call declined' : 'Missed call';
+    if (call.status === 'RINGING' || call.status === 'ACTIVE') return 'Ongoing call';
+    const duration = formatCallDuration(call.startedAt, call.endedAt);
+    return duration ? `${mine ? 'Outgoing' : 'Incoming'} call · ${duration}` : (mine ? 'Outgoing call' : 'Incoming call');
+}
+
 function getInitials(name: string | null | undefined) {
     if (!name) return 'U';
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -107,6 +151,7 @@ export default function ChatScreen() {
     const [other, setOther] = useState<any>(null);
     const otherRef = useRef<any>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [calls, setCalls] = useState<CallLogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [input, setInput] = useState('');
@@ -132,21 +177,23 @@ export default function ChatScreen() {
             : Math.max(keyboard.height.value - bottomInset, 0),
     }));
 
-    const listRef = useRef<FlatList<ChatMessage> | null>(null);
+    const listRef = useRef<FlatList<TimelineItem> | null>(null);
     const inputRef = useRef<TextInput>(null);
     const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
     const load = useCallback(async () => {
         if (!token || !id) return;
-        const [convRes, msgsRes] = await Promise.all([
+        const [convRes, msgsRes, callsRes] = await Promise.all([
             getConversation(token, String(id)),
             listMessages(token, String(id), { limit: 50 }),
+            getConversationCalls(token, String(id)),
         ]);
         if (convRes.success && convRes.data?.other) {
             setOther(convRes.data.other);
             otherRef.current = convRes.data.other;
         }
         if (msgsRes.success) setMessages(msgsRes.data || []);
+        if (callsRes.success) setCalls(callsRes.data || []);
         setLoading(false);
         // Anchor to the latest message on open, same as WhatsApp — without this the
         // inverted list can settle at an inconsistent initial offset once images/
@@ -161,29 +208,37 @@ export default function ChatScreen() {
     useEffect(() => {
         if (!token || !id) return;
         const interval = setInterval(async () => {
-            const [msgsRes, convRes] = await Promise.all([
+            const [msgsRes, convRes, callsRes] = await Promise.all([
                 listMessages(token, String(id), { limit: 50 }),
                 getConversation(token, String(id)),
+                getConversationCalls(token, String(id)),
             ]);
             if (msgsRes.success) setMessages(msgsRes.data || []);
             if (convRes.success && convRes.data?.other) {
                 setOther(convRes.data.other);
                 otherRef.current = convRes.data.other;
             }
+            if (callsRes.success) setCalls(callsRes.data || []);
         }, 5000);
         return () => clearInterval(interval);
     }, [token, id]);
 
-    // Instant refresh when the other side sends a message while this chat is open —
-    // the FCM push arrives in-foreground via onMessage, so fetch immediately instead
-    // of waiting out the 5s polling interval.
+    // Instant refresh when a push for this conversation arrives while the chat is
+    // open: a new message, or a call event (ended/declined/accepted) that should
+    // show up in the call-history timeline immediately rather than after the next
+    // 5s poll. Same handling on both iOS and Android — onMessage covers both.
     useEffect(() => {
         if (!token || !id) return;
         const unsubscribe = onMessage(messaging(), async remoteMessage => {
             const data = remoteMessage.data as Record<string, string> | undefined;
-            if (data?.type !== 'NEW_MESSAGE' || data.conversationId !== String(id)) return;
-            const msgsRes = await listMessages(token, String(id), { limit: 50 });
-            if (msgsRes.success) setMessages(msgsRes.data || []);
+            if (!data) return;
+            if (data.type === 'NEW_MESSAGE' && data.conversationId === String(id)) {
+                const msgsRes = await listMessages(token, String(id), { limit: 50 });
+                if (msgsRes.success) setMessages(msgsRes.data || []);
+            } else if (data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED' || data.type === 'CALL_ACCEPTED') {
+                const callsRes = await getConversationCalls(token, String(id));
+                if (callsRes.success) setCalls(callsRes.data || []);
+            }
         });
         return () => unsubscribe();
     }, [token, id]);
@@ -363,7 +418,7 @@ export default function ChatScreen() {
 
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     const pic = other?.profilePicture || null;
-    const reversedMessages = [...messages].reverse();
+    const reversedTimeline = mergeTimeline(messages, calls).reverse();
 
     const renderMainContent = () => (
         <>
@@ -377,8 +432,8 @@ export default function ChatScreen() {
                         ref={listRef}
                         style={{ flex: 1 }}
                         inverted
-                        data={reversedMessages}
-                        keyExtractor={(m) => m.id}
+                        data={reversedTimeline}
+                        keyExtractor={(t) => t.key}
                         contentContainerStyle={styles.messagesContent}
                         keyboardShouldPersistTaps="handled"
                         ListFooterComponent={
@@ -393,18 +448,29 @@ export default function ChatScreen() {
                             </View>
                         }
                         renderItem={({ item }) => {
-                            const mine = item.senderId === userId;
+                            if (item.kind === 'call') {
+                                return (
+                                    <CallLogRow
+                                        call={item.call}
+                                        mine={item.call.callerId === userId}
+                                        accentColor={myTheme.primary}
+                                        onCallBack={handleCall}
+                                    />
+                                );
+                            }
+                            const msg = item.message;
+                            const mine = msg.senderId === userId;
                             return (
                                 <MessageRow
-                                    item={item}
+                                    item={msg}
                                     mine={mine}
                                     myColor={myTheme.primary}
                                     otherColor={myTheme.primary}
                                     userId={userId!}
                                     onLongPress={handleLongPress}
-                                    onSwipeReply={(msg) => {
-                                        setReplyTo(msg);
-                                        swipeableRefs.current.get(msg.id)?.close();
+                                    onSwipeReply={(m) => {
+                                        setReplyTo(m);
+                                        swipeableRefs.current.get(m.id)?.close();
                                         setTimeout(() => inputRef.current?.focus(), 150);
                                     }}
                                     onImagePress={(url) => setViewImageUrl(url)}
@@ -777,6 +843,36 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
     );
 }
 
+/** Inline call-history row, WhatsApp-style: centered pill in the message
+ *  timeline (not a bubble, not a separate screen). Tapping it calls back —
+ *  identical behavior/markup on iOS and Android, no platform branching needed
+ *  since it's plain RN Views/Ionicons throughout. */
+function CallLogRow({ call, mine, accentColor, onCallBack }: {
+    call: CallLogEntry;
+    mine: boolean;
+    accentColor: string;
+    onCallBack: () => void;
+}) {
+    const missed = call.status === 'MISSED' || call.status === 'DECLINED';
+    const iconColor = missed ? '#EF4444' : accentColor;
+    return (
+        <View style={styles.callLogWrap}>
+            <TouchableOpacity
+                style={styles.callLogPill}
+                activeOpacity={0.75}
+                onPress={onCallBack}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+                <Ionicons name="call" size={13} color={iconColor} />
+                <Text style={[styles.callLogText, missed && { color: iconColor }]} numberOfLines={1}>
+                    {describeCall(call, mine)}
+                </Text>
+                <Text style={styles.callLogTime}>{formatTime(call.createdAt)}</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: '#060606' },
 
@@ -804,6 +900,17 @@ const styles = StyleSheet.create({
     messagesContent: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, flexGrow: 1 },
     dateSeparator: { alignItems: 'center', marginVertical: 16 },
     dateText: { color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular' },
+
+    // ── Inline call log row ──
+    callLogWrap: { alignItems: 'center', marginVertical: 6 },
+    callLogPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+        maxWidth: '80%',
+    },
+    callLogText: { color: '#D8D8E2', fontSize: 12, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
+    callLogTime: { color: '#8A8A99', fontSize: 11, fontFamily: 'Poppins_400Regular', marginLeft: 2 },
     emptyBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
     emptyText: { color: '#6B6B7A', fontSize: 14, fontFamily: 'Poppins_400Regular' },
 
