@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import messaging, { getToken as getFcmToken } from '@react-native-firebase/messaging';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { refreshToken as apiRefreshToken, setRefreshTokenCallback } from '../services/userService';
+import { refreshToken as apiRefreshToken, setRefreshTokenCallback, unregisterFcmToken } from '../services/userService';
 
 export type Role = 'CREATOR' | 'FREELANCER';
 
@@ -234,6 +235,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
+        // Tell the backend to stop pushing to THIS device before dropping auth —
+        // otherwise calls/messages keep ringing on logged-out phones. Best-effort:
+        // logout must never hang on a network failure.
+        const authToken = token;
+        if (authToken) {
+            try {
+                const fcmToken = await getFcmToken(messaging());
+                if (fcmToken) await Promise.race([
+                    unregisterFcmToken(authToken, fcmToken),
+                    new Promise((resolve) => setTimeout(resolve, 3000)),
+                ]);
+            } catch { /* best-effort */ }
+        }
         setIsGuest(false);
         setUserPhone(null);
         setUserId(null);

@@ -17,7 +17,7 @@ import notifee, { EventType } from '@notifee/react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect } from 'react';
-import { AppState, Image, View } from 'react-native';
+import { AppState, Image, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
@@ -110,7 +110,7 @@ function NotificationHandler() {
         notifee.requestPermission().catch(() => { });
         const msgInstance = messaging();
         getToken(msgInstance).then(fcmToken => {
-            if (fcmToken) registerFcmToken(token, fcmToken);
+            if (fcmToken) registerFcmToken(token, fcmToken, Platform.OS);
         }).catch(() => { });
 
         const unsubscribe = onMessage(msgInstance, remoteMessage => {
@@ -130,6 +130,18 @@ function NotificationHandler() {
             routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
         });
         return () => unsubFcm();
+    }, []);
+
+    // ── 2b. Killed-state FCM tap. On iOS the OS shows the APNs alert itself (no
+    //        JS runs until the user taps it), so this is the ONLY entry point for
+    //        calls/messages that arrive while the app is fully closed on iPhone.
+    //        Android killed-state calls are covered by PENDING_CALL_KEY instead.
+    useEffect(() => {
+        messaging().getInitialNotification().then(remoteMessage => {
+            if (remoteMessage) {
+                routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
+            }
+        }).catch(() => { });
     }, []);
 
     // ── 3. Notifee foreground events (body tap or action button while app is active/foregrounded)

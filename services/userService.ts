@@ -1130,10 +1130,21 @@ export const getInstagramVerificationStatus = async (token: string, id: string) 
 
 /* ───────────────────────── CALLS ─────────────────────────── */
 
-export const registerFcmToken = async (token: string, fcmToken: string) => {
+export const registerFcmToken = async (token: string, fcmToken: string, platform?: string) => {
     try {
         await request('/calls/fcm-token', {
             method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ fcmToken, platform }),
+        });
+    } catch {}
+};
+
+/** Remove this device's push token so calls/messages stop after logout. */
+export const unregisterFcmToken = async (token: string, fcmToken: string) => {
+    try {
+        await request('/calls/fcm-token', {
+            method: 'DELETE',
             headers: authHeaders(token),
             body: JSON.stringify({ fcmToken }),
         });

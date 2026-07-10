@@ -25,6 +25,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut, useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import messaging, { onMessage } from '@react-native-firebase/messaging';
 import { useAuth } from '../../context/AuthContext';
 import {
     deleteMessage as apiDeleteMessage,
@@ -149,6 +150,20 @@ export default function ChatScreen() {
             }
         }, 5000);
         return () => clearInterval(interval);
+    }, [token, id]);
+
+    // Instant refresh when the other side sends a message while this chat is open —
+    // the FCM push arrives in-foreground via onMessage, so fetch immediately instead
+    // of waiting out the 5s polling interval.
+    useEffect(() => {
+        if (!token || !id) return;
+        const unsubscribe = onMessage(messaging(), async remoteMessage => {
+            const data = remoteMessage.data as Record<string, string> | undefined;
+            if (data?.type !== 'NEW_MESSAGE' || data.conversationId !== String(id)) return;
+            const msgsRes = await listMessages(token, String(id), { limit: 50 });
+            if (msgsRes.success) setMessages(msgsRes.data || []);
+        });
+        return () => unsubscribe();
     }, [token, id]);
 
     // Scroll to latest messages when keyboard opens (inverted list: offset 0 = bottom)
