@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
  import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,7 @@ import React, { useEffect, useState } from 'react';
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { useLocationSuggestions } from '../hooks/useLocationSuggestions';
@@ -84,11 +85,21 @@ export default function CreatePost() {
 
   const categoryOptions = isCreator ? CREATOR_CATEGORIES : FREELANCER_CATEGORIES;
 
+  // windowSoftInputMode="adjustResize" doesn't actually resize this screen (translucent/
+  // edge-to-edge status bar), so KeyboardAvoidingView does nothing on Android. Instead,
+  // track the keyboard's real height on the UI thread and pad the bottom of the scroll
+  // content by that amount, so the last fields/buttons can scroll up above the keyboard.
+  const keyboard = useAnimatedKeyboard();
+  const keyboardSpacerStyle = useAnimatedStyle(() => ({
+    height: 40 + keyboard.height.value,
+  }));
+
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [location, setLocation] = useState('');
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const { suggestions: locationSuggestions } = useLocationSuggestions(location);
+  const locationInputRef = useRef<TextInput>(null);
   const [collab, setCollab] = useState<CollabChoice | null>(null);
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -256,8 +267,9 @@ export default function CreatePost() {
 
         {/* ── Location ── */}
         <TouchableOpacity
+          activeOpacity={1}
           style={[styles.listBtn, isLocationOpen && { borderColor: theme.primary }]}
-          onPress={() => setIsLocationOpen(v => !v)}
+          onPress={() => locationInputRef.current?.focus()}
         >
           <View style={styles.listBtnLeft}>
             {/* <Ionicons name="location-outline" size={20} color="#fff" /> */}
@@ -265,37 +277,31 @@ export default function CreatePost() {
               source={require('../assets/location.png')}
               style={{ width: 20, height: 20 }}
             />
-            <Text style={[styles.listBtnText, { marginLeft: 12 }]}>
-              {location.trim() ? location : 'Add Location'}
-            </Text>
-          </View>
-          <Ionicons name={isLocationOpen ? 'chevron-up' : 'chevron-forward'} size={20} color="#fff" />
-        </TouchableOpacity>
-        {isLocationOpen && (
-          <>
             <TextInput
-              style={[styles.inlineInput, { borderColor: theme.primary }]}
-              placeholder="e.g. Mumbai, IN"
-              placeholderTextColor="#555"
+              ref={locationInputRef}
+              style={[styles.listBtnText, { marginLeft: 12, flex: 1, padding: 0 }]}
+              placeholder="Add Location"
+              placeholderTextColor="#8A8A99"
               value={location}
-              onChangeText={setLocation}
+              onChangeText={(v) => { setLocation(v); setIsLocationOpen(true); }}
+              onFocus={() => setIsLocationOpen(true)}
               maxLength={120}
             />
-            {locationSuggestions.length > 0 && (
-              <LinearGradient colors={['rgba(30,30,36,0.98)', theme.softStrong]} style={styles.dropdownOptions}>
-                {locationSuggestions.map((s) => (
-                  <TouchableOpacity
-                    key={s.id}
-                    style={styles.optionItem}
-                    onPress={() => { setLocation(s.label); setIsLocationOpen(false); }}
-                  >
-                    <Ionicons name="location-outline" size={16} color={theme.primary} />
-                    <Text style={styles.optionText} numberOfLines={1}>{s.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </LinearGradient>
-            )}
-          </>
+          </View>
+        </TouchableOpacity>
+        {isLocationOpen && locationSuggestions.length > 0 && (
+          <LinearGradient colors={['rgba(30,30,36,0.98)', theme.softStrong]} style={styles.dropdownOptions}>
+            {locationSuggestions.map((s) => (
+              <TouchableOpacity
+                key={s.id}
+                style={styles.optionItem}
+                onPress={() => { setLocation(s.label); setIsLocationOpen(false); }}
+              >
+                <Ionicons name="location-outline" size={16} color={theme.primary} />
+                <Text style={styles.optionText} numberOfLines={1}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </LinearGradient>
         )}
 
         {/* ── Collab Type ── */}
@@ -489,7 +495,7 @@ export default function CreatePost() {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
+        <Animated.View style={keyboardSpacerStyle} />
       </ScrollView>
 
       {/* ── Custom Success/Error Popup ── */}

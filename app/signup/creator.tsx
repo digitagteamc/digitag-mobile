@@ -979,7 +979,7 @@ export default function CreatorSignup() {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
                 style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+                keyboardVerticalOffset={0}
             >
                 <ScrollView
                     className="flex-1 px-6"

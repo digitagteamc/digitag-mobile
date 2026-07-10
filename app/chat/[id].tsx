@@ -331,13 +331,7 @@ export default function ChatScreen() {
     const reversedMessages = [...messages].reverse();
 
     const renderMainContent = () => (
-        <ImageBackground
-            source={chatBg}
-            style={[styles.chatBackground, { backgroundColor: '#060606' }]}
-            imageStyle={{ opacity: 0.65 }}
-            resizeMode="cover"
-        >
-
+        <>
             {loading ? (
                 <View style={styles.centerWrap}>
                     <ActivityIndicator color={myTheme.primary} size="large" />
@@ -346,6 +340,7 @@ export default function ChatScreen() {
                 <>
                     <FlatList
                         ref={listRef}
+                        style={{ flex: 1 }}
                         inverted
                         data={reversedMessages}
                         keyExtractor={(m) => m.id}
@@ -471,7 +466,7 @@ export default function ChatScreen() {
                     </View>
                 </>
             )}
-        </ImageBackground>
+        </>
     );
 
     return (
@@ -520,15 +515,24 @@ export default function ChatScreen() {
             </View>
 
             {/* ── Body: keyboard pushes the composer up, WhatsApp-style ───────────── */}
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
-            >
-                <Animated.View style={[{ flex: 1 }, androidKeyboardStyle]}>
-                    {renderMainContent()}
-                </Animated.View>
-            </KeyboardAvoidingView>
+            <View style={{ flex: 1 }}>
+                {/* Fixed wallpaper — sized once, never resizes/re-crops when the keyboard opens */}
+                <ImageBackground
+                    source={chatBg}
+                    style={[StyleSheet.absoluteFillObject, { backgroundColor: '#060606' }]}
+                    imageStyle={{ opacity: 0.65 }}
+                    resizeMode="cover"
+                />
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={0}
+                >
+                    <Animated.View style={[{ flex: 1 }, androidKeyboardStyle]}>
+                        {renderMainContent()}
+                    </Animated.View>
+                </KeyboardAvoidingView>
+            </View>
 
             {/* ── Full-screen image viewer ─────────────────────────────────────── */}
             <Modal

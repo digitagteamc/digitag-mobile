@@ -573,7 +573,9 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
             </View>
 
             {/* Name & Details */}
-            <Text style={styles.figmaCardName}>{item.name}</Text>
+            <Text style={styles.figmaCardName} numberOfLines={1} ellipsizeMode="tail">
+              {item.name}
+            </Text>
 
             <View style={styles.figmaCardMetaRow}>
               <TouchableOpacity

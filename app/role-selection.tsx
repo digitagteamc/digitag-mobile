@@ -329,7 +329,7 @@ export default function RoleSelectionScreen() {
                             Endless Opportunities.
                         </Text>
                         <Text className="text-[#88889D] font-poppins-regular text-[12px] mt-1 mb-3 leading-5">
-                            Discover, connect & collaborate — everything you need to grow {'\n'}your brand, skills, or audience.
+                            Discover, connect & collaborate — everything you need to grow your brand, skills, or audience.
                         </Text>
                     </View>
 
