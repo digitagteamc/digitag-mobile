@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationSuggestions } from '../../hooks/useLocationSuggestions';
+import { prepareImageForUpload } from '../../services/imageResize';
 import {
     getCategories,
     getInstagramVerificationStatus,
@@ -748,7 +749,9 @@ export default function CreatorSignup() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets?.[0]) {
-                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                            const asset = result.assets[0];
+                            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                            setForm(prev => ({ ...prev, profilePicture: uri }));
                         }
                     },
                 },
@@ -767,7 +770,9 @@ export default function CreatorSignup() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets?.[0]) {
-                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                            const asset = result.assets[0];
+                            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                            setForm(prev => ({ ...prev, profilePicture: uri }));
                         }
                     },
                 },
@@ -816,7 +821,7 @@ export default function CreatorSignup() {
                 if (upRes.success && upRes.data?.url) {
                     profilePictureUrl = upRes.data.url;
                 } else {
-                    Alert.alert('Upload Failed', 'Could not upload profile picture. Please try again.');
+                    Alert.alert('Upload Failed', (upRes as any).error || 'Could not upload profile picture. Please try again.');
                     setLoading(false);
                     return;
                 }

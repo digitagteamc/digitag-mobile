@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import messaging, { onMessage } from '@react-native-firebase/messaging';
 import { useAuth } from '../../context/AuthContext';
+import { prepareImageForUpload } from '../../services/imageResize';
 import {
     deleteMessage as apiDeleteMessage,
     editMessage as apiEditMessage,
@@ -252,16 +253,28 @@ export default function ChatScreen() {
     }, []);
 
     // ── Camera / Gallery ────────────────────────────────────────────────────────
+    // Photos are resized/re-compressed before being staged for send — modern phone
+    // cameras (iOS and Android alike) can produce files over the backend's upload
+    // size limit even after ImagePicker's own JPEG quality setting, since quality
+    // alone doesn't shrink pixel dimensions.
     const handleCamera = async () => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) { Alert.alert('Permission Required', 'Camera access is needed to take photos.'); return; }
         const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.75, allowsEditing: true });
-        if (!result.canceled && result.assets[0]) setImageToSend(result.assets[0]);
+        if (!result.canceled && result.assets[0]) {
+            const asset = result.assets[0];
+            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+            setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+        }
     };
 
     const handleAttach = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.75 });
-        if (!result.canceled && result.assets[0]) setImageToSend(result.assets[0]);
+        if (!result.canceled && result.assets[0]) {
+            const asset = result.assets[0];
+            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+            setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+        }
     };
 
     // ── Send / Edit ─────────────────────────────────────────────────────────────
@@ -299,7 +312,18 @@ export default function ChatScreen() {
             let uploadedUrl: string | undefined;
             if (imageToSend) {
                 const upRes = await uploadMessageImage(token, imageToSend);
-                if (upRes.success && upRes.data?.url) uploadedUrl = upRes.data.url;
+                if (upRes.success && upRes.data?.url) {
+                    uploadedUrl = upRes.data.url;
+                } else {
+                    // Don't silently drop the image and send a text-only message —
+                    // let the user know and leave their input/photo intact to retry.
+                    setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+                    setInput(text);
+                    setImageToSend(imageToSend);
+                    setReplyTo(capturedReplyTo);
+                    Alert.alert('Send Failed', (upRes as any).error || 'Could not upload image');
+                    return;
+                }
             }
             const res = await apiSendMessage(token, String(id), text, uploadedUrl, capturedReplyTo?.id);
             if (!res.success) {
