@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import { useRoleTheme } from '../theme/useRoleTheme';
 
 export default function FollowingScreen() {
   const router = useRouter();
+  const { userId, name } = useLocalSearchParams<{ userId?: string; name?: string }>();
   const { token } = useAuth();
   const theme = useRoleTheme();
   const [following, setFollowing] = useState<any[]>([]);
@@ -23,9 +24,10 @@ export default function FollowingScreen() {
 
   useEffect(() => {
     const fetchFollowing = async () => {
-      if (!token) return;
+      // Both the own-list and other-user endpoints require auth.
+      if (!token) { setLoading(false); return; }
       try {
-        const res = await getFollowing(token);
+        const res = await getFollowing(token, userId);
         if (res.success) {
           setFollowing(Array.isArray(res.data) ? res.data : []);
         }
@@ -36,7 +38,7 @@ export default function FollowingScreen() {
       }
     };
     fetchFollowing();
-  }, [token]);
+  }, [token, userId]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>
@@ -49,7 +51,7 @@ export default function FollowingScreen() {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text className="text-white text-lg ml-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>
-          Following
+          {name ? `${name}'s Following` : 'Following'}
         </Text>
       </View>
 
@@ -61,7 +63,7 @@ export default function FollowingScreen() {
         <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
           {following.length === 0 ? (
             <Text className="text-[#8A8A99] text-center mt-10" style={{ fontFamily: 'Poppins_400Regular' }}>
-              You are not following anyone yet.
+              {name ? 'Not following anyone yet.' : 'You are not following anyone yet.'}
             </Text>
           ) : (
             following.map(user => {

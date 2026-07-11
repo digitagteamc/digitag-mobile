@@ -434,15 +434,23 @@ export default function CreatorDetails() {
 
                     {/* Stats Card */}
                     <View style={styles.statsCard}>
-                        <View style={styles.statBox}>
+                        <TouchableOpacity
+                            style={styles.statBox}
+                            activeOpacity={0.7}
+                            onPress={() => resolvedUserId && router.push({ pathname: '/followers', params: { userId: resolvedUserId, name } } as any)}
+                        >
                             <Text style={styles.statLabel}>Followers</Text>
                             <Text style={styles.statValue}>{stats?.followerCount ?? 0}</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.statDivider} />
-                        <View style={styles.statBox}>
+                        <TouchableOpacity
+                            style={styles.statBox}
+                            activeOpacity={0.7}
+                            onPress={() => resolvedUserId && router.push({ pathname: '/following', params: { userId: resolvedUserId, name } } as any)}
+                        >
                             <Text style={styles.statLabel}>Following</Text>
                             <Text style={styles.statValue}>{stats?.followingCount ?? 0}</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>
                             <Text style={styles.statLabel}>Collabs</Text>

@@ -1052,10 +1052,10 @@ export const getReportStatus = async (token: string, type: 'USER' | 'POST', targ
     }
 };
 
-/** GET /users/:id/followers */
+/** GET /follows/followers (own) or /follows/:userId/followers (another user's) */
 export const getFollowers = async (token: string, userId?: string) => {
     try {
-        const path = userId ? `/users/${userId}/followers` : '/users/me/followers';
+        const path = userId ? `/follows/${userId}/followers` : '/follows/followers';
         const body = await request(path, {
             method: 'GET',
             headers: authHeaders(token),
@@ -1066,10 +1066,10 @@ export const getFollowers = async (token: string, userId?: string) => {
     }
 };
 
-/** GET /users/:id/following */
+/** GET /follows/following (own) or /follows/:userId/following (another user's) */
 export const getFollowing = async (token: string, userId?: string) => {
     try {
-        const path = userId ? `/users/${userId}/following` : '/users/me/following';
+        const path = userId ? `/follows/${userId}/following` : '/follows/following';
         const body = await request(path, {
             method: 'GET',
             headers: authHeaders(token),

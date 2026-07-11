@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import { useRoleTheme } from '../theme/useRoleTheme';
 
 export default function FollowersScreen() {
   const router = useRouter();
+  const { userId, name } = useLocalSearchParams<{ userId?: string; name?: string }>();
   const { token } = useAuth();
   const theme = useRoleTheme();
   const [followers, setFollowers] = useState<any[]>([]);
@@ -23,9 +24,10 @@ export default function FollowersScreen() {
 
   useEffect(() => {
     const fetchFollowers = async () => {
-      if (!token) return;
+      // Both the own-list and other-user endpoints require auth.
+      if (!token) { setLoading(false); return; }
       try {
-        const res = await getFollowers(token);
+        const res = await getFollowers(token, userId);
         if (res.success) {
           setFollowers(Array.isArray(res.data) ? res.data : []);
         }
@@ -36,7 +38,7 @@ export default function FollowersScreen() {
       }
     };
     fetchFollowers();
-  }, [token]);
+  }, [token, userId]);
 
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>
@@ -49,7 +51,7 @@ export default function FollowersScreen() {
           <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <Text className="text-white text-lg ml-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>
-          Followers
+          {name ? `${name}'s Followers` : 'Followers'}
         </Text>
       </View>
 
@@ -61,7 +63,7 @@ export default function FollowersScreen() {
         <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
           {followers.length === 0 ? (
             <Text className="text-[#8A8A99] text-center mt-10" style={{ fontFamily: 'Poppins_400Regular' }}>
-              You don't have any followers yet.
+              {name ? 'No followers yet.' : "You don't have any followers yet."}
             </Text>
           ) : (
             followers.map(user => {
