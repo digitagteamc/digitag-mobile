@@ -1146,6 +1146,43 @@ export const getInstagramVerificationStatus = async (token: string, id: string) 
     }
 };
 
+/* ───────────────────────── SOCIAL (YOUTUBE / FACEBOOK) VERIFICATION ─────────────────────────── */
+
+/**
+ * POST /social-verifications/start
+ * Starts an OAuth verification session for YouTube or Facebook.
+ * Returns { id, platform, authorizationUrl, expiresAt }
+ */
+export const startSocialVerification = async (token: string, platform: 'YOUTUBE' | 'FACEBOOK') => {
+    try {
+        const body = await request('/social-verifications/start', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ platform }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+/**
+ * GET /social-verifications/status/:id
+ * Polls the verification status. Returns { id, status, socialAccountId, accountName }
+ * status is one of: PENDING | VERIFIED | EXPIRED | FAILED
+ */
+export const getSocialVerificationStatus = async (token: string, id: string) => {
+    try {
+        const body = await request(`/social-verifications/status/${id}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
 /* ───────────────────────── CALLS ─────────────────────────── */
 
 export const registerFcmToken = async (token: string, fcmToken: string, platform?: string) => {
