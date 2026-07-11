@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Modal,
@@ -15,10 +16,11 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import { useAuth } from '../../context/AuthContext';
-import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
+import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
 
@@ -83,6 +85,7 @@ export default function ProfileScreen() {
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [myCollabs, setMyCollabs] = useState<any[]>([]);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -211,6 +214,39 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     logout();
     router.replace('/role-selection');
+  };
+
+  // Dev-only entry point for now — final placement is the "Complete Your Profile"
+  // success popup, per the product ask. Wired to a real Razorpay subscription.
+  const handleUpgrade = async () => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (upgrading) return;
+    setUpgrading(true);
+    try {
+      const res = await createSubscription(token);
+      if (!res.success || !res.data) {
+        Alert.alert('Upgrade Failed', (res as any).error || 'Could not start checkout. Please try again.');
+        return;
+      }
+      const { subscriptionId, keyId } = res.data;
+      await RazorpayCheckout.open({
+        key: keyId,
+        subscription_id: subscriptionId,
+        name: 'DigiTag Premium',
+        description: 'Monthly subscription',
+        prefill: userPhone ? { contact: userPhone } : undefined,
+        theme: { color: theme.primary },
+      } as any);
+      Alert.alert('Payment Successful', 'Your subscription is now active.');
+    } catch (err: any) {
+      // RazorpayCheckout rejects on user cancellation too — only surface real errors.
+      const isCancelled = /cancel/i.test(err?.description || '');
+      if (!isCancelled) {
+        Alert.alert('Payment Failed', err?.description || 'Something went wrong.');
+      }
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   const getRoleLabel = (role: string) => {
@@ -555,6 +591,21 @@ export default function ProfileScreen() {
                   );
                 })}
               </View>
+
+              {/* ══════════ UPGRADE (dev placeholder — final home is the Complete Profile popup) ══════════ */}
+              <TouchableOpacity
+                onPress={handleUpgrade}
+                disabled={upgrading}
+                activeOpacity={0.85}
+                className="mx-5 mt-4 rounded-full items-center justify-center py-4"
+                style={{ backgroundColor: theme.primary, opacity: upgrading ? 0.7 : 1 }}
+              >
+                {upgrading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="text-white text-[16px]" style={{ fontFamily: 'Poppins_600SemiBold' }}>Upgrade to Premium</Text>
+                )}
+              </TouchableOpacity>
             </>
           ) : (
             <View className="px-4 mt-8">
