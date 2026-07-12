@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/poppins';
 import messaging, { onMessage, getToken } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
+import * as Sentry from '@sentry/react-native';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef } from 'react';
@@ -34,6 +35,15 @@ const PENDING_CALL_KEY = '@pending_incoming_call';
 let _callNavGuard = false;
 
 SplashScreen.preventAutoHideAsync();
+
+// No-op without a DSN, so this ships safely before the Sentry account exists.
+// EXPO_PUBLIC_SENTRY_DSN is baked in at build time from .env.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
+Sentry.init({
+    dsn: SENTRY_DSN,
+    enabled: Boolean(SENTRY_DSN),
+    tracesSampleRate: 0.1,
+});
 
 function NotificationHandler() {
     const router = useRouter();
@@ -150,7 +160,7 @@ const queryClient = new QueryClient({
     },
 });
 
-export default function RootLayout() {
+function RootLayout() {
     const [loaded, error] = useFonts({
         Poppins_200ExtraLight,
         Poppins_300Light,
@@ -231,3 +241,7 @@ export default function RootLayout() {
         </GestureHandlerRootView>
     );
 }
+
+// Sentry.wrap adds the error boundary + navigation instrumentation around the
+// whole app; harmless when Sentry is disabled (no DSN).
+export default Sentry.wrap(RootLayout);

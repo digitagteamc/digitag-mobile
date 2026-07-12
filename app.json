@@ -14,7 +14,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
-      "associatedDomains": ["applinks:thedigitag.ai"],
+      "associatedDomains": [
+        "applinks:thedigitag.ai"
+      ],
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -117,13 +119,14 @@
       ],
       "@react-native-firebase/messaging",
       [
-  "expo-build-properties",
-  {
-    "android": {
-      "usesCleartextTraffic": true
-    }
-  }
-]
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,
