@@ -316,9 +316,7 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
 // ── Instagram Verification ─────────────────────────────────────
 type IgVerifyProps = {
     value: string;
-    followersValue: string;
     onValueChange: (v: string) => void;
-    onFollowersChange: (v: string) => void;
     verified: boolean;
     onVerifyPress: () => void;
     verifying: boolean;
@@ -326,9 +324,7 @@ type IgVerifyProps = {
 
 const InstagramVerifyRow = ({
     value,
-    followersValue,
     onValueChange,
-    onFollowersChange,
     verified,
     onVerifyPress,
     verifying,
@@ -337,30 +333,17 @@ const InstagramVerifyRow = ({
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
             Instagram
         </Text>
-        <View className="flex-row gap-2 mb-2">
-            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
-                <TextInput
-                    placeholder="instagram.com/username or @handle"
-                    placeholderTextColor="#555"
-                    value={value}
-                    onChangeText={onValueChange}
-                    className="text-white font-poppins-regular"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!verified}
-                />
-            </View>
-            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
-                <TextInput
-                    placeholder="Followers"
-                    placeholderTextColor="#555"
-                    keyboardType="numeric"
-                    value={followersValue}
-                    onChangeText={onFollowersChange}
-                    className="text-white font-poppins-regular text-[12px] text-center"
-                    editable={!verified}
-                />
-            </View>
+        <View className={`h-[56px] px-4 rounded-[12px] justify-center mb-2 ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
+            <TextInput
+                placeholder="instagram.com/username or @handle"
+                placeholderTextColor="#555"
+                value={value}
+                onChangeText={onValueChange}
+                className="text-white font-poppins-regular"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!verified}
+            />
         </View>
         <TouchableOpacity
             onPress={onVerifyPress}
@@ -1196,12 +1179,10 @@ export default function CreatorSignup() {
                                 ) : (
                                     <InstagramVerifyRow
                                         value={form.instagramHandle}
-                                        followersValue={form.instagramFollowers}
                                         onValueChange={(v: string) => {
                                             setForm({ ...form, instagramHandle: v });
                                             if (igVerified) setIgVerified(false);
                                         }}
-                                        onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
                                         verified={igVerified}
                                         onVerifyPress={handleIgVerify}
                                         verifying={igVerifying}

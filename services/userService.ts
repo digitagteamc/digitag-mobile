@@ -1219,6 +1219,16 @@ export const initiateCall = async (token: string, calleeId: string) => {
     }
 };
 
+/** GET /calls/:id — check a call's current status (e.g. still RINGING?). */
+export const getCall = async (token: string, callId: string) => {
+    try {
+        const body = await request(`/calls/${callId}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
 export const acceptCall = async (token: string, callId: string) => {
     try {
         const body = await request(`/calls/${callId}/accept`, {

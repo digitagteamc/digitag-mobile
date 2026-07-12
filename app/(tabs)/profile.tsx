@@ -600,20 +600,25 @@ export default function ProfileScreen() {
                 })}
               </View>
 
-              {/* ══════════ UPGRADE (dev placeholder — final home is the Complete Profile popup) ══════════ */}
-              <TouchableOpacity
-                onPress={handleUpgrade}
-                disabled={upgrading}
-                activeOpacity={0.85}
-                className="mx-5 mt-4 rounded-full items-center justify-center py-4"
-                style={{ backgroundColor: theme.primary, opacity: upgrading ? 0.7 : 1 }}
-              >
-                {upgrading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text className="text-white text-[16px]" style={{ fontFamily: 'Poppins_600SemiBold' }}>Upgrade to Premium</Text>
-                )}
-              </TouchableOpacity>
+              {/* ══════════ UPGRADE ══════════
+                  Android-only: Apple 3.1.1 requires In-App Purchase for digital
+                  subscriptions, so Razorpay checkout must not appear on iOS.
+                  iOS premium arrives with a StoreKit/IAP integration later. */}
+              {Platform.OS !== 'ios' && (
+                <TouchableOpacity
+                  onPress={handleUpgrade}
+                  disabled={upgrading}
+                  activeOpacity={0.85}
+                  className="mx-5 mt-4 rounded-full items-center justify-center py-4"
+                  style={{ backgroundColor: theme.primary, opacity: upgrading ? 0.7 : 1 }}
+                >
+                  {upgrading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text className="text-white text-[16px]" style={{ fontFamily: 'Poppins_600SemiBold' }}>Upgrade to Premium</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </>
           ) : (
             <View className="px-4 mt-8">
