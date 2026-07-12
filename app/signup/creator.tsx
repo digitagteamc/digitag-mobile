@@ -1027,9 +1027,14 @@ export default function CreatorSignup() {
             const { id, authorizationUrl } = res.data;
             const redirectUrl = ExpoLinking.createURL('social-verify');
             const result = await WebBrowser.openAuthSessionAsync(authorizationUrl, redirectUrl);
-            if (result.type !== 'success') return;
+            // Android's auth session often reports "dismiss" even when the OAuth
+            // redirect fired and the server finished verifying — poll the server
+            // for the real outcome instead of trusting result.type. A genuine
+            // cancel just polls briefly and gives up silently.
+            const completed = result.type === 'success';
+            const maxAttempts = completed ? 6 : 2;
 
-            for (let attempt = 0; attempt < 6; attempt++) {
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
                 await new Promise(r => setTimeout(r, 1200));
                 const statusRes = await getSocialVerificationStatus(token, id);
                 if (!statusRes.success || !statusRes.data) continue;
@@ -1058,7 +1063,7 @@ export default function CreatorSignup() {
                     return;
                 }
             }
-            Alert.alert('Still verifying', `We're still confirming your ${label} account. This can take a moment — try reopening this screen shortly.`);
+            if (completed) Alert.alert('Still verifying', `We're still confirming your ${label} account. This can take a moment — try reopening this screen shortly.`);
         } finally {
             setSocialVerifying(prev => ({ ...prev, [platform]: false }));
         }

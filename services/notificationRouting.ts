@@ -7,7 +7,7 @@ import { clearIncomingCallNotification } from './callNotification';
  * the intro screen (app/index.tsx) for cold-start taps, so killed-app opens
  * land on the same screens as backgrounded ones.
  */
-export function routeNotificationData(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined) {
+export function routeNotificationData(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined, currentPath?: string) {
     if (!data?.type) return;
     switch (data.type) {
         case 'INCOMING_CALL':
@@ -19,10 +19,15 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
         case 'CALL_ENDED':
         case 'CALL_DECLINED':
             if (data.callId) clearIncomingCallNotification(data.callId);
-            try {
-                if (router.canGoBack()) router.back();
-                else router.replace('/(tabs)' as any);
-            } catch { }
+            // Only dismiss a screen when the user is actually on the ringing call
+            // screen — otherwise this push would yank them back from whatever
+            // screen they're using (e.g. mid-chat) when a missed call ends.
+            if (currentPath === '/call') {
+                try {
+                    if (router.canGoBack()) router.back();
+                    else router.replace('/(tabs)' as any);
+                } catch { }
+            }
             break;
         case 'NEW_MESSAGE':
             if (data.conversationId) {

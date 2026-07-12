@@ -14,9 +14,9 @@ import {
 } from '@expo-google-fonts/poppins';
 import messaging, { onMessage, getToken } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Image, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -38,6 +38,11 @@ SplashScreen.preventAutoHideAsync();
 function NotificationHandler() {
     const router = useRouter();
     const { token } = useAuth();
+    // Ref, not the value: the FCM listeners below live across renders, and a
+    // captured pathname would go stale inside their closures.
+    const pathname = usePathname();
+    const pathnameRef = useRef(pathname);
+    pathnameRef.current = pathname;
 
     // Single navigation entry point. Guard prevents double-navigation when
     // AppState and onForegroundEvent both fire for the same user tap.
@@ -83,7 +88,7 @@ function NotificationHandler() {
             const data = remoteMessage.data as Record<string, string> | undefined;
             if (!data) return;
             if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
-                routeNotificationData(router, data);
+                routeNotificationData(router, data, pathnameRef.current);
             }
         });
 
@@ -93,7 +98,7 @@ function NotificationHandler() {
     // ── 2. Background FCM tap (app was backgrounded, not killed — non-call types)
     useEffect(() => {
         const unsubFcm = messaging().onNotificationOpenedApp(remoteMessage => {
-            routeNotificationData(router, remoteMessage.data as Record<string, string> | undefined);
+            routeNotificationData(router, remoteMessage.data as Record<string, string> | undefined, pathnameRef.current);
         });
         return () => unsubFcm();
     }, []);
