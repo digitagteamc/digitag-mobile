@@ -389,78 +389,59 @@ const InstagramVerifyRow = ({
 );
 
 // ── YouTube / Facebook OAuth Verification ──────────────────────
+// No manual inputs — the OAuth flow fills the handle (and follower count where
+// the platform provides it) automatically, so the row is just a Verify button
+// that turns into a "connected account" chip once verified.
 type SocialVerifyRowProps = {
     platform: 'YouTube' | 'Facebook';
-    handleValue: string;
-    followersValue: string;
-    onHandleChange: (v: string) => void;
-    onFollowersChange: (v: string) => void;
     verified: boolean;
     verifying: boolean;
+    accountLabel?: string;
     onVerifyPress: () => void;
 };
 
 const SocialVerifyRow = ({
     platform,
-    handleValue,
-    followersValue,
-    onHandleChange,
-    onFollowersChange,
     verified,
     verifying,
+    accountLabel,
     onVerifyPress,
 }: SocialVerifyRowProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
             {platform}
         </Text>
-        <View className="flex-row gap-2 mb-2">
-            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
-                <TextInput
-                    placeholder={`${platform} link`}
-                    placeholderTextColor="#555"
-                    value={handleValue}
-                    onChangeText={onHandleChange}
-                    className="text-white font-poppins-regular"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!verified}
-                />
-            </View>
-            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
-                <TextInput
-                    placeholder="Followers"
-                    placeholderTextColor="#555"
-                    keyboardType="numeric"
-                    value={followersValue}
-                    onChangeText={onFollowersChange}
-                    className="text-white font-poppins-regular text-[12px] text-center"
-                    editable={!verified}
-                />
-            </View>
-        </View>
-        <TouchableOpacity
-            onPress={onVerifyPress}
-            disabled={verified || verifying}
-            activeOpacity={0.8}
-            style={{
-                backgroundColor: verified ? '#16a34a' : verifying ? '#374151' : '#F02C8C',
-                borderRadius: 10,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-                gap: 6,
-            }}
-        >
-            {verifying ? (
-                <ActivityIndicator size="small" color="#fff" />
-            ) : (
-                <Text className="text-white font-poppins-semibold text-[13px]">
-                    {verified ? '✓ Verified' : `Verify with ${platform}`}
+        {verified ? (
+            <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
+                <Text className="text-white font-poppins-regular flex-1" numberOfLines={1}>
+                    {accountLabel || `${platform} account connected`}
                 </Text>
-            )}
-        </TouchableOpacity>
+                <Text className="text-[#16a34a] font-poppins-semibold text-[13px] ml-2">✓ Verified</Text>
+            </View>
+        ) : (
+            <TouchableOpacity
+                onPress={onVerifyPress}
+                disabled={verifying}
+                activeOpacity={0.8}
+                style={{
+                    backgroundColor: verifying ? '#374151' : '#F02C8C',
+                    borderRadius: 12,
+                    height: 48,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 6,
+                }}
+            >
+                {verifying ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                    <Text className="text-white font-poppins-semibold text-[13px]">
+                        {`Verify with ${platform}`}
+                    </Text>
+                )}
+            </TouchableOpacity>
+        )}
     </View>
 );
 
@@ -687,6 +668,7 @@ export default function CreatorSignup() {
     // YouTube / Facebook OAuth verification state
     const [socialVerified, setSocialVerified] = useState<{ YOUTUBE: boolean; FACEBOOK: boolean }>({ YOUTUBE: false, FACEBOOK: false });
     const [socialVerifying, setSocialVerifying] = useState<{ YOUTUBE: boolean; FACEBOOK: boolean }>({ YOUTUBE: false, FACEBOOK: false });
+    const [socialAccountNames, setSocialAccountNames] = useState<{ YOUTUBE: string; FACEBOOK: string }>({ YOUTUBE: '', FACEBOOK: '' });
 
     const [form, setForm] = useState({
         name: '',
@@ -1054,6 +1036,9 @@ export default function CreatorSignup() {
                 const s = statusRes.data.status;
                 if (s === 'VERIFIED') {
                     setSocialVerified(prev => ({ ...prev, [platform]: true }));
+                    if (statusRes.data.accountName) {
+                        setSocialAccountNames(prev => ({ ...prev, [platform]: statusRes.data.accountName }));
+                    }
                     const profileRes = await getMyCreatorProfile(token);
                     if (profileRes.success && profileRes.data) {
                         if (platform === 'YOUTUBE') {
@@ -1219,28 +1204,16 @@ export default function CreatorSignup() {
                                 )}
                                 <SocialVerifyRow
                                     platform="YouTube"
-                                    handleValue={form.youtubeHandle}
-                                    followersValue={form.youtubeFollowers}
-                                    onHandleChange={(v: string) => {
-                                        setForm({ ...form, youtubeHandle: v });
-                                        if (socialVerified.YOUTUBE) setSocialVerified(prev => ({ ...prev, YOUTUBE: false }));
-                                    }}
-                                    onFollowersChange={(v: string) => setForm({ ...form, youtubeFollowers: v.replace(/[^0-9]/g, '') })}
-                                    verified={socialVerified.YOUTUBE}
+                                    verified={socialVerified.YOUTUBE || !!form.youtubeHandle}
                                     verifying={socialVerifying.YOUTUBE}
+                                    accountLabel={socialAccountNames.YOUTUBE || form.youtubeHandle}
                                     onVerifyPress={() => handleSocialVerify('YOUTUBE')}
                                 />
                                 <SocialVerifyRow
                                     platform="Facebook"
-                                    handleValue={form.facebookHandle}
-                                    followersValue={form.facebookFollowers}
-                                    onHandleChange={(v: string) => {
-                                        setForm({ ...form, facebookHandle: v });
-                                        if (socialVerified.FACEBOOK) setSocialVerified(prev => ({ ...prev, FACEBOOK: false }));
-                                    }}
-                                    onFollowersChange={(v: string) => setForm({ ...form, facebookFollowers: v.replace(/[^0-9]/g, '') })}
-                                    verified={socialVerified.FACEBOOK}
+                                    verified={socialVerified.FACEBOOK || !!form.facebookHandle}
                                     verifying={socialVerifying.FACEBOOK}
+                                    accountLabel={socialAccountNames.FACEBOOK || form.facebookHandle}
                                     onVerifyPress={() => handleSocialVerify('FACEBOOK')}
                                 />
                                 <SocialRow

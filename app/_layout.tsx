@@ -23,6 +23,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearIncomingCallNotification } from '../services/callNotification';
+import { routeNotificationData } from '../services/notificationRouting';
 import { declineCall, registerFcmToken } from '../services/userService';
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
@@ -33,47 +34,6 @@ const PENDING_CALL_KEY = '@pending_incoming_call';
 let _callNavGuard = false;
 
 SplashScreen.preventAutoHideAsync();
-
-function routeNotification(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined) {
-    if (!data?.type) return;
-    switch (data.type) {
-        case 'INCOMING_CALL':
-            router.push({
-                pathname: '/call',
-                params: { mode: 'incoming', callId: data.callId, remoteName: data.callerName },
-            } as any);
-            break;
-        case 'CALL_ENDED':
-        case 'CALL_DECLINED':
-            if (data.callId) clearIncomingCallNotification(data.callId);
-            try {
-                if (router.canGoBack()) router.back();
-                else router.replace('/(tabs)' as any);
-            } catch { }
-            break;
-        case 'NEW_MESSAGE':
-            if (data.conversationId) {
-                router.push({ pathname: '/chat/[id]', params: { id: data.conversationId } } as any);
-            }
-            break;
-        case 'COLLAB_REQUEST':
-            // A new request that landed in MY incoming list.
-            router.push('/notifications' as any);
-            break;
-        case 'COLLAB_ACCEPTED':
-        case 'COLLAB_DECLINED':
-            // This push goes to the person who SENT the request — /notifications only
-            // shows requests sent TO me, which would be empty/irrelevant here. My Collabs
-            // shows the status of requests I sent, so that's the useful destination.
-            router.push('/my-collabs' as any);
-            break;
-        case 'NEW_POST':
-            router.push('/(tabs)/explore' as any);
-            break;
-        default:
-            break;
-    }
-}
 
 function NotificationHandler() {
     const router = useRouter();
@@ -123,7 +83,7 @@ function NotificationHandler() {
             const data = remoteMessage.data as Record<string, string> | undefined;
             if (!data) return;
             if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
-                routeNotification(router, data);
+                routeNotificationData(router, data);
             }
         });
 
@@ -133,22 +93,17 @@ function NotificationHandler() {
     // ── 2. Background FCM tap (app was backgrounded, not killed — non-call types)
     useEffect(() => {
         const unsubFcm = messaging().onNotificationOpenedApp(remoteMessage => {
-            routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
+            routeNotificationData(router, remoteMessage.data as Record<string, string> | undefined);
         });
         return () => unsubFcm();
     }, []);
 
-    // ── 2b. Killed-state FCM tap. On iOS the OS shows the APNs alert itself (no
-    //        JS runs until the user taps it), so this is the ONLY entry point for
-    //        calls/messages that arrive while the app is fully closed on iPhone.
-    //        Android killed-state calls are covered by PENDING_CALL_KEY instead.
-    useEffect(() => {
-        messaging().getInitialNotification().then(remoteMessage => {
-            if (remoteMessage) {
-                routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
-            }
-        }).catch(() => { });
-    }, []);
+    // Killed-state (cold start) taps are handled by app/index.tsx, NOT here:
+    // navigating from this component on mount raced the intro screen — the push
+    // either fired before the navigator was ready (and was silently swallowed)
+    // or got stomped 4s later when the intro's timer replaced the route with
+    // /(tabs). The intro reads getInitialNotification/PENDING_CALL_KEY itself
+    // and routes at the right moment instead.
 
     // ── 3. Notifee foreground events (body tap or action button while app is active/foregrounded)
     useEffect(() => {

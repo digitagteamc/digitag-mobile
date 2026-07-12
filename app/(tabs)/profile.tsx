@@ -20,7 +20,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import { useAuth } from '../../context/AuthContext';
-import { youtubeUrl } from '../../services/socialLinks';
+import { facebookUrl, youtubeUrl } from '../../services/socialLinks';
 import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
@@ -44,6 +44,7 @@ interface ProfileData {
   youtubeFollowers?: number | null;
   twitterHandle?: string | null;
   twitterFollowers?: number | null;
+  facebookHandle?: string | null;
   preferredCollabType?: string | null;
   isAvailableForCollab?: boolean | null;
   // Freelancer-specific
@@ -145,6 +146,7 @@ export default function ProfileScreen() {
                 youtubeFollowers: p.youtubeFollowers ?? null,
                 twitterHandle: p.twitterHandle || null,
                 twitterFollowers: p.twitterFollowers ?? null,
+                facebookHandle: p.facebookHandle || null,
                 preferredCollabType: p.preferredCollabType || null,
                 isAvailableForCollab: p.isAvailableForCollab ?? true,
               });
@@ -155,6 +157,10 @@ export default function ProfileScreen() {
                 experienceLevel: p.experienceLevel || null,
                 portfolioUrl: p.portfolioUrl || null,
                 availability: p.availability || 'AVAILABLE',
+                instagramHandle: p.instagramHandle || null,
+                youtubeHandle: p.youtubeHandle || null,
+                twitterHandle: p.twitterHandle || null,
+                facebookHandle: p.facebookHandle || null,
               });
             }
             setProfile(base);
@@ -508,6 +514,7 @@ export default function ProfileScreen() {
                   const socials: { key: string; src?: any; icon?: any; color?: string; url: string; platform?: string }[] = [];
                   if (profile?.instagramHandle) socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: `https://instagram.com/${profile.instagramHandle}` });
                   if (profile?.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(profile.youtubeHandle) });
+                  if (profile?.facebookHandle) socials.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(profile.facebookHandle) });
                   if (profile?.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: `https://x.com/${profile.twitterHandle}` });
                   if (profile?.portfolioUrl) socials.push({ key: 'portfolio', icon: 'globe-outline', color: '#6366F1', url: profile.portfolioUrl });
                   if (socials.length === 0) return null;

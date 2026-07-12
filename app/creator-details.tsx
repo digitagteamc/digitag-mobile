@@ -33,7 +33,7 @@ import {
     unblockUser,
     unfollowUser,
 } from '../services/userService';
-import { youtubeUrl } from '../services/socialLinks';
+import { facebookUrl, youtubeUrl } from '../services/socialLinks';
 import { fonts } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import CustomAlert from '../Components/ui/CustomAlert';
@@ -279,6 +279,7 @@ export default function CreatorDetails() {
     const socials: { key: string; icon: any; color: string; url: string; platform?: string }[] = [];
     if (p.instagramHandle) socials.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: `https://instagram.com/${p.instagramHandle}` });
     if (p.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(p.youtubeHandle) });
+    if (p.facebookHandle) socials.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(p.facebookHandle) });
     if (p.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: `https://x.com/${p.twitterHandle}` });
     if (p.portfolioUrl) socials.push({ key: 'portfolio', icon: 'globe-outline', color: '#6366F1', url: p.portfolioUrl });
     const langsArr: string[] = p.languages && p.languages.length > 0 ? p.languages : p.language ? [p.language] : [];
