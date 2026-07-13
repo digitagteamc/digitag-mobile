@@ -1042,10 +1042,10 @@ export default function Homepage() {
                     <Image source={require('../../assets/defaultavatar.png')} style={styles.headerAvatar} />
                   )}
                 </View>
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={styles.headerName}>{userName || 'Hi, User'}</Text>
+                <View style={{ marginLeft: 10, flexShrink: 1 }}>
+                  <Text style={styles.headerName} numberOfLines={1} ellipsizeMode="tail">{userName || 'Hi, User'}</Text>
                   {userTagId ? (
-                    <Text style={styles.headerTag}><Text style={{ fontWeight: '600', color: '#fff' }}>{userTagId}</Text></Text>
+                    <Text style={styles.headerTag} numberOfLines={1} ellipsizeMode="tail"><Text style={{ fontWeight: '600', color: '#fff' }}>{userTagId}</Text></Text>
                   ) : (
                     !userName ? <Text style={[styles.headerTag, { color: '#fff' }]}>Welcome To Digitag</Text> : null
                   )}
@@ -1554,6 +1554,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     overflow: 'hidden',
+    flexShrink: 1,
+    marginRight: 10,
     // Clear glass: near-transparent white
     backgroundColor: 'rgba(255, 255, 255, 0)',
     borderWidth: 0.5,
@@ -1603,6 +1605,7 @@ const styles = StyleSheet.create({
   headerRightIcons: {
     flexDirection: 'row',
     gap: 12,
+    flexShrink: 0,
   },
   iconCircleDark: {
     width: 38,
