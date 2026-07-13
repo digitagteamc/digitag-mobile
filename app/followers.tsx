@@ -87,7 +87,7 @@ export default function FollowersScreen() {
                     )}
                   </View>
                   <View className="flex-1 justify-center">
-                    <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{name}</Text>
+                    <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
                     <Text className="text-[#8A8A99] text-[13px] mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{user?.role?.toLowerCase() || ''}</Text>
                   </View>
                 </TouchableOpacity>

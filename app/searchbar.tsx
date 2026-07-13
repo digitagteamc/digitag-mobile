@@ -212,7 +212,7 @@ export default function SearchbarScreen() {
                     </View>
                   )}
                   <View style={styles.searchResultText}>
-                    <Text style={styles.searchResultName}>{item.name}</Text>
+                    <Text style={styles.searchResultName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
                     <Text style={styles.searchResultMeta}>
                       {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
                       {item.category ? ` · ${item.category}` : ''}

@@ -282,7 +282,7 @@ export default function CallScreen() {
                     {/* Caller info */}
                     <View style={styles.callerSection}>
                         {avatar}
-                        <Text style={styles.remoteNameText}>{remoteName}</Text>
+                        <Text style={styles.remoteNameText} numberOfLines={1} ellipsizeMode="tail">{remoteName}</Text>
                         <Text style={styles.statusText}>Incoming audio call</Text>
                     </View>
 
@@ -328,7 +328,7 @@ export default function CallScreen() {
                 {/* Remote info */}
                 <View style={styles.callerSection}>
                     {avatar}
-                    <Text style={styles.remoteNameText}>{remoteName}</Text>
+                    <Text style={styles.remoteNameText} numberOfLines={1} ellipsizeMode="tail">{remoteName}</Text>
                     {callMode === 'active' ? (
                         <Text style={[styles.statusText, { color: '#22c55e' }]}>
                             Connected · {formatTime(elapsedSeconds)}

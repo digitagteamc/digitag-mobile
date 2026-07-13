@@ -123,7 +123,7 @@ export default function MyCollabsScreen() {
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }}>{otherName}</Text>
+                      <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }} numberOfLines={1} ellipsizeMode="tail">{otherName}</Text>
                       <Text className="text-[#8A8A99] text-[13px] mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{other?.role?.toLowerCase() || ''}</Text>
                       {description ? (
                         <Text className="text-[#8A8A99] text-[13px] mt-1 leading-5" numberOfLines={2} style={{ fontFamily: 'Poppins_400Regular' }}>{description}</Text>

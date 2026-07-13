@@ -142,8 +142,8 @@ export default function SavedPostsScreen() {
                       <View style={styles.avatarCircle}>
                         <Image source={pic ? { uri: pic } : LOGO} style={styles.avatarImg} resizeMode="cover" />
                       </View>
-                      <View>
-                        <Text style={styles.authorName}>{name}</Text>
+                      <View style={{ flexShrink: 1 }}>
+                        <Text style={styles.authorName} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
                         <Text style={styles.authorRole}>
                           {owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User'}
                         </Text>
@@ -266,6 +266,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     left: 12,
+    right: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

@@ -153,7 +153,7 @@ export default function MessagesTab() {
                                 >
                                     <Image source={item.profilePicture ? { uri: item.profilePicture } : require('../../assets/images/icon.png')} style={styles.profileResultAvatar} resizeMode="cover" />
                                     <View style={styles.profileResultText}>
-                                        <Text style={styles.profileResultName}>{item.name}</Text>
+                                        <Text style={styles.profileResultName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
                                         <Text style={styles.profileResultMeta}>
                                             {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
                                             {item.category ? ` · ${item.category}` : ''}

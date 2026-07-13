@@ -62,7 +62,7 @@ export default function PostCard({
             )}
           </View>
           <View style={styles.headerNameBlock}>
-            <Text style={styles.cardName}>{item.name}</Text>
+            <Text style={styles.cardName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
             <Text style={styles.cardCategory}>{item.role}</Text>
           </View>
         </TouchableOpacity>
@@ -158,6 +158,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 8,
   },
   avatarCircle: {
     width: 36,
@@ -179,6 +182,7 @@ const styles = StyleSheet.create({
   },
   headerNameBlock: {
     gap: 2,
+    flexShrink: 1,
   },
   cardName: {
     color: '#fff',
@@ -198,6 +202,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexShrink: 0,
   },
   portfolioBtn: {
     paddingHorizontal: 12,
