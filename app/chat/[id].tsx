@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -10,6 +11,7 @@ import {
     Image,
     ImageBackground,
     Keyboard,
+    Linking,
     Modal,
     Platform,
     Pressable,
@@ -30,6 +32,7 @@ import { prepareImageForUpload } from '../../services/imageResize';
 import {
     deleteMessage as apiDeleteMessage,
     editMessage as apiEditMessage,
+    reactToMessage as apiReactToMessage,
     sendMessage as apiSendMessage,
     getConversation,
     getConversationCalls,
@@ -57,6 +60,8 @@ interface ChatMessage {
     senderId: string;
     content: string;
     imageUrl?: string | null;
+    locationLat?: number | null;
+    locationLng?: number | null;
     isRead: boolean;
     isEdited?: boolean;
     isDeleted?: boolean;
@@ -66,12 +71,14 @@ interface ChatMessage {
     replyTo?: QuotedMessage | null;
 }
 
-/** One-line description of a message for quote previews: text, or 📷 for images. */
-function describeMessage(msg: { content?: string; imageUrl?: string | null; isDeleted?: boolean } | null | undefined) {
+/** One-line description of a message for quote previews: text, 📷 for images,
+ *  📍 for a shared location. */
+function describeMessage(msg: { content?: string; imageUrl?: string | null; locationLat?: number | null; isDeleted?: boolean } | null | undefined) {
     if (!msg || msg.isDeleted) return 'Message deleted';
     // Strip the legacy text-encoded "> quote\n\n" prefix from old messages.
     const text = (msg.content || '').replace(/^> .+\n\n/, '').trim();
     if (text) return text;
+    if (msg.locationLat != null) return '📍 Location';
     return msg.imageUrl ? '📷 Photo' : '';
 }
 
@@ -118,6 +125,15 @@ function describeCall(call: CallLogEntry, mine: boolean) {
     return duration ? `${mine ? 'Outgoing' : 'Incoming'} call · ${duration}` : (mine ? 'Outgoing call' : 'Incoming call');
 }
 
+function openLocationInMaps(lat: number, lng: number) {
+    const url = Platform.OS === 'ios'
+        ? `https://maps.apple.com/?ll=${lat},${lng}&q=Shared+Location`
+        : `geo:${lat},${lng}?q=${lat},${lng}(Shared+Location)`;
+    Linking.openURL(url).catch(() => {
+        Linking.openURL(`https://www.google.com/maps?q=${lat},${lng}`).catch(() => {});
+    });
+}
+
 function getInitials(name: string | null | undefined) {
     if (!name) return 'U';
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -155,6 +171,7 @@ export default function ChatScreen() {
     const [calls, setCalls] = useState<CallLogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [sendingLocation, setSendingLocation] = useState(false);
     const [input, setInput] = useState('');
     const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
     const [editingMsg, setEditingMsg] = useState<ChatMessage | null>(null);
@@ -277,6 +294,42 @@ export default function ChatScreen() {
         }
     };
 
+    // ── Location (one-time pin, not live tracking) ────────────────────────────
+    const handleSendLocation = async () => {
+        if (!token || !id || sendingLocation) return;
+        const perm = await Location.requestForegroundPermissionsAsync();
+        if (!perm.granted) {
+            Alert.alert('Permission Required', 'Location access is needed to share your location.');
+            return;
+        }
+        setSendingLocation(true);
+        try {
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            const { latitude, longitude } = pos.coords;
+
+            const optimisticId = `tmp-${Date.now()}`;
+            const optimistic: ChatMessage = {
+                id: optimisticId, conversationId: String(id), senderId: userId!,
+                content: '', locationLat: latitude, locationLng: longitude,
+                isRead: false, createdAt: new Date().toISOString(), pending: true,
+            };
+            setMessages((prev) => [...prev, optimistic]);
+            setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 80);
+
+            const res = await apiSendMessage(token, String(id), '', undefined, undefined, { lat: latitude, lng: longitude });
+            if (res.success) {
+                setMessages((prev) => prev.map((m) => (m.id === optimisticId ? res.data : m)));
+            } else {
+                setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+                Alert.alert('Send Failed', (res as any).error || 'Could not share location');
+            }
+        } catch {
+            Alert.alert('Location Failed', 'Could not get your current location. Please try again.');
+        } finally {
+            setSendingLocation(false);
+        }
+    };
+
     // ── Send / Edit ─────────────────────────────────────────────────────────────
     const handleSend = async () => {
         if (!token || !id) return;
@@ -348,9 +401,10 @@ export default function ChatScreen() {
     };
 
     const handleReaction = (emoji: string) => {
-        if (!ctxMsg) return;
+        if (!ctxMsg || !token || !id) return;
+        const targetId = ctxMsg.id;
         setMessages((prev) => prev.map((m) => {
-            if (m.id !== ctxMsg.id) return m;
+            if (m.id !== targetId) return m;
             const existing = m.reactions || {};
             const users = existing[emoji] || [];
             const alreadyReacted = users.includes(userId!);
@@ -365,6 +419,15 @@ export default function ChatScreen() {
             };
         }));
         setCtxMsg(null);
+        // Persisted server-side so it survives the 5s poll — without this the
+        // optimistic update above gets overwritten by the next listMessages refresh.
+        apiReactToMessage(token, String(id), targetId, emoji).then((res) => {
+            if (res.success && res.data) {
+                setMessages((prev) => prev.map((m) => m.id === targetId ? { ...m, reactions: res.data.reactions } : m));
+            } else {
+                load();
+            }
+        });
     };
 
     const handleCtxEdit = () => {
@@ -573,6 +636,13 @@ export default function ChatScreen() {
 
                             <TouchableOpacity style={styles.attachBtn} onPress={handleAttach} activeOpacity={0.75}>
                                 <Ionicons name="attach" size={22} color="#aaa" />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.attachBtn} onPress={handleSendLocation} activeOpacity={0.75} disabled={sendingLocation}>
+                                {sendingLocation
+                                    ? <ActivityIndicator size="small" color="#aaa" />
+                                    : <Ionicons name="location-outline" size={22} color="#aaa" />
+                                }
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -828,9 +898,28 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
                                     </View>
                                 )}
                                 {item.imageUrl && (
-                                    <TouchableOpacity activeOpacity={0.9} onPress={() => onImagePress(item.imageUrl!)}>
+                                    <Pressable
+                                        onPress={() => onImagePress(item.imageUrl!)}
+                                        onLongPress={() => onLongPress(item, mine)}
+                                        delayLongPress={300}
+                                    >
                                         <Image source={{ uri: item.imageUrl }} style={styles.bubbleImage} resizeMode="cover" />
-                                    </TouchableOpacity>
+                                    </Pressable>
+                                )}
+                                {item.locationLat != null && item.locationLng != null && (
+                                    <Pressable
+                                        onPress={() => openLocationInMaps(item.locationLat!, item.locationLng!)}
+                                        onLongPress={() => onLongPress(item, mine)}
+                                        delayLongPress={300}
+                                        style={styles.locationCard}
+                                    >
+                                        <Ionicons name="location" size={20} color={mine ? myColor : otherColor} />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.locationTitle}>Current Location</Text>
+                                            <Text style={styles.locationSubtitle}>Tap to open in Maps</Text>
+                                        </View>
+                                        <Ionicons name="open-outline" size={16} color="rgba(255,255,255,0.5)" />
+                                    </Pressable>
                                 )}
                                 {bodyText ? <Text style={styles.bubbleText}>{bodyText}</Text> : null}
                                 {/* Time + read receipt inside bubble */}
@@ -947,6 +1036,13 @@ const styles = StyleSheet.create({
     bubbleTheirs: { borderBottomLeftRadius: 3 },
     bubbleText: { color: '#fff', fontSize: 14.5, fontFamily: 'Poppins_400Regular', lineHeight: 21 },
     bubbleImage: { width: 200, height: 140, borderRadius: 10, marginBottom: 6 },
+    locationCard: {
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10,
+        paddingHorizontal: 10, paddingVertical: 10, marginBottom: 6, minWidth: 180,
+    },
+    locationTitle: { color: '#fff', fontSize: 13.5, fontFamily: 'Poppins_600SemiBold' },
+    locationSubtitle: { color: 'rgba(255,255,255,0.55)', fontSize: 11, fontFamily: 'Poppins_400Regular', marginTop: 1 },
     bubbleMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 2 },
     bubbleTime: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontFamily: 'Poppins_400Regular' },
     editedLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_400Regular' },

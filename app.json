@@ -126,6 +126,12 @@
           }
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "DigiTag needs your location to share it in chat."
+        }
+      ],
       "@sentry/react-native"
     ],
     "experiments": {

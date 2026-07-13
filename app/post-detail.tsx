@@ -338,7 +338,7 @@ export default function PostDetail() {
                 </View>
               )}
               <View style={[styles.pillSolid, { backgroundColor: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.15)', borderColor: isPaid ? '#22c55e' : '#a78bfa' }]}>
-                <Ionicons name={isPaid ? 'videocam-outline' : 'gift-outline'} size={13} color={isPaid ? '#22c55e' : '#a78bfa'} />
+                <Ionicons name={isPaid ? 'pricetag-outline' : 'gift-outline'} size={13} color={isPaid ? '#22c55e' : '#a78bfa'} />
                 <Text style={[styles.pillSolidText, { color: isPaid ? '#22c55e' : '#a78bfa' }]}>
                   {isPaid ? 'Paid Collab' : 'Free Collab'}
                 </Text>

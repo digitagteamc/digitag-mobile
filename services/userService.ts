@@ -843,7 +843,14 @@ export const getConversationCalls = async (token: string, conversationId: string
 };
 
 /** POST /conversations/:id/messages */
-export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string, replyToId?: string) => {
+export const sendMessage = async (
+    token: string,
+    conversationId: string,
+    content: string,
+    imageUrl?: string,
+    replyToId?: string,
+    location?: { lat: number; lng: number },
+) => {
     try {
         const body = await request(`/conversations/${conversationId}/messages`, {
             method: 'POST',
@@ -852,6 +859,7 @@ export const sendMessage = async (token: string, conversationId: string, content
                 content: content || '',
                 ...(imageUrl ? { imageUrl } : {}),
                 ...(replyToId ? { replyToId } : {}),
+                ...(location ? { locationLat: location.lat, locationLng: location.lng } : {}),
             }),
         });
         return { success: true, data: body?.data };
@@ -867,6 +875,21 @@ export const editMessage = async (token: string, conversationId: string, message
             method: 'PATCH',
             headers: authHeaders(token),
             body: JSON.stringify({ content }),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /conversations/:convId/messages/:msgId/react — toggles the caller's
+ *  reaction (add if not already reacted with this emoji, remove if so). */
+export const reactToMessage = async (token: string, conversationId: string, messageId: string, emoji: string) => {
+    try {
+        const body = await request(`/conversations/${conversationId}/messages/${messageId}/react`, {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ emoji }),
         });
         return { success: true, data: body?.data };
     } catch (error: any) {
