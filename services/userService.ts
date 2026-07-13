@@ -1262,6 +1262,65 @@ export const deleteAccount = async (token: string) => {
     }
 };
 
+/* ─────────────────────── PRIVACY SETTINGS ─────────────────────── */
+
+export interface PrivacySettings {
+    isDiscoverable: boolean;
+    showOnlineStatus: boolean;
+    shareDataForPersonalization: boolean;
+    pushNotificationsEnabled: boolean;
+    preferredLanguage: string;
+}
+
+export const getPrivacySettings = async (token: string) => {
+    try {
+        const body = await request('/users/me/privacy-settings', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data as PrivacySettings };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+export const updatePrivacySettings = async (token: string, data: Partial<PrivacySettings>) => {
+    try {
+        const body = await request('/users/me/privacy-settings', {
+            method: 'PATCH',
+            headers: authHeaders(token),
+            body: JSON.stringify(data),
+        });
+        return { success: true, data: body?.data as PrivacySettings };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * "Download My Data" — fetches the export JSON directly (not through the
+ * shared request() helper, since that unwraps { data } and this response
+ * is the raw export itself, not the standard API envelope), saves it to a
+ * temp file, and opens the native share sheet so the user can save/send it
+ * — there's no browser "Downloads" folder concept on mobile.
+ */
+export const downloadMyData = async (token: string) => {
+    try {
+        const res = await fetch(`${API_BASE_URL}/users/me/export`, { headers: authHeaders(token) });
+        if (!res.ok) throw new Error(`Export failed (${res.status})`);
+        const json = await res.text();
+
+        const { File, Paths } = await import('expo-file-system');
+        const Sharing = await import('expo-sharing');
+        const file = new File(Paths.document, 'digitag-my-data.json');
+        file.write(json);
+
+        if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(file.uri, { mimeType: 'application/json', dialogTitle: 'Your DigiTag data' });
+        }
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ─────────────────────── SUBSCRIPTIONS (Razorpay) ─────────────────────── */
 
 export const createSubscription = async (token: string) => {

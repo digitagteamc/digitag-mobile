@@ -4,7 +4,8 @@ import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { getPrivacySettings, updatePrivacySettings } from '../services/userService';
 import {
   Image,
   Linking,
@@ -33,7 +34,7 @@ interface AccountItem {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { userRole } = useAuth();
+  const { userRole, token } = useAuth();
   const insets = useSafeAreaInsets();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -78,6 +79,27 @@ export default function SettingsScreen() {
   const LANGUAGES = [
     'English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'
   ];
+
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      const res = await getPrivacySettings(token);
+      if (res.success && res.data) {
+        setNotificationsEnabled(res.data.pushNotificationsEnabled);
+        setSelectedLanguage(res.data.preferredLanguage);
+      }
+    })();
+  }, [token]);
+
+  const handleNotificationsChange = (v: boolean) => {
+    setNotificationsEnabled(v);
+    if (token) updatePrivacySettings(token, { pushNotificationsEnabled: v });
+  };
+
+  const handleLanguageSelect = (lang: string) => {
+    setSelectedLanguage(lang);
+    if (token) updatePrivacySettings(token, { preferredLanguage: lang });
+  };
 
   const ACCOUNT_ITEMS: AccountItem[] = [
     {
@@ -181,7 +203,7 @@ export default function SettingsScreen() {
                 <Text className="text-[#E0E0E0] text-[15px] flex-1 font-poppins-medium">Notifications</Text>
                 <CustomSwitch
                   value={notificationsEnabled}
-                  onValueChange={setNotificationsEnabled}
+                  onValueChange={handleNotificationsChange}
                 />
               </View>
 
@@ -269,7 +291,7 @@ export default function SettingsScreen() {
                     return (
                       <TouchableOpacity
                         key={lang}
-                        onPress={() => setSelectedLanguage(lang)}
+                        onPress={() => handleLanguageSelect(lang)}
                         className={`flex-row items-center p-2 rounded-2xl mb-1 ${isSelected ? 'bg-[#2D4BA0]' : 'transparent'
                           }`}
                       >

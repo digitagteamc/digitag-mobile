@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Image,
     Platform,
@@ -19,7 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
-import { deleteAccount } from '../services/userService';
+import { deleteAccount, downloadMyData, getPrivacySettings, updatePrivacySettings } from '../services/userService';
 
 export default function PrivacySettingsScreen() {
     const router = useRouter();
@@ -27,6 +28,7 @@ export default function PrivacySettingsScreen() {
     const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
     const { token, logout } = useAuth();
     const [deleting, setDeleting] = useState(false);
+    const [downloading, setDownloading] = useState(false);
 
     const handleDeleteAccount = () => {
         if (!token) { router.push('/role-selection' as any); return; }
@@ -99,6 +101,35 @@ export default function PrivacySettingsScreen() {
     const [onlineStatus, setOnlineStatus] = useState(true);
     const [dataSharing, setDataSharing] = useState(true);
 
+    useEffect(() => {
+        if (!token) return;
+        (async () => {
+            const res = await getPrivacySettings(token);
+            if (res.success && res.data) {
+                setProfileVisibility(res.data.isDiscoverable);
+                setOnlineStatus(res.data.showOnlineStatus);
+                setDataSharing(res.data.shareDataForPersonalization);
+            }
+        })();
+    }, [token]);
+
+    // Auto-saves on every toggle — there is no separate "Save" step, so the
+    // switch always reflects what's persisted server-side.
+    const savePrivacy = (patch: Partial<{ isDiscoverable: boolean; showOnlineStatus: boolean; shareDataForPersonalization: boolean }>) => {
+        if (!token) return;
+        updatePrivacySettings(token, patch);
+    };
+
+    const handleDownloadData = async () => {
+        if (!token || downloading) return;
+        setDownloading(true);
+        const res = await downloadMyData(token);
+        setDownloading(false);
+        if (!res.success) {
+            Alert.alert('Error', res.error || 'Could not download your data. Please try again.');
+        }
+    };
+
     return (
         <View className="flex-1 bg-[#0A0A0A]">
             <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
@@ -145,7 +176,10 @@ export default function PrivacySettingsScreen() {
                                     <Text className="text-[#fff] text-[16px] font-poppins-regular">Profile Visibility</Text>
                                     <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Show my profile in search results</Text>
                                 </View>
-                                <CustomSwitch value={profileVisibility} onValueChange={setProfileVisibility} />
+                                <CustomSwitch
+                                    value={profileVisibility}
+                                    onValueChange={(v) => { setProfileVisibility(v); savePrivacy({ isDiscoverable: v }); }}
+                                />
                             </View>
 
                             {/* Location Tracking */}
@@ -173,7 +207,10 @@ export default function PrivacySettingsScreen() {
                                     <Text className="text-[#fff] text-[16px] font-poppins-regular">Show Online Status</Text>
                                     <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Let others see when you're online</Text>
                                 </View>
-                                <CustomSwitch value={onlineStatus} onValueChange={setOnlineStatus} />
+                                <CustomSwitch
+                                    value={onlineStatus}
+                                    onValueChange={(v) => { setOnlineStatus(v); savePrivacy({ showOnlineStatus: v }); }}
+                                />
                             </View>
                         </View>
                     </View>
@@ -217,22 +254,33 @@ export default function PrivacySettingsScreen() {
                                     <Text className="text-[#fff] text-[16px] font-poppins-regular">Data Sharing</Text>
                                     <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Share data for personalized experience</Text>
                                 </View>
-                                <CustomSwitch value={dataSharing} onValueChange={setDataSharing} />
+                                <CustomSwitch
+                                    value={dataSharing}
+                                    onValueChange={(v) => { setDataSharing(v); savePrivacy({ shareDataForPersonalization: v }); }}
+                                />
                             </View>
 
                             {/* Download Data */}
-                            <TouchableOpacity className="flex-row items-center py-3.5 px-3">
+                            <TouchableOpacity
+                                className="flex-row items-center py-3.5 px-3"
+                                onPress={handleDownloadData}
+                                disabled={downloading}
+                                activeOpacity={0.75}
+                            >
                                 <View className="w-10 h-10 items-center justify-center mr-4">
-                                    <Image 
-                                        source={require('../assets/download-icon.png')} 
-                                        style={{ width: 36, height: 36 }} 
-                                        resizeMode="contain" 
+                                    <Image
+                                        source={require('../assets/download-icon.png')}
+                                        style={{ width: 36, height: 36 }}
+                                        resizeMode="contain"
                                     />
                                 </View>
                                 <View className="flex-1">
                                     <Text className="text-[#fff] text-[16px] font-poppins-regular">Download My Data</Text>
-                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Get a copy of your information</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">
+                                        {downloading ? 'Preparing your data…' : 'Get a copy of your information'}
+                                    </Text>
                                 </View>
+                                {downloading && <ActivityIndicator size="small" color="#7C5DFA" />}
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -250,16 +298,6 @@ export default function PrivacySettingsScreen() {
                                 {deleting ? 'Deleting...' : 'DELETE ACCOUNT'}
                             </Text>
                             <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Permanently delete your account and all data</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* ── SAVE BUTTON ── */}
-                    <View className="px-5 mt-2">
-                        <TouchableOpacity
-                            className="bg-[#7C5DFA] py-4 rounded-full items-center shadow-lg shadow-[#7C5DFA]/30"
-                            activeOpacity={0.8}
-                        >
-                            <Text className="text-white text-[16px] font-poppins-bold">Save Changes</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
