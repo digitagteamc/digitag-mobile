@@ -46,7 +46,11 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
             router.push('/my-collabs' as any);
             break;
         case 'NEW_POST':
-            router.push('/(tabs)/explore' as any);
+            if (data.postId) {
+                router.push({ pathname: '/post-detail', params: { postId: data.postId } } as any);
+            } else {
+                router.push('/(tabs)/explore' as any);
+            }
             break;
         default:
             break;
