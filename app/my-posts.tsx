@@ -134,6 +134,7 @@ export default function MyPostsScreen() {
       role: roleLabel,
       desc: post.description,
       price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
+      budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
     };

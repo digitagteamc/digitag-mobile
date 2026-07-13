@@ -1062,6 +1062,37 @@ export const createReport = async (
     }
 };
 
+/** POST /reports/issue — app bug/feedback report (lands in the admin Reports queue). */
+export const submitIssueReport = async (
+    token: string,
+    payload: { category: string; severity: 'low' | 'medium' | 'high'; description: string; screenshotUrl?: string },
+) => {
+    try {
+        const body = await request('/reports/issue', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify(payload),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /waitlist — "Notify Me" launch waitlist; works for guests too. */
+export const joinWaitlist = async (mobileNumber: string, token?: string | null) => {
+    try {
+        await request('/waitlist', {
+            method: 'POST',
+            headers: optionalAuthHeaders(token),
+            body: JSON.stringify({ mobileNumber }),
+        });
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /** GET /reports/status?type=&targetId= */
 export const getReportStatus = async (token: string, type: 'USER' | 'POST', targetId: string) => {
     try {

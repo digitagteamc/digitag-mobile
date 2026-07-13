@@ -21,6 +21,7 @@ export interface PostCardProps {
     role: string;
     desc: string;
     price: string;
+    budget?: string | null;
     time: string;
     portfolioLink?: string | null;
     owner?: any;
@@ -105,7 +106,9 @@ export default function PostCard({
       {/* ── Meta: Price + Time */}
       <View style={styles.cardMetaRow}>
         <Text style={[styles.cardPrice, { color: 'rgba(0, 164, 1, 1)' }]}>
-          {item.price === 'Paid Collab' ? '₹40K–50K/Month' : 'Free Collab'}
+          {item.price === 'Paid Collab'
+            ? (item.budget ? `₹${String(item.budget).replace(/^₹\s*/, '')}` : 'Paid Collab')
+            : 'Free Collab'}
         </Text>
         <View style={styles.cardTimeRow}>
           <Ionicons name="time-outline" size={14} color="#8A8A99" />

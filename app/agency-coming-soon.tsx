@@ -13,6 +13,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -139,18 +140,18 @@ export default function AgencyComingSoonScreen() {
                             <View style={styles.socialContainer}>
                                 <Text style={styles.followText}>Follow us for updates</Text>
                                 <View style={styles.socialIconsRow}>
-                                    <TouchableOpacity style={styles.socialIconCircle}>
-                                        <FontAwesome5 name="instagram" size={18} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.socialIconCircle}>
-                                        <FontAwesome5 name="twitter" size={16} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.socialIconCircle}>
-                                        <FontAwesome5 name="linkedin-in" size={16} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.socialIconCircle}>
-                                        <FontAwesome5 name="facebook-f" size={16} color="#FFFFFF" />
-                                    </TouchableOpacity>
+                                    {/* Only Instagram has a real handle today — the rest land on the
+                                        website until dedicated accounts exist. */}
+                                    {([
+                                        { icon: 'instagram', size: 18, url: 'https://www.instagram.com/digitagapp/' },
+                                        { icon: 'twitter', size: 16, url: 'https://thedigitag.ai' },
+                                        { icon: 'linkedin-in', size: 16, url: 'https://thedigitag.ai' },
+                                        { icon: 'facebook-f', size: 16, url: 'https://thedigitag.ai' },
+                                    ] as const).map((s) => (
+                                        <TouchableOpacity key={s.icon} style={styles.socialIconCircle} onPress={() => Linking.openURL(s.url).catch(() => {})}>
+                                            <FontAwesome5 name={s.icon} size={s.size} color="#FFFFFF" />
+                                        </TouchableOpacity>
+                                    ))}
                                 </View>
                             </View>
                         </View>

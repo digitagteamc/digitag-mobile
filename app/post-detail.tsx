@@ -331,12 +331,14 @@ export default function PostDetail() {
             <View style={styles.dashedDivider} />
 
             <View style={styles.badgeRow}>
-              {isPaid && (
+              {/* Real budget from the post — no budget entered means no pill,
+                  never an invented number. */}
+              {isPaid && post.budget ? (
                 <View style={[styles.pillSolid, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: '#22c55e' }]}>
                   <Ionicons name="cash-outline" size={13} color="#22c55e" />
-                  <Text style={[styles.pillSolidText, { color: '#22c55e' }]}>₹ 10K-15K/Month</Text>
+                  <Text style={[styles.pillSolidText, { color: '#22c55e' }]}>₹ {String(post.budget).replace(/^₹\s*/, '')}</Text>
                 </View>
-              )}
+              ) : null}
               <View style={[styles.pillSolid, { backgroundColor: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.15)', borderColor: isPaid ? '#22c55e' : '#a78bfa' }]}>
                 <Ionicons name={isPaid ? 'pricetag-outline' : 'gift-outline'} size={13} color={isPaid ? '#22c55e' : '#a78bfa'} />
                 <Text style={[styles.pillSolidText, { color: isPaid ? '#22c55e' : '#a78bfa' }]}>

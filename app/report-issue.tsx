@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -14,6 +15,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../context/AuthContext';
+import { prepareImageForUpload } from '../services/imageResize';
+import { submitIssueReport, uploadMessageImage } from '../services/userService';
 
 type IssueType = 'bug' | 'performance' | 'ui' | 'account';
 type Severity = 'low' | 'medium' | 'high';
@@ -30,23 +34,51 @@ export default function ReportIssueScreen() {
   const insets = useSafeAreaInsets();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
+  const { token } = useAuth();
   const [selectedIssue, setSelectedIssue] = useState<IssueType>('bug');
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState<Severity>('high');
+  const [screenshot, setScreenshot] = useState<{ uri: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handlePickScreenshot = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+      setScreenshot({ uri });
+    }
+  };
 
   const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Missing Info', 'Please describe the issue before submitting.');
       return;
     }
+    if (!token) {
+      Alert.alert('Sign In Required', 'Please sign in to report an issue.');
+      return;
+    }
     setIsSubmitting(true);
-    // Simulate submission
-    await new Promise(res => setTimeout(res, 1200));
-    setIsSubmitting(false);
-    Alert.alert('Report Submitted', 'Thank you! Our team will look into this issue shortly.', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    try {
+      let screenshotUrl: string | undefined;
+      if (screenshot) {
+        const upRes = await uploadMessageImage(token, { uri: screenshot.uri, mimeType: 'image/jpeg' });
+        if (upRes.success && upRes.data?.url) screenshotUrl = upRes.data.url;
+        // A failed screenshot upload shouldn't block the report itself.
+      }
+      const category = ISSUE_TYPES.find(t => t.id === selectedIssue)?.title || 'Bug / Error';
+      const res = await submitIssueReport(token, { category, severity, description: description.trim(), screenshotUrl });
+      if (res.success) {
+        Alert.alert('Report Submitted', 'Thank you! Our team will look into this issue shortly.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } else {
+        Alert.alert('Submission Failed', res.error || 'Could not send your report. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const severityConfig = {
@@ -194,6 +226,7 @@ export default function ReportIssueScreen() {
           </Text>
           <TouchableOpacity
             activeOpacity={0.7}
+            onPress={handlePickScreenshot}
             style={{
               width: '100%',
               height: 90,
@@ -208,10 +241,24 @@ export default function ReportIssueScreen() {
               marginBottom: 8,
             }}
           >
-            <MaterialCommunityIcons name="upload-outline" size={24} color="#D0D0D0" style={{ marginLeft: 10 }} />
-            <Text style={{ color: '#D6D6D6', fontSize: 14, fontFamily: 'Poppins_500Medium' }}>
-              Upload Screenshot
-            </Text>
+            {screenshot ? (
+              <>
+                <Image source={{ uri: screenshot.uri }} style={{ width: 66, height: 66, borderRadius: 12, marginLeft: 12 }} resizeMode="cover" />
+                <Text style={{ color: '#D6D6D6', fontSize: 14, fontFamily: 'Poppins_500Medium', flex: 1 }}>
+                  Tap to change screenshot
+                </Text>
+                <TouchableOpacity onPress={() => setScreenshot(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 14 }}>
+                  <Ionicons name="close-circle" size={22} color="#888" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <MaterialCommunityIcons name="upload-outline" size={24} color="#D0D0D0" style={{ marginLeft: 10 }} />
+                <Text style={{ color: '#D6D6D6', fontSize: 14, fontFamily: 'Poppins_500Medium' }}>
+                  Upload Screenshot
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
           <Text style={{ color: '#555', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 28 }}>
             Note: PNG/JPG up to 5MB

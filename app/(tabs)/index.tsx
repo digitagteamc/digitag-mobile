@@ -36,7 +36,7 @@ import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Tex
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useNotificationCount } from '../../context/NotificationCountContext';
-import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
+import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, joinWaitlist, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -380,6 +380,27 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
     minutes: 42,
     seconds: 19
   });
+  const { token } = useAuth();
+  const [notifyNumber, setNotifyNumber] = useState('');
+  const [notifyBusy, setNotifyBusy] = useState(false);
+  const [notifyJoined, setNotifyJoined] = useState(false);
+
+  const handleNotifyMe = async () => {
+    const number = notifyNumber.trim();
+    if (!/^[0-9]{10}$/.test(number)) {
+      Alert.alert('Invalid Number', 'Enter a valid 10-digit mobile number.');
+      return;
+    }
+    setNotifyBusy(true);
+    const res = await joinWaitlist(number, token);
+    setNotifyBusy(false);
+    if (res.success) {
+      setNotifyJoined(true);
+      setNotifyNumber('');
+    } else {
+      Alert.alert('Could Not Join', res.error || 'Please try again.');
+    }
+  };
 
   const translateY = useSharedValue(0);
 
@@ -469,14 +490,23 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
             <View style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
               <Ionicons name="notifications-outline" size={20} color="rgba(255,255,255,0.6)" />
               <TextInput
-                placeholder="Enter your number for updates"
+                placeholder={notifyJoined ? "You're on the list!" : 'Enter your number for updates'}
                 placeholderTextColor="rgba(255,255,255,0.4)"
                 style={{ flex: 1, marginLeft: 10, color: '#fff', fontFamily: 'Poppins_400Regular', fontSize: 13 }}
                 keyboardType="numeric"
+                maxLength={10}
+                value={notifyNumber}
+                onChangeText={setNotifyNumber}
               />
             </View>
-            <TouchableOpacity style={{ height: 56, borderRadius: 16, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#6C63FF' }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>Notify Me</Text>
+            <TouchableOpacity
+              style={{ height: 56, borderRadius: 16, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#6C63FF', opacity: notifyBusy ? 0.6 : 1 }}
+              onPress={handleNotifyMe}
+              disabled={notifyBusy || notifyJoined}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>
+                {notifyJoined ? '✓ Added' : notifyBusy ? '...' : 'Notify Me'}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -591,7 +621,11 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
             <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
 
-            <Text style={styles.figmaCardPrice}>{item.price === 'Paid Collab' ? '₹ 10K-15K/Month' : 'Free Collab'}</Text>
+            <Text style={styles.figmaCardPrice}>
+              {item.price === 'Paid Collab'
+                ? (item.budget ? `₹ ${String(item.budget).replace(/^₹\s*/, '')}` : 'Paid Collab')
+                : 'Free Collab'}
+            </Text>
 
             {/* Bottom Actions */}
             {acceptedCollabOwnerIds?.has(item.ownerId) ? (
@@ -934,6 +968,7 @@ export default function Homepage() {
       role: roleLabel,
       desc: post.description,
       price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
+      budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
     };
