@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -88,8 +88,9 @@ export default function NotificationsScreen() {
     const router = useRouter();
     const { token } = useAuth();
     const theme = useRoleTheme(); // viewer's role theme
+    const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
 
-    const [tab, setTab] = useState<Tab>('notifications');
+    const [tab, setTab] = useState<Tab>(tabParam === 'requests' ? 'requests' : 'notifications');
     const { clearUnreadCount } = useNotificationCount();
 
     // ── Requests tab state ──

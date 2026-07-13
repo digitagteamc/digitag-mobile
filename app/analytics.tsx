@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
-import { getUserStats, listCollaborations } from '../services/userService';
+import { getMyPosts, getUserStats, listCollaborations } from '../services/userService';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
@@ -22,7 +22,11 @@ export default function AnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [approved, setApproved] = useState(0);
   const [pending, setPending] = useState(0);
+  const [declined, setDeclined] = useState(0);
   const [total, setTotal] = useState(0);
+  const [followers, setFollowers] = useState(0);
+  const [following, setFollowing] = useState(0);
+  const [postCount, setPostCount] = useState(0);
 
   useEffect(() => {
     if (!token) {
@@ -37,20 +41,25 @@ export default function AnalyticsScreen() {
     const load = async () => {
       setLoading(true);
       try {
-        const [statsRes, pendingRes, approvedRes] = await Promise.all([
+        const [statsRes, pendingRes, approvedRes, declinedRes, allRes, postsRes] = await Promise.all([
           getUserStats(token),
           listCollaborations(token, { direction: 'incoming', status: 'PENDING' }),
-          listCollaborations(token, { status: 'ACCEPTED' }),
+          // Approved/declined/total count both directions — a collab I sent
+          // that got accepted is just as much "mine" as one sent to me.
+          listCollaborations(token, { direction: 'all', status: 'ACCEPTED' }),
+          listCollaborations(token, { direction: 'all', status: 'DECLINED' }),
+          listCollaborations(token, { direction: 'all' }),
+          getMyPosts(token, { limit: '1' }),
         ]);
         if (statsRes.success && statsRes.data) {
-          setTotal(statsRes.data.collabCount ?? 0);
+          setFollowers(statsRes.data.followerCount ?? 0);
+          setFollowing(statsRes.data.followingCount ?? 0);
         }
-        if (pendingRes.success) {
-          setPending(Array.isArray(pendingRes.data) ? pendingRes.data.length : 0);
-        }
-        if (approvedRes.success) {
-          setApproved(Array.isArray(approvedRes.data) ? approvedRes.data.length : 0);
-        }
+        if (pendingRes.success) setPending(Array.isArray(pendingRes.data) ? pendingRes.data.length : 0);
+        if (approvedRes.success) setApproved(Array.isArray(approvedRes.data) ? approvedRes.data.length : 0);
+        if (declinedRes.success) setDeclined(Array.isArray(declinedRes.data) ? declinedRes.data.length : 0);
+        if (allRes.success) setTotal(Array.isArray(allRes.data) ? allRes.data.length : 0);
+        if ((postsRes as any).success) setPostCount((postsRes as any).meta?.total ?? (postsRes as any).data?.length ?? 0);
       } finally {
         setLoading(false);
       }
@@ -67,7 +76,7 @@ export default function AnalyticsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
           >
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
@@ -81,6 +90,30 @@ export default function AnalyticsScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.content}>
+            <Text style={styles.sectionTitle}>Your Reach</Text>
+            <View style={styles.statsRow}>
+              <TouchableOpacity style={styles.statCardSmall} activeOpacity={0.8} onPress={() => router.push('/followers' as any)}>
+                <View style={styles.iconCircleWrapper}>
+                  <View style={[styles.iconCircle, styles.approvedIconCircle]}>
+                    <Ionicons name="people" size={20} color="#fff" />
+                  </View>
+                </View>
+                <Text style={styles.statLabel}>Followers</Text>
+                <Text style={styles.statValue}>{followers}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.statCardSmall} activeOpacity={0.8} onPress={() => router.push('/following' as any)}>
+                <View style={styles.iconCircleWrapper}>
+                  <View style={[styles.iconCircle, styles.pendingIconCircle]}>
+                    <Ionicons name="person-add" size={18} color="#fff" />
+                  </View>
+                </View>
+                <Text style={styles.statLabel}>Following</Text>
+                <Text style={styles.statValue}>{following}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.sectionTitle}>Collaborations</Text>
             <View style={styles.statsRow}>
               <View style={styles.statCardSmall}>
                 <View style={styles.iconCircleWrapper}>
@@ -89,7 +122,7 @@ export default function AnalyticsScreen() {
                   </View>
                   <View style={styles.dottedBorder} />
                 </View>
-                <Text style={styles.statLabel}>Approved request</Text>
+                <Text style={styles.statLabel}>Approved</Text>
                 <Text style={styles.statValue}>{approved}</Text>
               </View>
 
@@ -99,9 +132,31 @@ export default function AnalyticsScreen() {
                     <View style={styles.innerDottedCircle} />
                   </View>
                 </View>
-                <Text style={styles.statLabel}>Pending Request</Text>
+                <Text style={styles.statLabel}>Pending</Text>
                 <Text style={styles.statValue}>{pending}</Text>
               </View>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statCardSmall}>
+                <View style={styles.iconCircleWrapper}>
+                  <View style={[styles.iconCircle, styles.declinedIconCircle]}>
+                    <Ionicons name="close" size={20} color="#fff" />
+                  </View>
+                </View>
+                <Text style={styles.statLabel}>Declined</Text>
+                <Text style={styles.statValue}>{declined}</Text>
+              </View>
+
+              <TouchableOpacity style={styles.statCardSmall} activeOpacity={0.8} onPress={() => router.push('/my-posts' as any)}>
+                <View style={styles.iconCircleWrapper}>
+                  <View style={[styles.iconCircle, styles.approvedIconCircle]}>
+                    <Ionicons name="image" size={18} color="#fff" />
+                  </View>
+                </View>
+                <Text style={styles.statLabel}>Your Posts</Text>
+                <Text style={styles.statValue}>{postCount}</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.totalCard}>
@@ -111,14 +166,14 @@ export default function AnalyticsScreen() {
                   <Text style={styles.totalValue}>{total}</Text>
                 </View>
 
-                <TouchableOpacity onPress={() => router.push('/notifications' as any)}>
+                <TouchableOpacity onPress={() => router.push({ pathname: '/notifications', params: { tab: 'requests' } } as any)}>
                   <LinearGradient
                     colors={['#F15DAB', '#ED2A91']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.viewRequestBtn}
                   >
-                    <Text style={styles.viewRequestText}>View Request</Text>
+                    <Text style={styles.viewRequestText}>View Requests</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -163,6 +218,13 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 16,
   },
+  sectionTitle: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    fontFamily: 'Poppins_600SemiBold',
+    marginTop: 4,
+    marginBottom: -4,
+  },
   statsRow: {
     flexDirection: 'row',
     gap: 16,
@@ -174,12 +236,12 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    minHeight: 180,
+    minHeight: 150,
   },
   iconCircleWrapper: {
     width: 56,
     height: 56,
-    marginBottom: 24,
+    marginBottom: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -197,6 +259,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  declinedIconCircle: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
   dottedBorder: {
     position: 'absolute',
