@@ -24,6 +24,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearIncomingCallNotification } from '../services/callNotification';
+import { displayGeneralNotification } from '../services/generalNotification';
 import { routeNotificationData } from '../services/notificationRouting';
 import { declineCall, registerFcmToken } from '../services/userService';
 
@@ -99,6 +100,18 @@ function NotificationHandler() {
             if (!data) return;
             if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
                 routeNotificationData(router, data, pathnameRef.current);
+                return;
+            }
+            // Everything else (new message, collab request/accept/decline, new post):
+            // FCM only auto-displays a `notification`-type push when the app is
+            // backgrounded/killed — in the foreground it's silently delivered as
+            // data only, so without this nothing shows up while the app is open.
+            if (data.type === 'NEW_MESSAGE' && pathnameRef.current === `/chat/${data.conversationId}`) {
+                return; // already looking at this conversation — the chat screen refreshes itself
+            }
+            const notif = remoteMessage.notification;
+            if (notif?.title || notif?.body) {
+                displayGeneralNotification({ title: notif.title || 'DigiTag', body: notif.body || '', data });
             }
         });
 
@@ -124,7 +137,12 @@ function NotificationHandler() {
     useEffect(() => {
         const handlePress = async (data: any, actionId?: string) => {
             const callId = data?.callId as string | undefined;
-            if (!callId) return;
+            if (!callId) {
+                // Non-call notification tapped while app is foregrounded — same
+                // routing table used for backgrounded/killed taps.
+                routeNotificationData(router, data, pathnameRef.current);
+                return;
+            }
             if (actionId === 'decline') {
                 clearIncomingCallNotification(callId).catch(() => {});
                 AsyncStorage.removeItem(PENDING_CALL_KEY).catch(() => {});
