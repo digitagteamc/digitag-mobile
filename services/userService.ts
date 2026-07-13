@@ -1344,6 +1344,40 @@ export const downloadMyData = async (token: string) => {
     }
 };
 
+/* ─────────────────────── NOTIFICATIONS ─────────────────────── */
+
+export interface AppNotification {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    data?: Record<string, string> | null;
+    isRead: boolean;
+    createdAt: string;
+}
+
+/** GET /notifications — durable history of every push sent to this user
+ *  (new message, collab request/accepted/declined, new post). */
+export const getNotifications = async (token: string, params: { cursor?: string; limit?: number } = {}) => {
+    try {
+        const qs = new URLSearchParams(params as any);
+        const path = `/notifications${qs.toString() ? `?${qs}` : ''}`;
+        const body = await request(path, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: (body?.data ?? []) as AppNotification[], nextCursor: body?.meta?.nextCursor ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] as AppNotification[], nextCursor: null };
+    }
+};
+
+export const markAllNotificationsRead = async (token: string) => {
+    try {
+        await request('/notifications/read-all', { method: 'POST', headers: authHeaders(token) });
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ─────────────────────── SUBSCRIPTIONS (Razorpay) ─────────────────────── */
 
 export const createSubscription = async (token: string) => {

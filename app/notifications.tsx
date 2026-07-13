@@ -17,11 +17,15 @@ import NotificationItem from '../Components/ui/NotificationItem';
 import { useAuth } from '../context/AuthContext';
 import { fonts, palette, spacing } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
+import { routeNotificationData } from '../services/notificationRouting';
 import {
+    AppNotification,
     followUser,
     getFollowStatus,
     getFollowSuggestions,
+    getNotifications,
     listCollaborations,
+    markAllNotificationsRead,
     openConversationWith,
     respondCollaboration,
     unfollowUser,
@@ -52,37 +56,82 @@ function isYesterday(dateStr: string | null | undefined) {
     return d.toDateString() === y.toDateString();
 }
 
+function formatRelative(dateStr: string | null | undefined) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMins = Math.floor((now.getTime() - d.getTime()) / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.floor(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString();
+}
+
+function iconForType(type: string): keyof typeof Ionicons.glyphMap {
+    switch (type) {
+        case 'NEW_MESSAGE': return 'chatbubble-ellipses-outline';
+        case 'COLLAB_REQUEST': return 'people-outline';
+        case 'COLLAB_ACCEPTED': return 'checkmark-circle-outline';
+        case 'COLLAB_DECLINED': return 'close-circle-outline';
+        case 'NEW_POST': return 'image-outline';
+        default: return 'notifications-outline';
+    }
+}
+
+type Tab = 'requests' | 'notifications';
+
 export default function NotificationsScreen() {
     const router = useRouter();
     const { token } = useAuth();
     const theme = useRoleTheme(); // viewer's role theme
 
+    const [tab, setTab] = useState<Tab>('requests');
+
+    // ── Requests tab state ──
     const [requests, setRequests] = useState<any[]>([]);
-    const [suggestions, setSuggestions] = useState<any[]>([]);
-    const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const load = useCallback(async () => {
+    // ── Notifications tab state ──
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [notifLoading, setNotifLoading] = useState(true);
+    const [notifRefreshing, setNotifRefreshing] = useState(false);
+    const [notifNextCursor, setNotifNextCursor] = useState<string | null>(null);
+    const [notifLoadingMore, setNotifLoadingMore] = useState(false);
+
+    // ── Suggestions (shown at the bottom of the Notifications tab) ──
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+
+    const loadRequests = useCallback(async () => {
         if (!token) {
             setErrorMsg('You need to sign in to see notifications');
             setLoading(false);
             return;
         }
         setErrorMsg(null);
-        const [reqRes, sugRes] = await Promise.all([
-            listCollaborations(token, { direction: 'incoming' }),
+        const reqRes = await listCollaborations(token, { direction: 'incoming' });
+        setRequests(reqRes.success ? (reqRes.data || []) : []);
+        if (!reqRes.success) setErrorMsg('Could not load requests. Pull to try again.');
+        setLoading(false);
+    }, [token]);
+
+    const loadNotifications = useCallback(async () => {
+        if (!token) { setNotifLoading(false); return; }
+        const [notifRes, sugRes] = await Promise.all([
+            getNotifications(token, { limit: 30 }),
             getFollowSuggestions(token, 20),
         ]);
+        setNotifications(notifRes.success ? notifRes.data : []);
+        setNotifNextCursor(notifRes.success ? notifRes.nextCursor : null);
 
-        const reqs = reqRes.success ? (reqRes.data || []) : [];
         const sugs = sugRes.success ? (sugRes.data || []) : [];
-        setRequests(reqs);
         setSuggestions(sugs);
-
-        // Hydrate follow state for all suggestions so the button label is correct.
         if (sugs.length > 0) {
             const followChecks = await Promise.all(
                 sugs.map((s: any) => getFollowStatus(token, s.id).then((r) => ({
@@ -92,19 +141,44 @@ export default function NotificationsScreen() {
             );
             setFollowingIds(new Set(followChecks.filter((f) => f.following).map((f) => f.id)));
         }
-
-        if (!reqRes.success && !sugRes.success) {
-            setErrorMsg('Could not load notifications. Pull to try again.');
-        }
-        setLoading(false);
+        setNotifLoading(false);
     }, [token]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => { loadRequests(); }, [loadRequests]);
+    useEffect(() => { loadNotifications(); }, [loadNotifications]);
+
+    // Mark unread notifications read once the user actually looks at that tab
+    // (not on prefetch — the unread highlight should survive until they do).
+    useEffect(() => {
+        if (tab !== 'notifications' || !token) return;
+        const hasUnread = notifications.some((n) => !n.isRead);
+        if (!hasUnread) return;
+        markAllNotificationsRead(token).then((res) => {
+            if (res.success) setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        });
+    }, [tab, token, notifications]);
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await load();
+        await loadRequests();
         setRefreshing(false);
+    };
+
+    const onRefreshNotifications = async () => {
+        setNotifRefreshing(true);
+        await loadNotifications();
+        setNotifRefreshing(false);
+    };
+
+    const loadMoreNotifications = async () => {
+        if (!token || !notifNextCursor || notifLoadingMore) return;
+        setNotifLoadingMore(true);
+        const res = await getNotifications(token, { cursor: notifNextCursor, limit: 30 });
+        if (res.success) {
+            setNotifications((prev) => [...prev, ...res.data]);
+            setNotifNextCursor(res.nextCursor);
+        }
+        setNotifLoadingMore(false);
     };
 
     const handleRespond = async (id: string, action: 'ACCEPT' | 'DECLINE') => {
@@ -154,6 +228,10 @@ export default function NotificationsScreen() {
         setSuggestions((prev) => prev.filter((s) => s.id !== userId));
     };
 
+    const handleNotificationPress = (n: AppNotification) => {
+        routeNotificationData(router, (n.data || undefined) as Record<string, string> | undefined);
+    };
+
     const pending = requests.filter((r) => r.status === 'PENDING');
     const today = pending.filter((r) => isToday(r.createdAt));
     const yesterday = pending.filter((r) => isYesterday(r.createdAt));
@@ -172,78 +250,132 @@ export default function NotificationsScreen() {
                 </Text>
             </View>
 
-            {loading ? (
+            {/* ── Tabs ── */}
+            <View style={styles.tabRow}>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setTab('requests')} activeOpacity={0.75}>
+                    <Text style={[styles.tabLabel, tab === 'requests' && { color: theme.primary }]}>Requests</Text>
+                    {tab === 'requests' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setTab('notifications')} activeOpacity={0.75}>
+                    <Text style={[styles.tabLabel, tab === 'notifications' && { color: theme.primary }]}>Notifications</Text>
+                    {tab === 'notifications' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
+                </TouchableOpacity>
+            </View>
+
+            {tab === 'requests' ? (
+                loading ? (
+                    <View style={styles.centerWrap}>
+                        <ActivityIndicator color={theme.primary} size="large" />
+                    </View>
+                ) : (
+                    <FlatList
+                        data={[] as any[]}
+                        keyExtractor={() => ''}
+                        renderItem={() => null}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
+                        contentContainerStyle={{ paddingBottom: 140 }}
+                        ListHeaderComponent={
+                            <View>
+                                {errorMsg ? (
+                                    <View style={styles.errorBanner}>
+                                        <Ionicons name="warning-outline" size={16} color={palette.warning} />
+                                        <Text style={styles.errorText}>{errorMsg}</Text>
+                                    </View>
+                                ) : null}
+
+                                {today.length > 0 ? <Text style={styles.sectionTitle}>Today</Text> : null}
+                                {today.map((r) => (
+                                    <NotificationItem
+                                        key={r.id}
+                                        name={getSenderName(r.sender)}
+                                        subtitle="Sent a Collab Request"
+                                        avatarUri={getSenderPic(r.sender)}
+                                        role={r.sender?.role}
+                                        variant="request"
+                                        busy={busyId === r.id}
+                                        onAccept={() => handleRespond(r.id, 'ACCEPT')}
+                                        onReject={() => handleRespond(r.id, 'DECLINE')}
+                                        onNamePress={r.sender?.id ? () => router.push({ pathname: '/creator-details', params: { userId: r.sender.id } } as any) : undefined}
+                                    />
+                                ))}
+
+                                {yesterday.length > 0 ? <Text style={styles.sectionTitle}>Yesterday</Text> : null}
+                                {yesterday.map((r) => (
+                                    <NotificationItem
+                                        key={r.id}
+                                        name={getSenderName(r.sender)}
+                                        subtitle="Sent a Collab Request"
+                                        avatarUri={getSenderPic(r.sender)}
+                                        role={r.sender?.role}
+                                        variant="request"
+                                        busy={busyId === r.id}
+                                        onAccept={() => handleRespond(r.id, 'ACCEPT')}
+                                        onReject={() => handleRespond(r.id, 'DECLINE')}
+                                        onNamePress={r.sender?.id ? () => router.push({ pathname: '/creator-details', params: { userId: r.sender.id } } as any) : undefined}
+                                    />
+                                ))}
+
+                                {older.length > 0 ? <Text style={styles.sectionTitle}>Earlier</Text> : null}
+                                {older.map((r) => (
+                                    <NotificationItem
+                                        key={r.id}
+                                        name={getSenderName(r.sender)}
+                                        subtitle="Sent a Collab Request"
+                                        avatarUri={getSenderPic(r.sender)}
+                                        role={r.sender?.role}
+                                        variant="request"
+                                        busy={busyId === r.id}
+                                        onAccept={() => handleRespond(r.id, 'ACCEPT')}
+                                        onReject={() => handleRespond(r.id, 'DECLINE')}
+                                        onNamePress={r.sender?.id ? () => router.push({ pathname: '/creator-details', params: { userId: r.sender.id } } as any) : undefined}
+                                    />
+                                ))}
+
+                                {pending.length === 0 && !errorMsg ? (
+                                    <View style={styles.emptyBox}>
+                                        <Ionicons name="notifications-outline" size={40} color={palette.borderStrong} />
+                                        <Text style={styles.emptyText}>No pending requests right now</Text>
+                                    </View>
+                                ) : null}
+                            </View>
+                        }
+                    />
+                )
+            ) : notifLoading ? (
                 <View style={styles.centerWrap}>
                     <ActivityIndicator color={theme.primary} size="large" />
                 </View>
             ) : (
                 <FlatList
-                    data={[] as any[]}
-                    keyExtractor={() => ''}
-                    renderItem={() => null}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
+                    data={notifications}
+                    keyExtractor={(n) => n.id}
+                    refreshControl={<RefreshControl refreshing={notifRefreshing} onRefresh={onRefreshNotifications} tintColor={theme.primary} />}
                     contentContainerStyle={{ paddingBottom: 140 }}
+                    onEndReachedThreshold={0.4}
+                    onEndReached={loadMoreNotifications}
+                    renderItem={({ item }) => (
+                        <NotificationItem
+                            name={item.title}
+                            subtitle={`${item.body} · ${formatRelative(item.createdAt)}`}
+                            icon={iconForType(item.type)}
+                            variant="info"
+                            unread={!item.isRead}
+                            onPress={() => handleNotificationPress(item)}
+                        />
+                    )}
                     ListHeaderComponent={
+                        notifications.length === 0 ? (
+                            <View style={styles.emptyBox}>
+                                <Ionicons name="notifications-outline" size={40} color={palette.borderStrong} />
+                                <Text style={styles.emptyText}>No notifications yet</Text>
+                            </View>
+                        ) : null
+                    }
+                    ListFooterComponent={
                         <View>
-                            {errorMsg ? (
-                                <View style={styles.errorBanner}>
-                                    <Ionicons name="warning-outline" size={16} color={palette.warning} />
-                                    <Text style={styles.errorText}>{errorMsg}</Text>
-                                </View>
-                            ) : null}
-
-                            {today.length > 0 ? <Text style={styles.sectionTitle}>Today</Text> : null}
-                            {today.map((r) => (
-                                <NotificationItem
-                                    key={r.id}
-                                    name={getSenderName(r.sender)}
-                                    subtitle="Sent a Collab Request"
-                                    avatarUri={getSenderPic(r.sender)}
-                                    role={r.sender?.role}
-                                    variant="request"
-                                    busy={busyId === r.id}
-                                    onAccept={() => handleRespond(r.id, 'ACCEPT')}
-                                    onReject={() => handleRespond(r.id, 'DECLINE')}
-                                    onNamePress={r.sender?.id ? () => router.push({ pathname: '/creator-details', params: { userId: r.sender.id } } as any) : undefined}
-                                />
-                            ))}
-
-                            {yesterday.length > 0 ? <Text style={styles.sectionTitle}>Yesterday</Text> : null}
-                            {yesterday.map((r) => (
-                                <NotificationItem
-                                    key={r.id}
-                                    name={getSenderName(r.sender)}
-                                    subtitle="Sent a Collab Request"
-                                    avatarUri={getSenderPic(r.sender)}
-                                    role={r.sender?.role}
-                                    variant="request"
-                                    busy={busyId === r.id}
-                                    onAccept={() => handleRespond(r.id, 'ACCEPT')}
-                                    onReject={() => handleRespond(r.id, 'DECLINE')}
-                                    onNamePress={r.sender?.id ? () => router.push({ pathname: '/creator-details', params: { userId: r.sender.id } } as any) : undefined}
-                                />
-                            ))}
-
-                            {older.length > 0 ? <Text style={styles.sectionTitle}>Earlier</Text> : null}
-                            {older.map((r) => (
-                                <NotificationItem
-                                    key={r.id}
-                                    name={getSenderName(r.sender)}
-                                    subtitle="Sent a Collab Request"
-                                    avatarUri={getSenderPic(r.sender)}
-                                    role={r.sender?.role}
-                                    variant="request"
-                                    busy={busyId === r.id}
-                                    onAccept={() => handleRespond(r.id, 'ACCEPT')}
-                                    onReject={() => handleRespond(r.id, 'DECLINE')}
-                                    onNamePress={r.sender?.id ? () => router.push({ pathname: '/creator-details', params: { userId: r.sender.id } } as any) : undefined}
-                                />
-                            ))}
-
-                            {pending.length === 0 && !errorMsg ? (
-                                <View style={styles.emptyBox}>
-                                    <Ionicons name="notifications-outline" size={40} color={palette.borderStrong} />
-                                    <Text style={styles.emptyText}>No pending requests right now</Text>
+                            {notifLoadingMore ? (
+                                <View style={{ paddingVertical: 16 }}>
+                                    <ActivityIndicator color={theme.primary} />
                                 </View>
                             ) : null}
 
@@ -291,6 +423,17 @@ const styles = StyleSheet.create({
     },
     headerTitle: { color: palette.textPrimary, fontSize: 17, fontFamily: fonts.semibold, flex: 1, textAlign: 'center' },
     requestCount: { fontSize: 13, fontFamily: fonts.semibold },
+
+    tabRow: {
+        flexDirection: 'row',
+        paddingHorizontal: spacing.xl,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: palette.borderStrong,
+        marginBottom: 4,
+    },
+    tabBtn: { paddingVertical: 12, marginRight: 28 },
+    tabLabel: { color: palette.textMuted, fontFamily: fonts.semibold, fontSize: 14 },
+    tabIndicator: { height: 2, borderRadius: 1, marginTop: 8 },
 
     centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

@@ -9,11 +9,18 @@ export interface NotificationItemProps {
     name: string;
     subtitle: string;
     avatarUri?: string | null;
+    /** Shown as a colored icon circle instead of a photo — for generic
+     *  activity items (new message, collab accepted/declined, new post)
+     *  that have no single "other person" avatar to show. Ignored if
+     *  avatarUri is set. */
+    icon?: keyof typeof Ionicons.glyphMap;
     /** Role of the other party — drives theme accents. */
     role?: Role | string | null;
     /** Variant picks which actions render. */
     variant: 'request' | 'suggestion' | 'info';
     busy?: boolean;
+    /** Unread items get a subtle highlight + accent dot. */
+    unread?: boolean;
     // Request actions
     onAccept?: () => void;
     onReject?: () => void;
@@ -30,9 +37,11 @@ export default function NotificationItem({
     name,
     subtitle,
     avatarUri,
+    icon,
     role,
     variant,
     busy,
+    unread,
     onAccept,
     onReject,
     following,
@@ -44,8 +53,14 @@ export default function NotificationItem({
     const theme = getRoleTheme(role ?? null);
 
     const content = (
-        <View style={styles.row}>
-            <Image source={avatarUri ? { uri: avatarUri } : require('../../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
+        <View style={[styles.row, unread && { backgroundColor: theme.primary + '0F' }]}>
+            {icon && !avatarUri ? (
+                <View style={[styles.iconCircle, { backgroundColor: theme.primary + '22' }]}>
+                    <Ionicons name={icon} size={20} color={theme.primary} />
+                </View>
+            ) : (
+                <Image source={avatarUri ? { uri: avatarUri } : require('../../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
+            )}
 
             <View style={styles.body}>
                 {onNamePress ? (
@@ -57,6 +72,8 @@ export default function NotificationItem({
                 )}
                 <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
             </View>
+
+            {unread ? <View style={[styles.unreadDot, { backgroundColor: theme.primary }]} /> : null}
 
             {busy ? (
                 <ActivityIndicator color={theme.primary} />
@@ -101,6 +118,8 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: palette.surface },
+    iconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+    unreadDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 6 },
     initialsAvatar: {
         alignItems: 'center',
         justifyContent: 'center',
