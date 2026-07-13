@@ -359,10 +359,10 @@ export default function CreatorDetails() {
                         </View>
 
                         <View style={styles.nameRow}>
-                            <Text style={styles.name}>{name}</Text>
-                            <MaterialIcons name="verified" size={16} color={accentColor} style={{ marginLeft: 4 }} />
+                            <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
+                            <MaterialIcons name="verified" size={16} color={accentColor} style={{ marginLeft: 4, flexShrink: 0 }} />
                             {profile?.isPremium && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(255,215,0,0.15)' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(255,215,0,0.15)', flexShrink: 0 }}>
                                     <Ionicons name="star" size={10} color="#FFD700" />
                                     <Text style={{ color: '#FFD700', fontSize: 10, fontFamily: 'Poppins_600SemiBold' }}>Premium</Text>
                                 </View>

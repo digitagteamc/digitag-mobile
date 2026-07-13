@@ -477,11 +477,16 @@ export default function ProfileScreen() {
               {/* Text Info */}
               <View className="flex-1">
                 <View className="flex-row items-center gap-2">
-                  <Text className="text-white text-2xl   tracking-tight" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+                  <Text
+                    className="text-white text-2xl   tracking-tight"
+                    style={{ fontFamily: 'Poppins_600SemiBold', flexShrink: 1 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {profile?.name || profile?.phone || ''}
                   </Text>
                   {profile?.isPremium && (
-                    <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,215,0,0.15)' }}>
+                    <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,215,0,0.15)', flexShrink: 0 }}>
                       <Ionicons name="star" size={11} color="#FFD700" />
                       <Text style={{ color: '#FFD700', fontSize: 11, fontFamily: 'Poppins_600SemiBold' }}>Premium</Text>
                     </View>
