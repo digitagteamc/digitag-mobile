@@ -89,7 +89,7 @@ export default function NotificationsScreen() {
     const { token } = useAuth();
     const theme = useRoleTheme(); // viewer's role theme
 
-    const [tab, setTab] = useState<Tab>('requests');
+    const [tab, setTab] = useState<Tab>('notifications');
     const { clearUnreadCount } = useNotificationCount();
 
     // ── Requests tab state ──
@@ -234,6 +234,12 @@ export default function NotificationsScreen() {
     };
 
     const handleNotificationPress = (n: AppNotification) => {
+        if (n.type === 'COLLAB_REQUEST') {
+            // routeNotificationData would push another /notifications route on
+            // top of this one — we're already here, just switch tabs instead.
+            setTab('requests');
+            return;
+        }
         routeNotificationData(router, (n.data || undefined) as Record<string, string> | undefined);
     };
 
@@ -257,13 +263,13 @@ export default function NotificationsScreen() {
 
             {/* ── Tabs ── */}
             <View style={styles.tabRow}>
-                <TouchableOpacity style={styles.tabBtn} onPress={() => setTab('requests')} activeOpacity={0.75}>
-                    <Text style={[styles.tabLabel, tab === 'requests' && { color: theme.primary }]}>Requests</Text>
-                    {tab === 'requests' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
-                </TouchableOpacity>
                 <TouchableOpacity style={styles.tabBtn} onPress={() => setTab('notifications')} activeOpacity={0.75}>
                     <Text style={[styles.tabLabel, tab === 'notifications' && { color: theme.primary }]}>Notifications</Text>
                     {tab === 'notifications' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.tabBtn} onPress={() => setTab('requests')} activeOpacity={0.75}>
+                    <Text style={[styles.tabLabel, tab === 'requests' && { color: theme.primary }]}>Requests</Text>
+                    {tab === 'requests' && <View style={[styles.tabIndicator, { backgroundColor: theme.primary }]} />}
                 </TouchableOpacity>
             </View>
 
