@@ -321,7 +321,7 @@ export default function ProfileScreen() {
     return (
       <View className="flex-1 bg-[#060606] justify-center items-center px-8">
         <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
-        <Text className="text-white text-2xl font-bold mb-2" style={{ fontFamily: 'Poppins_700Bold' }}>
+        <Text className="text-white text-2xl font-bold mb-2" style={{ fontFamily: 'Poppins_700Bold' }} numberOfLines={1} ellipsizeMode="tail">
           Hi, {profile?.name || userPhone || 'there'}!
         </Text>
         <Text className="text-[#888] text-sm text-center mb-8" style={{ fontFamily: 'Poppins_400Regular' }}>
