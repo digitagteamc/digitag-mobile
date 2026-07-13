@@ -10,7 +10,6 @@ import {
     Image,
     ImageBackground,
     Keyboard,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     Pressable,
@@ -27,11 +26,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import messaging, { onMessage } from '@react-native-firebase/messaging';
 import { useAuth } from '../../context/AuthContext';
+import { prepareImageForUpload } from '../../services/imageResize';
 import {
     deleteMessage as apiDeleteMessage,
     editMessage as apiEditMessage,
     sendMessage as apiSendMessage,
     getConversation,
+    getConversationCalls,
     initiateCall,
     listMessages,
     uploadMessageImage,
@@ -41,6 +42,14 @@ import { useRoleTheme } from '../../theme/useRoleTheme';
 const chatBg = require('../../assets/bg-chat.webp');
 const DARK_BUBBLE = '#1E1E26';
 const REACTIONS = ['❤️', '👍', '😂', '😮', '🙏', '😢'];
+
+interface QuotedMessage {
+    id: string;
+    content: string;
+    imageUrl?: string | null;
+    senderId: string;
+    isDeleted?: boolean;
+}
 
 interface ChatMessage {
     id: string;
@@ -54,6 +63,59 @@ interface ChatMessage {
     createdAt: string;
     pending?: boolean;
     reactions?: Record<string, string[]>;
+    replyTo?: QuotedMessage | null;
+}
+
+/** One-line description of a message for quote previews: text, or 📷 for images. */
+function describeMessage(msg: { content?: string; imageUrl?: string | null; isDeleted?: boolean } | null | undefined) {
+    if (!msg || msg.isDeleted) return 'Message deleted';
+    // Strip the legacy text-encoded "> quote\n\n" prefix from old messages.
+    const text = (msg.content || '').replace(/^> .+\n\n/, '').trim();
+    if (text) return text;
+    return msg.imageUrl ? '📷 Photo' : '';
+}
+
+/** A completed/missed/declined call, shown inline in the chat thread — same
+ *  timeline as messages, not a separate call-log screen. */
+interface CallLogEntry {
+    id: string;
+    callerId: string;
+    calleeId: string;
+    status: 'RINGING' | 'ACTIVE' | 'ENDED' | 'DECLINED' | 'MISSED';
+    startedAt: string | null;
+    endedAt: string | null;
+    createdAt: string;
+}
+
+/** Timeline item: either a chat message or a call-log entry, merged and sorted
+ *  by time so calls appear inline exactly where they happened, WhatsApp-style. */
+type TimelineItem =
+    | { kind: 'message'; key: string; at: string; message: ChatMessage }
+    | { kind: 'call'; key: string; at: string; call: CallLogEntry };
+
+function mergeTimeline(messages: ChatMessage[], calls: CallLogEntry[]): TimelineItem[] {
+    const items: TimelineItem[] = [
+        ...messages.map((m): TimelineItem => ({ kind: 'message', key: `m-${m.id}`, at: m.createdAt, message: m })),
+        ...calls.map((c): TimelineItem => ({ kind: 'call', key: `c-${c.id}`, at: c.createdAt, call: c })),
+    ];
+    items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    return items;
+}
+
+function formatCallDuration(startedAt: string | null, endedAt: string | null) {
+    if (!startedAt || !endedAt) return null;
+    const seconds = Math.max(0, Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 1000));
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function describeCall(call: CallLogEntry, mine: boolean) {
+    if (call.status === 'MISSED') return mine ? 'No answer' : 'Missed call';
+    if (call.status === 'DECLINED') return mine ? 'Call declined' : 'Missed call';
+    if (call.status === 'RINGING' || call.status === 'ACTIVE') return 'Ongoing call';
+    const duration = formatCallDuration(call.startedAt, call.endedAt);
+    return duration ? `${mine ? 'Outgoing' : 'Incoming'} call · ${duration}` : (mine ? 'Outgoing call' : 'Incoming call');
 }
 
 function getInitials(name: string | null | undefined) {
@@ -90,6 +152,7 @@ export default function ChatScreen() {
     const [other, setOther] = useState<any>(null);
     const otherRef = useRef<any>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [calls, setCalls] = useState<CallLogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [input, setInput] = useState('');
@@ -100,31 +163,38 @@ export default function ChatScreen() {
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
     const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
-    // Android: windowSoftInputMode="adjustResize" doesn't actually resize this screen
-    // (translucent/edge-to-edge status bar), and KeyboardAvoidingView's built-in "height"
-    // behavior leaves a stale gap once the keyboard hides. useAnimatedKeyboard tracks the
-    // keyboard's real native animation frame-by-frame on the UI thread, so the composer
-    // rises in perfect sync with the keyboard — no lag, no leftover gap.
+    // Single keyboard-compensation mechanism for BOTH platforms. useAnimatedKeyboard
+    // tracks the keyboard's real native animation frame-by-frame on the UI thread, so
+    // the composer rises in perfect sync. Do NOT wrap this screen in a
+    // KeyboardAvoidingView as well — running both compensations at once is what caused
+    // the big black band between the composer and the keyboard on iOS.
+    // On iOS the keyboard frame overlaps the home-indicator area the composer already
+    // pads for (insets.bottom), so subtract it to sit flush against the keyboard.
     const keyboard = useAnimatedKeyboard();
-    const androidKeyboardStyle = useAnimatedStyle(() => ({
-        marginBottom: Platform.OS === 'android' ? keyboard.height.value : 0,
+    const bottomInset = insets.bottom;
+    const keyboardStyle = useAnimatedStyle(() => ({
+        marginBottom: Platform.OS === 'android'
+            ? keyboard.height.value
+            : Math.max(keyboard.height.value - bottomInset, 0),
     }));
 
-    const listRef = useRef<FlatList<ChatMessage> | null>(null);
+    const listRef = useRef<FlatList<TimelineItem> | null>(null);
     const inputRef = useRef<TextInput>(null);
     const swipeableRefs = useRef<Map<string, Swipeable>>(new Map());
 
     const load = useCallback(async () => {
         if (!token || !id) return;
-        const [convRes, msgsRes] = await Promise.all([
+        const [convRes, msgsRes, callsRes] = await Promise.all([
             getConversation(token, String(id)),
             listMessages(token, String(id), { limit: 50 }),
+            getConversationCalls(token, String(id)),
         ]);
         if (convRes.success && convRes.data?.other) {
             setOther(convRes.data.other);
             otherRef.current = convRes.data.other;
         }
         if (msgsRes.success) setMessages(msgsRes.data || []);
+        if (callsRes.success) setCalls(callsRes.data || []);
         setLoading(false);
         // Anchor to the latest message on open, same as WhatsApp — without this the
         // inverted list can settle at an inconsistent initial offset once images/
@@ -139,29 +209,37 @@ export default function ChatScreen() {
     useEffect(() => {
         if (!token || !id) return;
         const interval = setInterval(async () => {
-            const [msgsRes, convRes] = await Promise.all([
+            const [msgsRes, convRes, callsRes] = await Promise.all([
                 listMessages(token, String(id), { limit: 50 }),
                 getConversation(token, String(id)),
+                getConversationCalls(token, String(id)),
             ]);
             if (msgsRes.success) setMessages(msgsRes.data || []);
             if (convRes.success && convRes.data?.other) {
                 setOther(convRes.data.other);
                 otherRef.current = convRes.data.other;
             }
+            if (callsRes.success) setCalls(callsRes.data || []);
         }, 5000);
         return () => clearInterval(interval);
     }, [token, id]);
 
-    // Instant refresh when the other side sends a message while this chat is open —
-    // the FCM push arrives in-foreground via onMessage, so fetch immediately instead
-    // of waiting out the 5s polling interval.
+    // Instant refresh when a push for this conversation arrives while the chat is
+    // open: a new message, or a call event (ended/declined/accepted) that should
+    // show up in the call-history timeline immediately rather than after the next
+    // 5s poll. Same handling on both iOS and Android — onMessage covers both.
     useEffect(() => {
         if (!token || !id) return;
         const unsubscribe = onMessage(messaging(), async remoteMessage => {
             const data = remoteMessage.data as Record<string, string> | undefined;
-            if (data?.type !== 'NEW_MESSAGE' || data.conversationId !== String(id)) return;
-            const msgsRes = await listMessages(token, String(id), { limit: 50 });
-            if (msgsRes.success) setMessages(msgsRes.data || []);
+            if (!data) return;
+            if (data.type === 'NEW_MESSAGE' && data.conversationId === String(id)) {
+                const msgsRes = await listMessages(token, String(id), { limit: 50 });
+                if (msgsRes.success) setMessages(msgsRes.data || []);
+            } else if (data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED' || data.type === 'CALL_ACCEPTED') {
+                const callsRes = await getConversationCalls(token, String(id));
+                if (callsRes.success) setCalls(callsRes.data || []);
+            }
         });
         return () => unsubscribe();
     }, [token, id]);
@@ -175,16 +253,28 @@ export default function ChatScreen() {
     }, []);
 
     // ── Camera / Gallery ────────────────────────────────────────────────────────
+    // Photos are resized/re-compressed before being staged for send — modern phone
+    // cameras (iOS and Android alike) can produce files over the backend's upload
+    // size limit even after ImagePicker's own JPEG quality setting, since quality
+    // alone doesn't shrink pixel dimensions.
     const handleCamera = async () => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) { Alert.alert('Permission Required', 'Camera access is needed to take photos.'); return; }
         const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.75, allowsEditing: true });
-        if (!result.canceled && result.assets[0]) setImageToSend(result.assets[0]);
+        if (!result.canceled && result.assets[0]) {
+            const asset = result.assets[0];
+            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+            setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+        }
     };
 
     const handleAttach = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.75 });
-        if (!result.canceled && result.assets[0]) setImageToSend(result.assets[0]);
+        if (!result.canceled && result.assets[0]) {
+            const asset = result.assets[0];
+            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+            setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+        }
     };
 
     // ── Send / Edit ─────────────────────────────────────────────────────────────
@@ -210,6 +300,7 @@ export default function ChatScreen() {
             id: optimisticId, conversationId: String(id), senderId: userId!,
             content: text, imageUrl: imageToSend ? imageToSend.uri : null,
             isRead: false, createdAt: new Date().toISOString(), pending: true,
+            replyTo: replyTo ? { id: replyTo.id, content: replyTo.content, imageUrl: replyTo.imageUrl, senderId: replyTo.senderId } : null,
         };
         setMessages((prev) => [...prev, optimistic]);
         setInput('');
@@ -221,12 +312,20 @@ export default function ChatScreen() {
             let uploadedUrl: string | undefined;
             if (imageToSend) {
                 const upRes = await uploadMessageImage(token, imageToSend);
-                if (upRes.success && upRes.data?.url) uploadedUrl = upRes.data.url;
+                if (upRes.success && upRes.data?.url) {
+                    uploadedUrl = upRes.data.url;
+                } else {
+                    // Don't silently drop the image and send a text-only message —
+                    // let the user know and leave their input/photo intact to retry.
+                    setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+                    setInput(text);
+                    setImageToSend(imageToSend);
+                    setReplyTo(capturedReplyTo);
+                    Alert.alert('Send Failed', (upRes as any).error || 'Could not upload image');
+                    return;
+                }
             }
-            const finalContent = capturedReplyTo
-                ? `> ${capturedReplyTo.content.slice(0, 80)}${capturedReplyTo.content.length > 80 ? '…' : ''}\n\n${text}`
-                : text;
-            const res = await apiSendMessage(token, String(id), finalContent, uploadedUrl);
+            const res = await apiSendMessage(token, String(id), text, uploadedUrl, capturedReplyTo?.id);
             if (!res.success) {
                 setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
                 setInput(text);
@@ -343,7 +442,7 @@ export default function ChatScreen() {
 
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     const pic = other?.profilePicture || null;
-    const reversedMessages = [...messages].reverse();
+    const reversedTimeline = mergeTimeline(messages, calls).reverse();
 
     const renderMainContent = () => (
         <>
@@ -357,8 +456,8 @@ export default function ChatScreen() {
                         ref={listRef}
                         style={{ flex: 1 }}
                         inverted
-                        data={reversedMessages}
-                        keyExtractor={(m) => m.id}
+                        data={reversedTimeline}
+                        keyExtractor={(t) => t.key}
                         contentContainerStyle={styles.messagesContent}
                         keyboardShouldPersistTaps="handled"
                         ListFooterComponent={
@@ -373,18 +472,29 @@ export default function ChatScreen() {
                             </View>
                         }
                         renderItem={({ item }) => {
-                            const mine = item.senderId === userId;
+                            if (item.kind === 'call') {
+                                return (
+                                    <CallLogRow
+                                        call={item.call}
+                                        mine={item.call.callerId === userId}
+                                        accentColor={myTheme.primary}
+                                        onCallBack={handleCall}
+                                    />
+                                );
+                            }
+                            const msg = item.message;
+                            const mine = msg.senderId === userId;
                             return (
                                 <MessageRow
-                                    item={item}
+                                    item={msg}
                                     mine={mine}
                                     myColor={myTheme.primary}
                                     otherColor={myTheme.primary}
                                     userId={userId!}
                                     onLongPress={handleLongPress}
-                                    onSwipeReply={(msg) => {
-                                        setReplyTo(msg);
-                                        swipeableRefs.current.get(msg.id)?.close();
+                                    onSwipeReply={(m) => {
+                                        setReplyTo(m);
+                                        swipeableRefs.current.get(m.id)?.close();
                                         setTimeout(() => inputRef.current?.focus(), 150);
                                     }}
                                     onImagePress={(url) => setViewImageUrl(url)}
@@ -403,8 +513,11 @@ export default function ChatScreen() {
                             <Animated.View entering={FadeIn.duration(140)} exiting={FadeOut.duration(100)} style={[styles.contextBar, { borderLeftColor: myTheme.primary }]}>
                                 <View style={styles.contextBarInner}>
                                     <Ionicons name="return-down-forward" size={13} color={myTheme.primary} />
+                                    {replyTo.imageUrl ? (
+                                        <Image source={{ uri: replyTo.imageUrl }} style={styles.contextBarThumb} resizeMode="cover" />
+                                    ) : null}
                                     <Text style={[styles.contextBarText, { color: myTheme.primary }]} numberOfLines={1}>
-                                        {replyTo.content.replace(/^> .+\n\n/, '').slice(0, 60)}
+                                        {describeMessage(replyTo).slice(0, 60)}
                                     </Text>
                                 </View>
                                 <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -538,15 +651,9 @@ export default function ChatScreen() {
                     imageStyle={{ opacity: 0.65 }}
                     resizeMode="cover"
                 />
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={0}
-                >
-                    <Animated.View style={[{ flex: 1 }, androidKeyboardStyle]}>
-                        {renderMainContent()}
-                    </Animated.View>
-                </KeyboardAvoidingView>
+                <Animated.View style={[{ flex: 1 }, keyboardStyle]}>
+                    {renderMainContent()}
+                </Animated.View>
             </View>
 
             {/* ── Full-screen image viewer ─────────────────────────────────────── */}
@@ -657,14 +764,18 @@ interface MessageRowProps {
 
 function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSwipeReply, onImagePress, swipeableRefs }: MessageRowProps) {
     const bubbleColor = mine ? DARK_BUBBLE : otherColor;
-    const hasQuote = item.content.startsWith('> ');
-    let quoteText = '';
+    // Real replies carry a replyTo record; older messages used a text-encoded
+    // "> quote\n\nbody" format, still parsed so history renders correctly.
+    const legacyQuote = !item.replyTo && item.content.startsWith('> ');
+    let quoteText = item.replyTo ? describeMessage(item.replyTo) : '';
+    let quoteImage = item.replyTo && !item.replyTo.isDeleted ? item.replyTo.imageUrl : null;
     let bodyText = item.content;
-    if (hasQuote) {
+    if (legacyQuote) {
         const lines = item.content.split('\n\n');
         quoteText = lines[0].replace(/^> /, '');
         bodyText = lines.slice(1).join('\n\n');
     }
+    const hasQuote = Boolean(item.replyTo) || legacyQuote;
 
     const reactionEntries = Object.entries(item.reactions || {}).filter(([, users]) => users.length > 0);
 
@@ -710,7 +821,10 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
                                         borderLeftColor: mine ? myColor : '#fff',
                                         backgroundColor: mine ? myColor + '22' : 'rgba(255,255,255,0.1)',
                                     }]}>
-                                        <Text style={styles.quotedText} numberOfLines={2}>{quoteText}</Text>
+                                        {quoteImage ? (
+                                            <Image source={{ uri: quoteImage }} style={styles.quotedThumb} resizeMode="cover" />
+                                        ) : null}
+                                        <Text style={[styles.quotedText, { flexShrink: 1 }]} numberOfLines={2}>{quoteText}</Text>
                                     </View>
                                 )}
                                 {item.imageUrl && (
@@ -753,6 +867,36 @@ function MessageRow({ item, mine, myColor, otherColor, userId, onLongPress, onSw
     );
 }
 
+/** Inline call-history row, WhatsApp-style: centered pill in the message
+ *  timeline (not a bubble, not a separate screen). Tapping it calls back —
+ *  identical behavior/markup on iOS and Android, no platform branching needed
+ *  since it's plain RN Views/Ionicons throughout. */
+function CallLogRow({ call, mine, accentColor, onCallBack }: {
+    call: CallLogEntry;
+    mine: boolean;
+    accentColor: string;
+    onCallBack: () => void;
+}) {
+    const missed = call.status === 'MISSED' || call.status === 'DECLINED';
+    const iconColor = missed ? '#EF4444' : accentColor;
+    return (
+        <View style={styles.callLogWrap}>
+            <TouchableOpacity
+                style={styles.callLogPill}
+                activeOpacity={0.75}
+                onPress={onCallBack}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+                <Ionicons name="call" size={13} color={iconColor} />
+                <Text style={[styles.callLogText, missed && { color: iconColor }]} numberOfLines={1}>
+                    {describeCall(call, mine)}
+                </Text>
+                <Text style={styles.callLogTime}>{formatTime(call.createdAt)}</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: '#060606' },
 
@@ -780,6 +924,17 @@ const styles = StyleSheet.create({
     messagesContent: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, flexGrow: 1 },
     dateSeparator: { alignItems: 'center', marginVertical: 16 },
     dateText: { color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular' },
+
+    // ── Inline call log row ──
+    callLogWrap: { alignItems: 'center', marginVertical: 6 },
+    callLogPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14,
+        maxWidth: '80%',
+    },
+    callLogText: { color: '#D8D8E2', fontSize: 12, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
+    callLogTime: { color: '#8A8A99', fontSize: 11, fontFamily: 'Poppins_400Regular', marginLeft: 2 },
     emptyBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
     emptyText: { color: '#6B6B7A', fontSize: 14, fontFamily: 'Poppins_400Regular' },
 
@@ -795,7 +950,8 @@ const styles = StyleSheet.create({
     bubbleMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4, gap: 2 },
     bubbleTime: { color: 'rgba(255,255,255,0.45)', fontSize: 10, fontFamily: 'Poppins_400Regular' },
     editedLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: 'Poppins_400Regular' },
-    quotedBar: { borderLeftWidth: 3, paddingLeft: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 4 },
+    quotedBar: { borderLeftWidth: 3, paddingLeft: 8, paddingRight: 8, paddingVertical: 4, marginBottom: 6, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    quotedThumb: { width: 34, height: 34, borderRadius: 4 },
     quotedText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontFamily: 'Poppins_400Regular', lineHeight: 17 },
     reactionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 3, marginHorizontal: 4 },
     reactionChip: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingHorizontal: 6, paddingVertical: 2 },
@@ -812,6 +968,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12, paddingVertical: 8, marginBottom: 4, borderRadius: 10,
     },
     contextBarInner: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 },
+    contextBarThumb: { width: 28, height: 28, borderRadius: 4 },
     contextBarText: { fontSize: 12, fontFamily: 'Poppins_400Regular', flex: 1 },
     imagePreviewRow: { flexDirection: 'row', alignItems: 'center', paddingLeft: 8, marginBottom: 6 },
     imagePreview: { width: 60, height: 60, borderRadius: 10 },

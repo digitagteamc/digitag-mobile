@@ -16,6 +16,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import notifee from '@notifee/react-native';
+import messaging from '@react-native-firebase/messaging';
+import { clearIncomingCallNotification } from '../services/callNotification';
+import { routeNotificationData } from '../services/notificationRouting';
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
 const INTRO_DURATION_MS = 4000;
@@ -142,6 +145,8 @@ export default function Index() {
     const { isLoading, token, isGuest, hasOnboarded } = useAuth();
     const router = useRouter();
     const [introDone, setIntroDone] = useState(false);
+    // A non-call notification tap that cold-started the app — routed after the intro.
+    const [pendingNotif, setPendingNotif] = useState<Record<string, string> | null>(null);
 
     // ── Logo box collapse after fill ──
     const boxScale = useSharedValue(1);
@@ -185,34 +190,54 @@ export default function Index() {
 
     }, []);
 
-    // ── Navigation ──
+    // ── Cold-start notification handling ──
+    // Calls are time-sensitive: skip the intro and land on /call immediately
+    // (replace unmounts this screen, so the intro timer can't stomp the route
+    // with /(tabs) afterwards). Other notification types are stashed and routed
+    // once the intro finishes. Waits for auth restore so /call has a token.
     useEffect(() => {
-        const checkPendingCall = async () => {
+        if (isLoading) return;
+        let cancelled = false;
+
+        const goToCall = (callId: string, callerName?: string) => {
+            if (cancelled) return;
+            clearIncomingCallNotification(callId).catch(() => {});
+            AsyncStorage.removeItem(PENDING_CALL_KEY).catch(() => {});
+            router.replace({
+                pathname: '/call',
+                params: { mode: 'incoming', callId, remoteName: callerName },
+            } as any);
+        };
+
+        const checkColdStartNotification = async () => {
+            // 1. Android killed-state call (set by index.js background handler)
             const stored = await AsyncStorage.getItem(PENDING_CALL_KEY);
             if (stored) {
                 try {
                     const parsed = JSON.parse(stored);
-                    if (parsed?.callId) {
-                        await AsyncStorage.removeItem(PENDING_CALL_KEY);
-                        router.replace({
-                            pathname: '/call',
-                            params: { mode: 'incoming', callId: parsed.callId, remoteName: parsed.callerName },
-                        } as any);
-                        return;
-                    }
+                    if (parsed?.callId) { goToCall(parsed.callId, parsed.callerName); return; }
                 } catch {}
             }
+            // 2. Android notifee incoming-call notification body tap
             const initial = await notifee.getInitialNotification();
-            const data = initial?.notification?.data as Record<string, string> | undefined;
-            if (data?.type === 'INCOMING_CALL' && data.callId) {
-                router.replace({
-                    pathname: '/call',
-                    params: { mode: 'incoming', callId: data.callId, remoteName: data.callerName },
-                } as any);
+            const nData = initial?.notification?.data as Record<string, string> | undefined;
+            if (nData?.type === 'INCOMING_CALL' && nData.callId) {
+                goToCall(nData.callId, nData.callerName);
+                return;
             }
+            // 3. FCM notification tap that launched the app (iOS killed-state calls
+            //    arrive here — the OS shows the APNs alert itself, no JS runs first)
+            const remote = await messaging().getInitialNotification().catch(() => null);
+            const fData = remote?.data as Record<string, string> | undefined;
+            if (fData?.type === 'INCOMING_CALL' && fData.callId) {
+                goToCall(fData.callId, fData.callerName);
+                return;
+            }
+            if (fData?.type && !cancelled) setPendingNotif(fData);
         };
-        checkPendingCall();
-    }, []);
+        checkColdStartNotification();
+        return () => { cancelled = true; };
+    }, [isLoading]);
 
     useEffect(() => {
         const timer = setTimeout(() => setIntroDone(true), INTRO_DURATION_MS);
@@ -223,12 +248,15 @@ export default function Index() {
         if (!introDone || isLoading) return;
         if (token || isGuest) {
             router.replace('/(tabs)');
+            // Deep-link into the tapped notification's screen, on top of tabs so
+            // back behaves normally.
+            if (pendingNotif) routeNotificationData(router, pendingNotif);
         } else if (hasOnboarded) {
             router.replace('/role-selection');
         } else {
             router.replace('/onboarding/splash1');
         }
-    }, [introDone, isLoading]);
+    }, [introDone, isLoading, pendingNotif]);
 
     // ── Animated styles ──
     const screenStyle = useAnimatedStyle(() => ({

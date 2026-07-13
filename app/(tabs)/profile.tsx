@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Linking,
   Modal,
@@ -15,10 +16,12 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import { useAuth } from '../../context/AuthContext';
-import { getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
+import { facebookUrl, youtubeUrl } from '../../services/socialLinks';
+import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
 
@@ -41,6 +44,7 @@ interface ProfileData {
   youtubeFollowers?: number | null;
   twitterHandle?: string | null;
   twitterFollowers?: number | null;
+  facebookHandle?: string | null;
   preferredCollabType?: string | null;
   isAvailableForCollab?: boolean | null;
   // Freelancer-specific
@@ -83,6 +87,7 @@ export default function ProfileScreen() {
   const [myPosts, setMyPosts] = useState<any[]>([]);
   const [myCollabs, setMyCollabs] = useState<any[]>([]);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [upgrading, setUpgrading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -141,6 +146,7 @@ export default function ProfileScreen() {
                 youtubeFollowers: p.youtubeFollowers ?? null,
                 twitterHandle: p.twitterHandle || null,
                 twitterFollowers: p.twitterFollowers ?? null,
+                facebookHandle: p.facebookHandle || null,
                 preferredCollabType: p.preferredCollabType || null,
                 isAvailableForCollab: p.isAvailableForCollab ?? true,
               });
@@ -151,6 +157,10 @@ export default function ProfileScreen() {
                 experienceLevel: p.experienceLevel || null,
                 portfolioUrl: p.portfolioUrl || null,
                 availability: p.availability || 'AVAILABLE',
+                instagramHandle: p.instagramHandle || null,
+                youtubeHandle: p.youtubeHandle || null,
+                twitterHandle: p.twitterHandle || null,
+                facebookHandle: p.facebookHandle || null,
               });
             }
             setProfile(base);
@@ -211,6 +221,39 @@ export default function ProfileScreen() {
   const handleLogout = () => {
     logout();
     router.replace('/role-selection');
+  };
+
+  // Dev-only entry point for now — final placement is the "Complete Your Profile"
+  // success popup, per the product ask. Wired to a real Razorpay subscription.
+  const handleUpgrade = async () => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (upgrading) return;
+    setUpgrading(true);
+    try {
+      const res = await createSubscription(token);
+      if (!res.success || !res.data) {
+        Alert.alert('Upgrade Failed', (res as any).error || 'Could not start checkout. Please try again.');
+        return;
+      }
+      const { subscriptionId, keyId } = res.data;
+      await RazorpayCheckout.open({
+        key: keyId,
+        subscription_id: subscriptionId,
+        name: 'DigiTag Premium',
+        description: 'Monthly subscription',
+        prefill: userPhone ? { contact: userPhone } : undefined,
+        theme: { color: theme.primary },
+      } as any);
+      Alert.alert('Payment Successful', 'Your subscription is now active.');
+    } catch (err: any) {
+      // RazorpayCheckout rejects on user cancellation too — only surface real errors.
+      const isCancelled = /cancel/i.test(err?.description || '');
+      if (!isCancelled) {
+        Alert.alert('Payment Failed', err?.description || 'Something went wrong.');
+      }
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   const getRoleLabel = (role: string) => {
@@ -448,21 +491,30 @@ export default function ProfileScreen() {
 
                 {/* Followers / Following */}
                 <View className="flex-row items-center mt-3 gap-5">
-                  <View className="flex-row items-baseline gap-1.5">
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    className="flex-row items-baseline gap-1.5"
+                    onPress={() => router.push('/followers' as any)}
+                  >
                     <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(followerCount)}</Text>
                     <Text className="text-[#888] text-[13px]" style={{ fontFamily: 'Poppins_400Regular' }}>Followers</Text>
-                  </View>
-                  <View className="flex-row items-baseline gap-1.5">
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    className="flex-row items-baseline gap-1.5"
+                    onPress={() => router.push('/following' as any)}
+                  >
                     <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_700Bold' }}>{fmtCount(followingCount)}</Text>
                     <Text className="text-[#888] text-[13px]" style={{ fontFamily: 'Poppins_400Regular' }}>Following</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Social Icons Row — only the links the user actually provided */}
                 {(() => {
                   const socials: { key: string; src?: any; icon?: any; color?: string; url: string; platform?: string }[] = [];
                   if (profile?.instagramHandle) socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: `https://instagram.com/${profile.instagramHandle}` });
-                  if (profile?.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: `https://youtube.com/@${profile.youtubeHandle}` });
+                  if (profile?.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(profile.youtubeHandle) });
+                  if (profile?.facebookHandle) socials.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(profile.facebookHandle) });
                   if (profile?.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: `https://x.com/${profile.twitterHandle}` });
                   if (profile?.portfolioUrl) socials.push({ key: 'portfolio', icon: 'globe-outline', color: '#6366F1', url: profile.portfolioUrl });
                   if (socials.length === 0) return null;
@@ -547,6 +599,26 @@ export default function ProfileScreen() {
                   );
                 })}
               </View>
+
+              {/* ══════════ UPGRADE ══════════
+                  Android-only: Apple 3.1.1 requires In-App Purchase for digital
+                  subscriptions, so Razorpay checkout must not appear on iOS.
+                  iOS premium arrives with a StoreKit/IAP integration later. */}
+              {Platform.OS !== 'ios' && (
+                <TouchableOpacity
+                  onPress={handleUpgrade}
+                  disabled={upgrading}
+                  activeOpacity={0.85}
+                  className="mx-5 mt-4 rounded-full items-center justify-center py-4"
+                  style={{ backgroundColor: theme.primary, opacity: upgrading ? 0.7 : 1 }}
+                >
+                  {upgrading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text className="text-white text-[16px]" style={{ fontFamily: 'Poppins_600SemiBold' }}>Upgrade to Premium</Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </>
           ) : (
             <View className="px-4 mt-8">

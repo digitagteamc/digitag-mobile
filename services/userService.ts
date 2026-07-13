@@ -828,13 +828,31 @@ export const listMessages = async (
     }
 };
 
+/** GET /conversations/:id/calls — call history between the two participants,
+ *  rendered inline in the chat thread rather than a separate screen. */
+export const getConversationCalls = async (token: string, conversationId: string) => {
+    try {
+        const body = await request(`/conversations/${conversationId}/calls`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] };
+    }
+};
+
 /** POST /conversations/:id/messages */
-export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string) => {
+export const sendMessage = async (token: string, conversationId: string, content: string, imageUrl?: string, replyToId?: string) => {
     try {
         const body = await request(`/conversations/${conversationId}/messages`, {
             method: 'POST',
             headers: authHeaders(token),
-            body: JSON.stringify({ content: content || '', ...(imageUrl ? { imageUrl } : {}) }),
+            body: JSON.stringify({
+                content: content || '',
+                ...(imageUrl ? { imageUrl } : {}),
+                ...(replyToId ? { replyToId } : {}),
+            }),
         });
         return { success: true, data: body?.data };
     } catch (error: any) {
@@ -1034,10 +1052,10 @@ export const getReportStatus = async (token: string, type: 'USER' | 'POST', targ
     }
 };
 
-/** GET /users/:id/followers */
+/** GET /follows/followers (own) or /follows/:userId/followers (another user's) */
 export const getFollowers = async (token: string, userId?: string) => {
     try {
-        const path = userId ? `/users/${userId}/followers` : '/users/me/followers';
+        const path = userId ? `/follows/${userId}/followers` : '/follows/followers';
         const body = await request(path, {
             method: 'GET',
             headers: authHeaders(token),
@@ -1048,10 +1066,10 @@ export const getFollowers = async (token: string, userId?: string) => {
     }
 };
 
-/** GET /users/:id/following */
+/** GET /follows/following (own) or /follows/:userId/following (another user's) */
 export const getFollowing = async (token: string, userId?: string) => {
     try {
-        const path = userId ? `/users/${userId}/following` : '/users/me/following';
+        const path = userId ? `/follows/${userId}/following` : '/follows/following';
         const body = await request(path, {
             method: 'GET',
             headers: authHeaders(token),
@@ -1128,6 +1146,43 @@ export const getInstagramVerificationStatus = async (token: string, id: string) 
     }
 };
 
+/* ───────────────────────── SOCIAL (YOUTUBE / FACEBOOK) VERIFICATION ─────────────────────────── */
+
+/**
+ * POST /social-verifications/start
+ * Starts an OAuth verification session for YouTube or Facebook.
+ * Returns { id, platform, authorizationUrl, expiresAt }
+ */
+export const startSocialVerification = async (token: string, platform: 'YOUTUBE' | 'FACEBOOK') => {
+    try {
+        const body = await request('/social-verifications/start', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ platform }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+/**
+ * GET /social-verifications/status/:id
+ * Polls the verification status. Returns { id, status, socialAccountId, accountName }
+ * status is one of: PENDING | VERIFIED | EXPIRED | FAILED
+ */
+export const getSocialVerificationStatus = async (token: string, id: string) => {
+    try {
+        const body = await request(`/social-verifications/status/${id}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
 /* ───────────────────────── CALLS ─────────────────────────── */
 
 export const registerFcmToken = async (token: string, fcmToken: string, platform?: string) => {
@@ -1164,6 +1219,16 @@ export const initiateCall = async (token: string, calleeId: string) => {
     }
 };
 
+/** GET /calls/:id — check a call's current status (e.g. still RINGING?). */
+export const getCall = async (token: string, callId: string) => {
+    try {
+        const body = await request(`/calls/${callId}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
 export const acceptCall = async (token: string, callId: string) => {
     try {
         const body = await request(`/calls/${callId}/accept`, {
@@ -1192,6 +1257,29 @@ export const deleteAccount = async (token: string) => {
     try {
         await request('/auth/account', { method: 'DELETE', headers: authHeaders(token) });
         return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/* ─────────────────────── SUBSCRIPTIONS (Razorpay) ─────────────────────── */
+
+export const createSubscription = async (token: string) => {
+    try {
+        const body = await request('/subscriptions', { method: 'POST', headers: authHeaders(token) });
+        return { success: true, data: body?.data as { subscriptionId: string; keyId: string } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+export const getMySubscription = async (token: string) => {
+    try {
+        const body = await request('/subscriptions/me', { method: 'GET', headers: authHeaders(token) });
+        return {
+            success: true,
+            data: body?.data as { isPremium: boolean; subscription: { status: string; currentStart: string | null; currentEnd: string | null } | null },
+        };
     } catch (error: any) {
         return { success: false, error: error.message };
     }

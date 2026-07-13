@@ -183,7 +183,12 @@ export default function MessagesTab() {
                     renderItem={({ item }) => {
                         const name = item.other?.name || (item.other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
                         const pic = item.other?.profilePicture || null;
-                        const preview = item.lastMessage?.content || 'Say hi to start the conversation';
+                        const last = item.lastMessage;
+                        const preview = last
+                            ? (last.isDeleted
+                                ? '🚫 Message deleted'
+                                : last.content || (last.imageUrl ? '📷 Photo' : ''))
+                            : 'Say hi to start the conversation';
                         const when = formatTime(item.lastMessageAt || item.createdAt);
                         const unread = item.unreadCount || 0;
                         return (

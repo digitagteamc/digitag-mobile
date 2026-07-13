@@ -1,4 +1,4 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome6, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -6,6 +6,7 @@ import {
     ActivityIndicator,
     Dimensions,
     Image,
+    Linking,
     Modal,
     ScrollView,
     StyleSheet,
@@ -32,6 +33,7 @@ import {
     unblockUser,
     unfollowUser,
 } from '../services/userService';
+import { facebookUrl, youtubeUrl } from '../services/socialLinks';
 import { fonts } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import CustomAlert from '../Components/ui/CustomAlert';
@@ -269,7 +271,17 @@ export default function CreatorDetails() {
     const joinedLabel = profile.createdAt
         ? `Joined ${new Date(profile.createdAt).toLocaleString('en-US', { month: 'long', year: 'numeric' })}`
         : null;
-    const instagram = p.instagramHandle ? `instagram.com/${p.instagramHandle}` : null;
+    const openLink = (url: string | null | undefined) => {
+        if (url) Linking.openURL(url).catch(() => { });
+    };
+    // Each provided link renders as its own clickable icon — instagram, youtube,
+    // twitter/X and portfolio are independent fields and can all be present at once.
+    const socials: { key: string; icon: any; color: string; url: string; platform?: string }[] = [];
+    if (p.instagramHandle) socials.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: `https://instagram.com/${p.instagramHandle}` });
+    if (p.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(p.youtubeHandle) });
+    if (p.facebookHandle) socials.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(p.facebookHandle) });
+    if (p.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: `https://x.com/${p.twitterHandle}` });
+    if (p.portfolioUrl) socials.push({ key: 'portfolio', icon: 'globe-outline', color: '#6366F1', url: p.portfolioUrl });
     const langsArr: string[] = p.languages && p.languages.length > 0 ? p.languages : p.language ? [p.language] : [];
     const languagesText = langsArr.join(', ') || null;
     const experienceText = p.experienceLevel
@@ -371,10 +383,22 @@ export default function CreatorDetails() {
                             ) : null}
                         </View>
 
-                        {instagram ? (
-                            <View style={styles.linkRow}>
-                                <Ionicons name="link-outline" size={18} color="#8A8AFF" />
-                                <Text style={styles.linkText}>{instagram}</Text>
+                        {socials.length > 0 ? (
+                            <View style={styles.socialRow}>
+                                {socials.map(s => (
+                                    <TouchableOpacity
+                                        key={s.key}
+                                        style={[styles.socialIcon, { backgroundColor: s.color }]}
+                                        activeOpacity={0.8}
+                                        onPress={() => openLink(s.url)}
+                                    >
+                                        {s.platform === 'X' ? (
+                                            <FontAwesome6 name={s.icon} size={16} color="#fff" />
+                                        ) : (
+                                            <Ionicons name={s.icon} size={18} color="#fff" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                         ) : null}
 
@@ -412,15 +436,23 @@ export default function CreatorDetails() {
 
                     {/* Stats Card */}
                     <View style={styles.statsCard}>
-                        <View style={styles.statBox}>
+                        <TouchableOpacity
+                            style={styles.statBox}
+                            activeOpacity={0.7}
+                            onPress={() => resolvedUserId && router.push({ pathname: '/followers', params: { userId: resolvedUserId, name } } as any)}
+                        >
                             <Text style={styles.statLabel}>Followers</Text>
                             <Text style={styles.statValue}>{stats?.followerCount ?? 0}</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.statDivider} />
-                        <View style={styles.statBox}>
+                        <TouchableOpacity
+                            style={styles.statBox}
+                            activeOpacity={0.7}
+                            onPress={() => resolvedUserId && router.push({ pathname: '/following', params: { userId: resolvedUserId, name } } as any)}
+                        >
                             <Text style={styles.statLabel}>Following</Text>
                             <Text style={styles.statValue}>{stats?.followingCount ?? 0}</Text>
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.statDivider} />
                         <View style={styles.statBox}>
                             <Text style={styles.statLabel}>Collabs</Text>
@@ -696,16 +728,18 @@ const styles = StyleSheet.create({
         letterSpacing: -0.5,
         flexShrink: 1,
     },
-    linkRow: {
+    socialRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 10,
         marginBottom: 16,
     },
-    linkText: {
-        color: '#E0E0E0',
-        fontSize: 13,
-        fontFamily: fonts.regular,
+    socialIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     aboutSection: {
         gap: 4,

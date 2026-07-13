@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ExpoLinking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { ChevronDownIcon, ChevronLeftIcon, ImageIcon } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -25,11 +27,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationSuggestions } from '../../hooks/useLocationSuggestions';
+import { prepareImageForUpload } from '../../services/imageResize';
 import {
     getCategories,
     getInstagramVerificationStatus,
     getMyCreatorProfile,
+    getSocialVerificationStatus,
     startInstagramVerification,
+    startSocialVerification,
     submitCreatorApplication,
     updateCreatorProfile,
     uploadImage,
@@ -311,9 +316,7 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
 // ── Instagram Verification ─────────────────────────────────────
 type IgVerifyProps = {
     value: string;
-    followersValue: string;
     onValueChange: (v: string) => void;
-    onFollowersChange: (v: string) => void;
     verified: boolean;
     onVerifyPress: () => void;
     verifying: boolean;
@@ -321,9 +324,7 @@ type IgVerifyProps = {
 
 const InstagramVerifyRow = ({
     value,
-    followersValue,
     onValueChange,
-    onFollowersChange,
     verified,
     onVerifyPress,
     verifying,
@@ -332,30 +333,17 @@ const InstagramVerifyRow = ({
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
             Instagram
         </Text>
-        <View className="flex-row gap-2 mb-2">
-            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
-                <TextInput
-                    placeholder="instagram.com/username or @handle"
-                    placeholderTextColor="#555"
-                    value={value}
-                    onChangeText={onValueChange}
-                    className="text-white font-poppins-regular"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!verified}
-                />
-            </View>
-            <View className={`flex-1 h-[56px] px-3 rounded-[12px] justify-center items-center ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
-                <TextInput
-                    placeholder="Followers"
-                    placeholderTextColor="#555"
-                    keyboardType="numeric"
-                    value={followersValue}
-                    onChangeText={onFollowersChange}
-                    className="text-white font-poppins-regular text-[12px] text-center"
-                    editable={!verified}
-                />
-            </View>
+        <View className={`h-[56px] px-4 rounded-[12px] justify-center mb-2 ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
+            <TextInput
+                placeholder="instagram.com/username or @handle"
+                placeholderTextColor="#555"
+                value={value}
+                onChangeText={onValueChange}
+                className="text-white font-poppins-regular"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!verified}
+            />
         </View>
         <TouchableOpacity
             onPress={onVerifyPress}
@@ -380,6 +368,63 @@ const InstagramVerifyRow = ({
                 </Text>
             )}
         </TouchableOpacity>
+    </View>
+);
+
+// ── YouTube / Facebook OAuth Verification ──────────────────────
+// No manual inputs — the OAuth flow fills the handle (and follower count where
+// the platform provides it) automatically, so the row is just a Verify button
+// that turns into a "connected account" chip once verified.
+type SocialVerifyRowProps = {
+    platform: 'YouTube' | 'Facebook';
+    verified: boolean;
+    verifying: boolean;
+    accountLabel?: string;
+    onVerifyPress: () => void;
+};
+
+const SocialVerifyRow = ({
+    platform,
+    verified,
+    verifying,
+    accountLabel,
+    onVerifyPress,
+}: SocialVerifyRowProps) => (
+    <View className="mb-4">
+        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+            {platform}
+        </Text>
+        {verified ? (
+            <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
+                <Text className="text-white font-poppins-regular flex-1" numberOfLines={1}>
+                    {accountLabel || `${platform} account connected`}
+                </Text>
+                <Text className="text-[#16a34a] font-poppins-semibold text-[13px] ml-2">✓ Verified</Text>
+            </View>
+        ) : (
+            <TouchableOpacity
+                onPress={onVerifyPress}
+                disabled={verifying}
+                activeOpacity={0.8}
+                style={{
+                    backgroundColor: verifying ? '#374151' : '#F02C8C',
+                    borderRadius: 12,
+                    height: 48,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexDirection: 'row',
+                    gap: 6,
+                }}
+            >
+                {verifying ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                    <Text className="text-white font-poppins-semibold text-[13px]">
+                        {`Verify with ${platform}`}
+                    </Text>
+                )}
+            </TouchableOpacity>
+        )}
     </View>
 );
 
@@ -603,6 +648,11 @@ export default function CreatorSignup() {
     } | null>(null);
     const igPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+    // YouTube / Facebook OAuth verification state
+    const [socialVerified, setSocialVerified] = useState<{ YOUTUBE: boolean; FACEBOOK: boolean }>({ YOUTUBE: false, FACEBOOK: false });
+    const [socialVerifying, setSocialVerifying] = useState<{ YOUTUBE: boolean; FACEBOOK: boolean }>({ YOUTUBE: false, FACEBOOK: false });
+    const [socialAccountNames, setSocialAccountNames] = useState<{ YOUTUBE: string; FACEBOOK: string }>({ YOUTUBE: '', FACEBOOK: '' });
+
     const [form, setForm] = useState({
         name: '',
         email: '',
@@ -748,7 +798,9 @@ export default function CreatorSignup() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets?.[0]) {
-                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                            const asset = result.assets[0];
+                            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                            setForm(prev => ({ ...prev, profilePicture: uri }));
                         }
                     },
                 },
@@ -767,7 +819,9 @@ export default function CreatorSignup() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets?.[0]) {
-                            setForm(prev => ({ ...prev, profilePicture: result.assets[0].uri }));
+                            const asset = result.assets[0];
+                            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                            setForm(prev => ({ ...prev, profilePicture: uri }));
                         }
                     },
                 },
@@ -816,7 +870,7 @@ export default function CreatorSignup() {
                 if (upRes.success && upRes.data?.url) {
                     profilePictureUrl = upRes.data.url;
                 } else {
-                    Alert.alert('Upload Failed', 'Could not upload profile picture. Please try again.');
+                    Alert.alert('Upload Failed', (upRes as any).error || 'Could not upload profile picture. Please try again.');
                     setLoading(false);
                     return;
                 }
@@ -938,6 +992,65 @@ export default function CreatorSignup() {
             if (igPollRef.current) clearInterval(igPollRef.current);
         };
     }, []);
+
+    // ── YouTube / Facebook OAuth verification ──
+    // Unlike Instagram's DM flow, the OAuth callback completes server-side before the
+    // browser redirects back to the app, so a short bounded retry loop is enough —
+    // no need for a long-lived poll interval.
+    const handleSocialVerify = async (platform: 'YOUTUBE' | 'FACEBOOK') => {
+        if (!token) return;
+        const label = platform === 'YOUTUBE' ? 'YouTube' : 'Facebook';
+        setSocialVerifying(prev => ({ ...prev, [platform]: true }));
+        try {
+            const res = await startSocialVerification(token, platform);
+            if (!res.success || !res.data) {
+                Alert.alert('Error', res.error || `${label} verification is not available right now`);
+                return;
+            }
+            const { id, authorizationUrl } = res.data;
+            const redirectUrl = ExpoLinking.createURL('social-verify');
+            const result = await WebBrowser.openAuthSessionAsync(authorizationUrl, redirectUrl);
+            // Android's auth session often reports "dismiss" even when the OAuth
+            // redirect fired and the server finished verifying — poll the server
+            // for the real outcome instead of trusting result.type. A genuine
+            // cancel just polls briefly and gives up silently.
+            const completed = result.type === 'success';
+            const maxAttempts = completed ? 6 : 2;
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                await new Promise(r => setTimeout(r, 1200));
+                const statusRes = await getSocialVerificationStatus(token, id);
+                if (!statusRes.success || !statusRes.data) continue;
+                const s = statusRes.data.status;
+                if (s === 'VERIFIED') {
+                    setSocialVerified(prev => ({ ...prev, [platform]: true }));
+                    if (statusRes.data.accountName) {
+                        setSocialAccountNames(prev => ({ ...prev, [platform]: statusRes.data.accountName }));
+                    }
+                    const profileRes = await getMyCreatorProfile(token);
+                    if (profileRes.success && profileRes.data) {
+                        if (platform === 'YOUTUBE') {
+                            setForm(prev => ({
+                                ...prev,
+                                youtubeHandle: profileRes.data.youtubeHandle || prev.youtubeHandle,
+                                youtubeFollowers: profileRes.data.youtubeFollowers != null ? String(profileRes.data.youtubeFollowers) : prev.youtubeFollowers,
+                            }));
+                        } else {
+                            setForm(prev => ({ ...prev, facebookHandle: profileRes.data.facebookHandle || prev.facebookHandle }));
+                        }
+                    }
+                    return;
+                }
+                if (s === 'EXPIRED' || s === 'FAILED') {
+                    Alert.alert('Verification failed', `We couldn't verify your ${label} account. Please try again.`);
+                    return;
+                }
+            }
+            if (completed) Alert.alert('Still verifying', `We're still confirming your ${label} account. This can take a moment — try reopening this screen shortly.`);
+        } finally {
+            setSocialVerifying(prev => ({ ...prev, [platform]: false }));
+        }
+    };
 
     const handleBack = () => {
         if (step === 2) {
@@ -1066,30 +1179,28 @@ export default function CreatorSignup() {
                                 ) : (
                                     <InstagramVerifyRow
                                         value={form.instagramHandle}
-                                        followersValue={form.instagramFollowers}
                                         onValueChange={(v: string) => {
                                             setForm({ ...form, instagramHandle: v });
                                             if (igVerified) setIgVerified(false);
                                         }}
-                                        onFollowersChange={(v: string) => setForm({ ...form, instagramFollowers: v.replace(/[^0-9]/g, '') })}
                                         verified={igVerified}
                                         onVerifyPress={handleIgVerify}
                                         verifying={igVerifying}
                                     />
                                 )}
-                                <SocialRow
+                                <SocialVerifyRow
                                     platform="YouTube"
-                                    linkValue={form.youtubeHandle}
-                                    followersValue={form.youtubeFollowers}
-                                    onLinkChange={(v: string) => setForm({ ...form, youtubeHandle: v })}
-                                    onFollowersChange={(v: string) => setForm({ ...form, youtubeFollowers: v.replace(/[^0-9]/g, '') })}
+                                    verified={socialVerified.YOUTUBE || !!form.youtubeHandle}
+                                    verifying={socialVerifying.YOUTUBE}
+                                    accountLabel={socialAccountNames.YOUTUBE || form.youtubeHandle}
+                                    onVerifyPress={() => handleSocialVerify('YOUTUBE')}
                                 />
-                                <SocialRow
+                                <SocialVerifyRow
                                     platform="Facebook"
-                                    linkValue={form.facebookHandle}
-                                    followersValue={form.facebookFollowers}
-                                    onLinkChange={(v: string) => setForm({ ...form, facebookHandle: v })}
-                                    onFollowersChange={(v: string) => setForm({ ...form, facebookFollowers: v.replace(/[^0-9]/g, '') })}
+                                    verified={socialVerified.FACEBOOK || !!form.facebookHandle}
+                                    verifying={socialVerifying.FACEBOOK}
+                                    accountLabel={socialAccountNames.FACEBOOK || form.facebookHandle}
+                                    onVerifyPress={() => handleSocialVerify('FACEBOOK')}
                                 />
                                 <SocialRow
                                     platform="Twitter / X"

@@ -14,15 +14,17 @@ import {
 } from '@expo-google-fonts/poppins';
 import messaging, { onMessage, getToken } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
-import { Stack, useRouter } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Image, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import '../global.css';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearIncomingCallNotification } from '../services/callNotification';
+import { routeNotificationData } from '../services/notificationRouting';
 import { declineCall, registerFcmToken } from '../services/userService';
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
@@ -34,44 +36,23 @@ let _callNavGuard = false;
 
 SplashScreen.preventAutoHideAsync();
 
-function routeNotification(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined) {
-    if (!data?.type) return;
-    switch (data.type) {
-        case 'INCOMING_CALL':
-            router.push({
-                pathname: '/call',
-                params: { mode: 'incoming', callId: data.callId, remoteName: data.callerName },
-            } as any);
-            break;
-        case 'CALL_ENDED':
-        case 'CALL_DECLINED':
-            if (data.callId) clearIncomingCallNotification(data.callId);
-            try {
-                if (router.canGoBack()) router.back();
-                else router.replace('/(tabs)' as any);
-            } catch { }
-            break;
-        case 'NEW_MESSAGE':
-            if (data.conversationId) {
-                router.push({ pathname: '/chat/[id]', params: { id: data.conversationId } } as any);
-            }
-            break;
-        case 'COLLAB_REQUEST':
-        case 'COLLAB_ACCEPTED':
-        case 'COLLAB_DECLINED':
-            router.push('/notifications' as any);
-            break;
-        case 'NEW_POST':
-            router.push('/(tabs)/explore' as any);
-            break;
-        default:
-            break;
-    }
-}
+// No-op without a DSN, so this ships safely before the Sentry account exists.
+// EXPO_PUBLIC_SENTRY_DSN is baked in at build time from .env.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN || '';
+Sentry.init({
+    dsn: SENTRY_DSN,
+    enabled: Boolean(SENTRY_DSN),
+    tracesSampleRate: 0.1,
+});
 
 function NotificationHandler() {
     const router = useRouter();
     const { token } = useAuth();
+    // Ref, not the value: the FCM listeners below live across renders, and a
+    // captured pathname would go stale inside their closures.
+    const pathname = usePathname();
+    const pathnameRef = useRef(pathname);
+    pathnameRef.current = pathname;
 
     // Single navigation entry point. Guard prevents double-navigation when
     // AppState and onForegroundEvent both fire for the same user tap.
@@ -117,7 +98,7 @@ function NotificationHandler() {
             const data = remoteMessage.data as Record<string, string> | undefined;
             if (!data) return;
             if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
-                routeNotification(router, data);
+                routeNotificationData(router, data, pathnameRef.current);
             }
         });
 
@@ -127,22 +108,17 @@ function NotificationHandler() {
     // ── 2. Background FCM tap (app was backgrounded, not killed — non-call types)
     useEffect(() => {
         const unsubFcm = messaging().onNotificationOpenedApp(remoteMessage => {
-            routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
+            routeNotificationData(router, remoteMessage.data as Record<string, string> | undefined, pathnameRef.current);
         });
         return () => unsubFcm();
     }, []);
 
-    // ── 2b. Killed-state FCM tap. On iOS the OS shows the APNs alert itself (no
-    //        JS runs until the user taps it), so this is the ONLY entry point for
-    //        calls/messages that arrive while the app is fully closed on iPhone.
-    //        Android killed-state calls are covered by PENDING_CALL_KEY instead.
-    useEffect(() => {
-        messaging().getInitialNotification().then(remoteMessage => {
-            if (remoteMessage) {
-                routeNotification(router, remoteMessage.data as Record<string, string> | undefined);
-            }
-        }).catch(() => { });
-    }, []);
+    // Killed-state (cold start) taps are handled by app/index.tsx, NOT here:
+    // navigating from this component on mount raced the intro screen — the push
+    // either fired before the navigator was ready (and was silently swallowed)
+    // or got stomped 4s later when the intro's timer replaced the route with
+    // /(tabs). The intro reads getInitialNotification/PENDING_CALL_KEY itself
+    // and routes at the right moment instead.
 
     // ── 3. Notifee foreground events (body tap or action button while app is active/foregrounded)
     useEffect(() => {
@@ -184,7 +160,7 @@ const queryClient = new QueryClient({
     },
 });
 
-export default function RootLayout() {
+function RootLayout() {
     const [loaded, error] = useFonts({
         Poppins_200ExtraLight,
         Poppins_300Light,
@@ -265,3 +241,7 @@ export default function RootLayout() {
         </GestureHandlerRootView>
     );
 }
+
+// Sentry.wrap adds the error boundary + navigation instrumentation around the
+// whole app; harmless when Sentry is disabled (no DSN).
+export default Sentry.wrap(RootLayout);

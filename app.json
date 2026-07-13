@@ -2,7 +2,7 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitag",
@@ -14,7 +14,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
-      "associatedDomains": ["applinks:thedigitag.ai"],
+      "associatedDomains": [
+        "applinks:thedigitag.ai"
+      ],
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSAppTransportSecurity": {
@@ -40,7 +42,7 @@
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 12,
+      "versionCode": 37,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -117,13 +119,14 @@
       ],
       "@react-native-firebase/messaging",
       [
-  "expo-build-properties",
-  {
-    "android": {
-      "usesCleartextTraffic": true
-    }
-  }
-]
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,

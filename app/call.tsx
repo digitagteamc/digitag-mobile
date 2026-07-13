@@ -24,7 +24,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { clearIncomingCallNotification } from '../services/callNotification';
-import { acceptCall, declineCall, endCall } from '../services/userService';
+import { acceptCall, declineCall, endCall, getCall } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
 const RING_ASSET = require('../assets/sounds/ringtone.mp3');
@@ -186,6 +186,28 @@ export default function CallScreen() {
             safeNavigateBack();
         }
     }, [token, params.callId, stopRing, joinChannel, safeNavigateBack]);
+
+    // Stale-call guard: a leftover notification can open this screen for a call
+    // that already ended (caller gave up while the app was killed) — check the
+    // real status once the token is restored and bail out with a missed-call
+    // message instead of ringing forever.
+    useEffect(() => {
+        if (params.mode !== 'incoming' || !token || !params.callId) return;
+        let cancelled = false;
+        (async () => {
+            const res = await getCall(token, params.callId);
+            if (cancelled || endedRef.current) return;
+            const status = res.success ? res.data?.status : null;
+            if (status && status !== 'RINGING') {
+                endedRef.current = true;
+                stopRing();
+                clearIncomingCallNotification(params.callId).catch(() => {});
+                Alert.alert('Missed call', `You missed a call from ${params.remoteName || 'this user'}.`);
+                safeNavigateBack();
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [token]);
 
     // ── Lifecycle
     useEffect(() => {
