@@ -342,6 +342,11 @@ const InstagramVerifyRow = ({
                 className="text-white font-poppins-regular"
                 autoCapitalize="none"
                 autoCorrect={false}
+                // Kill OS autofill — after the email field above, Android/iOS
+                // otherwise suggest (or inject) the email into this field.
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="no"
                 editable={!verified}
             />
         </View>

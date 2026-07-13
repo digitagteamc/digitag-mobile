@@ -22,11 +22,12 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import Animated, { FadeIn, FadeOut, useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import messaging, { onMessage } from '@react-native-firebase/messaging';
+import ZoomableImage from '../../Components/ui/ZoomableImage';
 import { useAuth } from '../../context/AuthContext';
 import { prepareImageForUpload } from '../../services/imageResize';
 import {
@@ -734,7 +735,10 @@ export default function ChatScreen() {
                 statusBarTranslucent
                 onRequestClose={() => setViewImageUrl(null)}
             >
-                <View style={{ flex: 1, backgroundColor: '#000' }}>
+                {/* Modals on Android don't inherit the app root's
+                    GestureHandlerRootView — without this local one the
+                    pinch/pan gestures silently never fire. */}
+                <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
                     <TouchableOpacity
                         style={{ position: 'absolute', top: (insets.top || 0) + 12, right: 16, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
                         onPress={() => setViewImageUrl(null)}
@@ -742,14 +746,8 @@ export default function ChatScreen() {
                     >
                         <Ionicons name="close" size={24} color="#fff" />
                     </TouchableOpacity>
-                    {viewImageUrl && (
-                        <Image
-                            source={{ uri: viewImageUrl }}
-                            style={{ flex: 1 }}
-                            resizeMode="contain"
-                        />
-                    )}
-                </View>
+                    {viewImageUrl && <ZoomableImage uri={viewImageUrl} />}
+                </GestureHandlerRootView>
             </Modal>
 
             {/* ── WhatsApp-style context menu modal ─────────────────────────── */}
