@@ -19,7 +19,8 @@
       "Bash(node src/server.js)",
       "Bash(NODE_ENV=development PORT=5050 nohup npm run dev)",
       "Bash(disown)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "WebFetch(domain:www.figma.com)"
     ],
     "additionalDirectories": [
       "e:\\DigiTag\\DigiTag-Backend\\src\\modules"

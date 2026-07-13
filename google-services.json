@@ -12,7 +12,60 @@
           "package_name": "ai.thedigitag.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "592827124863-1og31q0gtr1t29pg7oml5ch8ur10n13b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.thedigitag.app",
+            "certificate_hash": "a150a4df9144139bb652bf359b588026f7a5abb7"
+          }
+        },
+        {
+          "client_id": "592827124863-8021db5ruiitccg2md6ui3qn9saier9d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.thedigitag.app",
+            "certificate_hash": "70a69e4d5514e9b18dcf6527811c141998b8f047"
+          }
+        },
+        {
+          "client_id": "592827124863-8ob5ues2tp1osnc4bcu5865f1def5986.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.thedigitag.app",
+            "certificate_hash": "ddd20a635b49ab6489f93560ea8311d5d733217a"
+          }
+        },
+        {
+          "client_id": "592827124863-b9ibn1e16leq8hagqjimck7hu0ik26al.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.thedigitag.app",
+            "certificate_hash": "08afb36e5962593b9f25073c600079a4a3a6c109"
+          }
+        },
+        {
+          "client_id": "592827124863-osvnpkudt116n3b9n2mlltj0de0011ch.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.thedigitag.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "592827124863-sfs58gmijcv7t7gq5sl9jr1m401038bo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ai.thedigitag.app",
+            "certificate_hash": "49290922923d9c68caf350d68eefcf8faed2f81d"
+          }
+        },
+        {
+          "client_id": "592827124863-im5j52j9tbsqtapne1ecjs7v7glmkqkj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCcHR76U116I0_qX_B57-6ncz3MRlWLO_A"
@@ -20,28 +73,27 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:592827124863:android:166808a335c4b10d2f834a",
-        "android_client_info": {
-          "package_name": "com.digitag.app"
+          "other_platform_oauth_client": [
+            {
+              "client_id": "592827124863-im5j52j9tbsqtapne1ecjs7v7glmkqkj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "592827124863-ucfh62gms26aa4ns2hvh67v87o74mla1.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.digitag.app"
+              }
+            }
+          ]
         }
       },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCcHR76U116I0_qX_B57-6ncz3MRlWLO_A"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
+      "sha256_cert_fingerprints": [
+        "187c487c2a7fd521bdc97e903501f2f5576295adc360ef2afaeb4a1a2fb00d6c",
+        "339a45e73889d03e5ee231e871387cc412e108767c527b06f14b55eae24d2911",
+        "1ed8dd7317c1238f6c3e95cc3441d09d5be78b2d781f7f8d7704be198ed653d0",
+        "fac61745dc0903786fb9ede62a962b399f7348f0bb6f899b833266759103b9c"
+      ]
     }
   ],
   "configuration_version": "1"
