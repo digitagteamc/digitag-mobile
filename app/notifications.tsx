@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import IconButton from '../Components/ui/IconButton';
 import NotificationItem from '../Components/ui/NotificationItem';
 import { useAuth } from '../context/AuthContext';
+import { useNotificationCount } from '../context/NotificationCountContext';
 import { fonts, palette, spacing } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import { routeNotificationData } from '../services/notificationRouting';
@@ -89,6 +90,7 @@ export default function NotificationsScreen() {
     const theme = useRoleTheme(); // viewer's role theme
 
     const [tab, setTab] = useState<Tab>('requests');
+    const { clearUnreadCount } = useNotificationCount();
 
     // ── Requests tab state ──
     const [requests, setRequests] = useState<any[]>([]);
@@ -154,7 +156,10 @@ export default function NotificationsScreen() {
         const hasUnread = notifications.some((n) => !n.isRead);
         if (!hasUnread) return;
         markAllNotificationsRead(token).then((res) => {
-            if (res.success) setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+            if (res.success) {
+                setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+                clearUnreadCount();
+            }
         });
     }, [tab, token, notifications]);
 

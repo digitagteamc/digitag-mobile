@@ -35,6 +35,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, TSpan } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
+import { useNotificationCount } from '../../context/NotificationCountContext';
 import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
@@ -643,7 +644,7 @@ export default function Homepage() {
   const [userName, setUserName] = useState<string>('');
   const [userTagId, setUserTagId] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
+  const { unreadCount } = useNotificationCount();
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
   const [collabSentOwnerIds, setCollabSentOwnerIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
@@ -740,18 +741,15 @@ export default function Homepage() {
         if (res.success && Array.isArray(res.data)) {
           const accepted = new Set<string>();
           const sent = new Set<string>();
-          let pending = 0;
           res.data.forEach((r: any) => {
             if (r.status === 'ACCEPTED') {
               const otherId = r.senderId === userId ? r.receiverId : r.senderId;
               if (otherId) accepted.add(otherId);
             }
             if (r.status === 'PENDING' && r.senderId === userId) sent.add(r.receiverId);
-            if (r.status === 'PENDING' && r.receiverId === userId) pending++;
           });
           setAcceptedCollabOwnerIds(accepted);
           setCollabSentOwnerIds(sent);
-          setPendingCount(pending);
         }
       };
 
@@ -1098,12 +1096,19 @@ export default function Homepage() {
                   <G transform="translate(-31, -3)">
                     <Path d="M50.8879 29.4863C50.186 30.1058 49.2641 30.4816 48.2544 30.4816C47.2446 30.4816 46.3227 30.1058 45.6208 29.4863M54.2241 22.6986V19.5324C54.2241 16.2254 51.5613 13.5601 48.2544 13.5601C44.9474 13.5601 42.2485 16.1118 42.2485 19.5324V22.6771C42.2485 23.1581 42.1736 23.6358 42.0265 24.0921L41.2915 26.3731C41.2714 26.4355 41.3163 26.4355 41.3799 26.4355H55.0859C55.1532 26.4355 55.201 26.4344 55.1803 26.3704L54.4403 24.074C54.2971 23.6295 54.2241 23.1655 54.2241 22.6986Z" stroke="white" strokeWidth={1.2} strokeLinecap="round" />
                   </G>
-                  {pendingCount > 0 && (
+                  {unreadCount > 0 && (
                     <Circle cx="22.7273" cy="12.0549" r="3" fill="#E43E3E" />
                   )}
                 </Svg> */}
 
-                <Image source={require('../../assets/notification.png')} style={{ width: 36, height: 36 }} />
+                <View>
+                  <Image source={require('../../assets/notification.png')} style={{ width: 36, height: 36 }} />
+                  {unreadCount > 0 && (
+                    <View style={styles.notifBadge}>
+                      <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -1523,6 +1528,13 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  notifBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3,
+    backgroundColor: '#E43E3E', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: '#060606',
+  },
+  notifBadgeText: { color: '#fff', fontSize: 9, fontWeight: '700', lineHeight: 11 },
 
   // HERO & HEADER
   headerWrapper: {

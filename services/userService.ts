@@ -1378,6 +1378,15 @@ export const markAllNotificationsRead = async (token: string) => {
     }
 };
 
+export const getUnreadNotificationCount = async (token: string) => {
+    try {
+        const body = await request('/notifications/unread-count', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, count: (body?.data?.count ?? 0) as number };
+    } catch (error: any) {
+        return { success: false, error: error.message, count: 0 };
+    }
+};
+
 /* ─────────────────────── SUBSCRIPTIONS (Razorpay) ─────────────────────── */
 
 export const createSubscription = async (token: string) => {

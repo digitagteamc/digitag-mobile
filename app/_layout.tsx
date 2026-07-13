@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { NotificationCountProvider, useNotificationCount } from '@/context/NotificationCountContext';
 import { ProfileGateProvider } from '@/context/ProfileGateContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
@@ -49,6 +50,7 @@ Sentry.init({
 function NotificationHandler() {
     const router = useRouter();
     const { token } = useAuth();
+    const { refreshUnreadCount } = useNotificationCount();
     // Ref, not the value: the FCM listeners below live across renders, and a
     // captured pathname would go stale inside their closures.
     const pathname = usePathname();
@@ -112,11 +114,12 @@ function NotificationHandler() {
             const notif = remoteMessage.notification;
             if (notif?.title || notif?.body) {
                 displayGeneralNotification({ title: notif.title || 'DigiTag', body: notif.body || '', data });
+                refreshUnreadCount();
             }
         });
 
         return unsubscribe;
-    }, [token]);
+    }, [token, refreshUnreadCount]);
 
     // ── 2. Background FCM tap (app was backgrounded, not killed — non-call types)
     useEffect(() => {
@@ -208,6 +211,7 @@ function RootLayout() {
             <SafeAreaProvider>
                 <QueryClientProvider client={queryClient}>
                 <AuthProvider>
+                    <NotificationCountProvider>
                     <ProfileGateProvider>
                         <NotificationHandler />
                         <Stack
@@ -253,6 +257,7 @@ function RootLayout() {
                             <Stack.Screen name="post/[postId]" options={{ animation: 'fade', animationDuration: 200 }} />
                         </Stack>
                     </ProfileGateProvider>
+                    </NotificationCountProvider>
                 </AuthProvider>
                 </QueryClientProvider>
             </SafeAreaProvider>
