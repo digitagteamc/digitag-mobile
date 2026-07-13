@@ -1379,9 +1379,9 @@ export default function ExploreTab() {
 
       <View style={s.filterRow}>
         <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Price Range</Text>
+          <Text style={s.filterLabel}>Collab Type</Text>
           <TouchableOpacity style={[s.filterDropdown, selectedPriceRange ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('price')}>
-            <Text style={[s.filterPlaceholder, selectedPriceRange ? s.filterValueText : null]}>{selectedPriceRange || 'Select Price Range'}</Text>
+            <Text style={[s.filterPlaceholder, selectedPriceRange ? s.filterValueText : null]}>{selectedPriceRange || 'Select Collab Type'}</Text>
             {selectedPriceRange ? <TouchableOpacity onPress={() => setSelectedPriceRange(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="filter" size={16} color="#6e7180" />}
           </TouchableOpacity>
         </View>

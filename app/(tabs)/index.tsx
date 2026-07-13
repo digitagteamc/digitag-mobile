@@ -32,7 +32,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, TSpan } from 'react-native-svg';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
@@ -201,38 +201,6 @@ const CAT_BORDER_COLORS = [
   ['rgba(52, 52, 52, 1)', 'rgba(0, 183, 255, 0.5)'],
 ];
 
-const GradientHeading = ({ text, style, role }: { text: string, style?: any, role?: string | null }) => {
-  const fontSize = style?.fontSize || 28;
-  const fontFamily = style?.fontFamily || 'Poppins_600SemiBold';
-  const isFreelancer = role === 'FREELANCER';
-  const accentColor = isFreelancer ? '#f26930' : '#ed2a91';
-
-  // Use a tighter multiplier to reduce extra space
-  const widthVal = text.length * fontSize * 0.58;
-
-  return (
-    <View style={{ width: widthVal, height: fontSize * 1.4 }}>
-      <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${fontSize * 1.4}`}>
-        <Defs>
-          <SvgGradient id="grad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
-            <Stop offset="1" stopColor={accentColor} stopOpacity="1" />
-          </SvgGradient>
-        </Defs>
-        <SvgText
-          fill="url(#grad)"
-          fontSize={fontSize}
-          fontFamily={fontFamily}
-          x="0"
-          y={fontSize}
-        >
-          {text}
-        </SvgText>
-      </Svg>
-    </View>
-  );
-};
-
 const StrokeText = ({ text, strokeColor, style }: { text: string, strokeColor: string, style?: any }) => {
   const flattenedStyle = StyleSheet.flatten(style) || {};
   const fontSize = flattenedStyle.fontSize || 38;
@@ -272,21 +240,51 @@ const StrokeText = ({ text, strokeColor, style }: { text: string, strokeColor: s
   );
 };
 
-const HeroGradientText = ({ text, color, fontSize = 14 }: { text: string, color: string, fontSize?: number }) => {
+const HeroGradientText = ({
+  text,
+  color,
+  gradientColors,
+  fontSize = 14,
+  fontFamily = 'Poppins_600SemiBold',
+  height,
+  style,
+}: {
+  text: string;
+  color?: string;
+  gradientColors?: string[];
+  fontSize?: number;
+  fontFamily?: string;
+  height?: number;
+  style?: any;
+}) => {
   const widthVal = text.length * fontSize * 0.6;
+  const heightVal = height ?? fontSize * 1.5;
+  const gradId = React.useMemo(() => `heroGrad_${text.replace(/[^a-zA-Z0-9]/g, '')}`, [text]);
+
+  const stops = React.useMemo(() => {
+    if (gradientColors && gradientColors.length >= 2) {
+      return gradientColors.map((col, idx) => (
+        <Stop key={idx} offset={`${idx / (gradientColors.length - 1)}`} stopColor={col} stopOpacity="1" />
+      ));
+    }
+    return [
+      <Stop key="0" offset="0" stopColor="#FFFFFF" stopOpacity="1" />,
+      <Stop key="1" offset={color ? "1" : "0"} stopColor={color || '#FFFFFF'} stopOpacity="1" />
+    ];
+  }, [gradientColors, color]);
+
   return (
-    <View style={{ width: widthVal, height: fontSize * 1.5 }}>
-      <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${fontSize * 1.5}`}>
+    <View style={[{ width: widthVal, height: heightVal }, style]}>
+      <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${heightVal}`}>
         <Defs>
-          <SvgGradient id="heroGrad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
-            <Stop offset="1" stopColor={color} stopOpacity="1" />
+          <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+            {stops}
           </SvgGradient>
         </Defs>
         <SvgText
-          fill="url(#heroGrad)"
+          fill={`url(#${gradId})`}
           fontSize={fontSize}
-          fontFamily="Poppins_600SemiBold"
+          fontFamily={fontFamily}
           x="0"
           y={fontSize}
         >
@@ -539,10 +537,10 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
         }}
       >
         <LinearGradient
-          colors={['transparent', userRole === 'FREELANCER' ? '#F26930' : '#ED2A91']}
+          colors={['transparent', userRole === 'FREELANCER' ? 'rgba(237, 42, 145, 0.70)' : 'rgba(242, 105, 48, 0.70)']}
           style={styles.figmaCardGradientBorder}
         >
-          <TouchableOpacity style={styles.figmaCard} activeOpacity={0.9} onPress={() => handlePostTap(item.id, item.ownerId)}>
+          <TouchableOpacity style={styles.figmaCard} activeOpacity={1} onPress={() => handlePostTap(item.id, item.ownerId)}>
             {/* Top Opacity Overlay */}
             <LinearGradient
               colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
@@ -685,12 +683,18 @@ export default function Homepage() {
   }, [userRole]);
 
   const catGap = userRole === 'FREELANCER' ? 12 : 12;
-  const colWidth = userRole === 'FREELANCER' ? 100 : 110;
+  const colWidth = 100;
   const snapInterval = userRole === 'FREELANCER' ? colWidth + catGap : colWidth * 2 + 14 * 2;
 
   const scrollXCat = useRef(new Animated.Value(0)).current;
   const activeCatPage = Animated.divide(scrollXCat, snapInterval);
   const scrollX = useRef(new Animated.Value(0)).current;
+  // Matches the carousel FlatList's initialScrollIndex, which itself only applies
+  // once on first mount — so this must also only run once. Without this guard,
+  // returning from post-detail re-runs fetchPosts (useFocusEffect) and snaps
+  // scrollX back to the initial card, desyncing it from wherever the FlatList
+  // was actually scrolled and causing the carousel to visually misalign/glitch.
+  const hasSetInitialCarouselScroll = useRef(false);
 
   const showAlert = (title: string, message: string) => {
     setAlertConfig({ visible: true, title, message });
@@ -705,9 +709,12 @@ export default function Homepage() {
           const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
           // Center on the middle post so its left/right neighbors both peek into
           // view on open, showing all 3 preview posts at once (per design).
-          const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
-          const initialIndex = visibleCount >= 3 ? 1 : 0;
-          scrollX.setValue(initialIndex * ITEM_SIZE);
+          if (!hasSetInitialCarouselScroll.current) {
+            const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
+            const initialIndex = visibleCount >= 3 ? 1 : 0;
+            scrollX.setValue(initialIndex * ITEM_SIZE);
+            hasSetInitialCarouselScroll.current = true;
+          }
           setPosts(allPosts);
         } catch {
           setPosts([]);
@@ -1100,14 +1107,23 @@ export default function Homepage() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Fade the hero carousel into the page background before the category section */}
+          <LinearGradient
+            colors={['transparent', '#060606']}
+            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }}
+            pointerEvents="none"
+          />
         </View>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
           {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
           <View style={{ marginBottom: 10 }}>
-            <GradientHeading text={userRole === 'FREELANCER' ? "Creators by category" : "Freelancers by category"} style={styles.gradientHeadingText} role={userRole} />
+            <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>
+              {userRole === 'FREELANCER' ? 'Creators by Category' : 'Freelancers by Category'}
+            </Text>
           </View>
-          <View style={[styles.catCarouselContainer, { height: userRole === 'FREELANCER' ? 280 : 230 }]}>
+          <View style={[styles.catCarouselContainer, { height: 230 }]}>
             <Animated.FlatList
               data={availableCategoryColumns}
               horizontal
@@ -1126,27 +1142,12 @@ export default function Homepage() {
               renderItem={({ item: colItems }) => {
                 const isFreelancer = userRole === 'FREELANCER';
                 return (
-                  <View style={[styles.catColumn, { gap: isFreelancer ? 14 : 14, width: isFreelancer ? 100 : 110 }]}>
+                  <View style={[styles.catColumn, { gap: 14, width: 100 }]}>
                     {colItems.map((cat) => {
-                      const globalIdx = CATEGORIES.findIndex(c => c.id === cat.id);
-                      const borderColors = isFreelancer
-                        ? ['#343434', '#343434']
-                        : (CAT_BORDER_COLORS[globalIdx] || ['#333', '#333']);
-
-                      if (isFreelancer) {
-                        return (
-                          <View key={cat.id} style={styles.catGridItemFreelancer}>
-                            <TouchableOpacity activeOpacity={0.8} style={styles.catGridCardFreelancer} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)}>
-                              {cat.image ? (
-                                <Image source={cat.image} style={styles.catGridImgFreelancer} resizeMode="contain" />
-                              ) : (
-                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
-                              )}
-                            </TouchableOpacity>
-                            <Text style={styles.catGridLabelFreelancer} numberOfLines={2}>{cat.label}</Text>
-                          </View>
-                        );
-                      }
+                      const globalIdx = isFreelancer
+                        ? FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)
+                        : CATEGORIES.findIndex(c => c.id === cat.id);
+                      const borderColors = CAT_BORDER_COLORS[globalIdx % CAT_BORDER_COLORS.length] || ['#333', '#333'];
 
                       return (
                         <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)} activeOpacity={0.8}>
@@ -1158,9 +1159,9 @@ export default function Homepage() {
                           >
                             <View style={styles.catGridCard}>
                               {cat.image ? (
-                                <Image source={cat.image} style={styles.catGridImgCreator} resizeMode="contain" />
+                                <Image source={cat.image} style={isFreelancer ? styles.catGridImgFreelancerChip : styles.catGridImgCreator} resizeMode="contain" />
                               ) : (
-                                <Ionicons name={(cat as any).icon} size={36} color="#aaa" />
+                                <Ionicons name={(cat as any).icon} size={28} color="#aaa" />
                               )}
                               <Text style={styles.catGridLabel}>{cat.label}</Text>
                             </View>
@@ -1202,7 +1203,7 @@ export default function Homepage() {
         </View>
 
         <View style={{ marginTop: 20, marginBottom: 10, paddingHorizontal: 16 }}>
-          <GradientHeading text="Recent Updates" style={styles.gradientHeadingText} role={userRole} />
+          <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>Recent Updates</Text>
         </View>
 
         {loading ? (
@@ -1211,7 +1212,7 @@ export default function Homepage() {
           <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
         ) : (
           <LinearGradient
-            colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.25)' : 'rgba(237, 42, 145, 0.25)', 'transparent']}
+            colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.10)' : 'rgba(237, 42, 145, 0.10)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.15)' : 'rgba(237, 42, 145, 0.15)', 'transparent']}
             locations={[0, 0.3, 0.7, 1]}
             style={{ paddingVertical: 10 }}
           >
@@ -1292,24 +1293,31 @@ export default function Homepage() {
 
         <View style={{ paddingHorizontal: 16 }}>
           <TouchableOpacity
-            style={[styles.exploreNowBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+            style={styles.exploreNowContainer}
             onPress={() => router.push('/explore')}
           >
-            <Text style={styles.exploreNowBtnText}>Explore now</Text>
+            <LinearGradient
+              colors={['#FF611A', '#E526A6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.exploreNowBtnGrad}
+            >
+              <Text style={styles.exploreNowBtnText}>Explore now</Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           {/* ══════════════ CREATE POST ══════════════ */}
           {(userRole === 'CREATOR' || userRole === 'FREELANCER') && (
             <View style={{ marginTop: 20, marginBottom: 20 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                <GradientHeading text="Create Post" style={styles.gradientHeadingText} role={userRole} />
+                <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>Create Post</Text>
                 <Image
                   source={
                     userRole === 'FREELANCER'
                       ? require('../../assets/star-freelancer.png')
                       : require('../../assets/star-creator.png')
                   }
-                  style={{ width: 28, height: 28, marginLeft: -4, marginTop: -4 }}
+                  style={{ width: 28, height: 28, marginLeft: 6, marginTop: -6 }}
                   resizeMode="contain"
                 />
               </View>
@@ -1355,7 +1363,7 @@ export default function Homepage() {
                   style={{ width: 64, height: 64, marginBottom: 12 }}
                   resizeMode="contain"
                 />
-                <Text style={styles.createPostText}>Create your first post</Text>
+                <Text style={styles.createPostText}>Create Your Post</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1394,9 +1402,29 @@ export default function Homepage() {
           ) : (
             <Ionicons name="heart-outline" size={48} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} style={{ marginBottom: 4 }} />
           )}
-          <Text style={styles.bharatTitle}>Bharat First{"\n"}Collaboration{"\n"}Network For Creators</Text>
+          <View style={{ marginBottom: 16 }}>
+            <Text style={styles.bharatTitleLine}>Bharat First</Text>
+            <HeroGradientText
+              text="Collaboration"
+              gradientColors={['rgba(237, 42, 145, 1)', 'rgba(252, 97, 33, 1)']}
+              fontSize={32}
+              fontFamily="Poppins_700Bold"
+              height={40}
+              style={{ marginTop: 6 }}
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+              <Text style={styles.bharatTitleLine}>Network For </Text>
+              <HeroGradientText
+                text={userRole === 'FREELANCER' ? 'Freelancers' : 'Creators'}
+                gradientColors={['rgba(237, 42, 145, 1)', 'rgba(252, 97, 33, 1)']}
+                fontSize={32}
+                fontFamily="Poppins_700Bold"
+                height={40}
+              />
+            </View>
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
-            <Text style={styles.bharatSubtitle}>All-in-one space for creators </Text>
+            <Text style={styles.bharatSubtitle}>All-in-one space for {userRole === 'FREELANCER' ? 'Freelancers' : 'creators'} </Text>
             <Image source={imgTargetNew} style={{ width: 22, height: 22, marginBottom: 10 }} />
           </View>
           <View style={{ flexDirection: 'row', marginVertical: 10 }}>
@@ -1681,7 +1709,7 @@ const styles = StyleSheet.create({
   // CATEGORIES GRID
   gradientHeadingText: {
     color: '#ff6ab9',
-    fontSize: 28,
+    fontSize: 20,
     fontFamily: 'Poppins_600SemiBold',
 
   },
@@ -1695,11 +1723,11 @@ const styles = StyleSheet.create({
   },
   catColumn: {
     gap: 14,
-    width: 110,
+    width: 100,
   },
   catGridItem: {
-    width: 110,
-    height: 89,
+    width: 100,
+    height: 96,
   },
   catPagination: {
     flexDirection: 'row',
@@ -1714,8 +1742,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f4f6ff',
   },
   catGradientBorder: {
-    width: 110,
-    height: 89,
+    width: 100,
+    height: 96,
     borderRadius: 24,
     padding: 1,
 
@@ -1730,52 +1758,22 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  catGridImgFreelancer: {
-    width: 56,
-    height: 52,
-    marginBottom: 6,
-  },
   catGridImgCreator: {
-    width: 36,
-    height: 36,
+    width: 28,
+    height: 24,
     marginBottom: 8,
   },
   catGridLabel: {
     color: '#fff',
-    fontSize: 10.5,
+    fontSize: 12,
     fontFamily: 'Poppins_400Regular',
     textAlign: 'center',
     lineHeight: 14,
   },
-  catGridItemFreelancer: {
-    width: 100,
-    height: 135,
-  },
-  catGridCardFreelancer: {
-    width: 96,
-    height: 90,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#343434',
-    backgroundColor: '#0F0F0F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Approximation of box-shadow: 0 0 4px 0 rgba(0, 0, 0, 0.04), -8px 0 16px 0 rgba(0, 0, 0, 0.08)
-    shadowColor: '#000',
-    shadowOffset: { width: -8, height: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-  catGridLabelFreelancer: {
-    color: '#fff',
-    fontSize: 10,
-    fontFamily: 'Poppins_400Regular',
-    textAlign: 'center',
-    lineHeight: 14,
-    marginTop: 8,
-    width: 100,
-    height: 28, // Fixed height for 2 lines
+  catGridImgFreelancerChip: {
+    width: 26,
+    height: 24,
+    marginBottom: 4,
   },
 
   // RECENT UPDATES CARDS
@@ -1788,7 +1786,8 @@ const styles = StyleSheet.create({
     height: 350,
     borderRadius: 24,
     padding: 0.8,
-
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   figmaCard: {
     width: 248,
@@ -1916,23 +1915,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  exploreNowBtn: {
-    backgroundColor: '#f26930', // orange color
-    borderRadius: 99,
-    paddingVertical: 16,
-    alignItems: 'center',
+  exploreNowContainer: {
     marginTop: 15,
     marginBottom: 40,
-    marginHorizontal: 32,
-
-
-
+    alignSelf: 'center',
+    shadowColor: '#FF4D66',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  exploreNowBtnGrad: {
+    width: 224,
+    height: 42,
+    borderRadius: 29,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   exploreNowBtnText: {
     color: '#fff',
     fontSize: 18,
     fontFamily: 'Poppins_500Medium',
-
   },
 
   // CREATE POST
@@ -1971,12 +1974,11 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
     marginBottom: 0,
   },
-  bharatTitle: {
+  bharatTitleLine: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28,
     fontFamily: 'Poppins_700Bold',
     lineHeight: 40,
-    marginBottom: 16,
     letterSpacing: 0,
   },
   bharatSubtitle: {

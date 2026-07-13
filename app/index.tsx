@@ -150,7 +150,6 @@ export default function Index() {
     // ── App icon (logo-animate.png) ──
     const logoScale = useSharedValue(0);
     const logoOpacity = useSharedValue(0);
-    const flashOpacity = useSharedValue(0);
 
     // ── "digitag" text (digitag-animate.png) ──
     const textOpacity = useSharedValue(0);
@@ -174,15 +173,6 @@ export default function Index() {
         logoScale.value = withDelay(
             LOGO_START,
             withSpring(1, { damping: 10, stiffness: 180, mass: 0.8 })
-        );
-
-        // Flash burst when logo pops to full size
-        flashOpacity.value = withDelay(
-            LOGO_START + 200,
-            withSequence(
-                withTiming(0.8, { duration: 60, easing: Easing.linear }),
-                withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) })
-            )
         );
 
         // ── Phase 4: "digitag" text slides up ──
@@ -259,10 +249,6 @@ export default function Index() {
         transform: [{ scale: logoScale.value }],
     }));
 
-    const flashStyle = useAnimatedStyle(() => ({
-        opacity: flashOpacity.value,
-    }));
-
     const textStyle = useAnimatedStyle(() => ({
         opacity: textOpacity.value,
         transform: [{ translateY: textTranslateY.value }],
@@ -298,7 +284,6 @@ export default function Index() {
                         style={styles.logoIconImage}
                         resizeMode="contain"
                     />
-                    <Animated.View style={[StyleSheet.absoluteFill, styles.flashOverlay, flashStyle]} />
                 </Animated.View>
 
                 {/* ── Stage 3: "digitag" brand text ── */}
@@ -337,10 +322,6 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
         marginTop: -40,
-    },
-    flashOverlay: {
-        backgroundColor: 'white',
-        borderRadius: BOX_RADIUS - 4,
     },
     digiTagText: {
         width: 300,
