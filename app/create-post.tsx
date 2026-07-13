@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
  import {
   ActivityIndicator,
@@ -21,10 +20,9 @@ import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-re
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { useLocationSuggestions } from '../hooks/useLocationSuggestions';
-import { createPost } from '../services/userService';
+import { deleteDraft, getDraft, newDraftId, saveDraft as persistDraft } from '../services/drafts';
+import { createPost, getPostById, updatePost } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
-
-const DRAFT_KEY = '@digitag_post_draft';
 
 type CollabChoice = 'UNPAID' | 'PAID';
 
@@ -75,6 +73,13 @@ export default function CreatePost() {
   const { token, userRole } = useAuth();
   const { requireProfile, isProfileCompleted } = useProfileGate();
   const theme = useRoleTheme();
+  // draftId → resume a saved draft; editPostId → edit an already-published post.
+  const { draftId: paramDraftId, editPostId } = useLocalSearchParams<{ draftId?: string; editPostId?: string }>();
+  const isEditMode = Boolean(editPostId);
+  // Stable identity for this composing session's draft — either the one being
+  // resumed, or a fresh id so autosave/manual-save keep updating one entry
+  // instead of piling up duplicates.
+  const draftIdRef = useRef<string>(paramDraftId || newDraftId());
 
   const isCreator = userRole === 'CREATOR';
 
@@ -123,52 +128,68 @@ export default function CreatePost() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfileCompleted]);
 
+  // Resume a saved draft (opened from My Posts > Drafts).
   useEffect(() => {
-    AsyncStorage.getItem(DRAFT_KEY).then(raw => {
-      if (!raw) return;
-      try {
-        const draft = JSON.parse(raw);
-        if (draft.title || draft.body) {
-          Alert.alert(
-            'Restore Draft?',
-            'You have an unsaved draft. Would you like to continue editing it?',
-            [
-              { text: 'Discard', style: 'destructive', onPress: () => AsyncStorage.removeItem(DRAFT_KEY) },
-              {
-                text: 'Restore', onPress: () => {
-                  setTitle(draft.title || '');
-                  setBody(draft.body || '');
-                  setLocation(draft.location || '');
-                  if (draft.collab) setCollab(draft.collab);
-                  if (draft.category) setSelectedCategory(draft.category);
-                },
-              },
-            ]
-          );
-        }
-      } catch { /* corrupted draft */ }
+    if (!paramDraftId) return;
+    getDraft(paramDraftId).then(draft => {
+      if (!draft) return;
+      setTitle(draft.title);
+      setBody(draft.body);
+      setLocation(draft.location);
+      if (draft.collab) setCollab(draft.collab);
+      if (draft.category) setSelectedCategory(draft.category);
+      if (draft.budget) setBudget(draft.budget);
     });
-  }, []);
+  }, [paramDraftId]);
+
+  // Edit mode: prefill from the live post. description was stored as
+  // "title\n\nbody" at create time, so split on the first blank line.
+  useEffect(() => {
+    if (!editPostId) return;
+    getPostById(String(editPostId), token).then(res => {
+      if (!res.success || !res.data) return;
+      const post = res.data;
+      const [firstPart, ...restParts] = String(post.description || '').split('\n\n');
+      setTitle(firstPart || '');
+      setBody(restParts.join('\n\n'));
+      setLocation(post.location || '');
+      setCollab(post.collaborationType === 'PAID' ? 'PAID' : 'UNPAID');
+      if (post.category) setSelectedCategory(post.category);
+      if (post.budget) setBudget(post.budget);
+    });
+  }, [editPostId, token]);
+
+  const buildDraft = () => ({
+    id: draftIdRef.current,
+    title, body, location, collab,
+    category: selectedCategory,
+    budget,
+    savedAt: new Date().toISOString(),
+  });
 
   const saveDraft = async () => {
     if (!title.trim() && !body.trim()) {
       Alert.alert('Nothing to save', 'Add some content before saving a draft.');
       return;
     }
-    await AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory }));
-    Alert.alert('Draft Saved', 'Your draft has been saved.');
+    await persistDraft(buildDraft());
+    Alert.alert('Draft Saved', 'Find it any time in My Posts > Drafts.');
   };
 
   // Silent debounced autosave — if the OS kills the app while the user is away
   // (e.g. switched apps to grab a reference photo), the manual "Save Draft"
   // button alone wouldn't have caught it, so persist on every change too.
+  // Not in edit mode: silently turning edits of a live post into a draft copy
+  // would be confusing.
   useEffect(() => {
+    if (isEditMode) return;
     if (!title.trim() && !body.trim()) return;
     const t = setTimeout(() => {
-      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({ title, body, location, collab, category: selectedCategory })).catch(() => {});
+      persistDraft(buildDraft()).catch(() => {});
     }, 500);
     return () => clearTimeout(t);
-  }, [title, body, location, collab, selectedCategory]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, body, location, collab, selectedCategory, budget, isEditMode]);
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : collabPlaceholder;
   const categoryLabel = selectedCategory ?? 'Select Category';
@@ -182,21 +203,22 @@ export default function CreatePost() {
 
     setSubmitting(true);
     try {
-      const res = await createPost(
-        {
-          description,
-          location: location.trim() || undefined,
-          collaborationType: collab ?? 'UNPAID',
-          category: selectedCategory || undefined,
-          budget: budget.trim() || undefined,
-          boostHours: (boostDuration ?? undefined) as 4 | 12 | 24 | 48 | undefined,
-        },
-        token,
-      );
+      const payload = {
+        description,
+        location: location.trim() || undefined,
+        collaborationType: collab ?? 'UNPAID',
+        category: selectedCategory || undefined,
+        budget: budget.trim() || undefined,
+        // Editing never touches boost/expiry — only send it on create.
+        ...(isEditMode ? {} : { boostHours: (boostDuration ?? undefined) as 4 | 12 | 24 | 48 | undefined }),
+      };
+      const res = isEditMode
+        ? await updatePost(String(editPostId), payload, token)
+        : await createPost(payload, token);
       if (res.success) {
-        await AsyncStorage.removeItem(DRAFT_KEY);
+        await deleteDraft(draftIdRef.current).catch(() => {});
         setPopupType('success');
-        setPopupMessage('Your post is now live.');
+        setPopupMessage(isEditMode ? 'Your post has been updated.' : 'Your post is now live.');
         setPopupVisible(true);
       } else {
         setPopupType('error');
@@ -226,7 +248,7 @@ export default function CreatePost() {
           <Image source={require('../assets/backicon.png')} style={styles.backBtn} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isCreator ? 'Create a post' : 'Create a post'}
+          {isEditMode ? 'Edit post' : 'Create a post'}
         </Text>
       </View>
 
@@ -378,8 +400,9 @@ export default function CreatePost() {
           </>
         )}
 
-        {/* ── Boost Duration (Creator only) ── */}
-        {isCreator && (
+        {/* ── Boost Duration (Creator only, create mode only — editing never
+             touches the original boost window) ── */}
+        {isCreator && !isEditMode && (
         <View style={styles.boostCard}>
           {/* Background Blobs (Clipped to card shape) */}
           <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 24 }]}>
@@ -483,16 +506,18 @@ export default function CreatePost() {
           >
             {submitting
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.postBtnText}>Post</Text>
+              : <Text style={styles.postBtnText}>{isEditMode ? 'Update Post' : 'Post'}</Text>
             }
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.draftBtn, { borderColor: theme.primary }]}
-            onPress={saveDraft}
-            disabled={submitting}
-          >
-            <Text style={[styles.draftBtnText, { color: theme.primary }]}>Save as Draft</Text>
-          </TouchableOpacity>
+          {!isEditMode && (
+            <TouchableOpacity
+              style={[styles.draftBtn, { borderColor: theme.primary }]}
+              onPress={saveDraft}
+              disabled={submitting}
+            >
+              <Text style={[styles.draftBtnText, { color: theme.primary }]}>Save as Draft</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <Animated.View style={keyboardSpacerStyle} />
@@ -522,7 +547,7 @@ export default function CreatePost() {
             </View>
             
             <Text style={styles.modalTitle}>
-              {popupType === 'success' ? 'Collab Sent!' : 'Failed'}
+              {popupType === 'success' ? (isEditMode ? 'Post Updated!' : 'Posted!') : 'Failed'}
             </Text>
             
             <Text style={styles.modalMessage}>{popupMessage}</Text>
@@ -532,7 +557,10 @@ export default function CreatePost() {
               onPress={() => {
                 setPopupVisible(false);
                 if (popupType === 'success') {
-                  router.replace('/(tabs)');
+                  // After editing, land back where the user came from (My Posts)
+                  // so they see the updated card; after creating, go home.
+                  if (isEditMode && router.canGoBack()) router.back();
+                  else router.replace('/(tabs)');
                 }
               }}
             >

@@ -31,6 +31,9 @@ export interface PostCardProps {
   onMessage?: (ownerId?: string) => void;
   onCall?: (owner?: any) => void;
   onBookmark?: (postId: string) => void;
+  // Owner-only actions (My Posts) — rendered in the header when provided.
+  onEdit?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
 }
 
 export default function PostCard({
@@ -41,6 +44,8 @@ export default function PostCard({
   onMessage,
   onCall,
   onBookmark,
+  onEdit,
+  onDelete,
 }: PostCardProps) {
   const postTheme = getRoleTheme(item.ownerRole);
   const postColor = postTheme.primary;
@@ -79,6 +84,16 @@ export default function PostCard({
           {onShare && (
             <TouchableOpacity style={styles.shareBtn} onPress={() => onShare(item.id)}>
               <Ionicons name="share-social-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
+          {onEdit && (
+            <TouchableOpacity style={styles.ownerActionBtn} onPress={() => onEdit(item.id)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+              <Ionicons name="pencil-outline" size={17} color="#fff" />
+            </TouchableOpacity>
+          )}
+          {onDelete && (
+            <TouchableOpacity style={styles.ownerActionBtn} onPress={() => onDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+              <Ionicons name="trash-outline" size={17} color="#EF4444" />
             </TouchableOpacity>
           )}
         </View>
@@ -225,6 +240,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
     backgroundColor: 'rgba(255, 255, 255, 0)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ownerActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
