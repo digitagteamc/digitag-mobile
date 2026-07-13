@@ -1,5 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -51,6 +51,11 @@ export default function MessagesTab() {
     }, [token, isGuest]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Refetch on every return to this tab — messages read while a chat was
+    // open update the server's unread counts, but this tab's own state was
+    // last fetched before that and won't otherwise pick up the change.
+    useFocusEffect(useCallback(() => { load(); }, [load]));
 
     useEffect(() => {
         if (searchDebounce.current) clearTimeout(searchDebounce.current);
@@ -187,7 +192,7 @@ export default function MessagesTab() {
                         const preview = last
                             ? (last.isDeleted
                                 ? '🚫 Message deleted'
-                                : last.content || (last.imageUrl ? '📷 Photo' : ''))
+                                : last.content || (last.imageUrl ? '📷 Photo' : (last.locationLat != null ? '📍 Location' : '')))
                             : 'Say hi to start the conversation';
                         const when = formatTime(item.lastMessageAt || item.createdAt);
                         const unread = item.unreadCount || 0;
