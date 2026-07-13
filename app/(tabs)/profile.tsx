@@ -29,6 +29,7 @@ interface ProfileData {
   name: string;
   phone: string;
   role: string;
+  isPremium?: boolean;
   tagId?: string | null;
   profilePicture?: string | null;
   bio?: string | null;
@@ -129,6 +130,7 @@ export default function ProfileScreen() {
               name: p.name || '',
               phone: userPhone || '',
               role,
+              isPremium: Boolean(res.data.user?.isPremium),
               tagId: p.tagId || null,
               profilePicture: p.profilePicture || null,
               bio: p.bio || null,
@@ -474,9 +476,17 @@ export default function ProfileScreen() {
 
               {/* Text Info */}
               <View className="flex-1">
-                <Text className="text-white text-2xl   tracking-tight" style={{ fontFamily: 'Poppins_600SemiBold' }}>
-                  {profile?.name || profile?.phone || ''}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-white text-2xl   tracking-tight" style={{ fontFamily: 'Poppins_600SemiBold' }}>
+                    {profile?.name || profile?.phone || ''}
+                  </Text>
+                  {profile?.isPremium && (
+                    <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,215,0,0.15)' }}>
+                      <Ionicons name="star" size={11} color="#FFD700" />
+                      <Text style={{ color: '#FFD700', fontSize: 11, fontFamily: 'Poppins_600SemiBold' }}>Premium</Text>
+                    </View>
+                  )}
+                </View>
                 {profile?.tagId ? (
                   <Text style={{ color: '#e1e1e1', fontFamily: 'Poppins_400Regular', fontSize: 13, marginTop: 2 }}>{profile.tagId}</Text>
                 ) : (
