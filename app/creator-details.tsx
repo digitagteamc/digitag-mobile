@@ -254,10 +254,11 @@ export default function CreatorDetails() {
     }
 
     const isFreelancerProfile = profile.role === 'FREELANCER';
-    // Collaboration only makes sense across roles (Creator ↔ Freelancer) —
-    // the backend already 403s a same-role request, but the button showing
-    // at all for e.g. a Creator viewing another Creator is misleading.
-    const canCollaborate = !!userRole && !!profile.role && userRole !== profile.role;
+    // Both following and collaborating only make sense across roles (Creator
+    // ↔ Freelancer) — the backend already 403s a same-role request for
+    // either, but showing the buttons at all (e.g. a Creator viewing another
+    // Creator) is misleading.
+    const isOppositeRole = !!userRole && !!profile.role && userRole !== profile.role;
     // Buttons/borders use the viewer's own role color for consistency
     const accentColor = theme.primary;
     // Header gradient reflects the profile owner's role as a visual cue
@@ -343,14 +344,16 @@ export default function CreatorDetails() {
                                         <Text style={styles.messageBtnText}>Message</Text>
                                     </TouchableOpacity>
                                 ) : null}
-                                <TouchableOpacity
-                                    style={[styles.followBtn, { borderColor: accentColor }, isFollowing && { backgroundColor: accentColor + '33' }]}
-                                    onPress={handleFollow}
-                                    disabled={followBusy}
-                                >
-                                    <Ionicons name={isFollowing ? "checkmark" : "add"} size={14} color={accentColor} />
-                                    <Text style={[styles.followBtnText, { color: accentColor }]}>{isFollowing ? 'Following' : 'Follow'}</Text>
-                                </TouchableOpacity>
+                                {resolvedUserId !== myId && isOppositeRole && (
+                                    <TouchableOpacity
+                                        style={[styles.followBtn, { borderColor: accentColor }, isFollowing && { backgroundColor: accentColor + '33' }]}
+                                        onPress={handleFollow}
+                                        disabled={followBusy}
+                                    >
+                                        <Ionicons name={isFollowing ? "checkmark" : "add"} size={14} color={accentColor} />
+                                        <Text style={[styles.followBtnText, { color: accentColor }]}>{isFollowing ? 'Following' : 'Follow'}</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
 
@@ -419,7 +422,7 @@ export default function CreatorDetails() {
                     </View>
 
                     {/* ── Collaborate / Message CTA */}
-                    {resolvedUserId !== myId && canCollaborate && (
+                    {resolvedUserId !== myId && isOppositeRole && (
                         <TouchableOpacity
                             style={[
                                 styles.collabBtn,
