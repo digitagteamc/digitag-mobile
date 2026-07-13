@@ -45,7 +45,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function CreatorDetails() {
     const router = useRouter();
-    const { token, userId: myId } = useAuth();
+    const { token, userId: myId, userRole } = useAuth();
     const { requireProfile, isProfileCompleted } = useProfileGate();
     const { id: paramId, userId: paramUserId, postId: paramPostId } = useLocalSearchParams<{ id?: string; userId?: string; postId?: string }>();
     const [resolvedUserId, setResolvedUserId] = useState<string | null>(paramUserId || paramId || null);
@@ -254,6 +254,10 @@ export default function CreatorDetails() {
     }
 
     const isFreelancerProfile = profile.role === 'FREELANCER';
+    // Collaboration only makes sense across roles (Creator ↔ Freelancer) —
+    // the backend already 403s a same-role request, but the button showing
+    // at all for e.g. a Creator viewing another Creator is misleading.
+    const canCollaborate = !!userRole && !!profile.role && userRole !== profile.role;
     // Buttons/borders use the viewer's own role color for consistency
     const accentColor = theme.primary;
     // Header gradient reflects the profile owner's role as a visual cue
@@ -415,7 +419,7 @@ export default function CreatorDetails() {
                     </View>
 
                     {/* ── Collaborate / Message CTA */}
-                    {resolvedUserId !== myId && (
+                    {resolvedUserId !== myId && canCollaborate && (
                         <TouchableOpacity
                             style={[
                                 styles.collabBtn,

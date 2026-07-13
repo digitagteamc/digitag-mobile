@@ -3,9 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
     Image,
+    Linking,
     Platform,
     ScrollView,
     StatusBar,
@@ -20,46 +19,20 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
-import { deleteAccount, downloadMyData, getPrivacySettings, updatePrivacySettings } from '../services/userService';
+import { getPrivacySettings, updatePrivacySettings } from '../services/userService';
 
 export default function PrivacySettingsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
-    const { token, logout } = useAuth();
-    const [deleting, setDeleting] = useState(false);
-    const [downloading, setDownloading] = useState(false);
+    const { token } = useAuth();
 
-    const handleDeleteAccount = () => {
-        if (!token) { router.push('/role-selection' as any); return; }
-        Alert.alert(
-            'Delete Account',
-            'This will permanently delete your account, all your posts, collaborations, and messages. This cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete Permanently',
-                    style: 'destructive',
-                    onPress: async () => {
-                        if (!token || deleting) return;
-                        setDeleting(true);
-                        try {
-                            const res = await deleteAccount(token);
-                            if (res.success) {
-                                await logout();
-                                router.replace('/login' as any);
-                            } else {
-                                Alert.alert('Error', 'Could not delete account. Please try again.');
-                            }
-                        } catch {
-                            Alert.alert('Error', 'Something went wrong. Please try again.');
-                        } finally {
-                            setDeleting(false);
-                        }
-                    },
-                },
-            ],
-        );
+    // Deletion isn't self-serve — it's handled by support over email so a
+    // human confirms it's really the account owner asking.
+    const handleRequestAccountDeletion = () => {
+        const subject = encodeURIComponent('Account Deletion Request');
+        const body = encodeURIComponent('Please delete my DigiTag account.\n\nRegistered mobile number: ');
+        Linking.openURL(`mailto:support@thedigitag.ai?subject=${subject}&body=${body}`).catch(() => {});
     };
 
     // Custom Animated Switch Component (same as in settings.tsx)
@@ -99,7 +72,6 @@ export default function PrivacySettingsScreen() {
     const [profileVisibility, setProfileVisibility] = useState(true);
     const [locationTracking, setLocationTracking] = useState(true);
     const [onlineStatus, setOnlineStatus] = useState(true);
-    const [dataSharing, setDataSharing] = useState(true);
 
     useEffect(() => {
         if (!token) return;
@@ -108,26 +80,15 @@ export default function PrivacySettingsScreen() {
             if (res.success && res.data) {
                 setProfileVisibility(res.data.isDiscoverable);
                 setOnlineStatus(res.data.showOnlineStatus);
-                setDataSharing(res.data.shareDataForPersonalization);
             }
         })();
     }, [token]);
 
     // Auto-saves on every toggle — there is no separate "Save" step, so the
     // switch always reflects what's persisted server-side.
-    const savePrivacy = (patch: Partial<{ isDiscoverable: boolean; showOnlineStatus: boolean; shareDataForPersonalization: boolean }>) => {
+    const savePrivacy = (patch: Partial<{ isDiscoverable: boolean; showOnlineStatus: boolean }>) => {
         if (!token) return;
         updatePrivacySettings(token, patch);
-    };
-
-    const handleDownloadData = async () => {
-        if (!token || downloading) return;
-        setDownloading(true);
-        const res = await downloadMyData(token);
-        setDownloading(false);
-        if (!res.success) {
-            Alert.alert('Error', res.error || 'Could not download your data. Please try again.');
-        }
     };
 
     return (
@@ -236,68 +197,16 @@ export default function PrivacySettingsScreen() {
                         </View>
                     </View> */}
 
-                    {/* ── DATA & PRIVACY SECTION ── */}
-                    <View className="px-5 mb-8">
-                        <Text className="text-white text-[20px] font-poppins-medium mb-4">Data & Privacy</Text>
-
-                        <View className="bg-[#121212] border border-[#2A2A2A] rounded-3xl px-2 py-2">
-                            {/* Data Sharing */}
-                            <View className="flex-row items-center py-3.5 px-3 border-b border-[#2A2A2A]">
-                                <View className="w-10 h-10 items-center justify-center mr-4">
-                                    <Image 
-                                        source={require('../assets/data-sharing-icon.png')} 
-                                        style={{ width: 36, height: 36 }} 
-                                        resizeMode="contain" 
-                                    />
-                                </View>
-                                <View className="flex-1">
-                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Data Sharing</Text>
-                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Share data for personalized experience</Text>
-                                </View>
-                                <CustomSwitch
-                                    value={dataSharing}
-                                    onValueChange={(v) => { setDataSharing(v); savePrivacy({ shareDataForPersonalization: v }); }}
-                                />
-                            </View>
-
-                            {/* Download Data */}
-                            <TouchableOpacity
-                                className="flex-row items-center py-3.5 px-3"
-                                onPress={handleDownloadData}
-                                disabled={downloading}
-                                activeOpacity={0.75}
-                            >
-                                <View className="w-10 h-10 items-center justify-center mr-4">
-                                    <Image
-                                        source={require('../assets/download-icon.png')}
-                                        style={{ width: 36, height: 36 }}
-                                        resizeMode="contain"
-                                    />
-                                </View>
-                                <View className="flex-1">
-                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Download My Data</Text>
-                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">
-                                        {downloading ? 'Preparing your data…' : 'Get a copy of your information'}
-                                    </Text>
-                                </View>
-                                {downloading && <ActivityIndicator size="small" color="#7C5DFA" />}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
                     {/* ── ACCOUNT DELETION ── */}
                     <View className="px-5 mb-8">
                         <Text className="text-white text-[20px] font-poppins-medium mb-4">Account Deletion</Text>
                         <TouchableOpacity
                             className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-4"
-                            onPress={handleDeleteAccount}
-                            disabled={deleting}
+                            onPress={handleRequestAccountDeletion}
                             activeOpacity={0.75}
                         >
-                            <Text className="text-[#E30000] text-[20px] font-poppins-medium mb-1">
-                                {deleting ? 'Deleting...' : 'DELETE ACCOUNT'}
-                            </Text>
-                            <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Permanently delete your account and all data</Text>
+                            <Text className="text-[#E30000] text-[20px] font-poppins-medium mb-1">Request Account Deletion</Text>
+                            <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Email our support team to permanently delete your account and all data</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

@@ -48,7 +48,7 @@ function timeAgo(dateStr?: string) {
 
 export default function PostDetail() {
   const router = useRouter();
-  const { token, userId: myId } = useAuth();
+  const { token, userId: myId, userRole } = useAuth();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const { postId } = useLocalSearchParams<{ postId: string }>();
@@ -233,6 +233,10 @@ export default function PostDetail() {
   }
 
   const isOwn = owner.id === myId;
+  // Collaboration only makes sense across roles (Creator ↔ Freelancer) — the
+  // backend already 403s a same-role request. An already-accepted collab is
+  // always shown since it could only have been created as a valid pair.
+  const canCollaborate = !!userRole && !!owner.role && userRole !== owner.role;
 
   return (
     <View style={styles.root}>
@@ -342,8 +346,9 @@ export default function PostDetail() {
             </View>
           </View>
 
-          {/* Action buttons — only for other users' posts */}
-          {!isOwn && (
+          {/* Action buttons — only for other users' posts, and only when
+              collaboration is actually possible between these two roles */}
+          {!isOwn && (collabStatus === 'ACCEPTED' || canCollaborate) && (
             <View style={styles.actionsWrap}>
               {collabStatus === 'ACCEPTED' ? (
                 <>

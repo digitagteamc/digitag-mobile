@@ -200,7 +200,7 @@ export default function HelpSupportScreen() {
               <TouchableOpacity
                 className="bg-[#7C5DFA] w-full py-4 rounded-full items-center shadow-lg shadow-[#7C5DFA]/30"
                 activeOpacity={0.8}
-                onPress={() => Linking.openURL('mailto:support@digitag.in').catch(() => {})}
+                onPress={() => Linking.openURL('mailto:support@thedigitag.ai').catch(() => {})}
               >
                 <Text className="text-white text-[16px] font-poppins-bold">Contact Support</Text>
               </TouchableOpacity>
