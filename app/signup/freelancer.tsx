@@ -742,7 +742,14 @@ export default function FreelancerSignup() {
                     return;
                 }
             }
-            if (completed) Alert.alert('Still verifying', `We're still confirming your ${label} account. This can take a moment — try reopening this screen shortly.`);
+            if (completed) {
+                Alert.alert('Still verifying', `We're still confirming your ${label} account. This can take a moment — try reopening this screen shortly.`);
+            } else {
+                // Browser closed/dismissed before reaching our server (user backed out,
+                // or the platform itself blocked the dialog) — say so instead of
+                // silently reverting the button with no explanation.
+                Alert.alert('Verification not completed', `${label} login didn't finish. If ${label} showed an error, please try again in a few minutes.`);
+            }
         } finally {
             setSocialVerifying(prev => ({ ...prev, [platform]: false }));
         }
