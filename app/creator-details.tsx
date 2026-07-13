@@ -133,7 +133,8 @@ export default function CreatorDetails() {
         if (!token) return;
         if (!isProfileCompleted) {
             requireProfile('view this profile');
-            router.back();
+            if (router.canGoBack()) router.back();
+            else router.replace('/(tabs)' as any);
         }
     }, [token, isProfileCompleted]);
 
@@ -319,7 +320,7 @@ export default function CreatorDetails() {
                     
                     {/* Top Bar */}
                     <View style={styles.topBar}>
-                        <TouchableOpacity onPress={() => router.back()}>
+                        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}>
                             <Ionicons name="arrow-back" size={24} color="#fff" />
                         </TouchableOpacity>
                         <View style={styles.topBarRight}>

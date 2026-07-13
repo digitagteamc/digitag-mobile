@@ -225,7 +225,7 @@ export default function PostDetail() {
     return (
       <View style={styles.center}>
         <Text style={styles.errorText}>Post not found.</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn2}>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))} style={styles.backBtn2}>
           <Text style={{ color: '#F15DAB' }}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -250,7 +250,7 @@ export default function PostDetail() {
 
         {/* Top bar */}
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="arrow-back" size={26} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.topTitle}>Post View</Text>
