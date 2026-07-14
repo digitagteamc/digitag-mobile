@@ -29,7 +29,6 @@ import {
     getUserStats,
     initiateCall,
     openConversationWith,
-    sendCollaboration,
     unblockUser,
     unfollowUser,
 } from '../services/userService';
@@ -56,8 +55,6 @@ export default function CreatorDetails() {
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
     const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
-    const [collabSent, setCollabSent] = useState(false);
-    const [collabBusy, setCollabBusy] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
     const [blockBusy, setBlockBusy] = useState(false);
     const [isReported, setIsReported] = useState(false);
@@ -107,9 +104,7 @@ export default function CreatorDetails() {
                 if (reportRes.success) setIsReported(Boolean(reportRes.data?.reported));
                 if (blockRes.success) setIsBlocked(Boolean(blockRes.data?.isBlocked));
                 if (collabRes.success) {
-                    const status = collabRes.data?.status ?? 'NONE';
-                    setCollabStatus(status as any);
-                    if (status === 'ACCEPTED') setCollabSent(true);
+                    setCollabStatus((collabRes.data?.status ?? 'NONE') as any);
                 }
             } else {
                 // Guest — only the public profile/stat data. Follow/collab/block/report
@@ -180,24 +175,6 @@ export default function CreatorDetails() {
             }
         } finally {
             setBlockBusy(false);
-        }
-    };
-
-    const handleCollab = async () => {
-        if (!requireProfile('send a collaboration request')) return;
-        if (!token || !resolvedUserId || collabBusy || collabSent) return;
-        setCollabBusy(true);
-        try {
-            const res = await sendCollaboration(token, { receiverId: resolvedUserId });
-            if (res.success) {
-                setCollabSent(true);
-                setCollabStatus('PENDING');
-                showAlert('Request Sent!', 'Your collaboration request has been sent. You will be notified when they respond.');
-            } else {
-                showAlert('Request Failed', (res as any).error || 'Could not send collaboration request.');
-            }
-        } finally {
-            setCollabBusy(false);
         }
     };
 
@@ -422,31 +399,9 @@ export default function CreatorDetails() {
                         </View>
                     </View>
 
-                    {/* ── Collaborate / Message CTA */}
-                    {resolvedUserId !== myId && isOppositeRole && (
-                        <TouchableOpacity
-                            style={[
-                                styles.collabBtn,
-                                collabStatus === 'ACCEPTED'
-                                    ? { borderColor: '#4caf50', backgroundColor: 'rgba(76,175,80,0.08)' }
-                                    : collabStatus === 'PENDING'
-                                        ? { borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)' }
-                                        : { borderColor: accentColor },
-                            ]}
-                            onPress={handleCollab}
-                            disabled={collabBusy || collabStatus === 'PENDING' || collabStatus === 'ACCEPTED'}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons
-                                name={collabStatus === 'ACCEPTED' ? 'people' : collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
-                                size={16}
-                                color={collabStatus === 'ACCEPTED' ? '#4caf50' : collabStatus === 'PENDING' ? '#f59e0b' : accentColor}
-                            />
-                            <Text style={[styles.collabBtnText, { color: collabStatus === 'ACCEPTED' ? '#4caf50' : collabStatus === 'PENDING' ? '#f59e0b' : accentColor }]}>
-                                {collabBusy ? 'Sending…' : collabStatus === 'ACCEPTED' ? 'Collaborated' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
+                    {/* Collaboration is initiated per-post (from a post's own Collaborate
+                        action), not profile-to-profile — this screen only reflects
+                        collabStatus to decide whether Message/Call are unlocked. */}
 
                     {/* Stats Card */}
                     <View style={styles.statsCard}>
@@ -770,23 +725,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 18,
         fontFamily: fonts.regular,
-    },
-    collabBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        marginHorizontal: 20,
-        marginBottom: 16,
-        paddingVertical: 13,
-        borderRadius: 14,
-        borderWidth: 1.5,
-        backgroundColor: 'transparent',
-    },
-    collabBtnText: {
-        fontSize: 14,
-        fontFamily: fonts.semibold,
-        letterSpacing: -0.3,
     },
     statsCard: {
         backgroundColor: 'rgba(243, 243, 243, 0.1)',

@@ -90,19 +90,25 @@ export default function BlockedUsersScreen() {
                   key={user.id}
                   className="flex-row items-center gap-3 mb-3 bg-white/5 rounded-xl border border-white/10 p-3.5"
                 >
-                  <View className="w-12 h-12 rounded-full border items-center justify-center overflow-hidden bg-[#222]" style={{ borderColor: theme.border }}>
-                    {user?.profilePicture ? (
-                      <Image source={{ uri: user.profilePicture }} className="w-full h-full" resizeMode="cover" />
-                    ) : (
-                      <Text className="text-base font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>
-                        {name.slice(0, 2).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                  <View className="flex-1 justify-center">
-                    <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
-                    <Text className="text-[#8A8A99] text-[13px] mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{user?.role?.toLowerCase() || ''}</Text>
-                  </View>
+                  <TouchableOpacity
+                    className="flex-1 flex-row items-center gap-3"
+                    activeOpacity={0.7}
+                    onPress={() => router.push({ pathname: '/creator-details', params: { userId: user.id } } as any)}
+                  >
+                    <View className="w-12 h-12 rounded-full border items-center justify-center overflow-hidden bg-[#222]" style={{ borderColor: theme.border }}>
+                      {user?.profilePicture ? (
+                        <Image source={{ uri: user.profilePicture }} className="w-full h-full" resizeMode="cover" />
+                      ) : (
+                        <Text className="text-base font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>
+                          {name.slice(0, 2).toUpperCase()}
+                        </Text>
+                      )}
+                    </View>
+                    <View className="flex-1 justify-center">
+                      <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
+                      <Text className="text-[#8A8A99] text-[13px] mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{user?.role?.toLowerCase() || ''}</Text>
+                    </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleUnblock(user.id)}
                     disabled={isBusy}

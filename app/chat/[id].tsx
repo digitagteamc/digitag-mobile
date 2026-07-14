@@ -27,6 +27,7 @@ import Animated, { FadeIn, FadeOut, useAnimatedKeyboard, useAnimatedStyle } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import messaging, { onMessage } from '@react-native-firebase/messaging';
+import ConfirmActionModal from '../../Components/ui/ConfirmActionModal';
 import ZoomableImage from '../../Components/ui/ZoomableImage';
 import { useAuth } from '../../context/AuthContext';
 import { prepareImageForUpload } from '../../services/imageResize';
@@ -298,6 +299,11 @@ export default function ChatScreen() {
     };
 
     // ── Location (one-time pin, not live tracking) ────────────────────────────
+    // Two-step like WhatsApp: fetch the fix first, then require an explicit
+    // confirm tap before it actually sends — tapping the pin icon must never
+    // itself be the send action.
+    const [pendingLocation, setPendingLocation] = useState<{ lat: number; lng: number } | null>(null);
+
     const handleSendLocation = async () => {
         if (!token || !id || sendingLocation) return;
         const perm = await Location.requestForegroundPermissionsAsync();
@@ -308,8 +314,19 @@ export default function ChatScreen() {
         setSendingLocation(true);
         try {
             const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            const { latitude, longitude } = pos.coords;
+            setPendingLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        } catch {
+            Alert.alert('Location Failed', 'Could not get your current location. Please try again.');
+        } finally {
+            setSendingLocation(false);
+        }
+    };
 
+    const confirmSendLocation = async () => {
+        if (!token || !id || !pendingLocation || sendingLocation) return;
+        const { lat: latitude, lng: longitude } = pendingLocation;
+        setSendingLocation(true);
+        try {
             const optimisticId = `tmp-${Date.now()}`;
             const optimistic: ChatMessage = {
                 id: optimisticId, conversationId: String(id), senderId: userId!,
@@ -317,6 +334,7 @@ export default function ChatScreen() {
                 isRead: false, createdAt: new Date().toISOString(), pending: true,
             };
             setMessages((prev) => [...prev, optimistic]);
+            setPendingLocation(null);
             setTimeout(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), 80);
 
             const res = await apiSendMessage(token, String(id), '', undefined, undefined, { lat: latitude, lng: longitude });
@@ -326,8 +344,6 @@ export default function ChatScreen() {
                 setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
                 Alert.alert('Send Failed', (res as any).error || 'Could not share location');
             }
-        } catch {
-            Alert.alert('Location Failed', 'Could not get your current location. Please try again.');
         } finally {
             setSendingLocation(false);
         }
@@ -814,6 +830,17 @@ export default function ChatScreen() {
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            <ConfirmActionModal
+                visible={!!pendingLocation}
+                title="Share Location"
+                message="Send your current location? The other person will be able to see it on a map."
+                confirmLabel="Send"
+                confirmColor="#22C55E"
+                busy={sendingLocation}
+                onConfirm={confirmSendLocation}
+                onDismiss={() => setPendingLocation(null)}
+            />
         </View>
     );
 }
