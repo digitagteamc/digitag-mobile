@@ -35,42 +35,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Defs, Ellipse, FeGaussianBlur, Filter, G, Path, Stop, LinearGradient as SvgGradient, Text as SvgText } from 'react-native-svg';
+import { SvgXml } from 'react-native-svg';
+import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 
 const { width } = Dimensions.get('window');
 const FALLBACK_BANNER = null;
-
-const ActiveTabGlow = React.memo(() => (
-  <View style={{ position: 'absolute', top: -30, alignSelf: 'center', zIndex: -1, opacity: 0.3 }}>
-    <Svg width="93" height="49" viewBox="0 0 93 49">
-      <Defs>
-        <Filter id="glow" x="0" y="0" width="93" height="69" filterUnits="userSpaceOnUse">
-          <FeGaussianBlur stdDeviation="35.5" />
-        </Filter>
-      </Defs>
-      <G filter="url(#glow)">
-        <Ellipse cx="46.5" cy="24.5" rx="25.5" ry="3.5" fill="white" />
-      </G>
-    </Svg>
-  </View>
-));
-
-const FolderShoulder = React.memo(({ colors, isLeft }: { colors: string[], isLeft: boolean }) => (
-  <View style={{ position: 'absolute', bottom: 0, [isLeft ? 'left' : 'right']: -20, width: 20, height: 20, zIndex: -1 }}>
-    <Svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute' }}>
-      <Path
-        d={isLeft ? "M 20 20 L 20 0 A 20 20 0 0 1 0 20 Z" : "M 0 20 L 20 20 A 20 20 0 0 1 0 0 Z"}
-        fill={colors[1]}
-      />
-    </Svg>
-    <Svg width="20" height="20" viewBox="0 0 20 20" style={{ position: 'absolute', opacity: 0.6 }}>
-      <Path
-        d={isLeft ? "M 20 20 L 20 0 A 20 20 0 0 1 0 20 Z" : "M 0 20 L 20 20 A 20 20 0 0 1 0 0 Z"}
-        fill={colors[0]}
-      />
-    </Svg>
-  </View>
-));
 
 const imgPhotography = require('../../assets/tabs-gifs/tab1.gif');
 const imgEditor = require('../../assets/tabs-gifs/editorgif.gif');
@@ -101,32 +70,6 @@ const tf_voice = require('../../assets/tabs-icons-freelancer/VoiceOver.png');
 const tf_models = require('../../assets/tabs-icons-freelancer/Modals.png');
 const tf_property = require('../../assets/tabs-icons-freelancer/PropertyRental.png');
 
-const f_lifestyle = require('../../assets/creator-categories/Lifestyle-Living.png');
-const f_tech = require('../../assets/creator-categories/Tech.png');
-const f_education = require('../../assets/creator-categories/Education.png');
-const f_photography = require('../../assets/creator-categories/Photography.png');
-const f_food = require('../../assets/creator-categories/Food.png');
-const f_health = require('../../assets/creator-categories/Health.png');
-const f_automotive = require('../../assets/creator-categories/Automotive.png');
-const f_comedy = require('../../assets/creator-categories/Comedy-Memes.png');
-const f_entertainment = require('../../assets/creator-categories/Entertainment.png');
-const f_gaming = require('../../assets/creator-categories/Gaming-Anime.png');
-const f_learning = require('../../assets/creator-categories/Learning.png');
-const f_news = require('../../assets/creator-categories/News-Media-Magazins.png');
-const f_sports = require('../../assets/creator-categories/Sports.png');
-const f_travel = require('../../assets/creator-categories/Travel.png');
-const f_beauty = require('../../assets/creator-categories/Beauty.png');
-const f_fitness = require('../../assets/creator-categories/Fitness.png');
-const f_fashion = require('../../assets/creator-categories/Fashion.png');
-const f_finance = require('../../assets/creator-categories/Finance-Investments.png');
-const f_arts = require('../../assets/creator-categories/Arts.png');
-const f_business = require('../../assets/creator-categories/Business-Startups.png');
-const f_community = require('../../assets/creator-categories/Community-Pages.png');
-const f_family = require('../../assets/creator-categories/Family-Kids-Pets.png');
-const f_home = require('../../assets/creator-categories/Home-Decor.png');
-const f_law = require('../../assets/creator-categories/Law-Rights-Activism.png');
-const f_pets = require('../../assets/creator-categories/Pets-Animals.png');
-const f_politics = require('../../assets/creator-categories/Politics.png');
 
 const fh_lifestyle = require('../../assets/categories-freelancers/Lifestyle-Living1.webp');
 const fh_tech = require('../../assets/categories-freelancers/Tech1.webp');
@@ -165,7 +108,7 @@ const CATEGORIES = [
     heroLine1: 'Explore Our Creators', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Discover top talents and connect with the right people for any project.',
     gradient: ['#3b82f6', '#2563eb'] as [string, string],
-    charStyle: { right: -45, bottom: -65, width: 230, height: 230, }
+    charStyle: { right: -45, bottom: -65, width: 111, height: 104, }
   },
   {
     id: 'photography',
@@ -273,7 +216,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f1',
     label: 'Lifestyle &\nLiving',
-    icon: f_lifestyle,
+    iconSvg: CREATOR_CAT_SVGS['Lifestyle-Living'],
     image: fh_lifestyle,
     heroLine1: 'Elevate Your Everyday  ', heroLine2: 'Lifestyle ', heroLine3: '',
     heroDesc: 'Modern lifestyle inspiration for fashion, wellness, travel, home, and everyday living.',
@@ -283,7 +226,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f2',
     label: 'Tech',
-    icon: f_tech,
+    iconSvg: CREATOR_CAT_SVGS['Tech'],
     image: fh_tech,
     heroLine1: 'Technology That Powers  ', heroLine2: ' the Future ', heroLine3: '',
     heroDesc: 'Modern technology experiences crafted for speed, creativity, and growth.',
@@ -293,7 +236,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f3',
     label: 'Education',
-    icon: f_education,
+    iconSvg: CREATOR_CAT_SVGS['Education'],
     image: fh_education,
     heroLine1: 'Unlock Your Learning ', heroLine2: ' Potential ', heroLine3: '',
     heroDesc: 'Modern education experiences designed for ambitious learners and future creators.',
@@ -303,7 +246,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f4',
     label: 'Photography',
-    icon: f_photography,
+    iconSvg: CREATOR_CAT_SVGS['Photography'],
     image: fh_photography,
     heroLine1: 'Where Creativity ', heroLine2: ' Meets Photography', heroLine3: '',
     heroDesc: 'From portraits to brand shoots, every frame is crafted to stand out beautifully.',
@@ -313,7 +256,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f5',
     label: 'Food',
-    icon: f_food,
+    iconSvg: CREATOR_CAT_SVGS['Food'],
     image: fh_food,
     heroLine1: 'Eat Fresh. Feel Happy.', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Tasty food experiences crafted for every foodie and every occasion.',
@@ -323,7 +266,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f6',
     label: 'Health',
-    icon: f_health,
+    iconSvg: CREATOR_CAT_SVGS['Health'],
     image: fh_health,
     heroLine1: 'Your Health, Your  ', heroLine2: '  Priority', heroLine3: '',
     heroDesc: 'Smart wellness solutions designed for modern lifestyles and everyday care.',
@@ -333,7 +276,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f7',
     label: 'Automotive',
-    icon: f_automotive,
+    iconSvg: CREATOR_CAT_SVGS['Automotive'],
     image: fh_automotive,
     heroLine1: 'Performance Meets ', heroLine2: '  Innovation', heroLine3: '',
     heroDesc: 'Automotive experiences crafted for passionate drivers and modern lifestyles.',
@@ -343,7 +286,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f8',
     label: 'Comedy &\nMemes',
-    icon: f_comedy,
+    iconSvg: CREATOR_CAT_SVGS['Comedy-Memes'],
     image: fh_comedy,
     heroLine1: 'Scroll Less, Laugh More', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Your daily dose of humor, memes, and endless entertainment.',
@@ -353,7 +296,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f9',
     label: 'Entertainment',
-    icon: f_entertainment,
+    iconSvg: CREATOR_CAT_SVGS['Entertainment'],
     image: fh_entertainment,
     heroLine1: 'Endless Entertainment', heroLine2: ' Starts Here', heroLine3: '',
     heroDesc: 'Trending content, creators, music, and media all in one exciting experience.',
@@ -363,7 +306,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f10',
     label: 'Gaming &\nAnime',
-    icon: f_gaming,
+    iconSvg: CREATOR_CAT_SVGS['Gaming-Anime'],
     image: fh_gaming,
     heroLine1: 'Game. Stream. Anime.', heroLine2: ' Repeat.', heroLine3: '',
     heroDesc: 'Everything you love about gaming and anime in one exciting experience.',
@@ -373,7 +316,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f11',
     label: 'Learning',
-    icon: f_learning,
+    iconSvg: CREATOR_CAT_SVGS['Learning'],
     image: fh_learning,
     heroLine1: 'Keep Learning, Keep  ', heroLine2: ' Growing', heroLine3: '',
     heroDesc: 'Modern learning experiences for ambitious minds and future creators.',
@@ -383,7 +326,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f12',
     label: 'News, Media\n& Magazins',
-    icon: f_news,
+    iconSvg: CREATOR_CAT_SVGS['News-Media-Magazins'],
     image: fh_news,
     heroLine1: 'Delivering Powerful', heroLine2: ' Headlines & Stories', heroLine3: '',
     heroDesc: 'Collaborate with experienced journalists, editors, and digital publishers.',
@@ -393,7 +336,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f13',
     label: 'Sports',
-    icon: f_sports,
+    iconSvg: CREATOR_CAT_SVGS['Sports'],
     image: fh_sports,
     heroLine1: 'Unleash Peak Athletic', heroLine2: ' Performance', heroLine3: '',
     heroDesc: 'Connect with sports analysts, personal trainers, athletes, and fitness influencers.',
@@ -403,7 +346,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f14',
     label: 'Travel',
-    icon: f_travel,
+    iconSvg: CREATOR_CAT_SVGS['Travel'],
     image: fh_travel,
     heroLine1: 'Explore Breathtaking', heroLine2: ' Destinations Across Earth', heroLine3: '',
     heroDesc: 'Partner with travel vloggers, itinerary planners, and adventure storytellers.',
@@ -413,7 +356,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f15',
     label: 'Beauty',
-    icon: f_beauty,
+    iconSvg: CREATOR_CAT_SVGS['Beauty'],
     image: fh_beauty,
     heroLine1: 'Redefining Aesthetics and', heroLine2: ' Modern Glamour', heroLine3: '',
     heroDesc: 'Work with makeup artists, skincare experts, beauty influencers, and stylists.',
@@ -423,7 +366,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f16',
     label: 'Fitness',
-    icon: f_fitness,
+    iconSvg: CREATOR_CAT_SVGS['Fitness'],
     image: fh_fitness,
     heroLine1: 'Transform Your Body and', heroLine2: ' Push Your Limits', heroLine3: '',
     heroDesc: 'Discover elite coaches, workout programmers, and physique transformation experts.',
@@ -433,7 +376,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f17',
     label: 'Fashion',
-    icon: f_fashion,
+    iconSvg: CREATOR_CAT_SVGS['Fashion'],
     image: fh_fashion,
     heroLine1: 'Setting the Trend with', heroLine2: ' Impeccable Style', heroLine3: '',
     heroDesc: 'Hire wardrobe stylists, fashion designers, models, and trendsetters for your campaign.',
@@ -443,7 +386,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f18',
     label: 'Finance &\nInvestments',
-    icon: f_finance,
+    iconSvg: CREATOR_CAT_SVGS['Finance-Investments'],
     image: fh_finance,
     heroLine1: 'Securing Wealth and', heroLine2: ' Financial Freedom', heroLine3: '',
     heroDesc: 'Connect with certified financial planners, market analysts, and investment advisors.',
@@ -453,7 +396,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f19',
     label: 'Arts',
-    icon: f_arts,
+    iconSvg: CREATOR_CAT_SVGS['Arts'],
     image: fh_arts,
     heroLine1: 'Expressive Masterpieces', heroLine2: ' Crafted with Soul', heroLine3: '',
     heroDesc: 'Discover traditional painters, digital illustrators, sculptors, and creative visionaries.',
@@ -463,7 +406,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f20',
     label: 'Business &\nStartups',
-    icon: f_business,
+    iconSvg: CREATOR_CAT_SVGS['Business-Startups'],
     image: fh_business,
     heroLine1: 'Scaling Enterprises to', heroLine2: ' Unprecedented Heights', heroLine3: '',
     heroDesc: 'Collaborate with startup consultants, business strategists, and visionary entrepreneurs.',
@@ -473,7 +416,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f21',
     label: 'Community\nPages',
-    icon: f_community,
+    iconSvg: CREATOR_CAT_SVGS['Community-Pages'],
     image: fh_community,
     heroLine1: 'Building Meaningful', heroLine2: ' Connections Together', heroLine3: '',
     heroDesc: 'Engage with community managers, moderators, and active group organizers.',
@@ -483,7 +426,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f22',
     label: 'Family, Kids\n& Pets',
-    icon: f_family,
+    iconSvg: CREATOR_CAT_SVGS['Family-Kids-Pets'],
     image: fh_family,
     heroLine1: 'Heartwarming Content', heroLine2: ' for the Whole Family', heroLine3: '',
     heroDesc: 'Partner with parenting bloggers, family lifestyle creators, and child development experts.',
@@ -493,7 +436,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f23',
     label: 'Home &\nDecor',
-    icon: f_home,
+    iconSvg: CREATOR_CAT_SVGS['Home-Decor'],
     image: fh_home,
     heroLine1: 'Transforming Spaces into', heroLine2: ' Beautiful Sanctuaries', heroLine3: '',
     heroDesc: 'Work with interior designers, DIY experts, home organizers, and decor specialists.',
@@ -503,7 +446,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f24',
     label: 'Law, Rights\n& Activism',
-    icon: f_law,
+    iconSvg: CREATOR_CAT_SVGS['Law-Rights-Activism'],
     image: fh_law,
     heroLine1: 'Standing for Justice and', heroLine2: ' Powerful Advocacy', heroLine3: '',
     heroDesc: 'Connect with legal consultants, human rights advocates, and policy commentators.',
@@ -513,7 +456,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f25',
     label: 'Pets &\nAnimals',
-    icon: f_pets,
+    iconSvg: CREATOR_CAT_SVGS['Pets-Animals'],
     image: fh_pets,
     heroLine1: 'Celebrating Our Beloved', heroLine2: ' Animal Companions', heroLine3: '',
     heroDesc: 'Discover expert pet trainers, veterinarians, animal photographers, and pet influencers.',
@@ -523,7 +466,7 @@ const FREELANCER_CATEGORIES = [
   {
     id: 'f26',
     label: 'Politics',
-    icon: f_politics,
+    iconSvg: CREATOR_CAT_SVGS['Politics'],
     image: fh_politics,
     heroLine1: 'Informed Perspectives and', heroLine2: ' Civic Discourse', heroLine3: '',
     heroDesc: 'Engage with political analysts, commentators, debate hosts, and campaign strategists.',
@@ -547,26 +490,6 @@ function timeAgo(dateStr: string | null | undefined) {
   return `${Math.round(diffHrs / 24)}d ago`;
 }
 
-const GradientTitle = ({ text }: { text: string }) => {
-  const fontSize = 28;
-  const w = text.length * fontSize * 0.58;
-  const h = fontSize * 1.4;
-  return (
-    <View style={{ width: w, height: h }}>
-      <Svg height="100%" width="100%" viewBox={`0 0 ${w} ${h}`}>
-        <Defs>
-          <SvgGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="1" />
-            <Stop offset="1" stopColor="#ff6ab9" stopOpacity="1" />
-          </SvgGradient>
-        </Defs>
-        <SvgText fill="url(#titleGrad)" fontSize={fontSize} fontFamily="Poppins_600SemiBold" x="0" y={fontSize}>
-          {text}
-        </SvgText>
-      </Svg>
-    </View>
-  );
-};
 
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
@@ -647,133 +570,8 @@ const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer
   );
 });
 
-const SimpleFolderBg = React.memo(({ width: w, height: h, tabWidth, activeIndex, colors }: {
-  width: number; height: number; tabWidth: number; activeIndex: number; colors: [string, string];
-}) => {
-  const r = 24;
-  const tw = tabWidth;
-  const th = 100;
-  const tx = 8 + activeIndex * tabWidth;
-
-  const d = `
-    M 0 ${th}
-    ${tx > r ? `L ${tx - r} ${th} A ${r} ${r} 0 0 0 ${tx} ${th - r} L ${tx} ${r} A ${r} ${r} 0 0 1 ${tx + r} 0`
-      : `A ${r} ${r} 0 0 1 ${tx + r} 0`}
-    L ${Math.min(w - r, tx + tw - r)} 0
-    ${tx + tw < w - r
-      ? `A ${r} ${r} 0 0 1 ${tx + tw} ${r} L ${tx + tw} ${th - r} A ${r} ${r} 0 0 0 ${tx + tw + r} ${th} L ${w} ${th}`
-      : `A ${r} ${r} 0 0 1 ${w} 0`}
-    L ${w} ${h - r}
-    A ${r} ${r} 0 0 1 ${w - r} ${h}
-    L ${r} ${h}
-    A ${r} ${r} 0 0 1 0 ${h - r}
-    Z
-  `;
-
-  return (
-    <View style={{ position: 'absolute', top: 0, left: 0, width: w, height: h }}>
-      <Svg width={w} height={h}>
-        <Defs>
-          <SvgGradient id="simpleFolderGrad" x1="0" y1="0" x2="0.5" y2="1">
-            <Stop offset="0" stopColor={colors[0]} />
-            <Stop offset="1" stopColor={colors[1]} />
-          </SvgGradient>
-        </Defs>
-        <Path d={d} fill="url(#simpleFolderGrad)" />
-      </Svg>
-    </View>
-  );
-});
 
 
-
-const BlinkingStar = React.memo(({ style, size = 20, delay = 0 }: { style?: any, size?: number, delay?: number }) => {
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    const duration = 1000 + Math.random() * 1500;
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration }),
-        withTiming(0, { duration })
-      ),
-      -1,
-      true
-    );
-    return () => cancelAnimation(opacity);
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: opacity.value * 0.3 + 0.7 }]
-  }));
-
-  return (
-    <Animated.View style={[style, animatedStyle]}>
-      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M9.93694 14.9996C9.84766 14.6535 9.66728 14.3377 9.41456 14.085C9.16184 13.8323 8.84601 13.6519 8.49994 13.5626L2.36494 11.9806C2.26027 11.9509 2.16815 11.8878 2.10255 11.801C2.03696 11.7142 2.00146 11.6084 2.00146 11.4996C2.00146 11.3908 2.03696 11.285 2.10255 11.1981C2.16815 11.1113 2.26027 11.0483 2.36494 11.0186L8.49994 9.43559C8.84589 9.3464 9.16163 9.16617 9.41434 8.91363C9.66705 8.6611 9.84751 8.34548 9.93694 7.99959L11.5189 1.86459C11.5483 1.75951 11.6113 1.66693 11.6983 1.60099C11.7852 1.53504 11.8913 1.49934 12.0004 1.49934C12.1096 1.49934 12.2157 1.53504 12.3026 1.60099C12.3896 1.66693 12.4525 1.75951 12.4819 1.86459L14.0629 7.99959C14.1522 8.34566 14.3326 8.66149 14.5853 8.91421C14.838 9.16693 15.1539 9.34731 15.4999 9.43659L21.6349 11.0176C21.7404 11.0467 21.8335 11.1096 21.8998 11.1967C21.9661 11.2837 22.002 11.3902 22.002 11.4996C22.002 11.609 21.9661 11.7154 21.8998 11.8025C21.8335 11.8896 21.7404 11.9525 21.6349 11.9816L15.4999 13.5626C15.1539 13.6519 14.838 13.8323 14.5853 14.085C14.3326 14.3377 14.1522 14.6535 14.0629 14.9996L12.4809 21.1346C12.4515 21.2397 12.3886 21.3322 12.3016 21.3982C12.2147 21.4641 12.1086 21.4998 11.9994 21.4998C11.8903 21.4998 11.7842 21.4641 11.6973 21.3982C11.6103 21.3322 11.5473 21.2397 11.5179 21.1346L9.93694 14.9996Z"
-          stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-        />
-        <Path d="M20 2.875V6.70833" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M22 5.00034H18" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M4 16.292V18.2087" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M5 18H3" stroke="#FFDF20" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-const BlinkingDot = React.memo(({ style, size = 5 }: { style?: any, size?: number }) => {
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    const duration = 800 + Math.random() * 1200;
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration }),
-        withTiming(0, { duration })
-      ),
-      -1,
-      true
-    );
-    return () => cancelAnimation(opacity);
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={[style, animatedStyle]}>
-      <Svg width={size} height={size} viewBox="0 0 5 5" fill="none">
-        <Circle cx="2.5" cy="2.5" r="2.5" fill="#D9D9D9" />
-      </Svg>
-    </Animated.View>
-  );
-});
-
-const Sparkles = React.memo(({ count = 3 }: { count?: number }) => {
-  return (
-    <>
-      <BlinkingStar style={{ position: 'absolute', top: 10, left: 120 }} size={24} />
-      <BlinkingStar style={{ position: 'absolute', top: 100, right: 10 }} size={16} />
-      <BlinkingStar style={{ position: 'absolute', bottom: 60, left: 40 }} size={20} />
-
-      {/* Tiny Blinking Dots */}
-      <BlinkingDot style={{ position: 'absolute', top: 40, left: 40 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 140, left: 180 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 60, right: 100 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 100, right: 150 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 40, right: 50 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 200, left: 20 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 20, right: 200 }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 150, left: 100 }} />
-      <BlinkingDot style={{ position: 'absolute', top: 100, left: '50%' }} />
-      <BlinkingDot style={{ position: 'absolute', bottom: 20, left: 200 }} />
-    </>
-  );
-});
 
 export default function ExploreTab() {
   const router = useRouter();
@@ -811,6 +609,7 @@ export default function ExploreTab() {
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
   const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | null>(null);
+  const [filterPanelVisible, setFilterPanelVisible] = useState(false);
 
   const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Punjabi', 'Marathi', 'Bengali', 'Gujarati'];
   const LOCATION_OPTIONS = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
@@ -916,26 +715,12 @@ export default function ExploreTab() {
   }, [userRole]);
 
   const activeCat = availableCategories.find(c => c.id === activeCategory) || availableCategories[0];
-  const activeIndex = Math.max(0, availableCategories.findIndex(c => c.id === activeCategory));
-
-  const tabScrollRef = React.useRef<ScrollView>(null);
-
-  // When activeCategory changes, scroll the tab into view
-  useEffect(() => {
-    const idx = availableCategories.findIndex(c => c.id === activeCategory);
-    if (idx >= 0 && tabScrollRef.current) {
-      tabScrollRef.current.scrollTo({ x: idx * 112, animated: true });
-    }
-  }, [activeCategory, availableCategories]);
 
   useEffect(() => {
     if (!availableCategories.find(c => c.id === activeCategory)) {
       setActiveCategory(availableCategories[0].id);
     }
   }, [availableCategories]);
-
-  // Constants for tab layout
-  const TAB_WIDTH = 108;
 
   const allCards = useMemo(() => posts.map((p) => {
     const owner = p.owner || {};
@@ -1150,9 +935,15 @@ export default function ExploreTab() {
                 <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
                 <Ionicons name="shield-checkmark" size={14} color={accent} style={{ marginLeft: 6, flexShrink: 0 }} />
               </View>
-              <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
-                <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio ▾</Text>
-              </TouchableOpacity>
+              <View style={s.cardMetaRow}>
+                <TouchableOpacity onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}>
+                  <Text style={[s.cardPortfolioLink, { color: accent }]}>See Portfolio</Text>
+                </TouchableOpacity>
+                <View style={s.timeRow}>
+                  <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                  <Text style={s.timeText}>{item.time || '4h ago'}</Text>
+                </View>
+              </View>
             </View>
             {/* Bookmark */}
             <TouchableOpacity style={s.bookmarkBtn} onPress={() => handleBookmark(item.id)}>
@@ -1172,52 +963,39 @@ export default function ExploreTab() {
             </Text>
           </TouchableOpacity>
 
-          {/* Info Grid */}
-          <View style={s.infoGrid}>
-            <View style={s.infoRow}>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Experience</Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue} numberOfLines={1}>{item.experience}</Text>
-                </View>
+          {/* Info pills */}
+          <View style={s.pillWrapRow}>
+            {!!item.experience && (
+              <View style={s.pill}>
+                <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
+                <Text style={s.pillText} numberOfLines={1}>{item.experience}</Text>
               </View>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Collab Type</Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name={item.price === 'Paid Collab' ? 'cash-outline' : 'gift-outline'} size={13} color="#a1a2a4" />
-                  <Text style={[s.infoValue, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]} numberOfLines={1}>{item.price}</Text>
-                </View>
-              </View>
+            )}
+            <View style={[s.pill, { borderColor: item.price === 'Paid Collab' ? 'rgba(34,197,94,0.4)' : 'rgba(167,139,250,0.4)' }]}>
+              <Ionicons name={item.price === 'Paid Collab' ? 'cash-outline' : 'gift-outline'} size={13} color={item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa'} />
+              <Text style={[s.pillText, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]} numberOfLines={1}>{item.price}</Text>
             </View>
-            <View style={s.infoRow}>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Language</Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name="language-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue} numberOfLines={1}>{item.languages}</Text>
-                </View>
+            {!!item.location && (
+              <View style={s.pill}>
+                <Ionicons name="location-outline" size={13} color="#a1a2a4" />
+                <Text style={s.pillText} numberOfLines={1}>{item.location}</Text>
               </View>
-              <View style={s.infoCell}>
-                <Text style={s.infoLabel}>Location <Text style={s.infoLabelSub}>(Primary)</Text></Text>
-                <View style={s.infoValueRow}>
-                  <Ionicons name="location-outline" size={13} color="#a1a2a4" />
-                  <Text style={s.infoValue} numberOfLines={1}>{item.location}</Text>
-                </View>
-              </View>
-            </View>
+            )}
             {!!item.budget && (
-              <View style={s.infoRow}>
-                <View style={[s.infoCell, { flex: 1 }]}>
-                  <Text style={s.infoLabel}>Budget</Text>
-                  <View style={s.infoValueRow}>
-                    <Ionicons name="wallet-outline" size={13} color="#a1a2a4" />
-                    <Text style={[s.infoValue, { color: '#fbbf24' }]} numberOfLines={1}>₹{item.budget}</Text>
-                  </View>
-                </View>
+              <View style={[s.pill, { borderColor: 'rgba(251,191,36,0.4)' }]}>
+                <Ionicons name="wallet-outline" size={13} color="#fbbf24" />
+                <Text style={[s.pillText, { color: '#fbbf24' }]} numberOfLines={1}>₹{item.budget}</Text>
               </View>
             )}
           </View>
+          {!!item.languages && (
+            <View style={s.pillWrapRow}>
+              <View style={s.pill}>
+                <Ionicons name="language-outline" size={13} color="#a1a2a4" />
+                <Text style={s.pillText} numberOfLines={1}>{item.languages}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Bottom Actions */}
           {acceptedCollabOwnerIds.has(item.ownerId) ? (
@@ -1233,6 +1011,11 @@ export default function ExploreTab() {
                     <Ionicons name="call-outline" size={18} color="#fff" />
                   </ImageBackground>
                 </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleShare(item.id)} activeOpacity={0.75}>
+                  <ImageBackground source={require('../../assets/bg-icons.png')} style={s.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                    <Ionicons name="share-social-outline" size={18} color="#fff" />
+                  </ImageBackground>
+                </TouchableOpacity>
               </View>
               <View style={s.cardBottomRight}>
                 <TouchableOpacity
@@ -1241,142 +1024,34 @@ export default function ExploreTab() {
                 >
                   <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
                 </TouchableOpacity>
-                <View style={s.timeRow}>
-                  <Ionicons name="time-outline" size={12} color="#a1a2a4" />
-                  <Text style={s.timeText}>{item.time || '4h ago'}</Text>
-                </View>
               </View>
             </View>
           ) : (
-            <View style={s.cardBottomCollab}>
-              <TouchableOpacity
-                style={[s.bigCollabBtn, { backgroundColor: accent, opacity: collabSentIds.has(item.id) ? 0.6 : 1 }]}
-                onPress={() => handleCollab(item.ownerId, item.id)}
-                activeOpacity={0.8}
-                disabled={collabSentIds.has(item.id)}
-              >
-                <Ionicons
-                  name={collabSentIds.has(item.id) ? 'checkmark-circle-outline' : 'people-outline'}
-                  size={16}
-                  color="#fff"
-                />
-                <Text style={s.bigCollabBtnText}>
-                  {collabSentIds.has(item.id) ? 'Request Sent' : 'Collaborate'}
-                </Text>
-              </TouchableOpacity>
-              <View style={s.cardBottomRight}>
-                <TouchableOpacity
-                  style={[s.seePortfolioBtn, { backgroundColor: accent }]}
-                  onPress={() => handlePortfolio(item.ownerId, item.ownerRole)}
-                >
-                  <Text style={s.seePortfolioBtnText}>See Portfolio</Text>
-                </TouchableOpacity>
-                <View style={s.timeRow}>
-                  <Ionicons name="time-outline" size={12} color="#a1a2a4" />
-                  <Text style={s.timeText}>{item.time || '4h ago'}</Text>
-                </View>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={[s.bigCollabBtn, { backgroundColor: accent, opacity: collabSentIds.has(item.id) ? 0.6 : 1 }]}
+              onPress={() => handleCollab(item.ownerId, item.id)}
+              activeOpacity={0.8}
+              disabled={collabSentIds.has(item.id)}
+            >
+              <Ionicons
+                name={collabSentIds.has(item.id) ? 'checkmark-circle-outline' : 'paper-plane-outline'}
+                size={16}
+                color="#fff"
+              />
+              <Text style={s.bigCollabBtnText}>
+                {collabSentIds.has(item.id) ? 'Request Sent' : 'Send Request'}
+              </Text>
+            </TouchableOpacity>
           )}
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
 
-  const listHeader = useMemo(() => (
+  // Reusable filter form (Collab Type / Experience / Language / Location) — now lives inside
+  // the filter panel modal (behind the header's filter icon) instead of always being visible.
+  const filterPanelContent = (
     <View>
-      {/* ═══ HEADER ═══ */}
-      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-        <GradientTitle text="Explore All" />
-        <Text style={s.subtitle}>Discover & Connect with the right people</Text>
-      </View>
-
-      {/* ═══ HERO SECTION ═══ */}
-      <View style={s.heroWrapper}>
-
-        {/* Gradient background — ONLY behind hero content, below the tab row */}
-        <View style={[StyleSheet.absoluteFill, { top: 106, backgroundColor: activeCat.gradient[1] }]} />
-        <View style={[StyleSheet.absoluteFill, { top: 106, opacity: 0.6, backgroundColor: activeCat.gradient[0] }]} />
-
-        {/* ── TABS: pinned to the very top ── */}
-        <View style={s.tabRowWrapper}>
-          <ScrollView
-            ref={tabScrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.catTabsRow}
-            scrollEventThrottle={16}
-            snapToInterval={TAB_WIDTH}
-            decelerationRate="fast"
-            nestedScrollEnabled={true}
-                  
-
-          >
-            {availableCategories.map((cat) => {
-              const isActive = cat.id === activeCategory;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setActiveCategory(cat.id)}
-                  activeOpacity={0.8}
-                  style={[s.catTab, isActive ? [s.catTabActive, { zIndex: 10 }] : s.catTabInactive]}
-                >
-                  {/* Active tab: hero gradient bg + shoulders */}
-                  {isActive && (
-                    <View style={[StyleSheet.absoluteFill, { zIndex: 5 }]}>
-                      {/* Inner wrapper for border radius clipping */}
-                      <View style={[StyleSheet.absoluteFill, {
-                        borderTopLeftRadius: 20,
-                        borderTopRightRadius: 20,
-                        overflow: 'hidden',
-                      }]}>
-                        <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[1] }]} />
-                        <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[0], opacity: 0.6 }]} />
-                      </View>
-                      {/* Shoulders placed outside the overflow: hidden wrapper */}
-                      <FolderShoulder colors={activeCat.gradient} isLeft={true} />
-                      <FolderShoulder colors={activeCat.gradient} isLeft={false} />
-                    </View>
-                  )}
-                  {/* Inactive tab: #999 base + rgba(51,51,51,0.40) overlay */}
-                  {!isActive && (
-                    <View style={[StyleSheet.absoluteFill, {
-                      backgroundColor: 'rgba(51, 51, 51, 0.40)',
-                      borderTopLeftRadius: 20,
-                      borderTopRightRadius: 20,
-                    }]} />
-                  )}
-                  {/* Icon and Text wrapped to stay above absolute backgrounds */}
-                  <View style={{ zIndex: 10, alignItems: 'center' }}>
-                    {isActive && <ActiveTabGlow />}
-                    <Image source={cat.icon} style={isActive ? s.catTabImgActive : s.catTabImg} resizeMode="contain" />
-                    <Text style={isActive ? s.catTabLabelActive : s.catTabLabel} numberOfLines={2}>{cat.label}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* ── HERO CONTENT: sits below the tab row ── */}
-        <View style={s.heroContentContainer} pointerEvents="none">
-          <View style={s.heroContent}>
-            <View style={s.heroTextArea}>
-              <FadeText text={activeCat.heroLine1} style={[s.heroTitle, s.heroTitleBold]} />
-              {!!activeCat.heroLine2 && activeCat.heroLine2.trim().length > 0 && (
-                <FadeText text={activeCat.heroLine2} style={[s.heroTitle, s.heroTitleFaded]} />
-              )}
-              {!!activeCat.heroLine3 && activeCat.heroLine3.trim().length > 0 && (
-                <FadeText text={activeCat.heroLine3} style={[s.heroTitle, s.heroTitleFaded]} />
-              )}
-              <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
-            </View>
-            <HeroAnimatedImage source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
-          </View>
-          <Sparkles count={12} />
-        </View>
-      </View>
-
       <View style={s.filterRow}>
         <View style={s.filterCol}>
           <Text style={s.filterLabel}>Collab Type</Text>
@@ -1410,7 +1085,28 @@ export default function ExploreTab() {
         </View>
       </View>
     </View>
-  ), [insets.top, activeCat, availableCategories, activeCategory, selectedPriceRange, selectedExperience, selectedLanguage, selectedLocation]);
+  );
+
+  // Sidebar now owns category selection; the FlatList's header is just the per-category hero card.
+  const listHeader = useMemo(() => (
+    <View style={s.heroCard}>
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[1], borderRadius: 24 }]} />
+      <View style={[StyleSheet.absoluteFill, { opacity: 0.6, backgroundColor: activeCat.gradient[0], borderRadius: 24 }]} />
+      <View style={s.heroContent}>
+        <View style={s.heroTextArea}>
+          <FadeText text={activeCat.heroLine1} style={[s.heroTitle, s.heroTitleBold]} />
+          {!!activeCat.heroLine2 && activeCat.heroLine2.trim().length > 0 && (
+            <FadeText text={activeCat.heroLine2} style={[s.heroTitle, s.heroTitleFaded]} />
+          )}
+          {!!activeCat.heroLine3 && activeCat.heroLine3.trim().length > 0 && (
+            <FadeText text={activeCat.heroLine3} style={[s.heroTitle, s.heroTitleFaded]} />
+          )}
+          <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
+        </View>
+        <HeroAnimatedImage source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
+      </View>
+    </View>
+  ), [activeCat, userRole]);
 
   if (!isReady) {
     return (
@@ -1423,7 +1119,75 @@ export default function ExploreTab() {
   return (
     <View style={s.root}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
-      <FlatList
+
+      {/* ═══ HEADER ═══ */}
+      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
+        <View style={s.headerTopRow}>
+          <View style={s.headerTitleRow}>
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+              style={s.headerBackBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={s.headerTitleText}>Explore All</Text>
+          </View>
+          <TouchableOpacity
+            style={[s.filterIconBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+            activeOpacity={0.8}
+            onPress={() => setFilterPanelVisible(true)}
+          >
+            <Ionicons name="options-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        <Text style={s.subtitle}>Discover & Connect with the right people</Text>
+      </View>
+
+      {/* ═══ BODY: category sidebar + scrollable feed ═══ */}
+      <View style={s.bodyRow}>
+        {/* ── LEFT SIDEBAR ──
+            The fixed width lives on this plain wrapping View, not on the ScrollView's own
+            `style` — Android's Yoga layout doesn't reliably honor an explicit `width` set
+            directly on a ScrollView when it's a row-sibling, and lets it expand instead
+            (observed taking ~50% of the screen instead of 83px). Plain Views don't have
+            this issue, so the ScrollView just fills the wrapper. */}
+        <View style={s.sidebar}>
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 24 }}
+            nestedScrollEnabled={true}
+          >
+            {availableCategories.map((cat) => {
+              const isActive = cat.id === activeCategory;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setActiveCategory(cat.id)}
+                  activeOpacity={0.8}
+                  style={[s.sidebarItem, isActive && s.sidebarItemActive]}
+                >
+                  {(cat as any).iconSvg ? (
+                    <SvgXml xml={(cat as any).iconSvg} width={30} height={30} />
+                  ) : (
+                    <Image source={(cat as any).icon} style={{ width: 30, height: 30 }} resizeMode="contain" />
+                  )}
+                  <Text style={[s.sidebarLabel, isActive && s.sidebarLabelActive]} numberOfLines={2}>{cat.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* ── RIGHT: hero card + feed ──
+            Wrapped in a plain View (rather than relying on FlatList's own `style` prop)
+            because Android's Yoga layout can fail to resolve `flex: 1` on a FlatList that's
+            a sibling of another element in a `flexDirection: 'row'` parent — the FlatList
+            collapses to a sliver width, wrapping text one letter per line. iOS isn't affected. */}
+        <View style={s.feedColumn}>
+        <FlatList
+        style={{ flex: 1 }}
         data={cards}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
@@ -1472,8 +1236,9 @@ export default function ExploreTab() {
         initialNumToRender={4}
         windowSize={7}
         nestedScrollEnabled={true}
-      />
-
+        />
+        </View>
+      </View>
 
       {/* ═══ PORTFOLIO MODAL ═══ */}
       <Modal visible={portfolioModalVisible} transparent animationType="slide" onRequestClose={() => setPortfolioModalVisible(false)}>
@@ -1503,6 +1268,29 @@ export default function ExploreTab() {
             ) : (
               <Text style={s.noPortfolio}>No portfolio link provided.</Text>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ═══ FILTER PANEL MODAL (behind the header's filter icon) ═══ */}
+      <Modal
+        visible={filterPanelVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterPanelVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setFilterPanelVisible(false)} />
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Filters</Text>
+              <TouchableOpacity style={s.modalClose} onPress={() => setFilterPanelVisible(false)}>
+                <Feather name="x" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {filterPanelContent}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1570,64 +1358,49 @@ const s = StyleSheet.create({
   scroll: { flex: 5 },
 
   // Header
-  header: { paddingHorizontal: 16, paddingBottom: 20, },
-  subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 4, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
-
-  // Hero wrapper
-  heroWrapper: {
-    height: 403,
-    overflow: 'hidden',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  header: { paddingHorizontal: 16, paddingBottom: 16, backgroundColor: '#000' },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
+  headerBackBtn: { padding: 2 },
+  headerTitleText: { color: '#fff', fontSize: 26, fontFamily: 'Poppins_700Bold' },
+  filterIconBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
   },
-  // Wraps the horizontal scroll, pinned at the very top of heroWrapper
-  tabRowWrapper: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 106,
-    zIndex: 2,
-    backgroundColor: '#000',
-  },
-  catTabsRow: { gap: 0, paddingHorizontal: 8, alignItems: 'flex-end', flexGrow: 1 },
+  subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 8, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
-  catTab: {
+  // Body: sidebar + scrollable feed column
+  bodyRow: { flex: 1, flexDirection: 'row' },
+  sidebar: { width: 83, backgroundColor: '#0A0A0A' },
+  sidebarItem: {
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 6,
-    paddingTop: 14,
-    paddingBottom: 8,
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    gap: 8,
   },
-  catTabActive: {
-    width: 108,
-    height: 106,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  sidebarItemActive: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  sidebarLabel: {
+    color: '#fff',
+    fontSize: 10,
+    lineHeight: 13,
+    fontFamily: 'Poppins_500Medium',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
-  catTabInactive: {
-    width: 108,
-    height: 106,
-    backgroundColor: 'rgba(19, 19, 19, 1)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  catTabImg: { width: 29, height: 30, marginBottom: 5, marginTop: 10 },
-  catTabImgActive: { width: 49, height: 40, marginBottom: 6, marginTop: 10 },
-  catTabLabel: { color: '#fff', fontSize: 10, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
-  catTabLabelActive: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_600SemiBold', textAlign: 'center' },
+  sidebarLabelActive: { color: '#fff', fontFamily: 'Poppins_600SemiBold' },
+  feedColumn: { flex: 1 },
 
-  heroContentContainer: {
-    position: 'absolute',
-    top: 106,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 16,
+  // Hero card — inset, rounded on all corners, sits as the feed's list header
+  heroCard: {
+    width: 333,
+    height: 140,
+    borderRadius: 24,
     overflow: 'hidden',
-    zIndex: 1,
+    marginHorizontal: 8,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 20,
   },
 
   // Sparkle dots
@@ -1635,11 +1408,11 @@ const s = StyleSheet.create({
 
   // Hero text + character
   heroContent: { flex: 1, position: 'relative' },
-  heroTextArea: { maxWidth: '78%', marginTop: 35, },
-  heroTitle: { fontSize: 20, lineHeight: 30, fontFamily: 'Poppins_700Bold', },
+  heroTextArea: { maxWidth: '78%' },
+  heroTitle: { fontSize: 18, lineHeight: 26, fontFamily: 'Poppins_700Bold', },
   heroTitleBold: { color: '#fff' },
   heroTitleFaded: { color: 'rgba(255,255,255,0.8)' },
-  heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Poppins_400Regular', lineHeight: 20, marginTop: 10 },
+  heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontFamily: 'Poppins_400Regular', lineHeight: 18, marginTop: 8 },
   heroCharacter: {
     position: 'absolute',
     // Default values if not specified in category
@@ -1684,7 +1457,8 @@ const s = StyleSheet.create({
   cardNameArea: { flex: 1, paddingTop: 4, minWidth: 0 },
   cardNameRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
   cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', flexShrink: 1 },
-  cardPortfolioLink: { fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2 },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+  cardPortfolioLink: { fontSize: 12, fontFamily: 'Poppins_400Regular' },
   bookmarkBtn: {
     width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(39,39,42,0.5)',
     justifyContent: 'center', alignItems: 'center',
@@ -1693,22 +1467,21 @@ const s = StyleSheet.create({
   // Description
   cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
 
-  // Info Grid
-  infoGrid: { gap: 12, marginBottom: 14 },
-  infoRow: { flexDirection: 'row', gap: 16 },
-  infoCell: { flex: 1, minWidth: 0 },
-  infoLabel: { color: '#fff', fontSize: 11, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
-  infoLabelSub: { color: '#d1d2d4' },
-  infoValueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  infoValue: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
+  // Info pills
+  pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(64,64,64,0.5)',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+  },
+  pillText: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
 
   // Bottom
-  cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardBottomCollab: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
   bigCollabBtn: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 6, borderRadius: 99, paddingVertical: 9,
+    gap: 6, borderRadius: 99, paddingVertical: 12, marginTop: 6,
   },
   bigCollabBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
   cardActions: { flexDirection: 'row', gap: 12 },

@@ -32,7 +32,8 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, TSpan } from 'react-native-svg';
+import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, SvgXml, Text as SvgText, TSpan } from 'react-native-svg';
+import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useNotificationCount } from '../../context/NotificationCountContext';
@@ -132,61 +133,33 @@ const CATEGORIES = [
   { id: 'models', label: 'Models', image: imgModal, icon: 'walk-outline' as const },
 ];
 
-const f_lifestyle = require('../../assets/creator-categories/Lifestyle-Living.png');
-const f_tech = require('../../assets/creator-categories/Tech.png');
-const f_education = require('../../assets/creator-categories/Education.png');
-const f_photography = require('../../assets/creator-categories/Photography.png');
-const f_food = require('../../assets/creator-categories/Food.png');
-const f_health = require('../../assets/creator-categories/Health.png');
-const f_automotive = require('../../assets/creator-categories/Automotive.png');
-const f_comedy = require('../../assets/creator-categories/Comedy-Memes.png');
-const f_entertainment = require('../../assets/creator-categories/Entertainment.png');
-const f_gaming = require('../../assets/creator-categories/Gaming-Anime.png');
-const f_learning = require('../../assets/creator-categories/Learning.png');
-const f_news = require('../../assets/creator-categories/News-Media-Magazins.png');
-const f_sports = require('../../assets/creator-categories/Sports.png');
-
-const f_travel = require('../../assets/creator-categories/Travel.png');
-const f_beauty = require('../../assets/creator-categories/Beauty.png');
-const f_fitness = require('../../assets/creator-categories/Fitness.png');
-const f_fashion = require('../../assets/creator-categories/Fashion.png');
-const f_finance = require('../../assets/creator-categories/Finance-Investments.png');
-const f_arts = require('../../assets/creator-categories/Arts.png');
-const f_business = require('../../assets/creator-categories/Business-Startups.png');
-const f_community = require('../../assets/creator-categories/Community-Pages.png');
-const f_family = require('../../assets/creator-categories/Family-Kids-Pets.png');
-const f_home = require('../../assets/creator-categories/Home-Decor.png');
-const f_law = require('../../assets/creator-categories/Law-Rights-Activism.png');
-const f_pets = require('../../assets/creator-categories/Pets-Animals.png');
-const f_politics = require('../../assets/creator-categories/Politics.png');
-
 const FREELANCER_CATEGORIES = [
-  { id: 'f1', label: 'Lifestyle &\nLiving', image: f_lifestyle },
-  { id: 'f2', label: 'Tech', image: f_tech },
-  { id: 'f3', label: 'Education', image: f_education },
-  { id: 'f4', label: 'Photography', image: f_photography },
-  { id: 'f5', label: 'Food', image: f_food },
-  { id: 'f6', label: 'Health', image: f_health },
-  { id: 'f7', label: 'Automotive', image: f_automotive },
-  { id: 'f8', label: 'Comedy &\nMemes', image: f_comedy },
-  { id: 'f9', label: 'Entertainment', image: f_entertainment },
-  { id: 'f10', label: 'Gaming &\nAnime', image: f_gaming },
-  { id: 'f11', label: 'Learning', image: f_learning },
-  { id: 'f12', label: 'News, Media\n& Magazins', image: f_news },
-  { id: 'f13', label: 'Sports', image: f_sports },
-  { id: 'f14', label: 'Travel', image: f_travel },
-  { id: 'f15', label: 'Beauty', image: f_beauty },
-  { id: 'f16', label: 'Fitness', image: f_fitness },
-  { id: 'f17', label: 'Fashion', image: f_fashion },
-  { id: 'f18', label: 'Finance &\nInvestments', image: f_finance },
-  { id: 'f19', label: 'Arts', image: f_arts },
-  { id: 'f20', label: 'Business &\nStartups', image: f_business },
-  { id: 'f21', label: 'Community\nPages', image: f_community },
-  { id: 'f22', label: 'Family, Kids\n& Pets', image: f_family },
-  { id: 'f23', label: 'Home &\nDecor', image: f_home },
-  { id: 'f24', label: 'Law, Rights\n& Activism', image: f_law },
-  { id: 'f25', label: 'Pets &\nAnimals', image: f_pets },
-  { id: 'f26', label: 'Politics', image: f_politics },
+  { id: 'f1', label: 'Lifestyle &\nLiving', svgXml: CREATOR_CAT_SVGS['Lifestyle-Living'] },
+  { id: 'f2', label: 'Tech', svgXml: CREATOR_CAT_SVGS['Tech'] },
+  { id: 'f3', label: 'Education', svgXml: CREATOR_CAT_SVGS['Education'] },
+  { id: 'f4', label: 'Photography', svgXml: CREATOR_CAT_SVGS['Photography'] },
+  { id: 'f5', label: 'Food', svgXml: CREATOR_CAT_SVGS['Food'] },
+  { id: 'f6', label: 'Health', svgXml: CREATOR_CAT_SVGS['Health'] },
+  { id: 'f7', label: 'Automotive', svgXml: CREATOR_CAT_SVGS['Automotive'] },
+  { id: 'f8', label: 'Comedy &\nMemes', svgXml: CREATOR_CAT_SVGS['Comedy-Memes'] },
+  { id: 'f9', label: 'Entertainment', svgXml: CREATOR_CAT_SVGS['Entertainment'] },
+  { id: 'f10', label: 'Gaming &\nAnime', svgXml: CREATOR_CAT_SVGS['Gaming-Anime'] },
+  { id: 'f11', label: 'Learning', svgXml: CREATOR_CAT_SVGS['Learning'] },
+  { id: 'f12', label: 'News, Media\n& Magazins', svgXml: CREATOR_CAT_SVGS['News-Media-Magazins'] },
+  { id: 'f13', label: 'Sports', svgXml: CREATOR_CAT_SVGS['Sports'] },
+  { id: 'f14', label: 'Travel', svgXml: CREATOR_CAT_SVGS['Travel'] },
+  { id: 'f15', label: 'Beauty', svgXml: CREATOR_CAT_SVGS['Beauty'] },
+  { id: 'f16', label: 'Fitness', svgXml: CREATOR_CAT_SVGS['Fitness'] },
+  { id: 'f17', label: 'Fashion', svgXml: CREATOR_CAT_SVGS['Fashion'] },
+  { id: 'f18', label: 'Finance &\nInvestments', svgXml: CREATOR_CAT_SVGS['Finance-Investments'] },
+  { id: 'f19', label: 'Arts', svgXml: CREATOR_CAT_SVGS['Arts'] },
+  { id: 'f20', label: 'Business &\nStartups', svgXml: CREATOR_CAT_SVGS['Business-Startups'] },
+  { id: 'f21', label: 'Community\nPages', svgXml: CREATOR_CAT_SVGS['Community-Pages'] },
+  { id: 'f22', label: 'Family, Kids\n& Pets', svgXml: CREATOR_CAT_SVGS['Family-Kids-Pets'] },
+  { id: 'f23', label: 'Home &\nDecor', svgXml: CREATOR_CAT_SVGS['Home-Decor'] },
+  { id: 'f24', label: 'Law, Rights\n& Activism', svgXml: CREATOR_CAT_SVGS['Law-Rights-Activism'] },
+  { id: 'f25', label: 'Pets &\nAnimals', svgXml: CREATOR_CAT_SVGS['Pets-Animals'] },
+  { id: 'f26', label: 'Politics', svgXml: CREATOR_CAT_SVGS['Politics'] },
 ];
 
 const CAT_BORDER_COLORS = [
@@ -696,9 +669,9 @@ export default function Homepage() {
   const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   // Filter categories based on role: show only first 4 for Freelancers, all 8 for others.
-  const availableCategoryColumns = useMemo(() => {
+  const availableCategoryColumns = useMemo((): any[][] => {
     if (userRole === 'FREELANCER') {
-      const cols = [];
+      const cols: any[][] = [];
       const mid = Math.ceil(FREELANCER_CATEGORIES.length / 2);
       for (let i = 0; i < mid; i++) {
         cols.push([
@@ -1198,8 +1171,10 @@ export default function Homepage() {
                             style={styles.catGradientBorder}
                           >
                             <View style={styles.catGridCard}>
-                              {cat.image ? (
-                                <Image source={cat.image} style={isFreelancer ? styles.catGridImgFreelancerChip : styles.catGridImgCreator} resizeMode="contain" />
+                              {(cat as any).svgXml ? (
+                                <SvgXml xml={(cat as any).svgXml} width={25} height={25} style={styles.catGridImgFreelancerChip} />
+                              ) : (cat as any).image ? (
+                                <Image source={(cat as any).image} style={styles.catGridImgCreator} resizeMode="contain" />
                               ) : (
                                 <Ionicons name={(cat as any).icon} size={28} color="#aaa" />
                               )}
