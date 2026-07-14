@@ -94,6 +94,7 @@ const FormField = ({
     onChangeText,
     multiline,
     keyboardType = 'default',
+    error,
 }: any) => (
     <View className="mb-5">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
@@ -109,12 +110,13 @@ const FormField = ({
             value={value}
             onChangeText={onChangeText}
             className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
-                }`}
+                } ${error ? 'border border-red-500' : ''}`}
         />
+        {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
     </View>
 );
 
-const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText }: any) => {
+const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText, error }: any) => {
     const [focused, setFocused] = useState(false);
     const { suggestions } = useLocationSuggestions(value);
 
@@ -130,8 +132,9 @@ const LocationField = ({ label = 'Location', required, placeholder, value, onCha
                 onChangeText={onChangeText}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setTimeout(() => setFocused(false), 150)}
-                className="bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular h-[56px]"
+                className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular h-[56px] ${error ? 'border border-red-500' : ''}`}
             />
+            {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
             {focused && suggestions.length > 0 && (
                 <View
                     style={{
@@ -158,7 +161,7 @@ const LocationField = ({ label = 'Location', required, placeholder, value, onCha
     );
 };
 
-const SelectField = ({ label, required, placeholder, options, selected, onSelect, multiSelect, itemKey = (i: any) => i, itemLabel = (i: any) => i }: any) => {
+const SelectField = ({ label, required, placeholder, options, selected, onSelect, multiSelect, itemKey = (i: any) => i, itemLabel = (i: any) => i, error }: any) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [layout, setLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
     const triggerRef = useRef<View>(null);
@@ -215,13 +218,14 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                 ref={triggerRef}
                 activeOpacity={0.8}
                 onPress={handleOpen}
-                className="bg-[#131313] h-[64px] px-5 rounded-[16px] border border-[#1E1E1E] flex-row items-center justify-between"
+                className={`bg-[#131313] h-[64px] px-5 rounded-[16px] border flex-row items-center justify-between ${error ? 'border-red-500' : 'border-[#1E1E1E]'}`}
             >
                 <Text className={`font-poppins-regular text-[15px] ${selected && (multiSelect ? selected.length > 0 : true) ? 'text-white' : 'text-[#555]'}`} numberOfLines={1}>
                     {displayValue}
                 </Text>
                 <ChevronDownIcon color="#FFFFFF" size={24} />
             </TouchableOpacity>
+            {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
 
             <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
                 <Pressable
@@ -614,6 +618,37 @@ const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => v
     );
 };
 
+const SaveChangesConfirmModal = ({ visible, onCancel, onConfirm, saving }: { visible: boolean; onCancel: () => void; onConfirm: () => void; saving: boolean }) => (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+        <View className="flex-1 bg-black/70 items-center justify-center px-6">
+            <View className="bg-[#1A1A1A] w-full rounded-[28px] p-7 border border-white/10">
+                <Text className="text-white font-poppins-bold text-[20px] mb-2 text-center">Save Changes?</Text>
+                <Text className="text-white/60 font-poppins-regular text-center text-[14px] mb-7 leading-5">
+                    Your profile will be updated with the changes you made.
+                </Text>
+                <View className="flex-row gap-3">
+                    <TouchableOpacity
+                        onPress={onCancel}
+                        disabled={saving}
+                        activeOpacity={0.8}
+                        className="flex-1 h-[52px] rounded-full items-center justify-center border border-white/15"
+                    >
+                        <Text className="text-white font-poppins-semibold text-[15px]">Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={onConfirm}
+                        disabled={saving}
+                        activeOpacity={0.8}
+                        className="flex-1 h-[52px] rounded-full items-center justify-center bg-[#F02C8C]"
+                    >
+                        {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-poppins-semibold text-[15px]">Save Changes</Text>}
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+    </Modal>
+);
+
 // --- Main Component ---
 
 const CREATOR_DRAFT_KEY = '@draft_creator_profile';
@@ -630,6 +665,8 @@ export default function CreatorSignup() {
     const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
     const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
     useEffect(() => {
         getCategories({ role: 'CREATOR' }).then(res => {
@@ -844,25 +881,54 @@ export default function CreatorSignup() {
     const isValidHandle = (v: string) => /^[a-zA-Z0-9._\-]{1,50}$/.test(v);
 
     const handleNext = () => {
-        if (!form.name.trim()) { Alert.alert('Validation', 'Full name is required.'); return; }
+        const next: Record<string, string> = {};
+        if (!form.name.trim()) next.name = 'Full name is required.';
         if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-            Alert.alert('Validation', 'Please enter a valid email address.'); return;
+            next.email = 'Please enter a valid email address.';
         }
-        if (!form.primaryLanguage) { Alert.alert('Validation', 'Please select a primary language.'); return; }
-        if (!form.category) { Alert.alert('Validation', 'Please select a category.'); return; }
-        if (!form.bio.trim()) { Alert.alert('Validation', 'Bio is required.'); return; }
+        if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
+        if (!form.category) next.category = 'Please select a category.';
+        if (!form.bio.trim()) next.bio = 'Bio is required.';
+        if (mode === 'create' && !igVerified) next.instagram = 'Please verify your Instagram account to continue.';
+        // Snapchat also lives on this step — validate it here, not at final
+        // submit, or the error would show on a step the user already left.
+        // (Instagram's own format is guaranteed by the verify step above; in
+        // update mode the handle is read-only, already-verified.)
+        const sc = stripHandle(form.snapchatHandle);
+        if (sc && !isValidHandle(sc)) next.snapchatHandle = 'Snapchat username can only contain letters, numbers, hyphens and underscores.';
+        setErrors(next);
+        if (Object.keys(next).length > 0) return;
         setStep(2);
     };
 
-    const handleSignup = async () => {
+    // Step 2 validation, run on every Next/Submit press so fixed fields drop
+    // out and newly-invalid ones appear — no per-keystroke clearing needed.
+    const validateStep2 = () => {
+        const next: Record<string, string> = {};
+        if (!form.profilePicture) next.profilePicture = 'Please add a profile photo.';
+        if (!form.experienceLevel) next.experienceLevel = 'Please select your experience level.';
+        if (!form.location.trim()) next.location = 'Location is required.';
+        return next;
+    };
+
+    const handleSignup = () => {
+        const next = validateStep2();
+        setErrors(next);
+        if (Object.keys(next).length > 0) return;
+        // Editing an existing profile gets a confirm step; first-time signup
+        // doesn't need one — there's nothing to accidentally overwrite yet.
+        if (mode === 'update') setShowSaveConfirm(true);
+        else submitProfile();
+    };
+
+    const submitProfile = async () => {
         if (!token) return;
+        setShowSaveConfirm(false);
         const ig = stripHandle(form.instagramHandle);
-        if (ig && !isValidHandle(ig)) { Alert.alert('Validation', 'Instagram handle can only contain letters, numbers, dots, hyphens and underscores.'); return; }
         const yt = stripHandle(form.youtubeHandle);
         const fb = stripHandle(form.facebookHandle);
         const tw = stripHandle(form.twitterHandle);
         const sc = stripHandle(form.snapchatHandle);
-        if (sc && !isValidHandle(sc)) { Alert.alert('Validation', 'Snapchat username can only contain letters, numbers, hyphens and underscores.'); return; }
         setLoading(true);
         try {
             let profilePictureUrl = form.profilePicture;
@@ -1133,6 +1199,7 @@ export default function CreatorSignup() {
                                 placeholder="Full Name"
                                 value={form.name}
                                 onChangeText={(v: string) => setForm({ ...form, name: v })}
+                                error={errors.name}
                             />
                             <FormField
                                 label="Email Id"
@@ -1141,6 +1208,7 @@ export default function CreatorSignup() {
                                 keyboardType="email-address"
                                 value={form.email}
                                 onChangeText={(v: string) => setForm({ ...form, email: v })}
+                                error={errors.email}
                             />
                             <SelectField
                                 label="Primary Language"
@@ -1149,6 +1217,7 @@ export default function CreatorSignup() {
                                 options={LANGUAGES}
                                 selected={form.primaryLanguage}
                                 onSelect={(v: string) => setForm({ ...form, primaryLanguage: v, otherLanguages: form.otherLanguages.filter(l => l !== v) })}
+                                error={errors.primaryLanguage}
                             />
                             <SelectField
                                 label="Other Languages"
@@ -1167,6 +1236,7 @@ export default function CreatorSignup() {
                                 onSelect={(v: string) => setForm({ ...form, category: v })}
                                 itemKey={(i: any) => i.id}
                                 itemLabel={(i: any) => i.name}
+                                error={errors.category}
                             />
                             <FormField
                                 label="Bio / Description"
@@ -1175,6 +1245,7 @@ export default function CreatorSignup() {
                                 multiline
                                 value={form.bio}
                                 onChangeText={(v: string) => setForm({ ...form, bio: v })}
+                                error={errors.bio}
                             />
                             {/* Social Media Section */}
                             <View className="mt-4 mb-8">
@@ -1189,16 +1260,19 @@ export default function CreatorSignup() {
                                         </View>
                                     </View>
                                 ) : (
-                                    <InstagramVerifyRow
-                                        value={form.instagramHandle}
-                                        onValueChange={(v: string) => {
-                                            setForm({ ...form, instagramHandle: v });
-                                            if (igVerified) setIgVerified(false);
-                                        }}
-                                        verified={igVerified}
-                                        onVerifyPress={handleIgVerify}
-                                        verifying={igVerifying}
-                                    />
+                                    <>
+                                        <InstagramVerifyRow
+                                            value={form.instagramHandle}
+                                            onValueChange={(v: string) => {
+                                                setForm({ ...form, instagramHandle: v });
+                                                if (igVerified) setIgVerified(false);
+                                            }}
+                                            verified={igVerified}
+                                            onVerifyPress={handleIgVerify}
+                                            verifying={igVerifying}
+                                        />
+                                        {errors.instagram ? <Text className="text-red-500 text-[12px] -mt-3 mb-4 ml-1">{errors.instagram}</Text> : null}
+                                    </>
                                 )}
                                 <SocialVerifyRow
                                     platform="YouTube"
@@ -1232,7 +1306,6 @@ export default function CreatorSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                disabled={!isStep1Valid || (mode === 'create' && !igVerified)}
                                 className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep1Valid && (mode === 'update' || igVerified) ? 'bg-[#F02C8C]' : 'bg-[#2A2A2A]'}`}
                                 activeOpacity={0.8}
                             >
@@ -1276,12 +1349,14 @@ export default function CreatorSignup() {
                                             </TouchableOpacity>
                                         </View>
                                     )}
+                                    {errors.profilePicture ? <Text className="text-red-500 text-[12px] mt-2 ml-1">{errors.profilePicture}</Text> : null}
                                 </View>
                             </View>
 
                             <SelectField
                                 label="Experience Level"
                                 required
+                                error={errors.experienceLevel}
                                 placeholder="Select Your level"
                                 options={LEVELS}
                                 selected={form.experienceLevel}
@@ -1293,10 +1368,11 @@ export default function CreatorSignup() {
                                 placeholder="Start typing your city"
                                 value={form.location}
                                 onChangeText={(v: string) => setForm({ ...form, location: v })}
+                                error={errors.location}
                             />
                             <TouchableOpacity
                                 onPress={handleSignup}
-                                disabled={!isStep2Valid || loading}
+                                disabled={loading}
                                 className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep2Valid && !loading ? 'bg-[#F02C8C] shadow-pink-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
@@ -1313,6 +1389,12 @@ export default function CreatorSignup() {
                 </ScrollView>
             </KeyboardAvoidingView>
             <SuccessModal visible={showSuccessModal} onClose={handleSuccessClose} />
+            <SaveChangesConfirmModal
+                visible={showSaveConfirm}
+                onCancel={() => setShowSaveConfirm(false)}
+                onConfirm={submitProfile}
+                saving={loading}
+            />
             {igVerification && (
                 <IgVerifyModal
                     visible={igVerifyModalVisible}

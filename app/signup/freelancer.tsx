@@ -105,6 +105,7 @@ const FormField = ({
     onChangeText,
     multiline,
     keyboardType = 'default',
+    error,
 }: any) => (
     <View className="mb-5">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
@@ -120,12 +121,13 @@ const FormField = ({
             value={value}
             onChangeText={onChangeText}
             className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
-                }`}
+                } ${error ? 'border border-red-500' : ''}`}
         />
+        {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
     </View>
 );
 
-const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText }: any) => {
+const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText, error }: any) => {
     const [focused, setFocused] = useState(false);
     const { suggestions } = useLocationSuggestions(value);
 
@@ -141,8 +143,9 @@ const LocationField = ({ label = 'Location', required, placeholder, value, onCha
                 onChangeText={onChangeText}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setTimeout(() => setFocused(false), 150)}
-                className="bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular h-[56px]"
+                className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular h-[56px] ${error ? 'border border-red-500' : ''}`}
             />
+            {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
             {focused && suggestions.length > 0 && (
                 <View
                     style={{
@@ -169,7 +172,7 @@ const LocationField = ({ label = 'Location', required, placeholder, value, onCha
     );
 };
 
-const SelectField = ({ label, required, placeholder, options, selected, onSelect, multiSelect, itemKey = (i: any) => i, itemLabel = (i: any) => i }: any) => {
+const SelectField = ({ label, required, placeholder, options, selected, onSelect, multiSelect, itemKey = (i: any) => i, itemLabel = (i: any) => i, error }: any) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [layout, setLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
     const triggerRef = useRef<View>(null);
@@ -226,13 +229,14 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
                 ref={triggerRef}
                 activeOpacity={0.8}
                 onPress={handleOpen}
-                className="bg-[#131313] h-[64px] px-5 rounded-[16px] border border-[#1E1E1E] flex-row items-center justify-between"
+                className={`bg-[#131313] h-[64px] px-5 rounded-[16px] border flex-row items-center justify-between ${error ? 'border-red-500' : 'border-[#1E1E1E]'}`}
             >
                 <Text className={`font-poppins-regular text-[15px] ${selected && (multiSelect ? selected.length > 0 : true) ? 'text-white' : 'text-[#555]'}`} numberOfLines={1}>
                     {displayValue}
                 </Text>
                 <ChevronDownIcon color="#FFFFFF" size={24} />
             </TouchableOpacity>
+            {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
 
             <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
                 <Pressable
@@ -511,6 +515,8 @@ export default function FreelancerSignup() {
     const [step, setStep] = useState(initialStep);
     const [mode, setMode] = useState<'create' | 'update'>('create');
     const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
     // Instagram verification states
     const [igVerified, setIgVerified] = useState(false);
@@ -766,8 +772,8 @@ export default function FreelancerSignup() {
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
-            form.bio.trim() !== '' &&
-            form.portfolioUrl.trim() !== ''
+            form.bio.trim() !== ''
+            // portfolioUrl is intentionally optional — not every freelancer has one.
         );
     }, [form]);
 
@@ -835,20 +841,46 @@ export default function FreelancerSignup() {
     const stripHandle = (v: string) => v.trim().replace(/^@/, '');
 
     const handleNext = () => {
-        if (!form.name || !form.email || !form.primaryLanguage || !form.category || !form.bio || !form.portfolioUrl) {
-            Alert.alert('Incomplete Form', 'Please fill in all required fields including primary language, bio and portfolio.');
-            return;
+        const next: Record<string, string> = {};
+        if (!form.name.trim()) next.name = 'Full name is required.';
+        if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+            next.email = 'Please enter a valid email address.';
         }
+        if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
+        if (!form.category) next.category = 'Please select a category.';
+        if (!form.bio.trim()) next.bio = 'Bio is required.';
+        // portfolioUrl is intentionally optional — not every freelancer has one.
+        if (mode === 'create' && !igVerified) next.instagram = 'Please verify your Instagram account to continue.';
+        setErrors(next);
+        if (Object.keys(next).length > 0) return;
         setStep(2);
     };
 
-    const handleSignup = async () => {
-        if (!token) return;
-        if (!form.experienceLevel || !form.profilePicture) {
-            Alert.alert('Incomplete Profile', 'Please select experience level and upload a photo');
-            return;
-        }
+    // Step 2 validation, run on every Next/Submit press so fixed fields drop
+    // out and newly-invalid ones appear — no per-keystroke clearing needed.
+    const validateStep2 = () => {
+        const next: Record<string, string> = {};
+        if (!form.profilePicture) next.profilePicture = 'Please add a profile photo.';
+        if (!form.experienceLevel) next.experienceLevel = 'Please select your experience level.';
+        if (!form.skillsInput.trim()) next.skillsInput = 'Please list at least one skill.';
+        if (!form.location.trim()) next.location = 'Location is required.';
+        if (!form.availability) next.availability = 'Please select your availability.';
+        return next;
+    };
 
+    const handleSignup = () => {
+        const next = validateStep2();
+        setErrors(next);
+        if (Object.keys(next).length > 0) return;
+        // Editing an existing profile gets a confirm step; first-time signup
+        // doesn't need one — there's nothing to accidentally overwrite yet.
+        if (mode === 'update') setShowSaveConfirm(true);
+        else submitProfile();
+    };
+
+    const submitProfile = async () => {
+        if (!token) return;
+        setShowSaveConfirm(false);
         setLoading(true);
         try {
             let profilePictureUrl = form.profilePicture;
@@ -994,6 +1026,7 @@ export default function FreelancerSignup() {
                                 placeholder="Full Name"
                                 value={form.name}
                                 onChangeText={(v: string) => setForm({ ...form, name: v })}
+                                error={errors.name}
                             />
                             <FormField
                                 label="Email Id"
@@ -1002,6 +1035,7 @@ export default function FreelancerSignup() {
                                 keyboardType="email-address"
                                 value={form.email}
                                 onChangeText={(v: string) => setForm({ ...form, email: v })}
+                                error={errors.email}
                             />
                             <SelectField
                                 label="Primary Language"
@@ -1010,6 +1044,7 @@ export default function FreelancerSignup() {
                                 options={LANGUAGES}
                                 selected={form.primaryLanguage}
                                 onSelect={(v: string) => setForm({ ...form, primaryLanguage: v, otherLanguages: form.otherLanguages.filter(l => l !== v) })}
+                                error={errors.primaryLanguage}
                             />
                             <SelectField
                                 label="Other Languages"
@@ -1028,6 +1063,7 @@ export default function FreelancerSignup() {
                                 onSelect={(v: string) => setForm({ ...form, category: v })}
                                 itemKey={(i: any) => i.id}
                                 itemLabel={(i: any) => i.name}
+                                error={errors.category}
                             />
                             <FormField
                                 label="Bio / Description"
@@ -1036,11 +1072,11 @@ export default function FreelancerSignup() {
                                 multiline
                                 value={form.bio}
                                 onChangeText={(v: string) => setForm({ ...form, bio: v })}
+                                error={errors.bio}
                             />
                             <FormField
                                 label="Portfolio URL"
-                                required
-                                placeholder="https://yourportfolio.com"
+                                placeholder="https://yourportfolio.com (optional)"
                                 value={form.portfolioUrl}
                                 onChangeText={(v: string) => setForm({ ...form, portfolioUrl: v })}
                             />
@@ -1058,13 +1094,16 @@ export default function FreelancerSignup() {
                                         </View>
                                     </View>
                                 ) : (
-                                    <InstagramVerifyRow
-                                        value={form.instagramHandle}
-                                        onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
-                                        verified={igVerified}
-                                        onVerifyPress={handleIgVerify}
-                                        verifying={igVerifying}
-                                    />
+                                    <>
+                                        <InstagramVerifyRow
+                                            value={form.instagramHandle}
+                                            onValueChange={(v: string) => setForm({ ...form, instagramHandle: v })}
+                                            verified={igVerified}
+                                            onVerifyPress={handleIgVerify}
+                                            verifying={igVerifying}
+                                        />
+                                        {errors.instagram ? <Text className="text-red-500 text-[12px] -mt-3 mb-4 ml-1">{errors.instagram}</Text> : null}
+                                    </>
                                 )}
                                 <SocialVerifyRow
                                     platform="YouTube"
@@ -1098,7 +1137,6 @@ export default function FreelancerSignup() {
 
                             <TouchableOpacity
                                 onPress={handleNext}
-                                disabled={!isStep1Valid || (mode === 'create' && !igVerified)}
                                 className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-2 mb-5 ${isStep1Valid && (mode === 'update' || igVerified) ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
@@ -1142,6 +1180,7 @@ export default function FreelancerSignup() {
                                             </TouchableOpacity>
                                         </View>
                                     )}
+                                    {errors.profilePicture ? <Text className="text-red-500 text-[12px] mt-2 ml-1">{errors.profilePicture}</Text> : null}
                                 </View>
                             </View>
 
@@ -1154,6 +1193,7 @@ export default function FreelancerSignup() {
                                 onSelect={(v: string) => setForm({ ...form, experienceLevel: v })}
                                 itemKey={(i: any) => i.key}
                                 itemLabel={(i: any) => i.label}
+                                error={errors.experienceLevel}
                             />
 
                             <SelectField
@@ -1165,6 +1205,7 @@ export default function FreelancerSignup() {
                                 onSelect={(v: string) => setForm({ ...form, availability: v })}
                                 itemKey={(i: any) => i.key}
                                 itemLabel={(i: any) => i.label}
+                                error={errors.availability}
                             />
 
                             <FormField
@@ -1173,6 +1214,7 @@ export default function FreelancerSignup() {
                                 placeholder="e.g. Logo Design, Copywriting (comma separated)"
                                 value={form.skillsInput}
                                 onChangeText={(v: string) => setForm({ ...form, skillsInput: v })}
+                                error={errors.skillsInput}
                             />
 
                             <LocationField
@@ -1181,10 +1223,11 @@ export default function FreelancerSignup() {
                                 placeholder="Start typing your city"
                                 value={form.location}
                                 onChangeText={(v: string) => setForm({ ...form, location: v })}
+                                error={errors.location}
                             />
                             <TouchableOpacity
                                 onPress={handleSignup}
-                                disabled={!isStep2Valid || loading}
+                                disabled={loading}
                                 className={`h-[60px] rounded-full items-center justify-center mb-0 shadow-lg mt-8 ${isStep2Valid && !loading ? 'bg-[#F26930] shadow-orange-500/30' : 'bg-[#2A2A2A]'
                                     }`}
                             >
@@ -1201,6 +1244,12 @@ export default function FreelancerSignup() {
                 </ScrollView>
             </KeyboardAvoidingView>
             <SuccessModal visible={showSuccessModal} onClose={handleSuccessClose} />
+            <SaveChangesConfirmModal
+                visible={showSaveConfirm}
+                onCancel={() => setShowSaveConfirm(false)}
+                onConfirm={submitProfile}
+                saving={loading}
+            />
             <IgVerifyModal
                 visible={igVerifyModalVisible}
                 code={igVerification?.code}
@@ -1261,3 +1310,34 @@ const SuccessModal = ({ visible, onClose }: { visible: boolean; onClose: () => v
         </Modal>
     );
 };
+
+const SaveChangesConfirmModal = ({ visible, onCancel, onConfirm, saving }: { visible: boolean; onCancel: () => void; onConfirm: () => void; saving: boolean }) => (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+        <View className="flex-1 bg-black/70 items-center justify-center px-6">
+            <View className="bg-[#1A1A1A] w-full rounded-[28px] p-7 border border-white/10">
+                <Text className="text-white font-poppins-bold text-[20px] mb-2 text-center">Save Changes?</Text>
+                <Text className="text-white/60 font-poppins-regular text-center text-[14px] mb-7 leading-5">
+                    Your profile will be updated with the changes you made.
+                </Text>
+                <View className="flex-row gap-3">
+                    <TouchableOpacity
+                        onPress={onCancel}
+                        disabled={saving}
+                        activeOpacity={0.8}
+                        className="flex-1 h-[52px] rounded-full items-center justify-center border border-white/15"
+                    >
+                        <Text className="text-white font-poppins-semibold text-[15px]">Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={onConfirm}
+                        disabled={saving}
+                        activeOpacity={0.8}
+                        className="flex-1 h-[52px] rounded-full items-center justify-center bg-[#F26930]"
+                    >
+                        {saving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-poppins-semibold text-[15px]">Save Changes</Text>}
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+    </Modal>
+);
