@@ -52,6 +52,11 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
                 router.push('/(tabs)/explore' as any);
             }
             break;
+        case 'NEW_FOLLOWER':
+            if (data.followerId) {
+                router.push({ pathname: '/creator-details', params: { userId: data.followerId } } as any);
+            }
+            break;
         default:
             break;
     }

@@ -78,6 +78,7 @@ function iconForType(type: string): keyof typeof Ionicons.glyphMap {
         case 'COLLAB_ACCEPTED': return 'checkmark-circle-outline';
         case 'COLLAB_DECLINED': return 'close-circle-outline';
         case 'NEW_POST': return 'image-outline';
+        case 'NEW_FOLLOWER': return 'person-add-outline';
         default: return 'notifications-outline';
     }
 }
