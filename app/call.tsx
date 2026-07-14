@@ -232,8 +232,17 @@ export default function CallScreen() {
     }, []);
 
     useEffect(() => {
-        if (callMode === 'active') stopRing();
-    }, [callMode]);
+        if (callMode !== 'active') return;
+        stopRing();
+        // The caller's ringback is still playing when Agora joins the channel
+        // and sets up its own (correct) audio route — stopping/unloading that
+        // expo-av sound just now can disturb the OS audio session Agora
+        // already configured, leaving the callee's voice near-silent on
+        // earpiece until speaker is toggled (which forces a fresh route).
+        // Re-assert the intended route now that the ringback is gone so it
+        // never depends on the user finding the speaker button.
+        engineRef.current?.setEnableSpeakerphone(isSpeaker);
+    }, [callMode, isSpeaker]);
 
     const toggleMute = () => {
         setIsMuted(prev => { engineRef.current?.muteLocalAudioStream(!prev); return !prev; });
