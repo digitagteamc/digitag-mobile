@@ -527,12 +527,19 @@ export default function LoginScreen() {
 
                                         {/* Real input overlays the whole row (transparent, not 1px) so tap-to-focus
                                             and the OS long-press "Paste" action both land on an actual text field
-                                            instead of a decorative box — pasting a copied OTP now works. */}
+                                            instead of a decorative box — pasting a copied OTP now works.
+                                            onTouchEnd explicitly re-focuses on every tap — iOS's implicit native
+                                            tap-to-focus on a fully-transparent TextInput is unreliable right after
+                                            a blur (first tap after the keyboard closes can silently miss; the
+                                            second always works). Calling .focus() ourselves, the same way the
+                                            auto-focus above already does successfully, sidesteps that without
+                                            touching the native touch handling the paste gesture depends on. */}
                                         <TextInput
                                             ref={otpInputRef}
                                             className="absolute top-0 left-0 right-0 bottom-0 opacity-[0.01]"
                                             value={otp}
                                             onChangeText={(v) => setOtp(v.replace(/[^0-9]/g, '').slice(0, 6))}
+                                            onTouchEnd={() => otpInputRef.current?.focus()}
                                             keyboardType="number-pad"
                                             textContentType="oneTimeCode"
                                             autoComplete="sms-otp"
