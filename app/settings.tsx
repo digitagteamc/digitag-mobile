@@ -48,7 +48,7 @@ export default function SettingsScreen() {
     },
     {
       id: 'privacy policy',
-      icon: require('../assets/privacy-icon.png'),
+      icon: require('../assets/legal-icon.png'),
       label: 'Privacy Policy',
       onPress: () => Linking.openURL('https://thedigitag.ai/privacy-policy').catch(() => { }),
     },
