@@ -278,7 +278,9 @@ export default function ChatScreen() {
     const handleCamera = async () => {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) { Alert.alert('Permission Required', 'Camera access is needed to take photos.'); return; }
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.75, allowsEditing: true });
+        // No forced crop step — a photo taken here should go straight to the
+        // preview/send flow, same as picking one from the gallery already does.
+        const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.75 });
         if (!result.canceled && result.assets[0]) {
             const asset = result.assets[0];
             const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
