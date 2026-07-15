@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { searchProfiles } from '../services/userService';
@@ -212,7 +213,10 @@ export default function SearchbarScreen() {
                     </View>
                   )}
                   <View style={styles.searchResultText}>
-                    <Text style={styles.searchResultName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={[styles.searchResultName, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                      <VerifiedBadge isPremium={item.isPremium} size={13} />
+                    </View>
                     <Text style={styles.searchResultMeta}>
                       {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
                       {item.category ? ` · ${item.category}` : ''}

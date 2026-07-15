@@ -19,6 +19,7 @@ import {
 import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
+import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
 import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
@@ -60,6 +61,7 @@ export const MENU_ITEMS = [
   { id: 'my_profile', icon: 'person-outline' as const, label: 'My Profile', imgSrc: require('../../assets/myprofile-icon.png') },
   { id: 'my_posts', icon: 'images-outline' as const, label: 'My Posts', imgSrc: require('../../assets/myposts.png') },
   { id: 'my_collabs', icon: 'people-outline' as const, label: 'My Collabs', imgSrc: require('../../assets/mycollabs.png') },
+  { id: 'profile_views', icon: 'eye-outline' as const, label: 'Who Viewed My Profile', imgSrc: null },
   { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts', imgSrc: require('../../assets/savedposts.png') },
   { id: 'settings', icon: 'settings-outline' as const, label: 'Settings', imgSrc: require('../../assets/setting.png') },
   { id: 'help', icon: 'help-circle-outline' as const, label: 'Help & Support', imgSrc: require('../../assets/help.png') },
@@ -215,6 +217,7 @@ export default function ProfileScreen() {
     if (id === 'my_profile') setViewMode('details');
     if (id === 'my_posts') router.push('/my-posts');
     if (id === 'my_collabs') router.push('/my-collabs');
+    if (id === 'profile_views') router.push('/profile-viewers' as any);
     if (id === 'help') router.push('/help-support' as any);
     if (id === 'saved') router.push('/saved-posts');
     if (id === 'settings') router.navigate('/settings' as any);
@@ -487,12 +490,7 @@ export default function ProfileScreen() {
                   >
                     {profile?.name || profile?.phone || ''}
                   </Text>
-                  {profile?.isPremium && (
-                    <View className="flex-row items-center gap-1 px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(255,215,0,0.15)', flexShrink: 0 }}>
-                      <Ionicons name="star" size={11} color="#FFD700" />
-                      <Text style={{ color: '#FFD700', fontSize: 11, fontFamily: 'Poppins_600SemiBold' }}>Premium</Text>
-                    </View>
-                  )}
+                  <VerifiedBadge isPremium={profile?.isPremium} size={18} />
                 </View>
                 {profile?.tagId ? (
                   <Text style={{ color: '#e1e1e1', fontFamily: 'Poppins_400Regular', fontSize: 13, marginTop: 2 }}>{profile.tagId}</Text>

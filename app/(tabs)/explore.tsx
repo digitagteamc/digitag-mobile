@@ -745,6 +745,7 @@ export default function ExploreTab() {
       categories: Array.isArray(owner.categories) ? owner.categories : [],
       categorySlugs: Array.isArray(owner.categorySlugs) ? owner.categorySlugs : [],
       categoryNames: Array.isArray(owner.categoryNames) ? owner.categoryNames : [],
+      isPremium: Boolean(owner.isPremium),
     };
   }), [posts]);
 

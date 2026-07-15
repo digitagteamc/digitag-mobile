@@ -1,4 +1,4 @@
-import { FontAwesome6, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -37,6 +37,7 @@ import { fonts } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import CustomAlert from '../Components/ui/CustomAlert';
 import ConfirmActionModal from '../Components/ui/ConfirmActionModal';
+import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import ReportModal from '../Components/ui/ReportModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -341,13 +342,7 @@ export default function CreatorDetails() {
 
                         <View style={styles.nameRow}>
                             <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
-                            <MaterialIcons name="verified" size={16} color={accentColor} style={{ marginLeft: 4, flexShrink: 0 }} />
-                            {profile?.isPremium && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 6, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(255,215,0,0.15)', flexShrink: 0 }}>
-                                    <Ionicons name="star" size={10} color="#FFD700" />
-                                    <Text style={{ color: '#FFD700', fontSize: 10, fontFamily: 'Poppins_600SemiBold' }}>Premium</Text>
-                                </View>
-                            )}
+                            <VerifiedBadge isPremium={profile?.isPremium} size={17} />
                         </View>
                         <Text style={styles.category}>{category}</Text>
 

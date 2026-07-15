@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import { useAuth } from '../context/AuthContext';
 import { completeCollab, listCollaborations } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
@@ -144,7 +145,10 @@ export default function MyCollabsScreen() {
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold' }} numberOfLines={1} ellipsizeMode="tail">{otherName}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold', flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{otherName}</Text>
+                        <VerifiedBadge isPremium={other?.isPremium} size={13} />
+                      </View>
                       <Text className="text-[#8A8A99] text-[13px] mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{other?.role?.toLowerCase() || ''}</Text>
                       {description ? (
                         <Text className="text-[#8A8A99] text-[13px] mt-1 leading-5" numberOfLines={2} style={{ fontFamily: 'Poppins_400Regular' }}>{description}</Text>

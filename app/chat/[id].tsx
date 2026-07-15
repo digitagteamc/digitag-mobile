@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import messaging, { onMessage } from '@react-native-firebase/messaging';
 import ConfirmActionModal from '../../Components/ui/ConfirmActionModal';
+import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import ZoomableImage from '../../Components/ui/ZoomableImage';
 import { useAuth } from '../../context/AuthContext';
 import { prepareImageForUpload } from '../../services/imageResize';
@@ -734,7 +735,10 @@ export default function ChatScreen() {
                         </View>
                     )}
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.headerName} numberOfLines={1}>{name}</Text>
+                            <VerifiedBadge isPremium={other?.isPremium} size={14} />
+                        </View>
                         <Text style={[styles.headerStatus, { color: myTheme.primary }]}>
                             {formatLastSeen(other?.lastActiveAt || other?.lastLoginAt)}
                         </Text>

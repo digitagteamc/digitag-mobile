@@ -111,7 +111,7 @@ export default function CreatePost() {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [budget, setBudget] = useState('');
   // null = user's choice not to boost — the post stays visible forever.
-  const [boostDuration, setBoostDuration] = useState<number | null>(null);
+  const [visibilityHours, setVisibilityHours] = useState<number | null>(null);
   const [instantRequirement, setInstantRequirement] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -216,7 +216,7 @@ export default function CreatePost() {
         category: selectedCategory || undefined,
         budget: budget.trim() || undefined,
         // Editing never touches boost/expiry — only send it on create.
-        ...(isEditMode ? {} : { boostHours: (boostDuration ?? undefined) as 4 | 12 | 24 | 48 | undefined }),
+        ...(isEditMode ? {} : { boostHours: (visibilityHours ?? undefined) as 4 | 12 | 24 | 48 | undefined }),
       };
       const res = isEditMode
         ? await updatePost(String(editPostId), payload, token)
@@ -425,7 +425,7 @@ export default function CreatePost() {
               />
             </View>
             <View>
-              <Text style={styles.boostTitle}>Boost Duration</Text>
+              <Text style={styles.boostTitle}>Post Visibility</Text>
               <Text style={styles.boostSubtitle}>How long should your post stay live?</Text>
             </View>
           </View>
@@ -437,11 +437,11 @@ export default function CreatePost() {
               { h: 24, label: '24 hr', sub: 'Full day', icon: '🌕' },
               { h: 48, label: '48 hr', sub: 'Extended reach', icon: '🔥' },
             ].map(item => {
-              const active = boostDuration === item.h;
+              const active = visibilityHours === item.h;
               return (
                 <TouchableOpacity
                   key={item.h}
-                  onPress={() => setBoostDuration(active ? null : item.h)}
+                  onPress={() => setVisibilityHours(active ? null : item.h)}
                   style={[styles.durationPill, active && styles.activeDurationPill]}
                 >
                   {active ? (
@@ -458,7 +458,7 @@ export default function CreatePost() {
             })}
           </View>
 
-          {boostDuration === null ? (
+          {visibilityHours === null ? (
             <View style={styles.boostFooter}>
               <Text style={styles.footerLabel}>No duration selected — this post will stay visible forever until you delete it.</Text>
             </View>
@@ -470,20 +470,20 @@ export default function CreatePost() {
                     colors={['#CC00FF', '#7000FF']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    style={[styles.sliderFill, { width: `${(boostDuration / 48) * 100}%` }]}
+                    style={[styles.sliderFill, { width: `${(visibilityHours / 48) * 100}%` }]}
                   />
-                  <View style={[styles.sliderThumb, { left: `${(boostDuration / 48) * 100}%` }]} />
+                  <View style={[styles.sliderThumb, { left: `${(visibilityHours / 48) * 100}%` }]} />
                 </View>
               </View>
 
               <View style={styles.boostFooter}>
                 <View>
                   <Text style={styles.footerLabel}>Active for</Text>
-                  <Text style={styles.footerValue}>{boostDuration} hours</Text>
+                  <Text style={styles.footerValue}>{visibilityHours} hours</Text>
                 </View>
                 <View style={styles.endsAtPill}>
                   <Text style={styles.endsAtLabel}>Ends at</Text>
-                  <Text style={styles.endsAtValue}>{formatTimeEndsAt(boostDuration)}</Text>
+                  <Text style={styles.endsAtValue}>{formatTimeEndsAt(visibilityHours)}</Text>
                 </View>
               </View>
             </>

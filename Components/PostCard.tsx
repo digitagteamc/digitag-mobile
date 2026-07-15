@@ -4,6 +4,7 @@ import React from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getRoleTheme } from '../theme/useRoleTheme';
 import ExpandableText from './ui/ExpandableText';
+import VerifiedBadge from './ui/VerifiedBadge';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 32;
@@ -25,6 +26,7 @@ export interface PostCardProps {
     time: string;
     portfolioLink?: string | null;
     owner?: any;
+    isPremium?: boolean;
   };
   onPostTap?: (postId: string, ownerId?: string) => void;
   onSeePortfolio?: (ownerId?: string, ownerRole?: string) => void;
@@ -68,7 +70,10 @@ export default function PostCard({
             )}
           </View>
           <View style={styles.headerNameBlock}>
-            <Text style={styles.cardName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
+              <Text style={[styles.cardName, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+              <VerifiedBadge isPremium={item.isPremium ?? item.owner?.isPremium} size={13} />
+            </View>
             <Text style={styles.cardCategory}>{item.role}</Text>
           </View>
         </TouchableOpacity>

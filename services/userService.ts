@@ -782,6 +782,51 @@ export const completeCollab = async (token: string, id: string) => {
     }
 };
 
+/** GET /collaborations/quota — free-tier monthly collab-request usage.
+ *  limit is null for Premium (unlimited). */
+export const getCollabRequestQuota = async (token: string) => {
+    try {
+        const body = await request('/collaborations/quota', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data as { used: number; limit: number | null; remaining: number | null } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/* ───────────────────── PREMIUM: BOOST ─────────────────────── */
+
+/** POST /posts/:id/boost — Premium only, jumps the post to the top of feeds for 24h */
+export const boostPost = async (token: string, postId: string) => {
+    try {
+        const body = await request(`/posts/${postId}/boost`, { method: 'POST', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /posts/boost/quota — Premium monthly boost allowance (3/month) */
+export const getBoostQuota = async (token: string) => {
+    try {
+        const body = await request('/posts/boost/quota', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data as { isPremium: boolean; used: number; limit: number; remaining: number } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/* ─────────────────── PREMIUM: PROFILE VIEWS ───────────────── */
+
+/** GET /users/me/profile-viewers — Premium only, most-recent-first */
+export const getProfileViewers = async (token: string) => {
+    try {
+        const body = await request('/users/me/profile-viewers', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ─────────────────────── CONVERSATIONS ────────────────────── */
 
 /** GET /conversations — list my conversations with last message + unread count */
