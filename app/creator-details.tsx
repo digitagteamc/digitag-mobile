@@ -54,7 +54,10 @@ export default function CreatorDetails() {
     const [isFollowing, setIsFollowing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
-    const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
+    const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'DECLINED' | 'CANCELLED'>('NONE');
+    // A finished collaboration keeps chat/calls open (matches the backend
+    // messaging gate) — COMPLETED is a success state, not a revoke.
+    const contactUnlocked = collabStatus === 'ACCEPTED' || collabStatus === 'COMPLETED';
     const [isBlocked, setIsBlocked] = useState(false);
     const [blockBusy, setBlockBusy] = useState(false);
     const [isReported, setIsReported] = useState(false);
@@ -301,7 +304,7 @@ export default function CreatorDetails() {
                             <Ionicons name="arrow-back" size={24} color="#fff" />
                         </TouchableOpacity>
                         <View style={styles.topBarRight}>
-                            {collabStatus === 'ACCEPTED' && (
+                            {contactUnlocked && (
                                 <TouchableOpacity style={styles.topIconBtn} onPress={handleCall}>
                                     <Ionicons name="call-outline" size={24} color="#fff" />
                                 </TouchableOpacity>
@@ -316,7 +319,7 @@ export default function CreatorDetails() {
                         <View style={styles.cardHeader}>
                             <Image source={p.profilePicture ? { uri: p.profilePicture } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
                             <View style={styles.headerButtons}>
-                                {collabStatus === 'ACCEPTED' ? (
+                                {contactUnlocked ? (
                                     <TouchableOpacity style={[styles.messageBtn, { backgroundColor: accentColor }]} onPress={openChat}>
                                         <Ionicons name="chatbubble-ellipses-outline" size={12} color="#fff" />
                                         <Text style={styles.messageBtnText}>Message</Text>

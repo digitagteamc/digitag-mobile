@@ -55,7 +55,10 @@ export default function PostDetail() {
 
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'>('NONE');
+  const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'DECLINED' | 'CANCELLED'>('NONE');
+  // A finished collaboration keeps chat/calls open (matches the backend
+  // messaging gate) — COMPLETED is a success state, not a revoke.
+  const contactUnlocked = collabStatus === 'ACCEPTED' || collabStatus === 'COMPLETED';
   const [collabBusy, setCollabBusy] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -350,9 +353,9 @@ export default function PostDetail() {
 
           {/* Action buttons — only for other users' posts, and only when
               collaboration is actually possible between these two roles */}
-          {!isOwn && (collabStatus === 'ACCEPTED' || canCollaborate) && (
+          {!isOwn && (contactUnlocked || canCollaborate) && (
             <View style={styles.actionsWrap}>
-              {collabStatus === 'ACCEPTED' ? (
+              {contactUnlocked ? (
                 <>
                   <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent }]} onPress={handleSeePortfolio} activeOpacity={0.8}>
                     <Ionicons name="briefcase-outline" size={18} color={accent} />

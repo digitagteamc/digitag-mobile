@@ -676,7 +676,8 @@ export default function ExploreTab() {
         const accepted = new Set<string>();
         const pendingPostIds = new Set<string>();
         res.data.forEach((r: any) => {
-          if (r.status === 'ACCEPTED') {
+          // COMPLETED keeps contact unlocked — same as the backend messaging gate.
+          if (r.status === 'ACCEPTED' || r.status === 'COMPLETED') {
             const otherId = r.senderId === userId ? r.receiverId : r.senderId;
             if (otherId) accepted.add(otherId);
           }

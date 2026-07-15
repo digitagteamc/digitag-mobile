@@ -114,7 +114,7 @@ export default function ProfileScreen() {
           const [countRes, postsRes, collabsRes] = await Promise.all([
             getUserStats(token),
             getMyPosts(token, { limit: '20' }),
-            listCollaborations(token, { status: 'ACCEPTED', direction: 'all' }),
+            listCollaborations(token, { direction: 'all' }),
           ]);
           if (countRes.success && countRes.data) {
             setFollowerCount(countRes.data.followerCount ?? 0);
@@ -122,7 +122,9 @@ export default function ProfileScreen() {
             setCollabCount(countRes.data.collabCount ?? 0);
           }
           if (postsRes.success) setMyPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
-          if (collabsRes.success) setMyCollabs(Array.isArray(collabsRes.data) ? collabsRes.data : []);
+          // Same filter as the My Collabs screen — a COMPLETED collab is still
+          // one of "my collabs", so the menu count must match that list.
+          if (collabsRes.success) setMyCollabs((Array.isArray(collabsRes.data) ? collabsRes.data : []).filter((c: any) => c.status === 'ACCEPTED' || c.status === 'COMPLETED'));
           if (res.success && res.data?.profile) {
             const p = res.data.profile;
             const role = res.data.role || userRole || 'USER';

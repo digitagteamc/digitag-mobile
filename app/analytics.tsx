@@ -44,13 +44,11 @@ export default function AnalyticsScreen() {
     const load = async () => {
       setLoading(true);
       try {
-        const [statsRes, pendingRes, approvedRes, declinedRes, allRes, postsRes] = await Promise.all([
+        const [statsRes, pendingRes, allRes, postsRes] = await Promise.all([
           getUserStats(token),
           listCollaborations(token, { direction: 'incoming', status: 'PENDING' }),
           // Approved/declined/total count both directions — a collab I sent
           // that got accepted is just as much "mine" as one sent to me.
-          listCollaborations(token, { direction: 'all', status: 'ACCEPTED' }),
-          listCollaborations(token, { direction: 'all', status: 'DECLINED' }),
           listCollaborations(token, { direction: 'all' }),
           getMyPosts(token, { limit: '1' }),
         ]);
@@ -59,9 +57,13 @@ export default function AnalyticsScreen() {
           setFollowing(statsRes.data.followingCount ?? 0);
         }
         if (pendingRes.success) setPending(Array.isArray(pendingRes.data) ? pendingRes.data.length : 0);
-        if (approvedRes.success) setApproved(Array.isArray(approvedRes.data) ? approvedRes.data.length : 0);
-        if (declinedRes.success) setDeclined(Array.isArray(declinedRes.data) ? declinedRes.data.length : 0);
-        if (allRes.success) setTotal(Array.isArray(allRes.data) ? allRes.data.length : 0);
+        if (allRes.success && Array.isArray(allRes.data)) {
+          setTotal(allRes.data.length);
+          // COMPLETED still counts as approved — marking a collab done must
+          // not silently drop it from the acceptance stats.
+          setApproved(allRes.data.filter((c: any) => c.status === 'ACCEPTED' || c.status === 'COMPLETED').length);
+          setDeclined(allRes.data.filter((c: any) => c.status === 'DECLINED').length);
+        }
         if ((postsRes as any).success) setPostCount((postsRes as any).meta?.total ?? (postsRes as any).data?.length ?? 0);
       } finally {
         setLoading(false);
