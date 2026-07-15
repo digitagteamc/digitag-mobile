@@ -27,6 +27,7 @@ export interface PostCardProps {
     portfolioLink?: string | null;
     owner?: any;
     isPremium?: boolean;
+    boostedUntil?: string | null;
   };
   onPostTap?: (postId: string, ownerId?: string) => void;
   onSeePortfolio?: (ownerId?: string, ownerRole?: string) => void;
@@ -37,6 +38,9 @@ export interface PostCardProps {
   // Owner-only actions (My Posts) — rendered in the header when provided.
   onEdit?: (postId: string) => void;
   onDelete?: (postId: string) => void;
+  // Premium "Boost" — only relevant on your own posts (My Posts).
+  onBoost?: (postId: string) => void;
+  boosting?: boolean;
 }
 
 export default function PostCard({
@@ -49,9 +53,12 @@ export default function PostCard({
   onBookmark,
   onEdit,
   onDelete,
+  onBoost,
+  boosting,
 }: PostCardProps) {
   const postTheme = getRoleTheme(item.ownerRole);
   const postColor = postTheme.primary;
+  const isBoosted = !!item.boostedUntil && new Date(item.boostedUntil).getTime() > Date.now();
 
   return (
     <View style={styles.card}>
@@ -97,6 +104,16 @@ export default function PostCard({
               <Ionicons name="pencil-outline" size={17} color="#fff" />
             </TouchableOpacity>
           )}
+          {onBoost && (
+            <TouchableOpacity
+              style={styles.ownerActionBtn}
+              onPress={() => !isBoosted && !boosting && onBoost(item.id)}
+              disabled={isBoosted || boosting}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+            >
+              <Ionicons name="rocket" size={17} color={isBoosted ? '#FFD700' : '#fff'} />
+            </TouchableOpacity>
+          )}
           {onDelete && (
             <TouchableOpacity style={styles.ownerActionBtn} onPress={() => onDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
               <Ionicons name="trash-outline" size={17} color="#EF4444" />
@@ -115,9 +132,17 @@ export default function PostCard({
             ? (item.budget ? `₹${String(item.budget).replace(/^₹\s*/, '')}` : 'Paid Collab')
             : 'Free Collab'}
         </Text>
-        <View style={styles.cardTimeRow}>
-          <Ionicons name="time-outline" size={14} color="#8A8A99" />
-          <Text style={styles.cardTime}>{item.time || '4h ago'}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {isBoosted && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10, backgroundColor: 'rgba(255,215,0,0.15)' }}>
+              <Ionicons name="rocket" size={11} color="#FFD700" />
+              <Text style={{ color: '#FFD700', fontSize: 10, fontFamily: 'Poppins_600SemiBold' }}>Boosted</Text>
+            </View>
+          )}
+          <View style={styles.cardTimeRow}>
+            <Ionicons name="time-outline" size={14} color="#8A8A99" />
+            <Text style={styles.cardTime}>{item.time || '4h ago'}</Text>
+          </View>
         </View>
       </View>
 

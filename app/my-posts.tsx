@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { deleteDraft, listDrafts, PostDraft } from '../services/drafts';
-import { deletePost, getMyPosts } from '../services/userService';
+import { boostPost, deletePost, getMyPosts } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import PostCard from '../Components/PostCard';
 
@@ -30,6 +30,7 @@ export default function MyPostsScreen() {
   const [drafts, setDrafts] = useState<PostDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [boostingId, setBoostingId] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     const [postsRes, draftList] = await Promise.all([
@@ -72,6 +73,23 @@ export default function MyPostsScreen() {
         },
       ],
     );
+  };
+
+  const handleBoost = async (postId: string) => {
+    if (!token || boostingId) return;
+    setBoostingId(postId);
+    try {
+      const res = await boostPost(token, postId);
+      if (res.success) {
+        setPosts(prev => prev.map(p => (p.id === postId ? { ...p, boostedUntil: res.data?.boostedUntil } : p)));
+      } else {
+        // Surfaces the exact backend reason — "Premium only" or "used all 3
+        // this month" — rather than a generic failure message.
+        Alert.alert('Boost Failed', res.error || 'Could not boost this post.');
+      }
+    } finally {
+      setBoostingId(null);
+    }
   };
 
   const handleOpenDraft = (draft: PostDraft) => {
@@ -137,6 +155,7 @@ export default function MyPostsScreen() {
       budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
+      boostedUntil: post.boostedUntil || null,
     };
   });
 
@@ -187,6 +206,8 @@ export default function MyPostsScreen() {
                   onPostTap={(postId) => router.push({ pathname: '/post-detail', params: { postId } } as any)}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
+                  onBoost={handleBoost}
+                  boosting={boostingId === item.id}
                 />
               </View>
             ))
