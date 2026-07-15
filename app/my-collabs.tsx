@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,9 +18,12 @@ export default function MyCollabsScreen() {
   const router = useRouter();
   const { token, userId, userRole } = useAuth();
   const theme = useRoleTheme();
-  const [collabs, setCollabs] = useState<any[]>([]);
+  const [allCollabs, setAllCollabs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState<string | null>(null);
+  // A COLLAB_DECLINED notification tap deep-links straight to the Rejected tab.
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<'collabs' | 'rejected'>(tabParam === 'rejected' ? 'rejected' : 'collabs');
 
   const isCreator = userRole === 'CREATOR';
 
@@ -29,9 +32,7 @@ export default function MyCollabsScreen() {
     try {
       const res = await listCollaborations(token, { direction: 'all' });
       if (res.success) {
-        const all = Array.isArray(res.data) ? res.data : [];
-        // Show ACCEPTED and COMPLETED
-        setCollabs(all.filter((c: any) => c.status === 'ACCEPTED' || c.status === 'COMPLETED'));
+        setAllCollabs(Array.isArray(res.data) ? res.data : []);
       }
     } catch (e) {
       console.error('Failed to fetch collabs', e);
@@ -40,12 +41,18 @@ export default function MyCollabsScreen() {
     }
   };
 
+  const collabs = allCollabs.filter((c: any) =>
+    tab === 'rejected'
+      ? c.status === 'DECLINED'
+      : c.status === 'ACCEPTED' || c.status === 'COMPLETED'
+  );
+
   useEffect(() => { fetchCollabs(); }, [token]);
 
   const handleComplete = (collabId: string, otherName: string) => {
     Alert.alert(
       'Mark as Completed',
-      `Mark your collaboration with ${otherName} as completed? This will end the work session and messaging will be disabled.`,
+      `Mark your collaboration with ${otherName} as completed? You'll both still be able to chat and call each other.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -56,7 +63,7 @@ export default function MyCollabsScreen() {
             try {
               const res = await completeCollab(token!, collabId);
               if (res.success) {
-                setCollabs(prev => prev.map(c =>
+                setAllCollabs(prev => prev.map((c: any) =>
                   c.id === collabId ? { ...c, status: 'COMPLETED' } : c
                 ));
               } else {
@@ -88,6 +95,18 @@ export default function MyCollabsScreen() {
         </Text>
       </View>
 
+      {/* Tabs — same underline pattern as the Notifications screen */}
+      <View className="flex-row px-5 border-b border-[#222]">
+        <TouchableOpacity className="py-3 mr-7" onPress={() => setTab('collabs')} activeOpacity={0.75}>
+          <Text className="text-[14px]" style={{ fontFamily: 'Poppins_600SemiBold', color: tab === 'collabs' ? theme.primary : '#8A8A99' }}>Collabs</Text>
+          {tab === 'collabs' && <View style={{ height: 2, borderRadius: 1, marginTop: 8, backgroundColor: theme.primary }} />}
+        </TouchableOpacity>
+        <TouchableOpacity className="py-3" onPress={() => setTab('rejected')} activeOpacity={0.75}>
+          <Text className="text-[14px]" style={{ fontFamily: 'Poppins_600SemiBold', color: tab === 'rejected' ? theme.primary : '#8A8A99' }}>Rejected</Text>
+          {tab === 'rejected' && <View style={{ height: 2, borderRadius: 1, marginTop: 8, backgroundColor: theme.primary }} />}
+        </TouchableOpacity>
+      </View>
+
       {loading ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={theme.primary} />
@@ -96,15 +115,17 @@ export default function MyCollabsScreen() {
         <ScrollView className="flex-1 px-4 py-4" showsVerticalScrollIndicator={false}>
           {collabs.length === 0 ? (
             <Text className="text-[#8A8A99] text-center mt-10" style={{ fontFamily: 'Poppins_400Regular' }}>
-              No collabs found.
+              {tab === 'rejected' ? 'No rejected collabs.' : 'No collabs found.'}
             </Text>
           ) : (
             collabs.map(collab => {
-              const other = collab.sender?.id === userId ? collab.receiver : collab.sender;
+              const iAmSender = collab.sender?.id === userId;
+              const other = iAmSender ? collab.receiver : collab.sender;
               const otherProfile = other?.creatorProfile || other?.freelancerProfile;
               const otherName = otherProfile?.name || other?.role || 'User';
               const description = collab.post?.description || collab.message || '';
               const isCompleted = collab.status === 'COMPLETED';
+              const isDeclined = collab.status === 'DECLINED';
               const isCompleting = completing === collab.id;
 
               return (
@@ -128,25 +149,32 @@ export default function MyCollabsScreen() {
                       {description ? (
                         <Text className="text-[#8A8A99] text-[13px] mt-1 leading-5" numberOfLines={2} style={{ fontFamily: 'Poppins_400Regular' }}>{description}</Text>
                       ) : null}
+                      {isDeclined ? (
+                        <Text className="text-[#EF4444] text-[12px] mt-1" style={{ fontFamily: 'Poppins_400Regular' }}>
+                          {iAmSender ? `${otherName} declined your request` : 'You declined this request'}
+                        </Text>
+                      ) : null}
                     </View>
                     <View
                       className="rounded-full border px-2.5 py-[5px]"
-                      style={isCompleted
-                        ? { backgroundColor: 'rgba(100,100,100,0.12)', borderColor: 'rgba(100,100,100,0.3)' }
-                        : { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)' }
+                      style={isDeclined
+                        ? { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.3)' }
+                        : isCompleted
+                          ? { backgroundColor: 'rgba(100,100,100,0.12)', borderColor: 'rgba(100,100,100,0.3)' }
+                          : { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)' }
                       }
                     >
                       <Text
                         className="text-[11px] font-semibold"
-                        style={{ fontFamily: 'Poppins_600SemiBold', color: isCompleted ? '#8A8A99' : '#10B981' }}
+                        style={{ fontFamily: 'Poppins_600SemiBold', color: isDeclined ? '#EF4444' : isCompleted ? '#8A8A99' : '#10B981' }}
                       >
-                        {isCompleted ? 'Completed' : 'Active'}
+                        {isDeclined ? 'Declined' : isCompleted ? 'Completed' : 'Active'}
                       </Text>
                     </View>
                   </TouchableOpacity>
 
                   {/* Mark Complete button — only for creators on active collabs */}
-                  {isCreator && !isCompleted && (
+                  {isCreator && !isCompleted && !isDeclined && (
                     <TouchableOpacity
                       onPress={() => handleComplete(collab.id, otherName)}
                       disabled={isCompleting}

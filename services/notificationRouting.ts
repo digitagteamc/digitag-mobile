@@ -39,13 +39,16 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
             router.push('/notifications' as any);
             break;
         case 'COLLAB_ACCEPTED':
-        case 'COLLAB_DECLINED':
         case 'COLLAB_COMPLETED':
             // This push goes to the person who SENT the request — /notifications only
             // shows requests sent TO me, which would be empty/irrelevant here. My Collabs
             // shows the status of requests I sent (and completed ones), so that's the
             // useful destination.
             router.push('/my-collabs' as any);
+            break;
+        case 'COLLAB_DECLINED':
+            // Declined collabs live under My Collabs' Rejected tab — land there directly.
+            router.push({ pathname: '/my-collabs', params: { tab: 'rejected' } } as any);
             break;
         case 'NEW_POST':
             if (data.postId) {
