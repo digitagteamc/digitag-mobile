@@ -78,9 +78,12 @@ export const optionalAuthHeaders = (token?: string | null): Headers => {
 /** GET /config — remote feature flags, no auth required. Currently just
  *  premiumEnabled: a server-side kill switch for the whole Premium surface
  *  so it can be shown/hidden without an app rebuild. */
-export const getRemoteConfig = async () => {
+export const getRemoteConfig = async (token?: string | null) => {
     try {
-        const body = await request('/config', { method: 'GET' });
+        // Authenticated so the backend can apply the Apple-reviewer override
+        // (that account always sees Premium regardless of the global flag) —
+        // an unauthenticated call only ever gets the global flag.
+        const body = await request('/config', { method: 'GET', headers: optionalAuthHeaders(token) });
         return { success: true, data: body?.data as { premiumEnabled: boolean } };
     } catch (error: any) {
         return { success: false, error: error.message };

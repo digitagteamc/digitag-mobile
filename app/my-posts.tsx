@@ -26,7 +26,7 @@ export default function MyPostsScreen() {
   const router = useRouter();
   const { token, userId, userRole } = useAuth();
   const theme = useRoleTheme();
-  const remoteConfig = useRemoteConfig();
+  const remoteConfig = useRemoteConfig(token);
   const [tab, setTab] = useState<Tab>('published');
   const [posts, setPosts] = useState<any[]>([]);
   const [drafts, setDrafts] = useState<PostDraft[]>([]);

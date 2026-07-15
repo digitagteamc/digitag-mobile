@@ -80,7 +80,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
 
   const theme = useRoleTheme();
-  const remoteConfig = useRemoteConfig();
+  const remoteConfig = useRemoteConfig(token);
   const applePurchase = useApplePurchase(token, remoteConfig.premiumEnabled);
   useEffect(() => {
     if (applePurchase.error) Alert.alert('Purchase Failed', applePurchase.error);
