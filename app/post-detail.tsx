@@ -56,9 +56,10 @@ export default function PostDetail() {
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'DECLINED' | 'CANCELLED'>('NONE');
-  // A finished collaboration keeps chat/calls open (matches the backend
-  // messaging gate) — COMPLETED is a success state, not a revoke.
-  const contactUnlocked = collabStatus === 'ACCEPTED' || collabStatus === 'COMPLETED';
+  // Product rule (matches the backend gates): chat/calls are open only while
+  // a collaboration is ACCEPTED — completing it closes contact until a new
+  // collab is accepted.
+  const contactUnlocked = collabStatus === 'ACCEPTED';
   const [collabBusy, setCollabBusy] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);

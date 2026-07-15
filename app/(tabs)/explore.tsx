@@ -676,8 +676,10 @@ export default function ExploreTab() {
         const accepted = new Set<string>();
         const pendingPostIds = new Set<string>();
         res.data.forEach((r: any) => {
-          // COMPLETED keeps contact unlocked — same as the backend messaging gate.
-          if (r.status === 'ACCEPTED' || r.status === 'COMPLETED') {
+          // Contact shortcuts only while ACCEPTED — completing a collab closes
+          // chat/calls (backend enforces the same), so the card reverts to
+          // showing the Collaborate button for a fresh request.
+          if (r.status === 'ACCEPTED') {
             const otherId = r.senderId === userId ? r.receiverId : r.senderId;
             if (otherId) accepted.add(otherId);
           }

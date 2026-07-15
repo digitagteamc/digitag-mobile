@@ -749,8 +749,9 @@ export default function Homepage() {
           const accepted = new Set<string>();
           const sent = new Set<string>();
           res.data.forEach((r: any) => {
-            // COMPLETED keeps contact unlocked — same as the backend messaging gate.
-            if (r.status === 'ACCEPTED' || r.status === 'COMPLETED') {
+            // Contact shortcuts only while ACCEPTED — completing a collab closes
+            // chat/calls (backend enforces the same).
+            if (r.status === 'ACCEPTED') {
               const otherId = r.senderId === userId ? r.receiverId : r.senderId;
               if (otherId) accepted.add(otherId);
             }

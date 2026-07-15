@@ -55,9 +55,10 @@ export default function CreatorDetails() {
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
     const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'DECLINED' | 'CANCELLED'>('NONE');
-    // A finished collaboration keeps chat/calls open (matches the backend
-    // messaging gate) — COMPLETED is a success state, not a revoke.
-    const contactUnlocked = collabStatus === 'ACCEPTED' || collabStatus === 'COMPLETED';
+    // Product rule (matches the backend gates): chat/calls are open only while
+    // a collaboration is ACCEPTED — completing it closes contact until a new
+    // collab is accepted. History stays readable in the Messages tab.
+    const contactUnlocked = collabStatus === 'ACCEPTED';
     const [isBlocked, setIsBlocked] = useState(false);
     const [blockBusy, setBlockBusy] = useState(false);
     const [isReported, setIsReported] = useState(false);

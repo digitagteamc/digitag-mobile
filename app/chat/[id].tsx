@@ -168,6 +168,11 @@ export default function ChatScreen() {
     const myTheme = useRoleTheme();
 
     const [other, setOther] = useState<any>(null);
+    // Status of the collaboration this conversation belongs to. Anything other
+    // than ACCEPTED (e.g. COMPLETED) means the chat is read-only — the backend
+    // rejects sends anyway; this just surfaces it up front in the UI.
+    const [collabStatus, setCollabStatus] = useState<string | null>(null);
+    const chatLocked = collabStatus !== null && collabStatus !== 'ACCEPTED';
     const otherRef = useRef<any>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [calls, setCalls] = useState<CallLogEntry[]>([]);
@@ -211,6 +216,7 @@ export default function ChatScreen() {
         if (convRes.success && convRes.data?.other) {
             setOther(convRes.data.other);
             otherRef.current = convRes.data.other;
+            setCollabStatus(convRes.data.collabStatus ?? null);
         }
         if (msgsRes.success) setMessages(msgsRes.data || []);
         if (callsRes.success) setCalls(callsRes.data || []);
@@ -237,6 +243,7 @@ export default function ChatScreen() {
             if (convRes.success && convRes.data?.other) {
                 setOther(convRes.data.other);
                 otherRef.current = convRes.data.other;
+                setCollabStatus(convRes.data.collabStatus ?? null);
             }
             if (callsRes.success) setCalls(callsRes.data || []);
         }, 5000);
@@ -587,6 +594,18 @@ export default function ChatScreen() {
                     />
 
                     {/* ── Composer ──────────────────────────────────────────── */}
+                    {chatLocked ? (
+                        <View style={[styles.composerWrapper, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+                            <View style={styles.lockedBanner}>
+                                <Ionicons name="lock-closed-outline" size={16} color="#8A8A99" />
+                                <Text style={styles.lockedBannerText}>
+                                    {collabStatus === 'COMPLETED'
+                                        ? 'This collaboration is completed — messaging is closed. Start a new collab to chat again.'
+                                        : 'Messaging is available only during an active collaboration.'}
+                                </Text>
+                            </View>
+                        </View>
+                    ) : (
                     <View style={[styles.composerWrapper, {
                         paddingBottom: Math.max(insets.bottom, 8),
                     }]}>
@@ -681,6 +700,7 @@ export default function ChatScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
+                    )}
                 </>
             )}
         </>
@@ -1085,6 +1105,16 @@ const styles = StyleSheet.create({
 
     // ── Composer
     composerWrapper: { paddingHorizontal: 8, paddingTop: 4, backgroundColor: 'transparent' },
+    lockedBanner: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        backgroundColor: 'rgba(24,24,30,0.97)', borderRadius: 14,
+        paddingHorizontal: 16, paddingVertical: 14,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    },
+    lockedBannerText: {
+        color: '#8A8A99', fontSize: 12.5, fontFamily: 'Poppins_400Regular',
+        flexShrink: 1, textAlign: 'center',
+    },
     contextBar: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         backgroundColor: 'rgba(24,24,30,0.97)', borderLeftWidth: 3,

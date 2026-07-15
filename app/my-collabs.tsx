@@ -52,7 +52,7 @@ export default function MyCollabsScreen() {
   const handleComplete = (collabId: string, otherName: string) => {
     Alert.alert(
       'Mark as Completed',
-      `Mark your collaboration with ${otherName} as completed? You'll both still be able to chat and call each other.`,
+      `Mark your collaboration with ${otherName} as completed? This ends the work session — chat and calls will be closed for both of you.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
