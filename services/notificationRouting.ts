@@ -40,9 +40,11 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
             break;
         case 'COLLAB_ACCEPTED':
         case 'COLLAB_DECLINED':
+        case 'COLLAB_COMPLETED':
             // This push goes to the person who SENT the request — /notifications only
             // shows requests sent TO me, which would be empty/irrelevant here. My Collabs
-            // shows the status of requests I sent, so that's the useful destination.
+            // shows the status of requests I sent (and completed ones), so that's the
+            // useful destination.
             router.push('/my-collabs' as any);
             break;
         case 'NEW_POST':
