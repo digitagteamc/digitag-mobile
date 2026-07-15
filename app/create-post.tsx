@@ -192,6 +192,12 @@ export default function CreatePost() {
   }, [title, body, location, collab, selectedCategory, budget, isEditMode]);
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : collabPlaceholder;
+
+  // Required to post: title, category, collab type — and budget, but only for
+  // paid collabs, since the budget field isn't even shown for free ones.
+  const requiredFilled = Boolean(
+    title.trim() && selectedCategory && collab && (collab !== 'PAID' || budget.trim())
+  );
   const categoryLabel = selectedCategory ?? 'Select Category';
 
   const handlePost = async () => {
@@ -500,9 +506,9 @@ export default function CreatePost() {
         {/* ── Post + Draft buttons (inside scroll so nothing is hidden) ── */}
         <View style={styles.actionButtons}>
           <TouchableOpacity
-            style={[styles.postBtn, { backgroundColor: theme.primary }, submitting && styles.postBtnDisabled]}
+            style={[styles.postBtn, { backgroundColor: theme.primary }, (submitting || !requiredFilled) && styles.postBtnDisabled]}
             onPress={handlePost}
-            disabled={submitting}
+            disabled={submitting || !requiredFilled}
           >
             {submitting
               ? <ActivityIndicator color="#fff" />
