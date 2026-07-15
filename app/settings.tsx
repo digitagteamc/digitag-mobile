@@ -35,8 +35,10 @@ export default function SettingsScreen() {
       onPress: () => router.push('/privacysettings' as any),
     },
     {
+      // Person icon + red ban badge — was sharing privacy-icon.png with
+      // Privacy Settings, which made the two rows look identical.
       id: 'blocked',
-      icon: require('../assets/privacy-icon.png'),
+      icon: require('../assets/account-icon.png'),
       label: 'Blocked Accounts',
       onPress: () => router.push('/blocked-users' as any),
     },
@@ -99,6 +101,11 @@ export default function SettingsScreen() {
                       {item.id === 'edit-profile' && (
                         <View className="absolute -bottom-1 -right-1 bg-[#6232FF] w-5 h-5 rounded-full items-center justify-center border border-[#121212]">
                           <Ionicons name="pencil" size={10} color="#fff" />
+                        </View>
+                      )}
+                      {item.id === 'blocked' && (
+                        <View className="absolute -bottom-1 -right-1 bg-[#EF4444] w-5 h-5 rounded-full items-center justify-center border border-[#121212]">
+                          <Ionicons name="ban" size={10} color="#fff" />
                         </View>
                       )}
                     </View>
