@@ -13,6 +13,7 @@ import {
     KeyboardAvoidingView,
     Linking,
     Platform,
+    Pressable,
     ScrollView,
     Text,
     TextInput,
@@ -55,6 +56,9 @@ export default function LoginScreen() {
     // Inline validation errors
     const [phoneError, setPhoneError] = useState<string | null>(null);
     const [otpError, setOtpError] = useState<string | null>(null);
+    // Drives the tap-catcher overlay below — see its comment for why this
+    // exists instead of relying on the TextInput's own tap-to-focus.
+    const [otpFocused, setOtpFocused] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
 
     // Status Modal state
@@ -178,12 +182,13 @@ export default function LoginScreen() {
 
         try {
             // Sign out of any previous Firebase session to ensure a clean new OTP flow
+            // — this alone is enough; a second unconditional signOut() right after was
+            // pure dead weight, adding a whole extra network round-trip before the SMS
+            // request even started (every bit counts toward how fast the code arrives).
             if (auth().currentUser) {
                 await auth().signOut();
             }
             const cleanPhone = phoneNumber.replace(/\s+/g, '');
-            // Clear any stale Firebase session before starting new OTP flow
-            await auth().signOut().catch(() => {});
             console.log("=== START OTP ===");
             console.log("PHONE:", cleanPhone);
             const confirmation = await auth().signInWithPhoneNumber(`+91${cleanPhone}`);
@@ -487,19 +492,14 @@ export default function LoginScreen() {
 
                                         {/* Real input overlays the whole row (transparent, not 1px) so tap-to-focus
                                             and the OS long-press "Paste" action both land on an actual text field
-                                            instead of a decorative box — pasting a copied OTP now works.
-                                            onTouchEnd explicitly re-focuses on every tap — iOS's implicit native
-                                            tap-to-focus on a fully-transparent TextInput is unreliable right after
-                                            a blur (first tap after the keyboard closes can silently miss; the
-                                            second always works). Calling .focus() ourselves, the same way the
-                                            auto-focus above already does successfully, sidesteps that without
-                                            touching the native touch handling the paste gesture depends on. */}
+                                            instead of a decorative box — pasting a copied OTP now works. */}
                                         <TextInput
                                             ref={otpInputRef}
                                             className="absolute top-0 left-0 right-0 bottom-0 opacity-[0.01]"
                                             value={otp}
                                             onChangeText={(v) => setOtp(v.replace(/[^0-9]/g, '').slice(0, 6))}
-                                            onTouchEnd={() => otpInputRef.current?.focus()}
+                                            onFocus={() => setOtpFocused(true)}
+                                            onBlur={() => setOtpFocused(false)}
                                             keyboardType="number-pad"
                                             textContentType="oneTimeCode"
                                             autoComplete="sms-otp"
@@ -508,6 +508,20 @@ export default function LoginScreen() {
                                             caretHidden
                                             contextMenuHidden={false}
                                         />
+
+                                        {/* Tap-catcher — iOS's own tap-to-focus on this transparent TextInput is
+                                            unreliable right after a blur (the first tap after the keyboard closes
+                                            can silently miss the native hit-test; a second always lands). Rather
+                                            than guess why, this sits on top ONLY while unfocused and guarantees
+                                            an explicit .focus() call reaches the ref; the instant it focuses this
+                                            unmounts (pointerEvents "none"), handing every later tap — including
+                                            the OS long-press "Paste" gesture — straight to the real TextInput. */}
+                                        {!otpFocused && (
+                                            <Pressable
+                                                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                                                onPress={() => otpInputRef.current?.focus()}
+                                            />
+                                        )}
                                     </View>
 
                                     {/* OTP inline error */}
