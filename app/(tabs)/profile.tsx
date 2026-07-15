@@ -1,7 +1,7 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
+import { useApplePurchase } from '../../hooks/useApplePurchase';
 import { useRemoteConfig } from '../../hooks/useRemoteConfig';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
 import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
@@ -80,6 +81,10 @@ export default function ProfileScreen() {
 
   const theme = useRoleTheme();
   const remoteConfig = useRemoteConfig();
+  const applePurchase = useApplePurchase(token, remoteConfig.premiumEnabled);
+  useEffect(() => {
+    if (applePurchase.error) Alert.alert('Purchase Failed', applePurchase.error);
+  }, [applePurchase.error]);
   const visibleMenuItems = MENU_ITEMS.filter((item) => item.id !== 'profile_views' || remoteConfig.premiumEnabled);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -264,6 +269,26 @@ export default function ProfileScreen() {
     } finally {
       setUpgrading(false);
     }
+  };
+
+  const handleAppleUpgrade = async () => {
+    if (isGuest || !token) { router.push('/role-selection'); return; }
+    await applePurchase.purchase((isPremium) => {
+      if (isPremium) {
+        setProfile((prev) => (prev ? { ...prev, isPremium: true } : prev));
+        Alert.alert('Payment Successful', 'Your subscription is now active.');
+      }
+    });
+  };
+
+  const handleRestorePurchases = async () => {
+    if (isGuest || !token) return;
+    await applePurchase.restore((isPremium) => {
+      if (isPremium) {
+        setProfile((prev) => (prev ? { ...prev, isPremium: true } : prev));
+        Alert.alert('Restored', 'Your subscription has been restored.');
+      }
+    });
   };
 
   const getRoleLabel = (role: string) => {
@@ -619,12 +644,37 @@ export default function ProfileScreen() {
               </View>
 
               {/* ══════════ UPGRADE ══════════
-                  Android-only: Apple 3.1.1 requires In-App Purchase for digital
-                  subscriptions, so Razorpay checkout must not appear on iOS.
-                  iOS premium arrives with a StoreKit/IAP integration later.
-                  Also gated on the remote PREMIUM_ENABLED flag — hidden on
-                  both platforms whenever Premium itself is paused. */}
-              {Platform.OS !== 'ios' && remoteConfig.premiumEnabled && (
+                  Apple 3.1.1 requires In-App Purchase for digital subscriptions,
+                  so iOS goes through StoreKit (react-native-iap) while Android/
+                  web keep using Razorpay checkout — never Razorpay on iOS.
+                  Both gated on the remote PREMIUM_ENABLED flag — hidden on
+                  every platform whenever Premium itself is paused. */}
+              {remoteConfig.premiumEnabled && Platform.OS === 'ios' && (
+                <>
+                  <TouchableOpacity
+                    onPress={handleAppleUpgrade}
+                    disabled={applePurchase.state !== 'idle'}
+                    activeOpacity={0.85}
+                    className="mx-5 mt-4 rounded-full items-center justify-center py-4"
+                    style={{ backgroundColor: theme.primary, opacity: applePurchase.state !== 'idle' ? 0.7 : 1 }}
+                  >
+                    {applePurchase.state !== 'idle' ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text className="text-white text-[16px]" style={{ fontFamily: 'Poppins_600SemiBold' }}>Upgrade to Premium</Text>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleRestorePurchases}
+                    disabled={applePurchase.state !== 'idle'}
+                    activeOpacity={0.85}
+                    className="mx-5 mt-3 items-center justify-center py-2"
+                  >
+                    <Text className="text-[13px]" style={{ fontFamily: 'Poppins_500Medium', color: theme.primary }}>Restore Purchases</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {remoteConfig.premiumEnabled && Platform.OS !== 'ios' && (
                 <TouchableOpacity
                   onPress={handleUpgrade}
                   disabled={upgrading}

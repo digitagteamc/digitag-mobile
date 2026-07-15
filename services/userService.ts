@@ -1497,3 +1497,19 @@ export const getMySubscription = async (token: string) => {
         return { success: false, error: error.message };
     }
 };
+
+/** POST /subscriptions/apple/verify — after a StoreKit purchase, hands the
+ *  transactionId to the backend, which asks Apple's own servers for the
+ *  authoritative record rather than trusting anything the client claims. */
+export const verifyApplePurchase = async (token: string, transactionId: string) => {
+    try {
+        const body = await request('/subscriptions/apple/verify', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ transactionId }),
+        });
+        return { success: true, data: body?.data as { status: string; isPremium: boolean } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
