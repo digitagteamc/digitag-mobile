@@ -75,6 +75,18 @@ export const optionalAuthHeaders = (token?: string | null): Headers => {
     return token ? { ...rest, Authorization } : rest;
 };
 
+/** GET /config — remote feature flags, no auth required. Currently just
+ *  premiumEnabled: a server-side kill switch for the whole Premium surface
+ *  so it can be shown/hidden without an app rebuild. */
+export const getRemoteConfig = async () => {
+    try {
+        const body = await request('/config', { method: 'GET' });
+        return { success: true, data: body?.data as { premiumEnabled: boolean } };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ─────────────────────────── AUTH ─────────────────────────── */
 
 /** POST /auth/send-otp — backend returns OTP policy (cooldown, expiry, length). */

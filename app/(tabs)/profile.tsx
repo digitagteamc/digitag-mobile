@@ -21,6 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
+import { useRemoteConfig } from '../../hooks/useRemoteConfig';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
 import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
@@ -78,6 +79,8 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
 
   const theme = useRoleTheme();
+  const remoteConfig = useRemoteConfig();
+  const visibleMenuItems = MENU_ITEMS.filter((item) => item.id !== 'profile_views' || remoteConfig.premiumEnabled);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
@@ -577,7 +580,7 @@ export default function ProfileScreen() {
                     borderWidth: 0.3,
                   }}
                 >
-                {MENU_ITEMS.map((item, index) => {
+                {visibleMenuItems.map((item, index) => {
                   const isSpecial = item.id === 'my_posts' || item.id === 'my_collabs';
                   const count = item.id === 'my_posts' ? myPosts.length : (item.id === 'my_collabs' ? myCollabs.length : null);
                   const countLabel = count != null ? `${count} ${item.id === 'my_posts' ? 'post' : 'collab'}${count !== 1 ? 's' : ''}` : null;
@@ -590,8 +593,8 @@ export default function ProfileScreen() {
                         onPress={() => handleMenuPress(item.id)}
                       >
                         {/* Icon circle */}
-                        <View style={{ 
-                           
+                        <View style={{
+
                         }}>
                           {item.imgSrc ? (
                             <Image source={item.imgSrc} style={{ width: 36, height: 36 }} resizeMode="contain" />
@@ -607,7 +610,7 @@ export default function ProfileScreen() {
                         </View>
                         <Ionicons name="chevron-forward" size={18} color="#555" />
                       </TouchableOpacity>
-                      {index < MENU_ITEMS.length - 1 && (
+                      {index < visibleMenuItems.length - 1 && (
                         <View className="h-[0.5px] bg-white/10 mx-5" />
                       )}
                     </React.Fragment>
@@ -618,8 +621,10 @@ export default function ProfileScreen() {
               {/* ══════════ UPGRADE ══════════
                   Android-only: Apple 3.1.1 requires In-App Purchase for digital
                   subscriptions, so Razorpay checkout must not appear on iOS.
-                  iOS premium arrives with a StoreKit/IAP integration later. */}
-              {Platform.OS !== 'ios' && (
+                  iOS premium arrives with a StoreKit/IAP integration later.
+                  Also gated on the remote PREMIUM_ENABLED flag — hidden on
+                  both platforms whenever Premium itself is paused. */}
+              {Platform.OS !== 'ios' && remoteConfig.premiumEnabled && (
                 <TouchableOpacity
                   onPress={handleUpgrade}
                   disabled={upgrading}

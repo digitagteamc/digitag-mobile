@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useRemoteConfig } from '../hooks/useRemoteConfig';
 import { deleteDraft, listDrafts, PostDraft } from '../services/drafts';
 import { boostPost, deletePost, getMyPosts } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
@@ -25,6 +26,7 @@ export default function MyPostsScreen() {
   const router = useRouter();
   const { token, userId, userRole } = useAuth();
   const theme = useRoleTheme();
+  const remoteConfig = useRemoteConfig();
   const [tab, setTab] = useState<Tab>('published');
   const [posts, setPosts] = useState<any[]>([]);
   const [drafts, setDrafts] = useState<PostDraft[]>([]);
@@ -206,7 +208,7 @@ export default function MyPostsScreen() {
                   onPostTap={(postId) => router.push({ pathname: '/post-detail', params: { postId } } as any)}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
-                  onBoost={handleBoost}
+                  onBoost={remoteConfig.premiumEnabled ? handleBoost : undefined}
                   boosting={boostingId === item.id}
                 />
               </View>
