@@ -38,6 +38,8 @@ export function useApplePurchase(token: string | null, enabled: boolean) {
         // yet, so there's nothing productive an early connection would do.
         if (Platform.OS !== 'ios' || !enabled) return;
         let mounted = true;
+        let updateSub: { remove(): void } | null = null;
+        let errorSub: { remove(): void } | null = null;
 
         const verifyAndFinish = async (purchase: Purchase) => {
             if (!token || !purchase.transactionId) return;
@@ -61,23 +63,32 @@ export function useApplePurchase(token: string | null, enabled: boolean) {
             }
         };
 
-        initConnection()
-            .then(() => getSubscriptions({ skus: [APPLE_PREMIUM_PRODUCT_ID] }))
-            .then((subs) => { if (mounted && subs?.[0]) setProduct(subs[0]); })
-            .catch((e) => { if (mounted) setError(e?.message || 'Could not connect to the App Store.'); });
+        // Everything here — including just calling these functions — can throw
+        // synchronously (e.g. E_IAP_NOT_AVAILABLE when the native module isn't
+        // linked into the current build yet), not just reject asynchronously.
+        // A bare .then()/.catch() chain never attaches in that case, so this
+        // whole block needs to be a real try/catch, not just promise handling.
+        try {
+            initConnection()
+                .then(() => getSubscriptions({ skus: [APPLE_PREMIUM_PRODUCT_ID] }))
+                .then((subs) => { if (mounted && subs?.[0]) setProduct(subs[0]); })
+                .catch((e) => { if (mounted) setError(e?.message || 'Could not connect to the App Store.'); });
 
-        const updateSub = purchaseUpdatedListener(verifyAndFinish);
-        const errorSub = purchaseErrorListener((e) => {
-            // User cancelling the native sheet is not a real error.
-            if (mounted && !/cancel/i.test(e.message || '')) setError(e.message || 'Purchase failed.');
-            if (mounted) setState('idle');
-        });
+            updateSub = purchaseUpdatedListener(verifyAndFinish);
+            errorSub = purchaseErrorListener((e) => {
+                // User cancelling the native sheet is not a real error.
+                if (mounted && !/cancel/i.test(e.message || '')) setError(e.message || 'Purchase failed.');
+                if (mounted) setState('idle');
+            });
+        } catch (e: any) {
+            if (mounted) setError(e?.message || 'In-App Purchase is not available on this build yet.');
+        }
 
         return () => {
             mounted = false;
-            updateSub.remove();
-            errorSub.remove();
-            endConnection();
+            updateSub?.remove();
+            errorSub?.remove();
+            try { endConnection(); } catch { /* same as above — must never throw past a cleanup fn */ }
         };
     }, [token, enabled]);
 
