@@ -30,6 +30,7 @@ import {
   openConversationWith,
   sendCollaboration,
   toggleSavePost,
+  updatePostStatus,
 } from '../services/userService';
 import ReportModal from '../Components/ui/ReportModal';
 
@@ -61,6 +62,7 @@ export default function PostDetail() {
   // collab is accepted.
   const contactUnlocked = collabStatus === 'ACCEPTED';
   const [collabBusy, setCollabBusy] = useState(false);
+  const [statusBusy, setStatusBusy] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [isReported, setIsReported] = useState(false);
@@ -86,7 +88,10 @@ export default function PostDetail() {
       if (token) {
         const ownerId = res.data.owner?.id || res.data.userId;
         const [collabRes, savedRes, reportRes] = await Promise.all([
-          ownerId ? getCollaborationWith(token, ownerId) : Promise.resolve({ success: false }),
+          // Scoped to this exact post — a freelancer with multiple posts must
+          // show each one's own collaboration status independently, not
+          // whichever collab with this owner happens to be most recent.
+          ownerId ? getCollaborationWith(token, ownerId, postId) : Promise.resolve({ success: false }),
           getSavedPostIds(token),
           getReportStatus(token, 'POST', postId),
         ]);
@@ -135,6 +140,27 @@ export default function PostDetail() {
       setPopupVisible(true);
     } finally {
       setCollabBusy(false);
+    }
+  };
+
+  const handleUpdateStatus = async (status: 'OPEN' | 'COMPLETED' | 'CLOSED') => {
+    if (!token || !postId || statusBusy) return;
+    setStatusBusy(true);
+    try {
+      const res = await updatePostStatus(token, postId, status);
+      if (res.success) {
+        setPost((prev: any) => (prev ? { ...prev, status } : prev));
+        setPopupType('success');
+        setPopupMessage(
+          status === 'COMPLETED' ? 'Post marked as completed.' : status === 'CLOSED' ? 'Post closed.' : 'Post reopened.',
+        );
+      } else {
+        setPopupType('error');
+        setPopupMessage((res as any).error || 'Could not update post status.');
+      }
+      setPopupVisible(true);
+    } finally {
+      setStatusBusy(false);
     }
   };
 
@@ -237,6 +263,13 @@ export default function PostDetail() {
   }
 
   const isOwn = owner.id === myId;
+  const postStatus: 'OPEN' | 'COMPLETED' | 'CLOSED' = post.status || 'OPEN';
+  // My own collaboration on this post is done — show a completed badge, not
+  // an active Collaborate button, since sending another request here would
+  // just re-open a fresh collab with someone I already finished working with.
+  const myCollabCompleted = collabStatus === 'COMPLETED';
+  // Owner marked the whole post as filled — blocks everyone, not just me.
+  const positionFilled = !myCollabCompleted && postStatus === 'COMPLETED';
   // Collaboration only makes sense across roles (Creator ↔ Freelancer) — the
   // backend already 403s a same-role request. An already-accepted collab is
   // always shown since it could only have been created as a valid pair.
@@ -352,6 +385,48 @@ export default function PostDetail() {
             </View>
           </View>
 
+          {/* Owner-only control over this post's lifecycle: Completed keeps it
+              visible but blocks new collab requests from anyone; Closed hides
+              it from feeds entirely until reopened. */}
+          {isOwn && (
+            <View style={styles.actionsWrap}>
+              {postStatus === 'OPEN' ? (
+                <View style={styles.primaryActionsRow}>
+                  <TouchableOpacity
+                    style={[styles.outlineBtn, { borderColor: accent, flex: 1 }, statusBusy && { opacity: 0.6 }]}
+                    onPress={() => handleUpdateStatus('CLOSED')}
+                    disabled={statusBusy}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="close-circle-outline" size={18} color={accent} />
+                    <Text style={[styles.outlineBtnText, { color: accent }]}>Close Post</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.filledBtn, { backgroundColor: accent, flex: 1 }, statusBusy && { opacity: 0.6 }]}
+                    onPress={() => handleUpdateStatus('COMPLETED')}
+                    disabled={statusBusy}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                    <Text style={styles.filledBtnText}>Mark Completed</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.filledBtn, { backgroundColor: accent }, statusBusy && { opacity: 0.6 }]}
+                  onPress={() => handleUpdateStatus('OPEN')}
+                  disabled={statusBusy}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh-outline" size={18} color="#fff" />
+                  <Text style={styles.filledBtnText}>
+                    {postStatus === 'COMPLETED' ? 'Reopen (marked Completed)' : 'Reopen (Closed)'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* Action buttons — only for other users' posts, and only when
               collaboration is actually possible between these two roles */}
           {!isOwn && (contactUnlocked || canCollaborate) && (
@@ -384,19 +459,28 @@ export default function PostDetail() {
                       styles.filledBtn,
                       { flex: 1.25, backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
                       collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
+                      (myCollabCompleted || positionFilled) && { backgroundColor: '#3a3a3a' },
                       collabBusy && { opacity: 0.6 },
                     ]}
                     onPress={handleCollab}
-                    disabled={collabBusy || collabStatus === 'PENDING'}
+                    disabled={collabBusy || collabStatus === 'PENDING' || myCollabCompleted || positionFilled}
                     activeOpacity={0.8}
                   >
                     <Ionicons
-                      name={collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
+                      name={
+                        collabStatus === 'PENDING' ? 'time-outline'
+                          : myCollabCompleted || positionFilled ? 'checkmark-circle-outline'
+                          : 'people-outline'
+                      }
                       size={18}
                       color={collabStatus === 'PENDING' ? '#f59e0b' : '#fff'}
                     />
                     <Text style={[styles.filledBtnText, collabStatus === 'PENDING' && { color: '#f59e0b' }]}>
-                      {collabBusy ? 'Sending…' : collabStatus === 'PENDING' ? 'Request Pending' : 'Collaborate'}
+                      {collabBusy ? 'Sending…'
+                        : collabStatus === 'PENDING' ? 'Request Pending'
+                        : myCollabCompleted ? 'Collaborated'
+                        : positionFilled ? 'Position Filled'
+                        : 'Collaborate'}
                     </Text>
                   </TouchableOpacity>
                 </View>

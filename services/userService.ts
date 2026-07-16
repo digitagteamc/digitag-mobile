@@ -739,10 +739,13 @@ export const listCollaborations = async (
     }
 };
 
-/** GET /collaborations/with/:userId — latest collab between me and other user (or null) */
-export const getCollaborationWith = async (token: string, userId: string) => {
+/** GET /collaborations/with/:userId — collab between me and other user (or null).
+ *  Pass postId when the caller cares about one specific post's collaboration
+ *  state (e.g. post-detail) rather than the most recent collab overall. */
+export const getCollaborationWith = async (token: string, userId: string, postId?: string) => {
     try {
-        const body = await request(`/collaborations/with/${userId}`, {
+        const qs = postId ? `?postId=${encodeURIComponent(postId)}` : '';
+        const body = await request(`/collaborations/with/${userId}${qs}`, {
             method: 'GET',
             headers: authHeaders(token),
         });
@@ -814,6 +817,22 @@ export const getCollabRequestQuota = async (token: string) => {
 export const boostPost = async (token: string, postId: string) => {
     try {
         const body = await request(`/posts/${postId}/boost`, { method: 'POST', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** PATCH /posts/:id/status — owner-only. OPEN|COMPLETED|CLOSED. COMPLETED
+ *  keeps the post visible but blocks new collab requests from anyone; CLOSED
+ *  hides it from feeds (reversible by setting back to OPEN). */
+export const updatePostStatus = async (token: string, postId: string, status: 'OPEN' | 'COMPLETED' | 'CLOSED') => {
+    try {
+        const body = await request(`/posts/${postId}/status`, {
+            method: 'PATCH',
+            headers: authHeaders(token),
+            body: JSON.stringify({ status }),
+        });
         return { success: true, data: body?.data };
     } catch (error: any) {
         return { success: false, error: error.message };

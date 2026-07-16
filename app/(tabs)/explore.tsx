@@ -749,66 +749,62 @@ export default function ExploreTab() {
     };
   }), [posts]);
 
-  // Creator tab IDs → backend category slugs (used when CREATOR is browsing freelancers)
-  const CATEGORY_SLUG_MAP: Record<string, string[]> = {
-    photography: ['photography'],
-    editor: ['video-editing', 'graphic-design'],
-    videography: ['video-editing', 'videography'],
-    growth: ['social-media', 'growth'],
-    script: ['content-writing', 'script-writing'],
-    styling: ['styling', 'makeup', 'beauty'],
-    fashion: ['fashion', 'graphic-design'],
-    property: ['property', 'real-estate'],
-    voice: ['music-production', 'voice-over'],
+  // Creator tab IDs → exact backend Category slug (used when CREATOR is
+  // browsing freelancers). One tile = one Category row now — see the
+  // FREELANCER-role rows in the Category table (digitag-backend
+  // sync-categories migration), so this is a direct 1:1 map, not a guess.
+  const CATEGORY_SLUG_MAP: Record<string, string> = {
+    photography: 'photography',
+    editor: 'editors',
+    videography: 'videography',
+    growth: 'growth-specialist',
+    script: 'script-writers',
+    styling: 'styling-makeup',
+    fashion: 'fashion-designers',
+    property: 'property-rental',
+    voice: 'voice-over',
+    models: 'models',
   };
 
-  // Freelancer tab IDs (f1-f26) → creator profile category strings (used when FREELANCER is browsing creators)
-  const FREELANCER_CATEGORY_SLUG_MAP: Record<string, string[]> = {
-    f1:  ['Lifestyle', 'Fashion & Lifestyle'],
-    f2:  ['Tech'],
-    f3:  ['Education'],
-    f4:  ['Photography'],
-    f5:  ['Food & Cooking'],
-    f6:  ['Fitness & Health'],
-    f7:  ['Automotive'],
-    f8:  ['Comedy', 'Entertainment'],
-    f9:  ['Entertainment'],
-    f10: ['Gaming'],
-    f11: ['Education'],
-    f12: ['News', 'Media'],
-    f13: ['Sports'],
-    f14: ['Travel'],
-    f15: ['Beauty & Skincare'],
-    f16: ['Fitness & Health'],
-    f17: ['Fashion & Lifestyle'],
-    f18: ['Business & Finance'],
-    f19: ['Art & Creativity'],
-    f20: ['Business & Finance'],
-    f21: ['Lifestyle'],
-    f22: ['Parenting'],
-    f23: ['Home & Garden'],
-    f24: ['Education'],
-    f25: ['Lifestyle'],
-    f26: ['Education'],
+  // Freelancer tab IDs (f1-f26) → exact backend Category slug (used when
+  // FREELANCER is browsing creators). Same 1:1 basis as above, against the
+  // CREATOR-role rows.
+  const FREELANCER_CATEGORY_SLUG_MAP: Record<string, string> = {
+    f1: 'lifestyle-living',
+    f2: 'tech',
+    f3: 'education',
+    f4: 'photography',
+    f5: 'food',
+    f6: 'health',
+    f7: 'automotive',
+    f8: 'comedy-and-memes',
+    f9: 'entertainment',
+    f10: 'gaming-and-anime',
+    f11: 'learning',
+    f12: 'news-media-and-magazines',
+    f13: 'sports',
+    f14: 'travel',
+    f15: 'beauty',
+    f16: 'fitness',
+    f17: 'fashion',
+    f18: 'finance-and-investments',
+    f19: 'arts',
+    f20: 'business-and-startups',
+    f21: 'community-pages',
+    f22: 'family-kids-and-pets',
+    f23: 'home-and-decor',
+    f24: 'law-rights-and-activism',
+    f25: 'pets-and-animals',
+    f26: 'politics',
   };
 
   const filteredCards = useMemo(() => allCards.filter((item) => {
     if (activeCategory && activeCategory !== 'all') {
-      if (userRole === 'FREELANCER') {
-        // Filter creator posts by resolved category names (owner.categorySlugs/categoryNames
-        // are resolved server-side from the raw category-UUIDs profiles store)
-        const matchStrings = FREELANCER_CATEGORY_SLUG_MAP[activeCategory] || [];
-        const itemCategoryNames: string[] = item.categoryNames || [];
-        const matchesContent = matchStrings.some(s =>
-          itemCategoryNames.some(c => c.toLowerCase().includes(s.toLowerCase()))
-        );
-        if (!matchesContent) return false;
-      } else {
-        // Filter freelancer posts by resolved backend category slug
-        const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
-        const itemCategorySlugs: string[] = item.categorySlugs || [];
-        if (!slugs.some(s => itemCategorySlugs.some(cs => cs.toLowerCase().includes(s)))) return false;
-      }
+      const slug = userRole === 'FREELANCER'
+        ? FREELANCER_CATEGORY_SLUG_MAP[activeCategory]
+        : CATEGORY_SLUG_MAP[activeCategory];
+      const itemCategorySlugs: string[] = item.categorySlugs || [];
+      if (!slug || !itemCategorySlugs.some((cs) => cs.toLowerCase() === slug)) return false;
     }
     if (selectedLanguage) {
       const langs = (item.languages || '').toLowerCase();
