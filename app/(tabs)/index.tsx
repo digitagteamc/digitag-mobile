@@ -507,7 +507,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentOwnerIds, acceptedCollabOwnerIds, savedPostIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabOwnerIds, savedPostIds, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -616,18 +616,18 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.figmaCollabBtn, { backgroundColor: postColor, opacity: collabSentOwnerIds?.has(item.ownerId) ? 0.6 : 1 }]}
+                style={[styles.figmaCollabBtn, { backgroundColor: postColor, opacity: collabSentPostIds?.has(item.id) ? 0.6 : 1 }]}
                 onPress={() => handleCollab(item.ownerId, item.id)}
                 activeOpacity={0.8}
-                disabled={collabSentOwnerIds?.has(item.ownerId)}
+                disabled={collabSentPostIds?.has(item.id)}
               >
                 <Ionicons
-                  name={collabSentOwnerIds?.has(item.ownerId) ? 'checkmark-circle-outline' : 'people-outline'}
+                  name={collabSentPostIds?.has(item.id) ? 'checkmark-circle-outline' : 'people-outline'}
                   size={15}
                   color="#fff"
                 />
                 <Text style={styles.figmaCollabBtnText}>
-                  {collabSentOwnerIds?.has(item.ownerId) ? 'Request Sent' : 'Collaborate'}
+                  {collabSentPostIds?.has(item.id) ? 'Request Sent' : 'Collaborate'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -653,7 +653,7 @@ export default function Homepage() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { unreadCount } = useNotificationCount();
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
-  const [collabSentOwnerIds, setCollabSentOwnerIds] = useState<Set<string>>(new Set());
+  const [collabSentPostIds, setCollabSentPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -750,15 +750,19 @@ export default function Homepage() {
           const sent = new Set<string>();
           res.data.forEach((r: any) => {
             // Contact shortcuts only while ACCEPTED — completing a collab closes
-            // chat/calls (backend enforces the same).
+            // chat/calls (backend enforces the same). This one stays owner-scoped:
+            // messaging/calls are per-pair, not per-post, so having any active
+            // collaboration with someone unlocks contact across all their posts.
             if (r.status === 'ACCEPTED') {
               const otherId = r.senderId === userId ? r.receiverId : r.senderId;
               if (otherId) accepted.add(otherId);
             }
-            if (r.status === 'PENDING' && r.senderId === userId) sent.add(r.receiverId);
+            // Post-scoped, unlike accepted above — a pending request on one post
+            // must not show "Request Sent" on that owner's other posts too.
+            if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
           });
           setAcceptedCollabOwnerIds(accepted);
-          setCollabSentOwnerIds(sent);
+          setCollabSentPostIds(sent);
         }
       };
 
@@ -902,11 +906,11 @@ export default function Homepage() {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('send a collaboration')) return;
     if (!ownerId) return;
-    if (collabSentOwnerIds.has(ownerId)) return;
+    if (postId && collabSentPostIds.has(postId)) return;
     try {
       const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
       if (res.success) {
-        setCollabSentOwnerIds(prev => new Set([...prev, ownerId]));
+        if (postId) setCollabSentPostIds(prev => new Set([...prev, postId]));
       } else {
         showAlert('Collab Error', res.error || 'Could not send collaboration request.');
       }
@@ -1273,7 +1277,7 @@ export default function Homepage() {
                   handleCall={handleCall}
                   handleShare={handleShare}
                   handleCollab={handleCollab}
-                  collabSentOwnerIds={collabSentOwnerIds}
+                  collabSentPostIds={collabSentPostIds}
                   acceptedCollabOwnerIds={acceptedCollabOwnerIds}
                   savedPostIds={savedPostIds}
                   userRole={userRole}
