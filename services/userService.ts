@@ -1402,6 +1402,7 @@ export interface PrivacySettings {
     showOnlineStatus: boolean;
     shareDataForPersonalization: boolean;
     pushNotificationsEnabled: boolean;
+    notifyCategoryPosts: boolean;
     preferredLanguage: string;
 }
 

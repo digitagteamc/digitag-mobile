@@ -25,7 +25,7 @@ export default function PrivacySettingsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
-    const { token } = useAuth();
+    const { token, userRole } = useAuth();
 
     // Deletion isn't self-serve — it's handled by support over email so a
     // human confirms it's really the account owner asking.
@@ -72,6 +72,7 @@ export default function PrivacySettingsScreen() {
     const [profileVisibility, setProfileVisibility] = useState(true);
     const [locationTracking, setLocationTracking] = useState(true);
     const [onlineStatus, setOnlineStatus] = useState(true);
+    const [categoryPostNotifs, setCategoryPostNotifs] = useState(true);
 
     useEffect(() => {
         if (!token) return;
@@ -80,13 +81,14 @@ export default function PrivacySettingsScreen() {
             if (res.success && res.data) {
                 setProfileVisibility(res.data.isDiscoverable);
                 setOnlineStatus(res.data.showOnlineStatus);
+                setCategoryPostNotifs(res.data.notifyCategoryPosts);
             }
         })();
     }, [token]);
 
     // Auto-saves on every toggle — there is no separate "Save" step, so the
     // switch always reflects what's persisted server-side.
-    const savePrivacy = (patch: Partial<{ isDiscoverable: boolean; showOnlineStatus: boolean }>) => {
+    const savePrivacy = (patch: Partial<{ isDiscoverable: boolean; showOnlineStatus: boolean; notifyCategoryPosts: boolean }>) => {
         if (!token) return;
         updatePrivacySettings(token, patch);
     };
@@ -156,12 +158,12 @@ export default function PrivacySettingsScreen() {
                             </View> */}
 
                             {/* Online Status */}
-                            <View className="flex-row items-center py-3.5 px-3">
+                            <View className={`flex-row items-center py-3.5 px-3 ${userRole === 'FREELANCER' ? 'border-b border-[#2A2A2A]' : ''}`}>
                                 <View className="w-10 h-10 items-center justify-center mr-4">
-                                    <Image 
-                                        source={require('../assets/show-online-icon.png')} 
-                                        style={{ width: 36, height: 36 }} 
-                                        resizeMode="contain" 
+                                    <Image
+                                        source={require('../assets/show-online-icon.png')}
+                                        style={{ width: 36, height: 36 }}
+                                        resizeMode="contain"
                                     />
                                 </View>
                                 <View className="flex-1">
@@ -173,6 +175,24 @@ export default function PrivacySettingsScreen() {
                                     onValueChange={(v) => { setOnlineStatus(v); savePrivacy({ showOnlineStatus: v }); }}
                                 />
                             </View>
+
+                            {/* Category Post Notifications — freelancers only, since this
+                                is the direction Creator posts notify matching Freelancers */}
+                            {userRole === 'FREELANCER' && (
+                                <View className="flex-row items-center py-3.5 px-3">
+                                    <View className="w-10 h-10 items-center justify-center mr-4">
+                                        <Ionicons name="notifications-outline" size={22} color="#E0E0E0" />
+                                    </View>
+                                    <View className="flex-1">
+                                        <Text className="text-[#fff] text-[16px] font-poppins-regular">Category Post Alerts</Text>
+                                        <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Notify me when Creators post in my categories</Text>
+                                    </View>
+                                    <CustomSwitch
+                                        value={categoryPostNotifs}
+                                        onValueChange={(v) => { setCategoryPostNotifs(v); savePrivacy({ notifyCategoryPosts: v }); }}
+                                    />
+                                </View>
+                            )}
                         </View>
                     </View>
 
