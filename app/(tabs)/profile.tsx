@@ -645,7 +645,7 @@ export default function ProfileScreen() {
 
               {/* ══════════ UPGRADE ══════════
                   Apple 3.1.1 requires In-App Purchase for digital subscriptions,
-                  so iOS goes through StoreKit (react-native-iap) while Android/
+                  so iOS goes through StoreKit (expo-iap) while Android/
                   web keep using Razorpay checkout — never Razorpay on iOS.
                   Both gated on the remote PREMIUM_ENABLED flag — hidden on
                   every platform whenever Premium itself is paused. */}
