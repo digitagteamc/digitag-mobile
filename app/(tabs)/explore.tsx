@@ -491,6 +491,16 @@ function timeAgo(dateStr: string | null | undefined) {
   return `${Math.round(diffHrs / 24)}d ago`;
 }
 
+// Post.budget is a free-text field (e.g. "2000", "₹2,000") — pull out the
+// numeric value so the Budget Range filter can bucket it.
+function parseBudgetValue(budget: string | null | undefined): number | null {
+  if (!budget) return null;
+  const digits = budget.replace(/[^0-9.]/g, '');
+  if (!digits) return null;
+  const n = parseFloat(digits);
+  return Number.isFinite(n) ? n : null;
+}
+
 
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
@@ -612,7 +622,9 @@ export default function ExploreTab() {
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
-  const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | null>(null);
+  const [selectedBudgetRange, setSelectedBudgetRange] = useState<string | null>(null);
+  const [selectedSort, setSelectedSort] = useState<string | null>(null);
+  const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | 'budget' | 'sort' | null>(null);
   const [filterPanelVisible, setFilterPanelVisible] = useState(false);
   const drawerX = useSharedValue(FILTER_DRAWER_WIDTH);
   const optionsDrawerX = useSharedValue(FILTER_OPTIONS_DRAWER_WIDTH);
@@ -657,6 +669,8 @@ export default function ExploreTab() {
   const LOCATION_OPTIONS = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
   const PRICE_OPTIONS = ['Free Collab', 'Paid Collab'];
   const EXPERIENCE_OPTIONS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+  const BUDGET_OPTIONS = ['Under ₹1000', '₹1000 - ₹5000', '₹5000+'];
+  const SORT_OPTIONS = ['Recommended', 'Newest First'];
 
   const [isReady, setIsReady] = useState(false);
 
@@ -779,6 +793,7 @@ export default function ExploreTab() {
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: p.budget || null,
       time: timeAgo(p.createdAt),
+      createdAtRaw: p.createdAt || null,
       avatarUri: owner.profilePicture || null,
       isInitials: !owner.profilePicture,
       initials: getInitials(name),
@@ -864,15 +879,34 @@ export default function ExploreTab() {
     if (selectedExperience) {
       if ((item.experience || '').toLowerCase() !== selectedExperience.toLowerCase()) return false;
     }
+    if (selectedBudgetRange) {
+      const val = parseBudgetValue(item.budget);
+      if (val === null) return false;
+      if (selectedBudgetRange === 'Under ₹1000' && !(val < 1000)) return false;
+      if (selectedBudgetRange === '₹1000 - ₹5000' && !(val >= 1000 && val <= 5000)) return false;
+      if (selectedBudgetRange === '₹5000+' && !(val > 5000)) return false;
+    }
     return true;
-  }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
+  }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience, selectedBudgetRange]);
+
+  // "Recommended" (default) keeps the backend's own order — boosted, then
+  // Premium, then newest. "Newest First" ignores that and sorts purely by
+  // creation time, since a user picking this filter wants chronological.
+  const sortedCards = useMemo(() => {
+    if (selectedSort !== 'Newest First') return filteredCards;
+    return [...filteredCards].sort((a, b) => {
+      const at = a.createdAtRaw ? new Date(a.createdAtRaw).getTime() : 0;
+      const bt = b.createdAtRaw ? new Date(b.createdAtRaw).getTime() : 0;
+      return bt - at;
+    });
+  }, [filteredCards, selectedSort]);
 
   const EXPLORE_PREVIEW_LIMIT = 3;
   // Same as Home: the preview cap nudges a logged-in user to finish their profile.
   // Guests have no profile to complete, so it doesn't apply to them (Apple 5.1.1).
   const isExploreCapped = !isGuest && !isProfileCompleted;
-  const hasMoreHiddenCards = isExploreCapped && filteredCards.length > EXPLORE_PREVIEW_LIMIT;
-  const cards = isExploreCapped ? filteredCards.slice(0, EXPLORE_PREVIEW_LIMIT) : filteredCards;
+  const hasMoreHiddenCards = isExploreCapped && sortedCards.length > EXPLORE_PREVIEW_LIMIT;
+  const cards = isExploreCapped ? sortedCards.slice(0, EXPLORE_PREVIEW_LIMIT) : sortedCards;
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     // Viewing a post is browsing, not an account action — guests can open it freely.
@@ -1104,8 +1138,10 @@ export default function ExploreTab() {
   // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
   // the main right-side filter drawer (behind the header's filter icon). Tapping a row
   // opens a second, narrower drawer stacked on top with that filter's option list.
-  const FILTER_ROWS: Array<{ key: 'price' | 'experience' | 'language' | 'location'; label: string; placeholder: string; value: string | null; setValue: (v: string | null) => void; options: string[] }> = [
+  const FILTER_ROWS: Array<{ key: 'price' | 'experience' | 'language' | 'location' | 'budget' | 'sort'; label: string; placeholder: string; value: string | null; setValue: (v: string | null) => void; options: string[] }> = [
+    { key: 'sort', label: 'Sort By', placeholder: 'Recommended', value: selectedSort, setValue: setSelectedSort, options: SORT_OPTIONS },
     { key: 'price', label: 'Collab Type', placeholder: 'Select Collab Type', value: selectedPriceRange, setValue: setSelectedPriceRange, options: PRICE_OPTIONS },
+    { key: 'budget', label: 'Budget Range', placeholder: 'Select budget range', value: selectedBudgetRange, setValue: setSelectedBudgetRange, options: BUDGET_OPTIONS },
     { key: 'experience', label: 'Experience', placeholder: 'Select experience', value: selectedExperience, setValue: setSelectedExperience, options: EXPERIENCE_OPTIONS },
     { key: 'language', label: 'Language', placeholder: 'Select language', value: selectedLanguage, setValue: setSelectedLanguage, options: LANGUAGE_OPTIONS },
     { key: 'location', label: 'Location', placeholder: 'Select location', value: selectedLocation, setValue: setSelectedLocation, options: LOCATION_OPTIONS },
