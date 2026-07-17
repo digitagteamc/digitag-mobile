@@ -1082,7 +1082,7 @@ export default function Homepage() {
             <View style={styles.headerRightIcons}>
               {/* Search Button */}
               <TouchableOpacity onPress={() => router.push('/searchbar' as any)} activeOpacity={0.75}>
-                <Ionicons name="search-outline" size={22} color="#fff" style={{ width: 36, height: 36, textAlign: 'center', textAlignVertical: 'center' }} />
+                <Image source={require('../../assets/search.png')} style={{ width: 36, height: 36 }} />
               </TouchableOpacity>
 
               {/* Analytics Button - from Figma SVG */}
