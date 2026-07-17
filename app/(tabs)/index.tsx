@@ -1080,6 +1080,11 @@ export default function Homepage() {
             </BlurView>
 
             <View style={styles.headerRightIcons}>
+              {/* Search Button */}
+              <TouchableOpacity onPress={() => router.push('/searchbar' as any)} activeOpacity={0.75}>
+                <Ionicons name="search-outline" size={22} color="#fff" style={{ width: 36, height: 36, textAlign: 'center', textAlignVertical: 'center' }} />
+              </TouchableOpacity>
+
               {/* Analytics Button - from Figma SVG */}
               <TouchableOpacity onPress={() => router.push('/analytics' as any)} activeOpacity={0.75}>
                 {/* <Svg width="36" height="36" viewBox="0 0 36 36" fill="none">

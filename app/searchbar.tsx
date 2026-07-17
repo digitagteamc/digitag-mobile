@@ -18,7 +18,7 @@ import {
 import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import { useAuth } from '../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { searchProfiles } from '../services/userService';
+import { getCategories, searchProfiles } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
 export default function SearchbarScreen() {
@@ -34,22 +34,25 @@ export default function SearchbarScreen() {
   const filteredResults = activeCategory === 'All'
     ? searchResults
     : searchResults.filter(item => {
-        const cats: string[] = [item.category, ...(Array.isArray(item.categories) ? item.categories : [])].filter(Boolean).map((c: string) => c.toLowerCase());
-        const filter = activeCategory.toLowerCase();
-        return cats.length === 0 || cats.some(c => c.includes(filter) || filter.includes(c));
+        const cats: string[] = (Array.isArray(item.categoryNames) ? item.categoryNames : []).map((c: string) => c.toLowerCase());
+        return cats.includes(activeCategory.toLowerCase());
       });
 
-  const categoryPills = [
-    'All',
-    'Photography',
-    'Editors',
-    'Videography',
-    'Growth Specialist',
-    'Script Writers',
-    'Styling & Makeup',
-    'Fashion Designers',
-    'Property Rental',
-  ];
+  // Search results are always the OPPOSITE role from the viewer (a Freelancer
+  // searches Creators and vice versa, matching the backend's OPPOSITE_FEED_ROLE)
+  // — so the filter pills must reflect the categories that role actually has,
+  // fetched live rather than hardcoded (which had gone stale and was missing
+  // several categories, including the newest one).
+  const [categoryPills, setCategoryPills] = useState<string[]>(['All']);
+  useEffect(() => {
+    if (!token || !userRole) return;
+    const targetRole = userRole === 'FREELANCER' ? 'CREATOR' : 'FREELANCER';
+    getCategories({ role: targetRole }).then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setCategoryPills(['All', ...res.data.map((c: any) => c.name)]);
+      }
+    });
+  }, [token, userRole]);
 
   const words = ['Animator', 'Editors', 'Content Writers', 'And More', 'Animator'];
   const translateY = useRef(new Animated.Value(0)).current;
@@ -219,7 +222,7 @@ export default function SearchbarScreen() {
                     </View>
                     <Text style={styles.searchResultMeta}>
                       {item.role.charAt(0) + item.role.slice(1).toLowerCase()}
-                      {item.category ? ` · ${item.category}` : ''}
+                      {item.categoryNames?.[0] ? ` · ${item.categoryNames[0]}` : ''}
                     </Text>
                   </View>
                 </TouchableOpacity>
