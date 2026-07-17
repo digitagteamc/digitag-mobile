@@ -570,8 +570,40 @@ const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer
   );
 });
 
-
-
+/** Up to 3 portfolio work-sample images in the card's existing image slot —
+ *  same size as a single image, swipe to see the rest. Measures its own
+ *  width via onLayout since the wrapper is width:'100%' of the card column,
+ *  not a fixed pixel value we already know. */
+const PortfolioImageCarousel = React.memo(({ images }: { images: string[] }) => {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
+  if (!images.length) return null;
+  return (
+    <View style={s.cardImageWrap} onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
+      {containerWidth > 0 && (
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(e) => {
+            setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / containerWidth));
+          }}
+        >
+          {images.map((uri, i) => (
+            <Image key={`${uri}-${i}`} source={{ uri }} style={{ width: containerWidth, height: '100%' }} resizeMode="cover" />
+          ))}
+        </ScrollView>
+      )}
+      {images.length > 1 && (
+        <View style={s.cardImageDots}>
+          {images.map((_, i) => (
+            <View key={i} style={[s.cardImageDot, i === activeIndex && s.cardImageDotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+});
 
 export default function ExploreTab() {
   const router = useRouter();
@@ -733,6 +765,7 @@ export default function ExploreTab() {
       role: owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User',
       desc: p.description || '',
       imageUrl: p.imageUrl || null,
+      imageUrls: Array.isArray(p.imageUrls) && p.imageUrls.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []),
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: p.budget || null,
       time: timeAgo(p.createdAt),
@@ -964,14 +997,13 @@ export default function ExploreTab() {
             </Text>
           </TouchableOpacity>
 
-          {/* Portfolio image — freelancer portfolio categories only (Photography,
-              Property Rental, Fashion Designers, Models, Styling & Makeup).
-              Explicit category check, not just imageUrl presence, so this stays
-              correct even if a future feature adds imageUrl to other post types. */}
-          {!!item.imageUrl && item.ownerRole === 'FREELANCER' && matchesPortfolioCategory(item.categoryNames) && (
-            <View style={s.cardImageWrap}>
-              <Image source={{ uri: item.imageUrl }} style={s.cardImage} resizeMode="cover" />
-            </View>
+          {/* Portfolio images (up to 3, swipeable) — freelancer portfolio
+              categories only (Photography, Property Rental, Fashion
+              Designers, Models, Styling & Makeup). Explicit category check,
+              not just imageUrls presence, so this stays correct even if a
+              future feature adds images to other post types. */}
+          {item.imageUrls.length > 0 && item.ownerRole === 'FREELANCER' && matchesPortfolioCategory(item.categoryNames) && (
+            <PortfolioImageCarousel images={item.imageUrls} />
           )}
 
           {/* Info pills */}
@@ -1485,7 +1517,7 @@ const s = StyleSheet.create({
   // Description
   cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
 
-  // Portfolio image
+  // Portfolio image(s) — up to 3, swipeable
   cardImageWrap: {
     width: '100%',
     height: 180,
@@ -1493,8 +1525,27 @@ const s = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 14,
     backgroundColor: '#1E1E24',
+    position: 'relative',
   },
-  cardImage: { width: '100%', height: '100%' },
+  cardImageDots: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  cardImageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  cardImageDotActive: {
+    backgroundColor: '#fff',
+    width: 16,
+  },
 
   // Info pills
   pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },

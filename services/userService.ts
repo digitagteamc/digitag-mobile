@@ -497,18 +497,20 @@ type PostPayload = {
 };
 
 /**
- * POST /posts — accepts an optional local image file URI that will be sent
- * via multipart/form-data (field name "image"). Without an image, sends JSON.
+ * POST /posts — accepts up to 3 local image file URIs (portfolio-category
+ * posts), sent via multipart/form-data as repeated "images" fields — the
+ * backend accepts .array('images', 3), and every non-portfolio post just
+ * sends one. Without any images, sends JSON.
  */
 export const createPost = async (
     payload: PostPayload,
     token: string,
-    imageFile?: { uri: string; name?: string; type?: string },
+    imageFiles?: { uri: string; name?: string; type?: string }[],
 ) => {
     try {
         const url = `${API_BASE_URL}/posts`;
         let res: Response;
-        if (imageFile) {
+        if (imageFiles && imageFiles.length > 0) {
             const form = new FormData();
             form.append('description', payload.description);
             if (payload.location) form.append('location', payload.location);
@@ -516,11 +518,13 @@ export const createPost = async (
             if (payload.category) form.append('category', payload.category);
             if (payload.budget) form.append('budget', payload.budget);
             if (payload.boostHours) form.append('boostHours', String(payload.boostHours));
-            form.append('image', {
-                uri: imageFile.uri,
-                name: imageFile.name || 'upload.jpg',
-                type: imageFile.type || 'image/jpeg',
-            } as any);
+            imageFiles.forEach((imageFile, i) => {
+                form.append('images', {
+                    uri: imageFile.uri,
+                    name: imageFile.name || `upload-${i}.jpg`,
+                    type: imageFile.type || 'image/jpeg',
+                } as any);
+            });
             res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },

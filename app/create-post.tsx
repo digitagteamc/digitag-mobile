@@ -291,12 +291,11 @@ export default function CreatePost() {
         // Editing never touches boost/expiry — only send it on create.
         ...(isEditMode ? {} : { boostHours: (visibilityHours ?? undefined) as 4 | 12 | 24 | 48 | undefined }),
       };
-      // Backend only stores one image per post today — send the first pick.
-      // (Don't touch the backend per instruction; UI still lets the user
-      // stage up to 3 for whenever multi-image support lands.)
+      // Editing a post's photo set isn't supported yet — updatePost stays
+      // single-image; create sends every staged image (up to 3).
       const res = isEditMode
         ? await updatePost(String(editPostId), payload, token)
-        : await createPost(payload, token, postImages[0] || undefined);
+        : await createPost(payload, token, postImages.length ? postImages : undefined);
       if (res.success) {
         await deleteDraft(draftIdRef.current).catch(() => {});
         setPopupType('success');

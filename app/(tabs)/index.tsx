@@ -1,4 +1,5 @@
 import { useProfileGate } from '@/context/ProfileGateContext';
+import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -572,6 +573,11 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                 style={styles.figmaCardAvatarImg}
                 resizeMode="cover"
               />
+              {/* Portfolio work-sample thumbnail badge — freelancer portfolio
+                  categories only, see portfolioThumb in the cards mapping. */}
+              {!!item.portfolioThumb && (
+                <Image source={{ uri: item.portfolioThumb }} style={styles.figmaCardPortfolioBadge} resizeMode="cover" />
+              )}
             </View>
 
             {/* Name & Details */}
@@ -950,6 +956,12 @@ export default function Homepage() {
       budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
+      // Small thumbnail badge on the avatar — freelancer portfolio categories
+      // only (Photography, Property Rental, Fashion Designers, Models,
+      // Styling & Makeup), same gating as Explore's card carousel.
+      portfolioThumb: owner.role === 'FREELANCER' && matchesPortfolioCategory(owner.categoryNames)
+        ? ((Array.isArray(post.imageUrls) && post.imageUrls[0]) || post.imageUrl || null)
+        : null,
     };
   }), [visiblePosts]);
 
@@ -1862,6 +1874,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     backgroundColor: '#2A2A32',
+    position: 'relative',
   },
   figmaCardAvatarImg: {
     width: 64,
@@ -1869,6 +1882,16 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     borderWidth: 2,
     borderColor: '#1E1E24',
+  },
+  figmaCardPortfolioBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#0A0A0A',
   },
   figmaCardName: {
     color: '#fff',
