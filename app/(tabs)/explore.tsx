@@ -545,6 +545,10 @@ const FadeText = React.memo(({
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
+// Filter drawer slides in from the right and covers most, not all, of the
+// screen width — leaving a visible strip of the feed as a dismiss target.
+const FILTER_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.82);
+
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
   const opacity = useSharedValue(isFreelancer ? 0 : 1);
@@ -608,6 +612,27 @@ export default function ExploreTab() {
   const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
   const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | null>(null);
   const [filterPanelVisible, setFilterPanelVisible] = useState(false);
+  const drawerX = useSharedValue(FILTER_DRAWER_WIDTH);
+
+  // Slide in whenever the drawer opens; closing animates back out first,
+  // then unmounts the Modal once the animation would have finished — Modal's
+  // `visible` prop has no exit-animation hook of its own.
+  useEffect(() => {
+    if (filterPanelVisible) {
+      drawerX.value = FILTER_DRAWER_WIDTH;
+      drawerX.value = withTiming(0, { duration: 260 });
+    }
+  }, [filterPanelVisible]);
+
+  const closeFilterDrawer = () => {
+    drawerX.value = withTiming(FILTER_DRAWER_WIDTH, { duration: 220 });
+    setFilterModalType(null);
+    setTimeout(() => setFilterPanelVisible(false), 220);
+  };
+
+  const drawerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: drawerX.value }],
+  }));
 
   const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Punjabi', 'Marathi', 'Bengali', 'Gujarati'];
   const LOCATION_OPTIONS = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
@@ -1057,42 +1082,62 @@ export default function ExploreTab() {
     );
   }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
 
-  // Reusable filter form (Collab Type / Experience / Language / Location) — now lives inside
-  // the filter panel modal (behind the header's filter icon) instead of always being visible.
+  // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
+  // the right-side filter drawer (behind the header's filter icon). Each row is its own
+  // accordion: tapping it expands that filter's option list directly beneath it, in the
+  // same drawer, instead of opening a second popup.
+  const FILTER_ROWS: Array<{ key: 'price' | 'experience' | 'language' | 'location'; label: string; placeholder: string; value: string | null; setValue: (v: string | null) => void; options: string[] }> = [
+    { key: 'price', label: 'Collab Type', placeholder: 'Select Collab Type', value: selectedPriceRange, setValue: setSelectedPriceRange, options: PRICE_OPTIONS },
+    { key: 'experience', label: 'Experience', placeholder: 'Select experience', value: selectedExperience, setValue: setSelectedExperience, options: EXPERIENCE_OPTIONS },
+    { key: 'language', label: 'Language', placeholder: 'Select language', value: selectedLanguage, setValue: setSelectedLanguage, options: LANGUAGE_OPTIONS },
+    { key: 'location', label: 'Location', placeholder: 'Select location', value: selectedLocation, setValue: setSelectedLocation, options: LOCATION_OPTIONS },
+  ];
+
   const filterPanelContent = (
     <View>
-      <View style={s.filterRow}>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Collab Type</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedPriceRange ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('price')}>
-            <Text style={[s.filterPlaceholder, selectedPriceRange ? s.filterValueText : null]}>{selectedPriceRange || 'Select Collab Type'}</Text>
-            {selectedPriceRange ? <TouchableOpacity onPress={() => setSelectedPriceRange(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="filter" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Experience</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedExperience ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('experience')}>
-            <Text style={[s.filterPlaceholder, selectedExperience ? s.filterValueText : null]}>{selectedExperience || 'Select experience'}</Text>
-            {selectedExperience ? <TouchableOpacity onPress={() => setSelectedExperience(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={[s.filterRow, { marginTop: 0 }]}>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Language</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedLanguage ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('language')}>
-            <Text style={[s.filterPlaceholder, selectedLanguage ? s.filterValueText : null]}>{selectedLanguage || 'Select language'}</Text>
-            {selectedLanguage ? <TouchableOpacity onPress={() => setSelectedLanguage(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Location</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedLocation ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('location')}>
-            <Text style={[s.filterPlaceholder, selectedLocation ? s.filterValueText : null]}>{selectedLocation || 'Select location'}</Text>
-            {selectedLocation ? <TouchableOpacity onPress={() => setSelectedLocation(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-      </View>
+      {FILTER_ROWS.map((row) => {
+        const expanded = filterModalType === row.key;
+        return (
+          <View key={row.key} style={s.filterAccordionItem}>
+            <Text style={s.filterLabel}>{row.label}</Text>
+            <TouchableOpacity
+              style={[s.filterDropdown, row.value ? s.filterDropdownActive : null]}
+              activeOpacity={0.7}
+              onPress={() => setFilterModalType(expanded ? null : row.key)}
+            >
+              <Text style={[s.filterPlaceholder, row.value ? s.filterValueText : null]}>{row.value || row.placeholder}</Text>
+              {row.value ? (
+                <TouchableOpacity onPress={() => row.setValue(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={16} color="#ED2A91" />
+                </TouchableOpacity>
+              ) : (
+                <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#6e7180" />
+              )}
+            </TouchableOpacity>
+            {expanded && (
+              <View style={s.filterOptionList}>
+                {row.options.map((option) => {
+                  const isSelected = row.value === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        row.setValue(isSelected ? null : option);
+                        setFilterModalType(null);
+                      }}
+                    >
+                      <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
+                      {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 
@@ -1281,81 +1326,26 @@ export default function ExploreTab() {
         </View>
       </Modal>
 
-      {/* ═══ FILTER PANEL MODAL (behind the header's filter icon) ═══ */}
+      {/* ═══ FILTER DRAWER (slides in from the right, behind the header's filter icon) ═══ */}
       <Modal
         visible={filterPanelVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setFilterPanelVisible(false)}
+        animationType="fade"
+        onRequestClose={closeFilterDrawer}
       >
-        <View style={s.modalOverlay}>
-          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setFilterPanelVisible(false)} />
-          <View style={s.modalContent}>
+        <View style={s.filterDrawerOverlay}>
+          <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeFilterDrawer} />
+          <Animated.View style={[s.filterDrawerPanel, { width: FILTER_DRAWER_WIDTH, paddingTop: insets.top + 20 }, drawerAnimStyle]}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Filters</Text>
-              <TouchableOpacity style={s.modalClose} onPress={() => setFilterPanelVisible(false)}>
+              <TouchableOpacity style={s.modalClose} onPress={closeFilterDrawer}>
                 <Feather name="x" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
               {filterPanelContent}
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ═══ FILTER SELECTION MODAL ═══ */}
-      <Modal
-        visible={filterModalType !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFilterModalType(null)}
-      >
-        <View style={s.modalOverlay}>
-          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setFilterModalType(null)} />
-          <View style={s.modalContent}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>
-                {filterModalType === 'language' ? 'Select Language'
-                  : filterModalType === 'location' ? 'Select Location'
-                  : filterModalType === 'price' ? 'Select Price Range'
-                  : 'Select Experience'}
-              </Text>
-              <TouchableOpacity style={s.modalClose} onPress={() => setFilterModalType(null)}>
-                <Feather name="x" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {(filterModalType === 'language' ? LANGUAGE_OPTIONS
-                : filterModalType === 'location' ? LOCATION_OPTIONS
-                : filterModalType === 'price' ? PRICE_OPTIONS
-                : EXPERIENCE_OPTIONS
-              ).map((option) => {
-                const currentVal = filterModalType === 'language' ? selectedLanguage
-                  : filterModalType === 'location' ? selectedLocation
-                  : filterModalType === 'price' ? selectedPriceRange
-                  : selectedExperience;
-                const isSelected = currentVal === option;
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      if (filterModalType === 'language') setSelectedLanguage(isSelected ? null : option);
-                      else if (filterModalType === 'location') setSelectedLocation(isSelected ? null : option);
-                      else if (filterModalType === 'price') setSelectedPriceRange(isSelected ? null : option);
-                      else setSelectedExperience(isSelected ? null : option);
-                      setFilterModalType(null);
-                    }}
-                  >
-                    <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
-                    {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -1439,8 +1429,7 @@ const s = StyleSheet.create({
   },
 
   // Filters
-  filterRow: { flexDirection: 'row', paddingHorizontal: 8, gap: 16, marginBottom: 24, marginTop: 40 },
-  filterCol: { flex: 1 },
+  filterAccordionItem: { paddingHorizontal: 8, marginBottom: 20 },
   filterLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
   filterDropdown: {
     height: 46, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1450,6 +1439,19 @@ const s = StyleSheet.create({
   filterPlaceholder: { color: '#6e7180', fontSize: 13, fontFamily: 'Poppins_400Regular' },
   filterDropdownActive: { borderColor: '#ED2A91', backgroundColor: 'rgba(237,42,145,0.08)' },
   filterValueText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_400Regular' },
+  filterOptionList: {
+    marginTop: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12,
+    paddingHorizontal: 8, borderWidth: 1, borderColor: 'rgba(64,64,64,0.4)',
+  },
+
+  // Filter drawer (slides in from the right)
+  filterDrawerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', flexDirection: 'row' },
+  filterDrawerDismiss: { flex: 1 },
+  filterDrawerPanel: {
+    height: '100%', backgroundColor: '#1E1E24',
+    borderLeftWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
+    paddingHorizontal: 20, paddingBottom: 24,
+  },
 
   // Empty
   emptyState: { paddingHorizontal: 40, paddingTop: 60, alignItems: 'center', gap: 10 },
