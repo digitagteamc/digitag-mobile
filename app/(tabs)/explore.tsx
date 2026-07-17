@@ -545,9 +545,11 @@ const FadeText = React.memo(({
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
-// Filter drawer slides in from the right and covers most, not all, of the
-// screen width — leaving a visible strip of the feed as a dismiss target.
-const FILTER_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.75);
+// Main filter drawer (Collab Type / Experience / Language / Location list) slides
+// in from the right and covers the full screen. Tapping one of its rows opens a
+// second, narrower drawer stacked on top of it with that filter's option list.
+const FILTER_DRAWER_WIDTH = Dimensions.get('window').width;
+const FILTER_OPTIONS_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.8);
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
@@ -613,9 +615,10 @@ export default function ExploreTab() {
   const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | null>(null);
   const [filterPanelVisible, setFilterPanelVisible] = useState(false);
   const drawerX = useSharedValue(FILTER_DRAWER_WIDTH);
+  const optionsDrawerX = useSharedValue(FILTER_OPTIONS_DRAWER_WIDTH);
 
-  // Slide in whenever the drawer opens; closing animates back out first,
-  // then unmounts the Modal once the animation would have finished — Modal's
+  // Slide in whenever a drawer opens; closing animates back out first, then
+  // unmounts the Modal once the animation would have finished — Modal's
   // `visible` prop has no exit-animation hook of its own.
   useEffect(() => {
     if (filterPanelVisible) {
@@ -624,14 +627,30 @@ export default function ExploreTab() {
     }
   }, [filterPanelVisible]);
 
+  useEffect(() => {
+    if (filterModalType !== null) {
+      optionsDrawerX.value = FILTER_OPTIONS_DRAWER_WIDTH;
+      optionsDrawerX.value = withTiming(0, { duration: 240 });
+    }
+  }, [filterModalType]);
+
   const closeFilterDrawer = () => {
     drawerX.value = withTiming(FILTER_DRAWER_WIDTH, { duration: 220 });
     setFilterModalType(null);
     setTimeout(() => setFilterPanelVisible(false), 220);
   };
 
+  const closeOptionsDrawer = () => {
+    optionsDrawerX.value = withTiming(FILTER_OPTIONS_DRAWER_WIDTH, { duration: 200 });
+    setTimeout(() => setFilterModalType(null), 200);
+  };
+
   const drawerAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: drawerX.value }],
+  }));
+
+  const optionsDrawerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: optionsDrawerX.value }],
   }));
 
   const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Punjabi', 'Marathi', 'Bengali', 'Gujarati'];
@@ -1083,9 +1102,8 @@ export default function ExploreTab() {
   }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
 
   // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
-  // the right-side filter drawer (behind the header's filter icon). Each row is its own
-  // accordion: tapping it expands that filter's option list directly beneath it, in the
-  // same drawer, instead of opening a second popup.
+  // the main right-side filter drawer (behind the header's filter icon). Tapping a row
+  // opens a second, narrower drawer stacked on top with that filter's option list.
   const FILTER_ROWS: Array<{ key: 'price' | 'experience' | 'language' | 'location'; label: string; placeholder: string; value: string | null; setValue: (v: string | null) => void; options: string[] }> = [
     { key: 'price', label: 'Collab Type', placeholder: 'Select Collab Type', value: selectedPriceRange, setValue: setSelectedPriceRange, options: PRICE_OPTIONS },
     { key: 'experience', label: 'Experience', placeholder: 'Select experience', value: selectedExperience, setValue: setSelectedExperience, options: EXPERIENCE_OPTIONS },
@@ -1093,51 +1111,29 @@ export default function ExploreTab() {
     { key: 'location', label: 'Location', placeholder: 'Select location', value: selectedLocation, setValue: setSelectedLocation, options: LOCATION_OPTIONS },
   ];
 
+  const activeFilterRow = FILTER_ROWS.find((row) => row.key === filterModalType) || null;
+
   const filterPanelContent = (
     <View>
-      {FILTER_ROWS.map((row) => {
-        const expanded = filterModalType === row.key;
-        return (
-          <View key={row.key} style={s.filterAccordionItem}>
-            <Text style={s.filterLabel}>{row.label}</Text>
-            <TouchableOpacity
-              style={[s.filterDropdown, row.value ? s.filterDropdownActive : null]}
-              activeOpacity={0.7}
-              onPress={() => setFilterModalType(expanded ? null : row.key)}
-            >
-              <Text style={[s.filterPlaceholder, row.value ? s.filterValueText : null]}>{row.value || row.placeholder}</Text>
-              {row.value ? (
-                <TouchableOpacity onPress={() => row.setValue(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <Ionicons name="close-circle" size={16} color="#ED2A91" />
-                </TouchableOpacity>
-              ) : (
-                <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#6e7180" />
-              )}
-            </TouchableOpacity>
-            {expanded && (
-              <View style={s.filterOptionList}>
-                {row.options.map((option) => {
-                  const isSelected = row.value === option;
-                  return (
-                    <TouchableOpacity
-                      key={option}
-                      style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        row.setValue(isSelected ? null : option);
-                        setFilterModalType(null);
-                      }}
-                    >
-                      <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
-                      {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+      {FILTER_ROWS.map((row) => (
+        <View key={row.key} style={s.filterAccordionItem}>
+          <Text style={s.filterLabel}>{row.label}</Text>
+          <TouchableOpacity
+            style={[s.filterDropdown, row.value ? s.filterDropdownActive : null]}
+            activeOpacity={0.7}
+            onPress={() => setFilterModalType(row.key)}
+          >
+            <Text style={[s.filterPlaceholder, row.value ? s.filterValueText : null]}>{row.value || row.placeholder}</Text>
+            {row.value ? (
+              <TouchableOpacity onPress={() => row.setValue(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#ED2A91" />
+              </TouchableOpacity>
+            ) : (
+              <Ionicons name="chevron-forward" size={16} color="#6e7180" />
             )}
-          </View>
-        );
-      })}
+          </TouchableOpacity>
+        </View>
+      ))}
     </View>
   );
 
@@ -1348,6 +1344,45 @@ export default function ExploreTab() {
           </Animated.View>
         </View>
       </Modal>
+
+      {/* ═══ FILTER OPTIONS DRAWER (stacks on top of the main drawer) ═══ */}
+      <Modal
+        visible={filterModalType !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeOptionsDrawer}
+      >
+        <View style={s.filterDrawerOverlay}>
+          <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeOptionsDrawer} />
+          <Animated.View style={[s.filterDrawerPanel, { width: FILTER_OPTIONS_DRAWER_WIDTH, paddingTop: insets.top + 20 }, optionsDrawerAnimStyle]}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>{activeFilterRow?.label || 'Select'}</Text>
+              <TouchableOpacity style={s.modalClose} onPress={closeOptionsDrawer}>
+                <Feather name="x" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+              {activeFilterRow?.options.map((option) => {
+                const isSelected = activeFilterRow.value === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      activeFilterRow.setValue(isSelected ? null : option);
+                      closeOptionsDrawer();
+                    }}
+                  >
+                    <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
+                    {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1439,10 +1474,6 @@ const s = StyleSheet.create({
   filterPlaceholder: { color: '#6e7180', fontSize: 13, fontFamily: 'Poppins_400Regular' },
   filterDropdownActive: { borderColor: '#ED2A91', backgroundColor: 'rgba(237,42,145,0.08)' },
   filterValueText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_400Regular' },
-  filterOptionList: {
-    marginTop: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12,
-    paddingHorizontal: 8, borderWidth: 1, borderColor: 'rgba(64,64,64,0.4)',
-  },
 
   // Filter drawer (slides in from the right)
   filterDrawerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', flexDirection: 'row' },
