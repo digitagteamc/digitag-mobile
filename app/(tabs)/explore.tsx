@@ -1,4 +1,5 @@
 import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
+import PortfolioImageCarousel from '@/Components/PortfolioImageCarousel';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
@@ -570,41 +571,6 @@ const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer
   );
 });
 
-/** Up to 3 portfolio work-sample images in the card's existing image slot —
- *  same size as a single image, swipe to see the rest. Measures its own
- *  width via onLayout since the wrapper is width:'100%' of the card column,
- *  not a fixed pixel value we already know. */
-const PortfolioImageCarousel = React.memo(({ images }: { images: string[] }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-  if (!images.length) return null;
-  return (
-    <View style={s.cardImageWrap} onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
-      {containerWidth > 0 && (
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(e) => {
-            setActiveIndex(Math.round(e.nativeEvent.contentOffset.x / containerWidth));
-          }}
-        >
-          {images.map((uri, i) => (
-            <Image key={`${uri}-${i}`} source={{ uri }} style={{ width: containerWidth, height: '100%' }} resizeMode="cover" />
-          ))}
-        </ScrollView>
-      )}
-      {images.length > 1 && (
-        <View style={s.cardImageDots}>
-          {images.map((_, i) => (
-            <View key={i} style={[s.cardImageDot, i === activeIndex && s.cardImageDotActive]} />
-          ))}
-        </View>
-      )}
-    </View>
-  );
-});
-
 export default function ExploreTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -1003,7 +969,7 @@ export default function ExploreTab() {
               not just imageUrls presence, so this stays correct even if a
               future feature adds images to other post types. */}
           {item.imageUrls.length > 0 && item.ownerRole === 'FREELANCER' && matchesPortfolioCategory(item.categoryNames) && (
-            <PortfolioImageCarousel images={item.imageUrls} />
+            <PortfolioImageCarousel images={item.imageUrls} style={s.cardImageWrap} />
           )}
 
           {/* Info pills */}
@@ -1522,29 +1488,7 @@ const s = StyleSheet.create({
     width: '100%',
     height: 180,
     borderRadius: 16,
-    overflow: 'hidden',
     marginBottom: 14,
-    backgroundColor: '#1E1E24',
-    position: 'relative',
-  },
-  cardImageDots: {
-    position: 'absolute',
-    bottom: 10,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  cardImageDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  cardImageDotActive: {
-    backgroundColor: '#fff',
-    width: 16,
   },
 
   // Info pills

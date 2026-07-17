@@ -17,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import PortfolioImageCarousel from '../Components/PortfolioImageCarousel';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { useRoleTheme } from '../theme/useRoleTheme';
@@ -264,6 +265,9 @@ export default function PostDetail() {
 
   const isOwn = owner.id === myId;
   const postStatus: 'OPEN' | 'COMPLETED' | 'CLOSED' = post.status || 'OPEN';
+  const postImages: string[] = Array.isArray(post.imageUrls) && post.imageUrls.length
+    ? post.imageUrls
+    : (post.imageUrl ? [post.imageUrl] : []);
   // My own collaboration on this post is done — show a completed badge, not
   // an active Collaborate button, since sending another request here would
   // just re-open a fresh collab with someone I already finished working with.
@@ -316,12 +320,10 @@ export default function PostDetail() {
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-          {/* Post image, if present */}
-          {post.imageUrl ? (
-            <View style={styles.bannerWrap}>
-              <Image source={{ uri: post.imageUrl }} style={styles.bannerImg} resizeMode="cover" />
-            </View>
-          ) : null}
+          {/* Post image(s) — up to 3 for portfolio-category posts, swipeable */}
+          {postImages.length > 0 && (
+            <PortfolioImageCarousel images={postImages} style={styles.bannerWrap} />
+          )}
 
           {/* Main profile card */}
           <View style={styles.card}>
@@ -638,7 +640,6 @@ const styles = StyleSheet.create({
     height: 200,
     marginBottom: 16,
   },
-  bannerImg: { width: '100%', height: '100%' },
 
   card: {
     marginHorizontal: 16,
