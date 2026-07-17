@@ -731,6 +731,7 @@ export default function ExploreTab() {
       id: p.id, ownerId: owner.id, ownerRole: owner.role, name,
       role: owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User',
       desc: p.description || '',
+      imageUrl: p.imageUrl || null,
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: p.budget || null,
       time: timeAgo(p.createdAt),
@@ -965,6 +966,13 @@ export default function ExploreTab() {
               {!expandedPosts.has(item.id) && <Text style={{ color: accent }}>... See more</Text>}
             </Text>
           </TouchableOpacity>
+
+          {/* Portfolio image (freelancer portfolio categories only) */}
+          {!!item.imageUrl && (
+            <View style={s.cardImageWrap}>
+              <Image source={{ uri: item.imageUrl }} style={s.cardImage} resizeMode="cover" />
+            </View>
+          )}
 
           {/* Info pills */}
           <View style={s.pillWrapRow}>
@@ -1476,6 +1484,17 @@ const s = StyleSheet.create({
 
   // Description
   cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
+
+  // Portfolio image
+  cardImageWrap: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 14,
+    backgroundColor: '#1E1E24',
+  },
+  cardImage: { width: '100%', height: '100%' },
 
   // Info pills
   pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
