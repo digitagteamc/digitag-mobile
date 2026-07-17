@@ -1,5 +1,6 @@
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
+import PortfolioImageCarousel from '@/Components/PortfolioImageCarousel';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -566,24 +567,38 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               </View>
             </View>
 
-            {/* Avatar */}
-            <View style={styles.figmaCardAvatarWrap}>
-              <Image
-                source={item.isInitials ? require('../../assets/images/icon.png') : { uri: item.avatarUri }}
-                style={styles.figmaCardAvatarImg}
-                resizeMode="cover"
-              />
-              {/* Portfolio work-sample thumbnail badge — freelancer portfolio
-                  categories only, see portfolioThumb in the cards mapping. */}
-              {!!item.portfolioThumb && (
-                <Image source={{ uri: item.portfolioThumb }} style={styles.figmaCardPortfolioBadge} resizeMode="cover" />
-              )}
-            </View>
-
-            {/* Name & Details */}
-            <Text style={styles.figmaCardName} numberOfLines={1} ellipsizeMode="tail">
-              {item.name}
-            </Text>
+            {/* Portfolio images (freelancer portfolio categories only) get a
+                banner-style card — post photo up top, avatar as a small
+                circle below it. Everyone else keeps the avatar-centered
+                layout, since they have no post image to show as a banner. */}
+            {item.portfolioImages?.length > 0 ? (
+              <>
+                <PortfolioImageCarousel images={item.portfolioImages} style={styles.figmaCardBanner} />
+                <View style={styles.figmaCardAvatarRow}>
+                  <Image
+                    source={item.isInitials ? require('../../assets/images/icon.png') : { uri: item.avatarUri }}
+                    style={styles.figmaCardAvatarImgSmall}
+                    resizeMode="cover"
+                  />
+                  <Text style={styles.figmaCardNameInline} numberOfLines={1} ellipsizeMode="tail">
+                    {item.name}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.figmaCardAvatarWrap}>
+                  <Image
+                    source={item.isInitials ? require('../../assets/images/icon.png') : { uri: item.avatarUri }}
+                    style={styles.figmaCardAvatarImg}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={styles.figmaCardName} numberOfLines={1} ellipsizeMode="tail">
+                  {item.name}
+                </Text>
+              </>
+            )}
 
             <View style={styles.figmaCardMetaRow}>
               <TouchableOpacity
@@ -956,12 +971,13 @@ export default function Homepage() {
       budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
-      // Small thumbnail badge on the avatar — freelancer portfolio categories
-      // only (Photography, Property Rental, Fashion Designers, Models,
-      // Styling & Makeup), same gating as Explore's card carousel.
-      portfolioThumb: owner.role === 'FREELANCER' && matchesPortfolioCategory(owner.categoryNames)
-        ? ((Array.isArray(post.imageUrls) && post.imageUrls[0]) || post.imageUrl || null)
-        : null,
+      // Portfolio work-sample images — freelancer portfolio categories only
+      // (Photography, Property Rental, Fashion Designers, Models, Styling &
+      // Makeup). When present, the card shows these as a banner with the
+      // avatar as a small circle, instead of the avatar-centered layout.
+      portfolioImages: owner.role === 'FREELANCER' && matchesPortfolioCategory(owner.categoryNames)
+        ? (Array.isArray(post.imageUrls) && post.imageUrls.length ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : []))
+        : [],
     };
   }), [visiblePosts]);
 
@@ -1883,15 +1899,32 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#1E1E24',
   },
-  figmaCardPortfolioBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 8,
+  // Banner-style layout (portfolio-category posts only)
+  figmaCardBanner: {
+    width: '100%',
+    height: 108,
+    marginTop: 0,
+  },
+  figmaCardAvatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 4,
+  },
+  figmaCardAvatarImgSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#0A0A0A',
+    borderColor: '#1E1E24',
+  },
+  figmaCardNameInline: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Poppins_500Medium',
+    maxWidth: 160,
   },
   figmaCardName: {
     color: '#fff',
