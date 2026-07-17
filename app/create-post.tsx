@@ -18,6 +18,7 @@ import React, { useEffect, useRef, useState } from 'react';
   View,
 } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import { matchesPortfolioCategory } from '../constants/portfolioCategories';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { useLocationSuggestions } from '../hooks/useLocationSuggestions';
@@ -25,18 +26,6 @@ import { deleteDraft, getDraft, newDraftId, saveDraft as persistDraft } from '..
 import { prepareImageForUpload } from '../services/imageResize';
 import { createPost, getFullProfile, getPostById, updatePost } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
-
-// Freelancer profession categories that come with portfolio work worth
-// showcasing visually — only freelancers whose own profile category is one
-// of these get the image-upload option when composing a post. Matched as a
-// substring both ways so slight backend naming differences (e.g. "Fashion
-// Designer" vs "Fashion Designers") still resolve correctly.
-const IMAGE_UPLOAD_CATEGORIES = ['Photography', 'Property Rental', 'Fashion Designers', 'Models', 'Styling & makeup'];
-const normalizeCategory = (s: string) => s.toLowerCase().replace(/[^a-z]/g, '');
-const categoryMatches = (a: string, b: string) => {
-  const na = normalizeCategory(a), nb = normalizeCategory(b);
-  return !!na && !!nb && (na.includes(nb) || nb.includes(na));
-};
 
 type CollabChoice = 'UNPAID' | 'PAID';
 
@@ -166,8 +155,7 @@ export default function CreatePost() {
     });
   }, [isCreator, token]);
 
-  const canUploadImage = !isCreator && ownerCategories.length > 0 &&
-    IMAGE_UPLOAD_CATEGORIES.some(c => ownerCategories.some(oc => categoryMatches(c, oc)));
+  const canUploadImage = !isCreator && matchesPortfolioCategory(ownerCategories);
 
   // Resume a saved draft (opened from My Posts > Drafts).
   useEffect(() => {

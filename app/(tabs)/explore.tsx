@@ -1,3 +1,4 @@
+import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
@@ -963,8 +964,11 @@ export default function ExploreTab() {
             </Text>
           </TouchableOpacity>
 
-          {/* Portfolio image (freelancer portfolio categories only) */}
-          {!!item.imageUrl && (
+          {/* Portfolio image — freelancer portfolio categories only (Photography,
+              Property Rental, Fashion Designers, Models, Styling & Makeup).
+              Explicit category check, not just imageUrl presence, so this stays
+              correct even if a future feature adds imageUrl to other post types. */}
+          {!!item.imageUrl && item.ownerRole === 'FREELANCER' && matchesPortfolioCategory(item.categoryNames) && (
             <View style={s.cardImageWrap}>
               <Image source={{ uri: item.imageUrl }} style={s.cardImage} resizeMode="cover" />
             </View>
