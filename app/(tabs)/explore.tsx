@@ -1322,12 +1322,16 @@ export default function ExploreTab() {
         </View>
       </Modal>
 
-      {/* ═══ FILTER DRAWER (slides in from the right, behind the header's filter icon) ═══ */}
+      {/* ═══ FILTER DRAWER (slides in from the right, behind the header's filter icon) ═══
+          Both drawers live inside ONE Modal — stacking two separate native <Modal>s
+          on iOS is unreliable (the second one doesn't reliably present on top of the
+          first), so the options drawer is instead an absolutely-positioned overlay
+          layered above the main drawer's content, inside the same Modal. */}
       <Modal
         visible={filterPanelVisible}
         transparent
         animationType="fade"
-        onRequestClose={closeFilterDrawer}
+        onRequestClose={() => (filterModalType !== null ? closeOptionsDrawer() : closeFilterDrawer())}
       >
         <View style={s.filterDrawerOverlay}>
           <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeFilterDrawer} />
@@ -1343,45 +1347,39 @@ export default function ExploreTab() {
             </ScrollView>
           </Animated.View>
         </View>
-      </Modal>
 
-      {/* ═══ FILTER OPTIONS DRAWER (stacks on top of the main drawer) ═══ */}
-      <Modal
-        visible={filterModalType !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={closeOptionsDrawer}
-      >
-        <View style={s.filterDrawerOverlay}>
-          <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeOptionsDrawer} />
-          <Animated.View style={[s.filterDrawerPanel, { width: FILTER_OPTIONS_DRAWER_WIDTH, paddingTop: insets.top + 20 }, optionsDrawerAnimStyle]}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>{activeFilterRow?.label || 'Select'}</Text>
-              <TouchableOpacity style={s.modalClose} onPress={closeOptionsDrawer}>
-                <Feather name="x" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {activeFilterRow?.options.map((option) => {
-                const isSelected = activeFilterRow.value === option;
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      activeFilterRow.setValue(isSelected ? null : option);
-                      closeOptionsDrawer();
-                    }}
-                  >
-                    <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
-                    {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-        </View>
+        {filterModalType !== null && (
+          <View style={s.filterOptionsOverlay}>
+            <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeOptionsDrawer} />
+            <Animated.View style={[s.filterDrawerPanel, { width: FILTER_OPTIONS_DRAWER_WIDTH, paddingTop: insets.top + 20 }, optionsDrawerAnimStyle]}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>{activeFilterRow?.label || 'Select'}</Text>
+                <TouchableOpacity style={s.modalClose} onPress={closeOptionsDrawer}>
+                  <Feather name="x" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                {activeFilterRow?.options.map((option) => {
+                  const isSelected = activeFilterRow.value === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        activeFilterRow.setValue(isSelected ? null : option);
+                        closeOptionsDrawer();
+                      }}
+                    >
+                      <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
+                      {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </Animated.View>
+          </View>
+        )}
       </Modal>
     </View>
   );
@@ -1482,6 +1480,13 @@ const s = StyleSheet.create({
     height: '100%', backgroundColor: '#1E1E24',
     borderLeftWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
     paddingHorizontal: 20, paddingBottom: 24,
+  },
+  // Options drawer renders as an overlay layered on top of the main drawer
+  // (inside the same Modal) rather than a second native Modal, which iOS
+  // doesn't reliably stack.
+  filterOptionsOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)', flexDirection: 'row',
   },
 
   // Empty
