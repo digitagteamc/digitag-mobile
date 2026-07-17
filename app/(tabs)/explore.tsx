@@ -547,7 +547,7 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 // Filter drawer slides in from the right and covers most, not all, of the
 // screen width — leaving a visible strip of the feed as a dismiss target.
-const FILTER_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.82);
+const FILTER_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.75);
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
