@@ -3,7 +3,6 @@ import { useProfileGate } from '@/context/ProfileGateContext';
 import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -732,6 +731,7 @@ export default function ExploreTab() {
       id: p.id, ownerId: owner.id, ownerRole: owner.role, name,
       role: owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User',
       desc: p.description || '',
+      imageUrl: p.imageUrl || null,
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: p.budget || null,
       time: timeAgo(p.createdAt),
@@ -963,6 +963,13 @@ export default function ExploreTab() {
             </Text>
           </TouchableOpacity>
 
+          {/* Portfolio image (freelancer portfolio categories only) */}
+          {!!item.imageUrl && (
+            <View style={s.cardImageWrap}>
+              <Image source={{ uri: item.imageUrl }} style={s.cardImage} resizeMode="cover" />
+            </View>
+          )}
+
           {/* Info pills */}
           <View style={s.pillWrapRow}>
             {!!item.experience && (
@@ -1103,7 +1110,7 @@ export default function ExploreTab() {
           )}
           <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
         </View>
-        <HeroAnimatedImage source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
+        <HeroAnimatedImage source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle, { width: 111, height: 104 }]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
       </View>
     </View>
   ), [activeCat, userRole]);
@@ -1156,7 +1163,7 @@ export default function ExploreTab() {
           <ScrollView
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: 90 }}
             nestedScrollEnabled={true}
           >
             {availableCategories.map((cat) => {
@@ -1169,9 +1176,9 @@ export default function ExploreTab() {
                   style={[s.sidebarItem, isActive && s.sidebarItemActive]}
                 >
                   {(cat as any).iconSvg ? (
-                    <SvgXml xml={(cat as any).iconSvg} width={30} height={30} />
+                    <SvgXml xml={(cat as any).iconSvg} width={24} height={24} />
                   ) : (
-                    <Image source={(cat as any).icon} style={{ width: 30, height: 30 }} resizeMode="contain" />
+                    <Image source={(cat as any).icon} style={{ width: 24, height: 24 }} resizeMode="contain" />
                   )}
                   <Text style={[s.sidebarLabel, isActive && s.sidebarLabelActive]} numberOfLines={2}>{cat.label}</Text>
                 </TouchableOpacity>
@@ -1371,15 +1378,22 @@ const s = StyleSheet.create({
 
   // Body: sidebar + scrollable feed column
   bodyRow: { flex: 1, flexDirection: 'row' },
-  sidebar: { width: 83, backgroundColor: '#0A0A0A' },
+  sidebar: { width: 83, backgroundColor: '#1E1E24', borderTopRightRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden' },
   sidebarItem: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 4,
+    marginBottom: 20,
     gap: 8,
   },
-  sidebarItemActive: { backgroundColor: 'rgba(255,255,255,0.08)' },
+  sidebarItemActive: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
   sidebarLabel: {
     color: '#fff',
     fontSize: 10,
@@ -1398,7 +1412,7 @@ const s = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginHorizontal: 8,
-    marginTop: 12,
+    
     marginBottom: 8,
     padding: 20,
   },
@@ -1409,7 +1423,7 @@ const s = StyleSheet.create({
   // Hero text + character
   heroContent: { flex: 1, position: 'relative' },
   heroTextArea: { maxWidth: '78%' },
-  heroTitle: { fontSize: 18, lineHeight: 26, fontFamily: 'Poppins_700Bold', },
+  heroTitle: { fontSize: 14, lineHeight: 20, fontFamily: 'Poppins_700Bold', },
   heroTitleBold: { color: '#fff' },
   heroTitleFaded: { color: 'rgba(255,255,255,0.8)' },
   heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontFamily: 'Poppins_400Regular', lineHeight: 18, marginTop: 8 },
@@ -1466,6 +1480,17 @@ const s = StyleSheet.create({
 
   // Description
   cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
+
+  // Portfolio image
+  cardImageWrap: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 14,
+    backgroundColor: '#1E1E24',
+  },
+  cardImage: { width: '100%', height: '100%' },
 
   // Info pills
   pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
