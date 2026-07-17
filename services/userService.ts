@@ -1240,9 +1240,9 @@ export const searchProfiles = async (token: string, q: string, limit: number = 2
             method: 'GET',
             headers: authHeaders(token),
         });
-        return { success: true, data: body?.data ?? [] };
+        return { success: true, data: body?.data ?? { users: [], posts: [] } };
     } catch (error: any) {
-        return { success: false, error: error.message, data: [] };
+        return { success: false, error: error.message, data: { users: [], posts: [] } };
     }
 };
 
