@@ -14,6 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
+      "appleTeamId": "CKD6A9LCR6",
       "associatedDomains": [
         "applinks:thedigitag.ai"
       ],
@@ -37,7 +38,7 @@
           "fetch"
         ]
       },
-      "buildNumber": "3",
+      "buildNumber": "4",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
