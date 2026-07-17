@@ -14,16 +14,27 @@ module.exports = function withSentryAuthToken(config) {
     return withDangerousMod(config, [
         'ios',
         (config) => {
-            const token = process.env.SENTRY_AUTH_TOKEN;
-            if (!token) return config;
             const envLocalPath = path.join(config.modRequest.platformProjectRoot, '.xcode.env.local');
             let contents = fs.existsSync(envLocalPath) ? fs.readFileSync(envLocalPath, 'utf8') : '';
             contents = contents
                 .split('\n')
-                .filter((line) => !line.includes('SENTRY_AUTH_TOKEN') && !line.includes('SENTRY_DISABLE_AUTO_UPLOAD'))
+                .filter((line) => !line.includes('SENTRY_AUTH_TOKEN') && !line.includes('SENTRY_DISABLE_AUTO_UPLOAD') && !line.includes('NODE_BINARY'))
                 .join('\n');
             if (!contents.endsWith('\n') && contents.length > 0) contents += '\n';
-            contents += `export SENTRY_AUTH_TOKEN=${token}\n`;
+
+            const token = process.env.SENTRY_AUTH_TOKEN;
+            if (token) contents += `export SENTRY_AUTH_TOKEN=${token}\n`;
+
+            // ios/.xcode.env's `export NODE_BINARY=$(command -v node)` re-resolves
+            // node every time it's sourced — but Xcode's GUI build phases run with a
+            // stripped PATH that doesn't include Homebrew, so that lookup silently
+            // comes up empty and any CP-User script needing node (e.g. Hermes's
+            // "Replace Hermes for the right configuration") fails. process.execPath
+            // is the actual node binary running this very prebuild, so writing its
+            // absolute path here (which .xcode.env.local sources after, and
+            // therefore overrides, .xcode.env) fixes it regardless of PATH.
+            contents += `export NODE_BINARY=${process.execPath}\n`;
+
             fs.writeFileSync(envLocalPath, contents);
             return config;
         },
