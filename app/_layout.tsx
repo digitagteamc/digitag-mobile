@@ -108,8 +108,8 @@ function NotificationHandler() {
             // FCM only auto-displays a `notification`-type push when the app is
             // backgrounded/killed — in the foreground it's silently delivered as
             // data only, so without this nothing shows up while the app is open.
-            if (data.type === 'NEW_MESSAGE' && pathnameRef.current === `/chat/${data.conversationId}`) {
-                return; // already looking at this conversation — the chat screen refreshes itself
+            if ((data.type === 'NEW_MESSAGE' || data.type === 'MESSAGE_REACTION') && pathnameRef.current === `/chat/${data.conversationId}`) {
+                return; // already looking at this conversation — the chat screen's own polling picks this up
             }
             const notif = remoteMessage.notification;
             if (notif?.title || notif?.body) {
