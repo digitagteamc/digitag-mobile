@@ -149,7 +149,8 @@
         }
       ],
       "expo-iap",
-      "./plugins/withSentryAuthToken"
+      "./plugins/withSentryAuthToken",
+      "./plugins/withRecaptchaEnterprise"
     ],
     "experiments": {
       "typedRoutes": true,
