@@ -508,7 +508,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabOwnerIds, savedPostIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -607,7 +607,12 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
             </Text>
 
             {/* Bottom Actions */}
-            {acceptedCollabOwnerIds?.has(item.ownerId) ? (
+            {completedCollabPostIds?.has(item.id) ? (
+              <View style={[styles.figmaCollabBtn, { backgroundColor: '#3a3a3a' }]}>
+                <Ionicons name="checkmark-circle-outline" size={15} color="#fff" />
+                <Text style={styles.figmaCollabBtnText}>Collaborated</Text>
+              </View>
+            ) : acceptedCollabOwnerIds?.has(item.ownerId) ? (
               <View style={styles.figmaCardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
                   <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
@@ -660,6 +665,7 @@ export default function Homepage() {
   const { unreadCount } = useNotificationCount();
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
   const [collabSentPostIds, setCollabSentPostIds] = useState<Set<string>>(new Set());
+  const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -754,6 +760,7 @@ export default function Homepage() {
         if (res.success && Array.isArray(res.data)) {
           const accepted = new Set<string>();
           const sent = new Set<string>();
+          const completed = new Set<string>();
           res.data.forEach((r: any) => {
             // Contact shortcuts only while ACCEPTED — completing a collab closes
             // chat/calls (backend enforces the same). This one stays owner-scoped:
@@ -766,9 +773,16 @@ export default function Homepage() {
             // Post-scoped, unlike accepted above — a pending request on one post
             // must not show "Request Sent" on that owner's other posts too.
             if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
+            // Also post-scoped — once the Creator marks this specific
+            // collaboration complete, this card must show "Collaborated"
+            // instead of falling back to the plain Collaborate button (which
+            // otherwise looks like the request never happened, since
+            // completed collabs drop out of `accepted` above).
+            if (r.status === 'COMPLETED' && r.postId) completed.add(r.postId);
           });
           setAcceptedCollabOwnerIds(accepted);
           setCollabSentPostIds(sent);
+          setCompletedCollabPostIds(completed);
         }
       };
 
@@ -1296,6 +1310,7 @@ export default function Homepage() {
                   handleCollab={handleCollab}
                   collabSentPostIds={collabSentPostIds}
                   acceptedCollabOwnerIds={acceptedCollabOwnerIds}
+                  completedCollabPostIds={completedCollabPostIds}
                   savedPostIds={savedPostIds}
                   userRole={userRole}
                 />

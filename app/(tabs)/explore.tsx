@@ -616,6 +616,7 @@ export default function ExploreTab() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
+  const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
@@ -731,6 +732,7 @@ export default function ExploreTab() {
       if (res.success && Array.isArray(res.data)) {
         const accepted = new Set<string>();
         const pendingPostIds = new Set<string>();
+        const completedPostIds = new Set<string>();
         res.data.forEach((r: any) => {
           // Contact shortcuts only while ACCEPTED — completing a collab closes
           // chat/calls (backend enforces the same), so the card reverts to
@@ -742,11 +744,20 @@ export default function ExploreTab() {
           if (r.status === 'PENDING' && r.senderId === userId && r.postId) {
             pendingPostIds.add(r.postId);
           }
+          // Post-scoped, like pendingPostIds above — once the Creator marks this
+          // specific collaboration complete, this card must show "Collaborated"
+          // instead of reverting to the plain Collaborate button (which otherwise
+          // looks like the request never happened, since completed collabs drop
+          // out of `accepted` above).
+          if (r.status === 'COMPLETED' && r.postId) {
+            completedPostIds.add(r.postId);
+          }
         });
         setAcceptedCollabOwnerIds(accepted);
         // Server is the source of truth on every visit — replaces any stale local-only
         // "Request Sent" state and also restores it if the app was closed/reopened.
         setCollabSentIds(pendingPostIds);
+        setCompletedCollabPostIds(completedPostIds);
       }
     });
   }, [token, userId]));
@@ -1085,7 +1096,12 @@ export default function ExploreTab() {
           )}
 
           {/* Bottom Actions */}
-          {acceptedCollabOwnerIds.has(item.ownerId) ? (
+          {completedCollabPostIds.has(item.id) ? (
+            <View style={[s.bigCollabBtn, { backgroundColor: '#3a3a3a' }]}>
+              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+              <Text style={s.bigCollabBtnText}>Collaborated</Text>
+            </View>
+          ) : acceptedCollabOwnerIds.has(item.ownerId) ? (
             <View style={s.cardBottom}>
               <View style={s.cardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
@@ -1133,7 +1149,7 @@ export default function ExploreTab() {
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, handleBookmark]);
 
   // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
   // the main right-side filter drawer (behind the header's filter icon). Tapping a row
