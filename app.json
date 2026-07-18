@@ -38,7 +38,7 @@
           "fetch"
         ]
       },
-      "buildNumber": "5",
+      "buildNumber": "6",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
