@@ -14,6 +14,7 @@ import {
   ImageBackground,
   Linking,
   Modal,
+  RefreshControl,
   ScrollView,
   Share,
   StatusBar,
@@ -720,86 +721,93 @@ export default function Homepage() {
     setAlertConfig({ visible: true, title, message });
   };
 
+  const fetchPosts = useCallback(async () => {
+    try {
+      // Browsing the feed doesn't require an account — token is optional here.
+      const res = await getFeed(token);
+      const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
+      // Center on the middle post so its left/right neighbors both peek into
+      // view on open, showing all 3 preview posts at once (per design).
+      if (!hasSetInitialCarouselScroll.current) {
+        const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
+        const initialIndex = visibleCount >= 3 ? 1 : 0;
+        scrollX.setValue(initialIndex * ITEM_SIZE);
+        hasSetInitialCarouselScroll.current = true;
+      }
+      setPosts(allPosts);
+    } catch {
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, isGuest, isProfileCompleted]);
+
+  const fetchUser = useCallback(async () => {
+    if (isGuest || !token) { setUserName('Guest'); return; }
+    const res = await getFullProfile(token);
+    if (res.success && res.data?.profile) {
+      const p = res.data.profile;
+      setUserName(p.name || '');
+      setUserTagId(p.tagId || null);
+      setUserAvatar(p.profilePicture || null);
+    }
+  }, [isGuest, token]);
+
+  const fetchCollabInfo = useCallback(async () => {
+    if (!token || isGuest) return;
+    const res = await listCollaborations(token, { direction: 'all' });
+    if (res.success && Array.isArray(res.data)) {
+      const accepted = new Set<string>();
+      const sent = new Set<string>();
+      const completed = new Set<string>();
+      res.data.forEach((r: any) => {
+        // Contact shortcuts only while ACCEPTED — completing a collab closes
+        // chat/calls (backend enforces the same). This one stays owner-scoped:
+        // messaging/calls are per-pair, not per-post, so having any active
+        // collaboration with someone unlocks contact across all their posts.
+        if (r.status === 'ACCEPTED') {
+          const otherId = r.senderId === userId ? r.receiverId : r.senderId;
+          if (otherId) accepted.add(otherId);
+        }
+        // Post-scoped, unlike accepted above — a pending request on one post
+        // must not show "Request Sent" on that owner's other posts too.
+        if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
+        // Also post-scoped — once the Creator marks this specific
+        // collaboration complete, this card must show "Collaborated"
+        // instead of falling back to the plain Collaborate button (which
+        // otherwise looks like the request never happened, since
+        // completed collabs drop out of `accepted` above).
+        if (r.status === 'COMPLETED' && r.postId) completed.add(r.postId);
+      });
+      setAcceptedCollabOwnerIds(accepted);
+      setCollabSentPostIds(sent);
+      setCompletedCollabPostIds(completed);
+    }
+  }, [token, isGuest, userId]);
+
+  const fetchSavedIds = useCallback(async () => {
+    if (!token || isGuest) return;
+    const res = await getSavedPostIds(token);
+    if (res.success && Array.isArray(res.data)) {
+      setSavedPostIds(new Set(res.data));
+    }
+  }, [token, isGuest]);
+
   useFocusEffect(
     useCallback(() => {
-      const fetchPosts = async () => {
-        try {
-          // Browsing the feed doesn't require an account — token is optional here.
-          const res = await getFeed(token);
-          const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-          // Center on the middle post so its left/right neighbors both peek into
-          // view on open, showing all 3 preview posts at once (per design).
-          if (!hasSetInitialCarouselScroll.current) {
-            const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
-            const initialIndex = visibleCount >= 3 ? 1 : 0;
-            scrollX.setValue(initialIndex * ITEM_SIZE);
-            hasSetInitialCarouselScroll.current = true;
-          }
-          setPosts(allPosts);
-        } catch {
-          setPosts([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const fetchUser = async () => {
-        if (isGuest || !token) { setUserName('Guest'); return; }
-        const res = await getFullProfile(token);
-        if (res.success && res.data?.profile) {
-          const p = res.data.profile;
-          setUserName(p.name || '');
-          setUserTagId(p.tagId || null);
-          setUserAvatar(p.profilePicture || null);
-        }
-      };
-
-      const fetchCollabInfo = async () => {
-        if (!token || isGuest) return;
-        const res = await listCollaborations(token, { direction: 'all' });
-        if (res.success && Array.isArray(res.data)) {
-          const accepted = new Set<string>();
-          const sent = new Set<string>();
-          const completed = new Set<string>();
-          res.data.forEach((r: any) => {
-            // Contact shortcuts only while ACCEPTED — completing a collab closes
-            // chat/calls (backend enforces the same). This one stays owner-scoped:
-            // messaging/calls are per-pair, not per-post, so having any active
-            // collaboration with someone unlocks contact across all their posts.
-            if (r.status === 'ACCEPTED') {
-              const otherId = r.senderId === userId ? r.receiverId : r.senderId;
-              if (otherId) accepted.add(otherId);
-            }
-            // Post-scoped, unlike accepted above — a pending request on one post
-            // must not show "Request Sent" on that owner's other posts too.
-            if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
-            // Also post-scoped — once the Creator marks this specific
-            // collaboration complete, this card must show "Collaborated"
-            // instead of falling back to the plain Collaborate button (which
-            // otherwise looks like the request never happened, since
-            // completed collabs drop out of `accepted` above).
-            if (r.status === 'COMPLETED' && r.postId) completed.add(r.postId);
-          });
-          setAcceptedCollabOwnerIds(accepted);
-          setCollabSentPostIds(sent);
-          setCompletedCollabPostIds(completed);
-        }
-      };
-
-      const fetchSavedIds = async () => {
-        if (!token || isGuest) return;
-        const res = await getSavedPostIds(token);
-        if (res.success && Array.isArray(res.data)) {
-          setSavedPostIds(new Set(res.data));
-        }
-      };
-
       fetchPosts();
       fetchUser();
       fetchCollabInfo();
       fetchSavedIds();
-    }, [token, isGuest, userRole, userId])
+    }, [fetchPosts, fetchUser, fetchCollabInfo, fetchSavedIds])
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchPosts(), fetchUser(), fetchCollabInfo(), fetchSavedIds()]);
+    setRefreshing(false);
+  }, [fetchPosts, fetchUser, fetchCollabInfo, fetchSavedIds]);
 
   const getOwnerName = (owner: any) => {
     if (owner?.name) return owner.name;
@@ -997,8 +1005,8 @@ export default function Homepage() {
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 70 }}
         showsVerticalScrollIndicator={false}
-        bounces={false}
         removeClippedSubviews={true}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
       >
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>

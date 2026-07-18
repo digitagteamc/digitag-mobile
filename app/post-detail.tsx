@@ -8,6 +8,7 @@ import {
   Image,
   Linking,
   Modal,
+  RefreshControl,
   ScrollView,
   Share,
   StatusBar,
@@ -105,6 +106,13 @@ export default function PostDetail() {
   }, [token, postId, requireProfile]);
 
   useEffect(() => { load(); }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   const owner = post?.owner || {};
   const accent = theme.primary;
@@ -318,7 +326,11 @@ export default function PostDetail() {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
+        >
 
           {/* Post image(s) — up to 3 for portfolio-category posts, swipeable */}
           {postImages.length > 0 && (

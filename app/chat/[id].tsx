@@ -15,6 +15,7 @@ import {
     Modal,
     Platform,
     Pressable,
+    RefreshControl,
     StatusBar,
     StyleSheet,
     Text,
@@ -276,6 +277,13 @@ export default function ChatScreen() {
     }, [token, id]);
 
     useEffect(() => { load(); }, [load]);
+
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+    }, [load]);
 
     useEffect(() => {
         if (!token || !id) return;
@@ -595,6 +603,7 @@ export default function ChatScreen() {
                         keyExtractor={(t) => t.key}
                         contentContainerStyle={styles.messagesContent}
                         keyboardShouldPersistTaps="handled"
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={myTheme.primary} />}
                         ListEmptyComponent={
                             <View style={styles.emptyBox}>
                                 <Ionicons name="chatbubbles-outline" size={42} color="#3A3A47" />

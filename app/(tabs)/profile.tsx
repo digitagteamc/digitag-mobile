@@ -9,6 +9,7 @@ import {
   Linking,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   Share,
   StatusBar,
@@ -100,9 +101,7 @@ export default function ProfileScreen() {
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
         if (isGuest || !token) {
           setProfile({
             name: 'Guest',
@@ -195,11 +194,20 @@ export default function ProfileScreen() {
         } finally {
           setLoading(false);
         }
-      };
+  }, [token, isGuest, userPhone, userRole]);
 
+  useFocusEffect(
+    useCallback(() => {
       fetchProfile();
-    }, [token, isGuest])
+    }, [fetchProfile])
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  }, [fetchProfile]);
 
   const isProfileIncomplete = () => {
     if (!profile) return true;
@@ -384,6 +392,7 @@ export default function ProfileScreen() {
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         >
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
