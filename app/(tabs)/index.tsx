@@ -666,7 +666,6 @@ export default function Homepage() {
 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createPostWidth, setCreatePostWidth] = useState(0);
   const [userName, setUserName] = useState<string>('');
   const [userTagId, setUserTagId] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -1382,66 +1381,70 @@ export default function Homepage() {
           </TouchableOpacity>
 
           {/* ══════════════ CREATE POST ══════════════ */}
-          {(userRole === 'CREATOR' || userRole === 'FREELANCER') && (
-            <View style={{ marginTop: 20, marginBottom: 20 }}>
+          <View style={{ marginTop: 20, marginBottom: 6 }}>
+            <View
+              style={[
+                styles.createPostFrame,
+                { borderColor: userRole === 'FREELANCER' ? 'rgba(242,97,29,0.4)' : 'rgba(237,42,145,0.4)' },
+              ]}
+            >
+              <LinearGradient
+                colors={userRole === 'FREELANCER' ? ['#3a1c08', '#0a0a0a'] : ['#3a0a20', '#0a0a0a']}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, marginRight: 6 }}>✨</Text>
                 <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>Create Post</Text>
-                <Image
-                  source={
-                    userRole === 'FREELANCER'
-                      ? require('../../assets/star-freelancer.png')
-                      : require('../../assets/star-creator.png')
-                  }
-                  style={{ width: 28, height: 28, marginLeft: 6, marginTop: -6 }}
-                  resizeMode="contain"
-                />
               </View>
               <TouchableOpacity
                 style={styles.createPostCard}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={() => {
                   if (!requireProfile('create a post')) return;
                   router.push('/create-post' as any);
                 }}
-                onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
               >
-                {createPostWidth > 0 && (
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                    <Svg height="100%" width="100%">
-                      <Defs>
-                        <SvgGradient id="dashedGrad" x1="0" y1="0" x2="1" y2="1">
-                          <Stop offset="0" stopColor={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} stopOpacity="1" />
-                          <Stop offset="1" stopColor="#3b82f6" stopOpacity="1" />
-                        </SvgGradient>
-                      </Defs>
-                      <Rect
-                        x="0.5"
-                        y="0.5"
-                        width={createPostWidth - 1.5}
-                        height={178.5}
-                        rx={36}
-                        ry={36}
-                        stroke="url(#dashedGrad)"
-                        strokeWidth="0.4"
-                        strokeDasharray="8, 6"
-                        fill="transparent"
-                      />
-                    </Svg>
-                  </View>
-                )}
-                <Image
-                  source={
-                    userRole === 'FREELANCER'
-                      ? require('../../assets/newpost-freelancer.png')
-                      : require('../../assets/newpost.png')
-                  }
-                  style={{ width: 64, height: 64, marginBottom: 12 }}
-                  resizeMode="contain"
-                />
-                <Text style={styles.createPostText}>Create Your Post</Text>
+              {userRole === 'FREELANCER' ? (
+                <LinearGradient
+                  colors={['#FF9A4D', '#F2611D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.createPostIconWrap}
+                >
+                  <Ionicons name="create-outline" size={24} color="#fff" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.createPostIconWrap, { backgroundColor: '#ed2a91' }]}>
+                  <Ionicons name="create-outline" size={24} color="#fff" />
+                </View>
+              )}
+              <View style={styles.createPostTextWrap}>
+                <Text style={styles.createPostTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                  Post Your Opportunity
+                </Text>
+                <Text style={styles.createPostSubtitle} numberOfLines={2}>
+                  Create a post and reach the right audience.
+                </Text>
+              </View>
+              {userRole === 'FREELANCER' ? (
+                <LinearGradient
+                  colors={['#FF9A4D', '#F2611D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.createPostArrowBtn}
+                >
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.createPostArrowBtn, { backgroundColor: '#ed2a91' }]}>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </View>
+              )}
               </TouchableOpacity>
             </View>
-          )}
+          </View>
 
         </View>
 
@@ -1470,12 +1473,10 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          {userRole === 'CREATOR' ? (
-            <Image source={require('../../assets/love-creator.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
-          ) : userRole === 'FREELANCER' ? (
+          {userRole === 'FREELANCER' ? (
             <Image source={require('../../assets/love-freelancer.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           ) : (
-            <Ionicons name="heart-outline" size={48} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} style={{ marginBottom: 4 }} />
+            <Image source={require('../../assets/love-creator.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           )}
           <View style={{ marginBottom: 16 }}>
             <Text style={styles.bharatTitleLine}>Bharat First</Text>
@@ -2045,30 +2046,60 @@ const styles = StyleSheet.create({
   },
 
   // CREATE POST
-  createPostCard: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 36,
-    paddingVertical: 32,
-    alignItems: 'center',
+  createPostFrame: {
+    width: '100%',
+    maxWidth: 408,
+    minHeight: 200,
+    alignSelf: 'center',
     justifyContent: 'center',
-    height: 180,
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 20,
+    overflow: 'hidden',
+    backgroundColor: '#0a0a0a',
+  },
+  createPostCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
   createPostIconWrap: {
-    width: 56,
-    height: 56,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  createPostHeartBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
+  createPostTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 14,
+    marginRight: 10,
+    padding: 10,
   },
-  createPostText: {
+  createPostTitle: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 4,
+  },
+  createPostSubtitle: {
+    color: '#9a9aa2',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    lineHeight: 17,
+  },
+  createPostArrowBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // BHARAT FIRST SECTION
