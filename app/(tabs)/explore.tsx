@@ -6,7 +6,7 @@ import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -606,6 +606,19 @@ export default function ExploreTab() {
     isValidCategoryParam(paramCategory) ? (paramCategory as string) : CATEGORIES[0].id
   );
 
+  // Sidebar auto-scroll: tapping a category scrolls it toward the top of the
+  // sidebar so the user can see there are more categories below it, rather
+  // than leaving the tap position (and everything below it) hidden off-screen.
+  const sidebarScrollRef = useRef<ScrollView>(null);
+  const sidebarItemY = useRef<Record<string, number>>({});
+  const selectCategory = (id: string) => {
+    setActiveCategory(id);
+    const y = sidebarItemY.current[id];
+    if (y !== undefined) {
+      sidebarScrollRef.current?.scrollTo({ y: Math.max(y - 12, 0), animated: true });
+    }
+  };
+
   useEffect(() => {
     if (isValidCategoryParam(paramCategory)) {
       setActiveCategory(paramCategory as string);
@@ -1007,7 +1020,7 @@ export default function ExploreTab() {
       <View style={{ paddingHorizontal: 8, paddingBottom: 20 }}>
         <TouchableOpacity
           style={[s.card, { borderColor: accent + '5D', borderTopColor: accent, borderTopWidth: 0, borderLeftWidth: 0.5, borderRightWidth: 0.5 }]}
-          activeOpacity={0.10}
+          activeOpacity={0.85}
           onPress={() => handleCardTap(item.id, item.ownerId)}
         >
           {/* Avatar + Name */}
@@ -1044,13 +1057,28 @@ export default function ExploreTab() {
             </TouchableOpacity>
           </View>
 
-          {/* Description */}
-          <TouchableOpacity onPress={() => toggleExpand(item.id)} activeOpacity={0.7}>
-            <Text style={s.cardDesc} numberOfLines={expandedPosts.has(item.id) ? undefined : 2}>
-              {item.desc || 'Looking for a Photographer experienced in creating engaging short-form content'}
-              {!expandedPosts.has(item.id) && <Text style={{ color: accent }}>... See more</Text>}
-            </Text>
-          </TouchableOpacity>
+          {/* Description — truncated by character count (not numberOfLines) so the
+              "See more" link is never silently dropped. numberOfLines' own ellipsis
+              clamp cuts the whole Text tree at the line limit, including any nested
+              "See more" Text appended after a description that already fills 2 lines
+              on its own — the link would just vanish with no room reserved for it. */}
+          {(() => {
+            const isExpanded = expandedPosts.has(item.id);
+            const fullDesc = item.desc || 'Looking for a Photographer experienced in creating engaging short-form content';
+            const needsTruncation = fullDesc.length > 100;
+            const shownDesc = isExpanded || !needsTruncation ? fullDesc : fullDesc.slice(0, 100).trimEnd();
+            return (
+              <TouchableOpacity onPress={() => toggleExpand(item.id)} activeOpacity={0.7} disabled={!needsTruncation}>
+                <Text style={s.cardDesc}>
+                  {shownDesc}
+                  {needsTruncation && (isExpanded ? ' ' : '... ')}
+                  {needsTruncation && (
+                    <Text style={{ color: accent }}>{isExpanded ? 'See less' : 'See more'}</Text>
+                  )}
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* Portfolio images (up to 3, swipeable) — freelancer portfolio
               categories only (Photography, Property Rental, Fashion
@@ -1082,7 +1110,9 @@ export default function ExploreTab() {
             {!!item.budget && (
               <View style={[s.pill, { borderColor: 'rgba(251,191,36,0.4)' }]}>
                 <Ionicons name="wallet-outline" size={13} color="#fbbf24" />
-                <Text style={[s.pillText, { color: '#fbbf24' }]} numberOfLines={1}>₹{item.budget}</Text>
+                <Text style={s.pillText} numberOfLines={1}>
+                  Starting from <Text style={{ color: '#fbbf24' }}>₹{item.budget}</Text>
+                </Text>
               </View>
             )}
           </View>
@@ -1256,6 +1286,7 @@ export default function ExploreTab() {
             this issue, so the ScrollView just fills the wrapper. */}
         <View style={s.sidebar}>
           <ScrollView
+            ref={sidebarScrollRef}
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 90 }}
@@ -1266,7 +1297,8 @@ export default function ExploreTab() {
               return (
                 <TouchableOpacity
                   key={cat.id}
-                  onPress={() => setActiveCategory(cat.id)}
+                  onLayout={(e) => { sidebarItemY.current[cat.id] = e.nativeEvent.layout.y; }}
+                  onPress={() => selectCategory(cat.id)}
                   activeOpacity={0.8}
                   style={[s.sidebarItem, isActive && s.sidebarItemActive]}
                 >
@@ -1454,7 +1486,7 @@ const s = StyleSheet.create({
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 8, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Body: sidebar + scrollable feed column
-  bodyRow: { flex: 1, flexDirection: 'row' },
+  bodyRow: { flex: 1, flexDirection: 'row', gap: 4 },
   sidebar: { width: 83, backgroundColor: '#1E1E24', borderTopRightRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden' },
   sidebarItem: {
     alignItems: 'center',
@@ -1551,10 +1583,10 @@ const s = StyleSheet.create({
 
   // Card
   card: {
+    width: '100%', maxWidth: 333, minHeight: 287,
     backgroundColor: '#1a1a1a', borderRadius: 24, padding: 16,
     borderWidth: 1,
-
-
+    alignSelf: 'center',
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
   cardAvatarWrap: { marginRight: 14 },

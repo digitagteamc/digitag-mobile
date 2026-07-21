@@ -601,11 +601,18 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
             <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
 
-            <Text style={styles.figmaCardPrice}>
-              {item.price === 'Paid Collab'
-                ? (item.budget ? `₹ ${String(item.budget).replace(/^₹\s*/, '')}` : 'Paid Collab')
-                : 'Free Collab'}
-            </Text>
+            <View style={styles.figmaCardPriceRow}>
+              {item.price === 'Paid Collab' && item.budget ? (
+                <>
+                  <Text style={styles.figmaCardStartingFrom}>Starting from </Text>
+                  <Text style={styles.figmaCardPrice}>{`₹ ${String(item.budget).replace(/^₹\s*/, '')}`}</Text>
+                </>
+              ) : (
+                <Text style={styles.figmaCardPrice}>
+                  {item.price === 'Paid Collab' ? 'Paid Collab' : 'Free Collab'}
+                </Text>
+              )}
+            </View>
 
             {/* Bottom Actions */}
             {completedCollabPostIds?.has(item.id) ? (
@@ -1223,7 +1230,14 @@ export default function Homepage() {
                               ) : (
                                 <Ionicons name={(cat as any).icon} size={28} color="#aaa" />
                               )}
-                              <Text style={styles.catGridLabel}>{cat.label}</Text>
+                              <Text
+                                style={styles.catGridLabel}
+                                numberOfLines={2}
+                                adjustsFontSizeToFit
+                                minimumFontScale={0.75}
+                              >
+                                {cat.label}
+                              </Text>
                             </View>
                           </LinearGradient>
                         </TouchableOpacity>
@@ -1825,7 +1839,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 13,
+    paddingHorizontal: 6,
     width: '100%',
     height: '100%',
   },
@@ -1956,11 +1970,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     lineHeight: 16,
   },
+  figmaCardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  figmaCardStartingFrom: {
+    color: '#a1a2a4',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
   figmaCardPrice: {
     color: '#00a401',
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
-    marginTop: 12,
   },
   figmaCardActions: {
     flexDirection: 'row',
