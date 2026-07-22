@@ -82,11 +82,21 @@ export default function ProfileScreen() {
 
   const theme = useRoleTheme();
   const remoteConfig = useRemoteConfig(token);
-  const applePurchase = useApplePurchase(token, remoteConfig.premiumEnabled);
+  // Hard-disabled for the July 31 release — Apple rejected the subscription
+  // submission (guideline 3.1.2(c): missing EULA/terms metadata in the
+  // purchase flow) and this release needs to ship without Premium at all.
+  // Deliberately ANDed in ahead of remoteConfig.premiumEnabled so nothing
+  // premium-related can appear under ANY backend state, including the
+  // reviewer-allowlist bypass that let Apple's reviewer reach the purchase
+  // flow in the first place. Flip back to true once the subscription
+  // metadata is fixed and ready to resubmit.
+  const PREMIUM_ENABLED_THIS_BUILD = false;
+  const premiumActive = PREMIUM_ENABLED_THIS_BUILD && remoteConfig.premiumEnabled;
+  const applePurchase = useApplePurchase(token, premiumActive);
   useEffect(() => {
     if (applePurchase.error) Alert.alert('Purchase Failed', applePurchase.error);
   }, [applePurchase.error]);
-  const visibleMenuItems = MENU_ITEMS.filter((item) => item.id !== 'profile_views' || remoteConfig.premiumEnabled);
+  const visibleMenuItems = MENU_ITEMS.filter((item) => item.id !== 'profile_views' || premiumActive);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
@@ -656,9 +666,11 @@ export default function ProfileScreen() {
                   Apple 3.1.1 requires In-App Purchase for digital subscriptions,
                   so iOS goes through StoreKit (expo-iap) while Android/
                   web keep using Razorpay checkout — never Razorpay on iOS.
-                  Both gated on the remote PREMIUM_ENABLED flag — hidden on
-                  every platform whenever Premium itself is paused. */}
-              {remoteConfig.premiumEnabled && Platform.OS === 'ios' && (
+                  Gated on premiumActive (remote PREMIUM_ENABLED flag AND the
+                  local PREMIUM_ENABLED_THIS_BUILD override above) — hidden on
+                  every platform whenever Premium itself is paused, and
+                  unconditionally hidden this release regardless of backend state. */}
+              {premiumActive && Platform.OS === 'ios' && (
                 <>
                   <TouchableOpacity
                     onPress={handleAppleUpgrade}
@@ -683,7 +695,7 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 </>
               )}
-              {remoteConfig.premiumEnabled && Platform.OS !== 'ios' && (
+              {premiumActive && Platform.OS !== 'ios' && (
                 <TouchableOpacity
                   onPress={handleUpgrade}
                   disabled={upgrading}
