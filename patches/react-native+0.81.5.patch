@@ -26,3 +26,18 @@ index baa0fef..a7f1f46 100644
  
          # We need to pass the generated header and module provider to the OnLoad.cpp file so
          # local app modules can properly be linked.
+
+diff --git a/ReactCommon/react/renderer/core/graphicsConversions.h b/ReactCommon/react/renderer/core/graphicsConversions.h
+index abc1234..def5678 100644
+--- a/ReactCommon/react/renderer/core/graphicsConversions.h
++++ b/ReactCommon/react/renderer/core/graphicsConversions.h
+@@ -77,7 +77,7 @@
+     case YGUnitPoint:
+       return dimension.value;
+     case YGUnitPercent:
+-      return std::format("{}%", dimension.value);
++      return folly::to<std::string>(dimension.value) + "%";
+   }
+ 
+   return nullptr;
+

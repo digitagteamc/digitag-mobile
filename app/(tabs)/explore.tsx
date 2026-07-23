@@ -25,12 +25,8 @@ import {
   View
 } from 'react-native';
 import Animated, {
-  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -490,57 +486,6 @@ function timeAgo(dateStr: string | null | undefined) {
 }
 
 
-const AnimatedText = Animated.createAnimatedComponent(Text);
-
-const FadeLetter = React.memo(({ char, index, total, style }: { char: string; index: number; total: number; style?: any }) => {
-  const opacity = useSharedValue(1);
-  const delay = index * 80;
-
-  useEffect(() => {
-    opacity.value = 1;
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0, { duration: 800 }),
-          withTiming(1, { duration: 800 }),
-          withTiming(1, { duration: 1000 })
-        ),
-        -1,
-        false
-      )
-    );
-    return () => cancelAnimation(opacity);
-  }, [delay]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  return (
-    <AnimatedText style={[style, animatedStyle]}>
-      {char === ' ' ? '\u00A0' : char}
-    </AnimatedText>
-  );
-});
-
-const FadeText = React.memo(({
-  text,
-  style,
-}: {
-  text: string;
-  style?: any;
-}) => {
-  const chars = text.split('');
-  return (
-    <View style={[style, { flexDirection: 'row', flexWrap: 'wrap' }]}>
-      {chars.map((char, index) => (
-        <FadeLetter key={`${text}-${index}`} char={char} index={index} total={chars.length} style={style} />
-      ))}
-    </View>
-  );
-});
-
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
@@ -921,7 +866,7 @@ export default function ExploreTab() {
       <View style={{ paddingHorizontal: 8, paddingBottom: 20 }}>
         <TouchableOpacity
           style={[s.card, { borderColor: accent + '5D', borderTopColor: accent, borderTopWidth: 0, borderLeftWidth: 0.5, borderRightWidth: 0.5 }]}
-          activeOpacity={0.10}
+          activeOpacity={1}
           onPress={() => handleCardTap(item.id, item.ownerId)}
         >
           {/* Avatar + Name */}
@@ -1097,12 +1042,12 @@ export default function ExploreTab() {
       <View style={[StyleSheet.absoluteFill, { opacity: 0.6, backgroundColor: activeCat.gradient[0], borderRadius: 24 }]} />
       <View style={s.heroContent}>
         <View style={s.heroTextArea}>
-          <FadeText text={activeCat.heroLine1} style={[s.heroTitle, s.heroTitleBold]} />
+          <Text style={[s.heroTitle, s.heroTitleBold]}>{activeCat.heroLine1}</Text>
           {!!activeCat.heroLine2 && activeCat.heroLine2.trim().length > 0 && (
-            <FadeText text={activeCat.heroLine2} style={[s.heroTitle, s.heroTitleFaded]} />
+            <Text style={[s.heroTitle, s.heroTitleFaded]}>{activeCat.heroLine2}</Text>
           )}
           {!!activeCat.heroLine3 && activeCat.heroLine3.trim().length > 0 && (
-            <FadeText text={activeCat.heroLine3} style={[s.heroTitle, s.heroTitleFaded]} />
+            <Text style={[s.heroTitle, s.heroTitleFaded]}>{activeCat.heroLine3}</Text>
           )}
           <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
         </View>
@@ -1403,12 +1348,10 @@ const s = StyleSheet.create({
 
   // Hero card — inset, rounded on all corners, sits as the feed's list header
   heroCard: {
-    width: 333,
-    height: 140,
+    minHeight: 140,
     borderRadius: 24,
     overflow: 'hidden',
     marginHorizontal: 8,
-    
     marginBottom: 8,
     padding: 20,
   },
@@ -1421,7 +1364,7 @@ const s = StyleSheet.create({
   heroTextArea: { maxWidth: '78%' },
   heroTitle: { fontSize: 14, lineHeight: 20, fontFamily: 'Poppins_700Bold', },
   heroTitleBold: { color: '#fff' },
-  heroTitleFaded: { color: 'rgba(255,255,255,0.8)' },
+  heroTitleFaded: { color: '#fff' },
   heroDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontFamily: 'Poppins_400Regular', lineHeight: 18, marginTop: 8 },
   heroCharacter: {
     position: 'absolute',
