@@ -302,7 +302,7 @@ const InstagramVerifyRow = ({
     value, onValueChange, verified, onVerifyPress, verifying,
 }: any) => (
     <View className="mb-4">
-        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram <Text className="text-[#EF4444]">*</Text></Text>
         <View className={`h-[56px] px-4 rounded-[12px] justify-center mb-2 ${verified ? 'bg-[#1a1200] border border-[#F26930]/30' : 'bg-[#1A1A1A]'}`}>
             <TextInput
                 placeholder="instagram.com/username or @handle"
@@ -415,7 +415,7 @@ const IgVerifyModal = ({ visible, code, instagramUsername, digiTagInstagram, exp
 const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {platform}
+            {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
         <View className="flex-row gap-2">
             <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
@@ -463,7 +463,7 @@ const SocialVerifyRow = ({
 }: SocialVerifyRowProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {platform}
+            {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
         {verified ? (
             <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
@@ -1134,7 +1134,7 @@ export default function FreelancerSignup() {
 
                                 {mode === 'update' ? (
                                     <View className="mb-4">
-                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram <Text className="text-[#EF4444]">*</Text></Text>
                                         <View className="bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center flex-row items-center">
                                             <Text className="text-[#888] font-poppins-regular flex-1">@{form.instagramHandle || '—'}</Text>
                                             <Text className="text-[#555] text-[11px] font-poppins-regular">Verified · Not editable</Text>
