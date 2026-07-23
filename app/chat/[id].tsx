@@ -15,6 +15,7 @@ import {
     Modal,
     Platform,
     Pressable,
+    RefreshControl,
     StatusBar,
     StyleSheet,
     Text,
@@ -99,17 +100,62 @@ interface CallLogEntry {
 
 /** Timeline item: either a chat message or a call-log entry, merged and sorted
  *  by time so calls appear inline exactly where they happened, WhatsApp-style. */
-type TimelineItem =
+type MergedItem =
     | { kind: 'message'; key: string; at: string; message: ChatMessage }
     | { kind: 'call'; key: string; at: string; call: CallLogEntry };
+type TimelineItem = MergedItem | { kind: 'date'; key: string; label: string };
 
-function mergeTimeline(messages: ChatMessage[], calls: CallLogEntry[]): TimelineItem[] {
-    const items: TimelineItem[] = [
-        ...messages.map((m): TimelineItem => ({ kind: 'message', key: `m-${m.id}`, at: m.createdAt, message: m })),
-        ...calls.map((c): TimelineItem => ({ kind: 'call', key: `c-${c.id}`, at: c.createdAt, call: c })),
+function mergeTimeline(messages: ChatMessage[], calls: CallLogEntry[]): MergedItem[] {
+    const items: MergedItem[] = [
+        ...messages.map((m): MergedItem => ({ kind: 'message', key: `m-${m.id}`, at: m.createdAt, message: m })),
+        ...calls.map((c): MergedItem => ({ kind: 'call', key: `c-${c.id}`, at: c.createdAt, call: c })),
     ];
     items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
     return items;
+}
+
+/** Calendar-day key (local time) for grouping — same day means same key
+ *  regardless of the time of day. */
+function dayKey(dateStr: string) {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function dateLabelFor(dateStr: string) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    if (target.getTime() === today.getTime()) return 'Today';
+    if (target.getTime() === yesterday.getTime()) return 'Yesterday';
+    return d.toLocaleDateString([], target.getFullYear() === today.getFullYear()
+        ? { day: 'numeric', month: 'short' }
+        : { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Inserts a date separator after the last item of each calendar day. Expects
+ *  newest-first order (as rendered into an inverted FlatList, where array
+ *  index 0 is the bottom of the screen) — so a day's label ends up sitting
+ *  visually above that day's messages, WhatsApp-style, instead of the old
+ *  hardcoded "Today" that showed no matter how old the chat actually was. */
+function withDateSeparators(items: MergedItem[]): TimelineItem[] {
+    const result: TimelineItem[] = [];
+    let currentDay: string | null = null;
+    let currentAt: string | null = null;
+    for (const item of items) {
+        const day = dayKey(item.at);
+        if (currentDay !== null && day !== currentDay) {
+            result.push({ kind: 'date', key: `d-${currentDay}`, label: dateLabelFor(currentAt!) });
+        }
+        result.push(item);
+        currentDay = day;
+        currentAt = item.at;
+    }
+    if (currentDay !== null) {
+        result.push({ kind: 'date', key: `d-${currentDay}-end`, label: dateLabelFor(currentAt!) });
+    }
+    return result;
 }
 
 function formatCallDuration(startedAt: string | null, endedAt: string | null) {
@@ -231,6 +277,13 @@ export default function ChatScreen() {
     }, [token, id]);
 
     useEffect(() => { load(); }, [load]);
+
+    const [refreshing, setRefreshing] = useState(false);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await load();
+        setRefreshing(false);
+    }, [load]);
 
     useEffect(() => {
         if (!token || !id) return;
@@ -532,7 +585,7 @@ export default function ChatScreen() {
 
     const name = other?.name || (other?.role === 'FREELANCER' ? 'Freelancer' : 'Creator');
     const pic = other?.profilePicture || null;
-    const reversedTimeline = mergeTimeline(messages, calls).reverse();
+    const reversedTimeline = withDateSeparators(mergeTimeline(messages, calls).reverse());
 
     const renderMainContent = () => (
         <>
@@ -550,11 +603,7 @@ export default function ChatScreen() {
                         keyExtractor={(t) => t.key}
                         contentContainerStyle={styles.messagesContent}
                         keyboardShouldPersistTaps="handled"
-                        ListFooterComponent={
-                            <View style={styles.dateSeparator}>
-                                <Text style={styles.dateText}>Today</Text>
-                            </View>
-                        }
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={myTheme.primary} />}
                         ListEmptyComponent={
                             <View style={styles.emptyBox}>
                                 <Ionicons name="chatbubbles-outline" size={42} color="#3A3A47" />
@@ -562,6 +611,13 @@ export default function ChatScreen() {
                             </View>
                         }
                         renderItem={({ item }) => {
+                            if (item.kind === 'date') {
+                                return (
+                                    <View style={styles.dateSeparator}>
+                                        <Text style={styles.dateText}>{item.label}</Text>
+                                    </View>
+                                );
+                            }
                             if (item.kind === 'call') {
                                 return (
                                     <CallLogRow

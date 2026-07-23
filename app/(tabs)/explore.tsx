@@ -1,10 +1,12 @@
+import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
+import PortfolioImageCarousel from '@/Components/PortfolioImageCarousel';
 import { useAuth } from '@/context/AuthContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -485,8 +487,24 @@ function timeAgo(dateStr: string | null | undefined) {
   return `${Math.round(diffHrs / 24)}d ago`;
 }
 
+// Post.budget is a free-text field (e.g. "2000", "₹2,000") — pull out the
+// numeric value so the Budget Range filter can bucket it.
+function parseBudgetValue(budget: string | null | undefined): number | null {
+  if (!budget) return null;
+  const digits = budget.replace(/[^0-9.]/g, '');
+  if (!digits) return null;
+  const n = parseFloat(digits);
+  return Number.isFinite(n) ? n : null;
+}
+
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
+
+// Main filter drawer (Collab Type / Experience / Language / Location list) slides
+// in from the right and covers the full screen. Tapping one of its rows opens a
+// second, narrower drawer stacked on top of it with that filter's option list.
+const FILTER_DRAWER_WIDTH = Dimensions.get('window').width;
+const FILTER_OPTIONS_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.8);
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
@@ -514,9 +532,6 @@ const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer
   );
 });
 
-
-
-
 export default function ExploreTab() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -536,6 +551,19 @@ export default function ExploreTab() {
     isValidCategoryParam(paramCategory) ? (paramCategory as string) : CATEGORIES[0].id
   );
 
+  // Sidebar auto-scroll: tapping a category scrolls it toward the top of the
+  // sidebar so the user can see there are more categories below it, rather
+  // than leaving the tap position (and everything below it) hidden off-screen.
+  const sidebarScrollRef = useRef<ScrollView>(null);
+  const sidebarItemY = useRef<Record<string, number>>({});
+  const selectCategory = (id: string) => {
+    setActiveCategory(id);
+    const y = sidebarItemY.current[id];
+    if (y !== undefined) {
+      sidebarScrollRef.current?.scrollTo({ y: Math.max(y - 12, 0), animated: true });
+    }
+  };
+
   useEffect(() => {
     if (isValidCategoryParam(paramCategory)) {
       setActiveCategory(paramCategory as string);
@@ -546,19 +574,62 @@ export default function ExploreTab() {
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
+  const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
   const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
-  const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | null>(null);
+  const [selectedBudgetRange, setSelectedBudgetRange] = useState<string | null>(null);
+  const [selectedSort, setSelectedSort] = useState<string | null>(null);
+  const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | 'budget' | 'sort' | null>(null);
   const [filterPanelVisible, setFilterPanelVisible] = useState(false);
+  const drawerX = useSharedValue(FILTER_DRAWER_WIDTH);
+  const optionsDrawerX = useSharedValue(FILTER_OPTIONS_DRAWER_WIDTH);
+
+  // Slide in whenever a drawer opens; closing animates back out first, then
+  // unmounts the Modal once the animation would have finished — Modal's
+  // `visible` prop has no exit-animation hook of its own.
+  useEffect(() => {
+    if (filterPanelVisible) {
+      drawerX.value = FILTER_DRAWER_WIDTH;
+      drawerX.value = withTiming(0, { duration: 260 });
+    }
+  }, [filterPanelVisible]);
+
+  useEffect(() => {
+    if (filterModalType !== null) {
+      optionsDrawerX.value = FILTER_OPTIONS_DRAWER_WIDTH;
+      optionsDrawerX.value = withTiming(0, { duration: 240 });
+    }
+  }, [filterModalType]);
+
+  const closeFilterDrawer = () => {
+    drawerX.value = withTiming(FILTER_DRAWER_WIDTH, { duration: 220 });
+    setFilterModalType(null);
+    setTimeout(() => setFilterPanelVisible(false), 220);
+  };
+
+  const closeOptionsDrawer = () => {
+    optionsDrawerX.value = withTiming(FILTER_OPTIONS_DRAWER_WIDTH, { duration: 200 });
+    setTimeout(() => setFilterModalType(null), 200);
+  };
+
+  const drawerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: drawerX.value }],
+  }));
+
+  const optionsDrawerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: optionsDrawerX.value }],
+  }));
 
   const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Punjabi', 'Marathi', 'Bengali', 'Gujarati'];
   const LOCATION_OPTIONS = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
   const PRICE_OPTIONS = ['Free Collab', 'Paid Collab'];
   const EXPERIENCE_OPTIONS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+  const BUDGET_OPTIONS = ['Under ₹1000', '₹1000 - ₹5000', '₹5000+'];
+  const SORT_OPTIONS = ['Recommended', 'Newest First'];
 
   const [isReady, setIsReady] = useState(false);
 
@@ -619,6 +690,7 @@ export default function ExploreTab() {
       if (res.success && Array.isArray(res.data)) {
         const accepted = new Set<string>();
         const pendingPostIds = new Set<string>();
+        const completedPostIds = new Set<string>();
         res.data.forEach((r: any) => {
           // Contact shortcuts only while ACCEPTED — completing a collab closes
           // chat/calls (backend enforces the same), so the card reverts to
@@ -630,11 +702,20 @@ export default function ExploreTab() {
           if (r.status === 'PENDING' && r.senderId === userId && r.postId) {
             pendingPostIds.add(r.postId);
           }
+          // Post-scoped, like pendingPostIds above — once the Creator marks this
+          // specific collaboration complete, this card must show "Collaborated"
+          // instead of reverting to the plain Collaborate button (which otherwise
+          // looks like the request never happened, since completed collabs drop
+          // out of `accepted` above).
+          if (r.status === 'COMPLETED' && r.postId) {
+            completedPostIds.add(r.postId);
+          }
         });
         setAcceptedCollabOwnerIds(accepted);
         // Server is the source of truth on every visit — replaces any stale local-only
         // "Request Sent" state and also restores it if the app was closed/reopened.
         setCollabSentIds(pendingPostIds);
+        setCompletedCollabPostIds(completedPostIds);
       }
     });
   }, [token, userId]));
@@ -676,9 +757,12 @@ export default function ExploreTab() {
       id: p.id, ownerId: owner.id, ownerRole: owner.role, name,
       role: owner.role ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase() : 'User',
       desc: p.description || '',
+      imageUrl: p.imageUrl || null,
+      imageUrls: Array.isArray(p.imageUrls) && p.imageUrls.length ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []),
       price: p.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: p.budget || null,
       time: timeAgo(p.createdAt),
+      createdAtRaw: p.createdAt || null,
       avatarUri: owner.profilePicture || null,
       isInitials: !owner.profilePicture,
       initials: getInitials(name),
@@ -693,66 +777,62 @@ export default function ExploreTab() {
     };
   }), [posts]);
 
-  // Creator tab IDs → backend category slugs (used when CREATOR is browsing freelancers)
-  const CATEGORY_SLUG_MAP: Record<string, string[]> = {
-    photography: ['photography'],
-    editor: ['video-editing', 'graphic-design'],
-    videography: ['video-editing', 'videography'],
-    growth: ['social-media', 'growth'],
-    script: ['content-writing', 'script-writing'],
-    styling: ['styling', 'makeup', 'beauty'],
-    fashion: ['fashion', 'graphic-design'],
-    property: ['property', 'real-estate'],
-    voice: ['music-production', 'voice-over'],
+  // Creator tab IDs → exact backend Category slug (used when CREATOR is
+  // browsing freelancers). One tile = one Category row now — see the
+  // FREELANCER-role rows in the Category table (digitag-backend
+  // sync-categories migration), so this is a direct 1:1 map, not a guess.
+  const CATEGORY_SLUG_MAP: Record<string, string> = {
+    photography: 'photography',
+    editor: 'editors',
+    videography: 'videography',
+    growth: 'growth-specialist',
+    script: 'script-writers',
+    styling: 'styling-makeup',
+    fashion: 'fashion-designers',
+    property: 'property-rental',
+    voice: 'voice-over',
+    models: 'models',
   };
 
-  // Freelancer tab IDs (f1-f26) → creator profile category strings (used when FREELANCER is browsing creators)
-  const FREELANCER_CATEGORY_SLUG_MAP: Record<string, string[]> = {
-    f1:  ['Lifestyle', 'Fashion & Lifestyle'],
-    f2:  ['Tech'],
-    f3:  ['Education'],
-    f4:  ['Photography'],
-    f5:  ['Food & Cooking'],
-    f6:  ['Fitness & Health'],
-    f7:  ['Automotive'],
-    f8:  ['Comedy', 'Entertainment'],
-    f9:  ['Entertainment'],
-    f10: ['Gaming'],
-    f11: ['Education'],
-    f12: ['News', 'Media'],
-    f13: ['Sports'],
-    f14: ['Travel'],
-    f15: ['Beauty & Skincare'],
-    f16: ['Fitness & Health'],
-    f17: ['Fashion & Lifestyle'],
-    f18: ['Business & Finance'],
-    f19: ['Art & Creativity'],
-    f20: ['Business & Finance'],
-    f21: ['Lifestyle'],
-    f22: ['Parenting'],
-    f23: ['Home & Garden'],
-    f24: ['Education'],
-    f25: ['Lifestyle'],
-    f26: ['Education'],
+  // Freelancer tab IDs (f1-f26) → exact backend Category slug (used when
+  // FREELANCER is browsing creators). Same 1:1 basis as above, against the
+  // CREATOR-role rows.
+  const FREELANCER_CATEGORY_SLUG_MAP: Record<string, string> = {
+    f1: 'lifestyle-living',
+    f2: 'tech',
+    f3: 'education',
+    f4: 'photography',
+    f5: 'food',
+    f6: 'health',
+    f7: 'automotive',
+    f8: 'comedy-and-memes',
+    f9: 'entertainment',
+    f10: 'gaming-and-anime',
+    f11: 'learning',
+    f12: 'news-media-and-magazines',
+    f13: 'sports',
+    f14: 'travel',
+    f15: 'beauty',
+    f16: 'fitness',
+    f17: 'fashion',
+    f18: 'finance-and-investments',
+    f19: 'arts',
+    f20: 'business-and-startups',
+    f21: 'community-pages',
+    f22: 'family-kids-and-pets',
+    f23: 'home-and-decor',
+    f24: 'law-rights-and-activism',
+    f25: 'pets-and-animals',
+    f26: 'politics',
   };
 
   const filteredCards = useMemo(() => allCards.filter((item) => {
     if (activeCategory && activeCategory !== 'all') {
-      if (userRole === 'FREELANCER') {
-        // Filter creator posts by resolved category names (owner.categorySlugs/categoryNames
-        // are resolved server-side from the raw category-UUIDs profiles store)
-        const matchStrings = FREELANCER_CATEGORY_SLUG_MAP[activeCategory] || [];
-        const itemCategoryNames: string[] = item.categoryNames || [];
-        const matchesContent = matchStrings.some(s =>
-          itemCategoryNames.some(c => c.toLowerCase().includes(s.toLowerCase()))
-        );
-        if (!matchesContent) return false;
-      } else {
-        // Filter freelancer posts by resolved backend category slug
-        const slugs = CATEGORY_SLUG_MAP[activeCategory] || [activeCategory];
-        const itemCategorySlugs: string[] = item.categorySlugs || [];
-        if (!slugs.some(s => itemCategorySlugs.some(cs => cs.toLowerCase().includes(s)))) return false;
-      }
+      const slug = userRole === 'FREELANCER'
+        ? FREELANCER_CATEGORY_SLUG_MAP[activeCategory]
+        : CATEGORY_SLUG_MAP[activeCategory];
+      const itemCategorySlugs: string[] = item.categorySlugs || [];
+      if (!slug || !itemCategorySlugs.some((cs) => cs.toLowerCase() === slug)) return false;
     }
     if (selectedLanguage) {
       const langs = (item.languages || '').toLowerCase();
@@ -768,15 +848,34 @@ export default function ExploreTab() {
     if (selectedExperience) {
       if ((item.experience || '').toLowerCase() !== selectedExperience.toLowerCase()) return false;
     }
+    if (selectedBudgetRange) {
+      const val = parseBudgetValue(item.budget);
+      if (val === null) return false;
+      if (selectedBudgetRange === 'Under ₹1000' && !(val < 1000)) return false;
+      if (selectedBudgetRange === '₹1000 - ₹5000' && !(val >= 1000 && val <= 5000)) return false;
+      if (selectedBudgetRange === '₹5000+' && !(val > 5000)) return false;
+    }
     return true;
-  }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience]);
+  }), [allCards, activeCategory, userRole, selectedLanguage, selectedLocation, selectedPriceRange, selectedExperience, selectedBudgetRange]);
+
+  // "Recommended" (default) keeps the backend's own order — boosted, then
+  // Premium, then newest. "Newest First" ignores that and sorts purely by
+  // creation time, since a user picking this filter wants chronological.
+  const sortedCards = useMemo(() => {
+    if (selectedSort !== 'Newest First') return filteredCards;
+    return [...filteredCards].sort((a, b) => {
+      const at = a.createdAtRaw ? new Date(a.createdAtRaw).getTime() : 0;
+      const bt = b.createdAtRaw ? new Date(b.createdAtRaw).getTime() : 0;
+      return bt - at;
+    });
+  }, [filteredCards, selectedSort]);
 
   const EXPLORE_PREVIEW_LIMIT = 3;
   // Same as Home: the preview cap nudges a logged-in user to finish their profile.
   // Guests have no profile to complete, so it doesn't apply to them (Apple 5.1.1).
   const isExploreCapped = !isGuest && !isProfileCompleted;
-  const hasMoreHiddenCards = isExploreCapped && filteredCards.length > EXPLORE_PREVIEW_LIMIT;
-  const cards = isExploreCapped ? filteredCards.slice(0, EXPLORE_PREVIEW_LIMIT) : filteredCards;
+  const hasMoreHiddenCards = isExploreCapped && sortedCards.length > EXPLORE_PREVIEW_LIMIT;
+  const cards = isExploreCapped ? sortedCards.slice(0, EXPLORE_PREVIEW_LIMIT) : sortedCards;
 
   const handleCardTap = (postId: string, ownerId?: string) => {
     // Viewing a post is browsing, not an account action — guests can open it freely.
@@ -903,13 +1002,37 @@ export default function ExploreTab() {
             </TouchableOpacity>
           </View>
 
-          {/* Description */}
-          <TouchableOpacity onPress={() => toggleExpand(item.id)} activeOpacity={0.7}>
-            <Text style={s.cardDesc} numberOfLines={expandedPosts.has(item.id) ? undefined : 2}>
-              {item.desc || 'Looking for a Photographer experienced in creating engaging short-form content'}
-              {!expandedPosts.has(item.id) && <Text style={{ color: accent }}>... See more</Text>}
-            </Text>
-          </TouchableOpacity>
+          {/* Description — truncated by character count (not numberOfLines) so the
+              "See more" link is never silently dropped. numberOfLines' own ellipsis
+              clamp cuts the whole Text tree at the line limit, including any nested
+              "See more" Text appended after a description that already fills 2 lines
+              on its own — the link would just vanish with no room reserved for it. */}
+          {(() => {
+            const isExpanded = expandedPosts.has(item.id);
+            const fullDesc = item.desc || 'Looking for a Photographer experienced in creating engaging short-form content';
+            const needsTruncation = fullDesc.length > 100;
+            const shownDesc = isExpanded || !needsTruncation ? fullDesc : fullDesc.slice(0, 100).trimEnd();
+            return (
+              <TouchableOpacity onPress={() => toggleExpand(item.id)} activeOpacity={0.7} disabled={!needsTruncation}>
+                <Text style={s.cardDesc}>
+                  {shownDesc}
+                  {needsTruncation && (isExpanded ? ' ' : '... ')}
+                  {needsTruncation && (
+                    <Text style={{ color: accent }}>{isExpanded ? 'See less' : 'See more'}</Text>
+                  )}
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
+
+          {/* Portfolio images (up to 3, swipeable) — freelancer portfolio
+              categories only (Photography, Property Rental, Fashion
+              Designers, Models, Styling & Makeup). Explicit category check,
+              not just imageUrls presence, so this stays correct even if a
+              future feature adds images to other post types. */}
+          {item.imageUrls.length > 0 && item.ownerRole === 'FREELANCER' && matchesPortfolioCategory(item.categoryNames) && (
+            <PortfolioImageCarousel images={item.imageUrls} style={s.cardImageWrap} />
+          )}
 
           {/* Info pills */}
           <View style={s.pillWrapRow}>
@@ -932,7 +1055,9 @@ export default function ExploreTab() {
             {!!item.budget && (
               <View style={[s.pill, { borderColor: 'rgba(251,191,36,0.4)' }]}>
                 <Ionicons name="wallet-outline" size={13} color="#fbbf24" />
-                <Text style={[s.pillText, { color: '#fbbf24' }]} numberOfLines={1}>₹{item.budget}</Text>
+                <Text style={s.pillText} numberOfLines={1}>
+                  Starting from <Text style={{ color: '#fbbf24' }}>₹{item.budget}</Text>
+                </Text>
               </View>
             )}
           </View>
@@ -946,7 +1071,12 @@ export default function ExploreTab() {
           )}
 
           {/* Bottom Actions */}
-          {acceptedCollabOwnerIds.has(item.ownerId) ? (
+          {completedCollabPostIds.has(item.id) ? (
+            <View style={[s.bigCollabBtn, { backgroundColor: '#3a3a3a' }]}>
+              <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+              <Text style={s.bigCollabBtnText}>Collaborated</Text>
+            </View>
+          ) : acceptedCollabOwnerIds.has(item.ownerId) ? (
             <View style={s.cardBottom}>
               <View style={s.cardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
@@ -994,44 +1124,43 @@ export default function ExploreTab() {
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, savedPostIds, handleBookmark]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, handleBookmark]);
 
-  // Reusable filter form (Collab Type / Experience / Language / Location) — now lives inside
-  // the filter panel modal (behind the header's filter icon) instead of always being visible.
+  // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
+  // the main right-side filter drawer (behind the header's filter icon). Tapping a row
+  // opens a second, narrower drawer stacked on top with that filter's option list.
+  const FILTER_ROWS: Array<{ key: 'price' | 'experience' | 'language' | 'location' | 'budget' | 'sort'; label: string; placeholder: string; value: string | null; setValue: (v: string | null) => void; options: string[] }> = [
+    { key: 'sort', label: 'Sort By', placeholder: 'Recommended', value: selectedSort, setValue: setSelectedSort, options: SORT_OPTIONS },
+    { key: 'price', label: 'Collab Type', placeholder: 'Select Collab Type', value: selectedPriceRange, setValue: setSelectedPriceRange, options: PRICE_OPTIONS },
+    { key: 'budget', label: 'Budget Range', placeholder: 'Select budget range', value: selectedBudgetRange, setValue: setSelectedBudgetRange, options: BUDGET_OPTIONS },
+    { key: 'experience', label: 'Experience', placeholder: 'Select experience', value: selectedExperience, setValue: setSelectedExperience, options: EXPERIENCE_OPTIONS },
+    { key: 'language', label: 'Language', placeholder: 'Select language', value: selectedLanguage, setValue: setSelectedLanguage, options: LANGUAGE_OPTIONS },
+    { key: 'location', label: 'Location', placeholder: 'Select location', value: selectedLocation, setValue: setSelectedLocation, options: LOCATION_OPTIONS },
+  ];
+
+  const activeFilterRow = FILTER_ROWS.find((row) => row.key === filterModalType) || null;
+
   const filterPanelContent = (
     <View>
-      <View style={s.filterRow}>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Collab Type</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedPriceRange ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('price')}>
-            <Text style={[s.filterPlaceholder, selectedPriceRange ? s.filterValueText : null]}>{selectedPriceRange || 'Select Collab Type'}</Text>
-            {selectedPriceRange ? <TouchableOpacity onPress={() => setSelectedPriceRange(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="filter" size={16} color="#6e7180" />}
+      {FILTER_ROWS.map((row) => (
+        <View key={row.key} style={s.filterAccordionItem}>
+          <Text style={s.filterLabel}>{row.label}</Text>
+          <TouchableOpacity
+            style={[s.filterDropdown, row.value ? s.filterDropdownActive : null]}
+            activeOpacity={0.7}
+            onPress={() => setFilterModalType(row.key)}
+          >
+            <Text style={[s.filterPlaceholder, row.value ? s.filterValueText : null]}>{row.value || row.placeholder}</Text>
+            {row.value ? (
+              <TouchableOpacity onPress={() => row.setValue(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={16} color="#ED2A91" />
+              </TouchableOpacity>
+            ) : (
+              <Ionicons name="chevron-forward" size={16} color="#6e7180" />
+            )}
           </TouchableOpacity>
         </View>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Experience</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedExperience ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('experience')}>
-            <Text style={[s.filterPlaceholder, selectedExperience ? s.filterValueText : null]}>{selectedExperience || 'Select experience'}</Text>
-            {selectedExperience ? <TouchableOpacity onPress={() => setSelectedExperience(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-      </View>
-      <View style={[s.filterRow, { marginTop: 0 }]}>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Language</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedLanguage ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('language')}>
-            <Text style={[s.filterPlaceholder, selectedLanguage ? s.filterValueText : null]}>{selectedLanguage || 'Select language'}</Text>
-            {selectedLanguage ? <TouchableOpacity onPress={() => setSelectedLanguage(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-        <View style={s.filterCol}>
-          <Text style={s.filterLabel}>Location</Text>
-          <TouchableOpacity style={[s.filterDropdown, selectedLocation ? s.filterDropdownActive : null]} activeOpacity={0.7} onPress={() => setFilterModalType('location')}>
-            <Text style={[s.filterPlaceholder, selectedLocation ? s.filterValueText : null]}>{selectedLocation || 'Select location'}</Text>
-            {selectedLocation ? <TouchableOpacity onPress={() => setSelectedLocation(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Ionicons name="close-circle" size={16} color="#ED2A91" /></TouchableOpacity> : <Ionicons name="chevron-down" size={16} color="#6e7180" />}
-          </TouchableOpacity>
-        </View>
-      </View>
+      ))}
     </View>
   );
 
@@ -1102,6 +1231,7 @@ export default function ExploreTab() {
             this issue, so the ScrollView just fills the wrapper. */}
         <View style={s.sidebar}>
           <ScrollView
+            ref={sidebarScrollRef}
             style={{ flex: 1 }}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 90 }}
@@ -1112,7 +1242,8 @@ export default function ExploreTab() {
               return (
                 <TouchableOpacity
                   key={cat.id}
-                  onPress={() => setActiveCategory(cat.id)}
+                  onLayout={(e) => { sidebarItemY.current[cat.id] = e.nativeEvent.layout.y; }}
+                  onPress={() => selectCategory(cat.id)}
                   activeOpacity={0.8}
                   style={[s.sidebarItem, isActive && s.sidebarItemActive]}
                 >
@@ -1220,82 +1351,64 @@ export default function ExploreTab() {
         </View>
       </Modal>
 
-      {/* ═══ FILTER PANEL MODAL (behind the header's filter icon) ═══ */}
+      {/* ═══ FILTER DRAWER (slides in from the right, behind the header's filter icon) ═══
+          Both drawers live inside ONE Modal — stacking two separate native <Modal>s
+          on iOS is unreliable (the second one doesn't reliably present on top of the
+          first), so the options drawer is instead an absolutely-positioned overlay
+          layered above the main drawer's content, inside the same Modal. */}
       <Modal
         visible={filterPanelVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => setFilterPanelVisible(false)}
+        animationType="fade"
+        onRequestClose={() => (filterModalType !== null ? closeOptionsDrawer() : closeFilterDrawer())}
       >
-        <View style={s.modalOverlay}>
-          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setFilterPanelVisible(false)} />
-          <View style={s.modalContent}>
+        <View style={s.filterDrawerOverlay}>
+          <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeFilterDrawer} />
+          <Animated.View style={[s.filterDrawerPanel, { width: FILTER_DRAWER_WIDTH, paddingTop: insets.top + 20 }, drawerAnimStyle]}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>Filters</Text>
-              <TouchableOpacity style={s.modalClose} onPress={() => setFilterPanelVisible(false)}>
+              <TouchableOpacity style={s.modalClose} onPress={closeFilterDrawer}>
                 <Feather name="x" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
               {filterPanelContent}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
-      </Modal>
 
-      {/* ═══ FILTER SELECTION MODAL ═══ */}
-      <Modal
-        visible={filterModalType !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFilterModalType(null)}
-      >
-        <View style={s.modalOverlay}>
-          <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setFilterModalType(null)} />
-          <View style={s.modalContent}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>
-                {filterModalType === 'language' ? 'Select Language'
-                  : filterModalType === 'location' ? 'Select Location'
-                  : filterModalType === 'price' ? 'Select Price Range'
-                  : 'Select Experience'}
-              </Text>
-              <TouchableOpacity style={s.modalClose} onPress={() => setFilterModalType(null)}>
-                <Feather name="x" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {(filterModalType === 'language' ? LANGUAGE_OPTIONS
-                : filterModalType === 'location' ? LOCATION_OPTIONS
-                : filterModalType === 'price' ? PRICE_OPTIONS
-                : EXPERIENCE_OPTIONS
-              ).map((option) => {
-                const currentVal = filterModalType === 'language' ? selectedLanguage
-                  : filterModalType === 'location' ? selectedLocation
-                  : filterModalType === 'price' ? selectedPriceRange
-                  : selectedExperience;
-                const isSelected = currentVal === option;
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      if (filterModalType === 'language') setSelectedLanguage(isSelected ? null : option);
-                      else if (filterModalType === 'location') setSelectedLocation(isSelected ? null : option);
-                      else if (filterModalType === 'price') setSelectedPriceRange(isSelected ? null : option);
-                      else setSelectedExperience(isSelected ? null : option);
-                      setFilterModalType(null);
-                    }}
-                  >
-                    <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
-                    {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+        {filterModalType !== null && (
+          <View style={s.filterOptionsOverlay}>
+            <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeOptionsDrawer} />
+            <Animated.View style={[s.filterDrawerPanel, { width: FILTER_OPTIONS_DRAWER_WIDTH, paddingTop: insets.top + 20 }, optionsDrawerAnimStyle]}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>{activeFilterRow?.label || 'Select'}</Text>
+                <TouchableOpacity style={s.modalClose} onPress={closeOptionsDrawer}>
+                  <Feather name="x" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+                {activeFilterRow?.options.map((option) => {
+                  const isSelected = activeFilterRow.value === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        activeFilterRow.setValue(isSelected ? null : option);
+                        closeOptionsDrawer();
+                      }}
+                    >
+                      <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
+                      {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </Animated.View>
           </View>
-        </View>
+        )}
       </Modal>
     </View>
   );
@@ -1318,7 +1431,7 @@ const s = StyleSheet.create({
   subtitle: { color: '#E2E2E2', fontSize: 12, marginTop: 8, fontFamily: 'Poppins_400Regular', lineHeight: 18 },
 
   // Body: sidebar + scrollable feed column
-  bodyRow: { flex: 1, flexDirection: 'row' },
+  bodyRow: { flex: 1, flexDirection: 'row', gap: 4 },
   sidebar: { width: 83, backgroundColor: '#1E1E24', borderTopRightRadius: 20, borderBottomRightRadius: 20, overflow: 'hidden' },
   sidebarItem: {
     alignItems: 'center',
@@ -1376,8 +1489,7 @@ const s = StyleSheet.create({
   },
 
   // Filters
-  filterRow: { flexDirection: 'row', paddingHorizontal: 8, gap: 16, marginBottom: 24, marginTop: 40 },
-  filterCol: { flex: 1 },
+  filterAccordionItem: { paddingHorizontal: 8, marginBottom: 20 },
   filterLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
   filterDropdown: {
     height: 46, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)',
@@ -1387,6 +1499,22 @@ const s = StyleSheet.create({
   filterPlaceholder: { color: '#6e7180', fontSize: 13, fontFamily: 'Poppins_400Regular' },
   filterDropdownActive: { borderColor: '#ED2A91', backgroundColor: 'rgba(237,42,145,0.08)' },
   filterValueText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_400Regular' },
+
+  // Filter drawer (slides in from the right)
+  filterDrawerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', flexDirection: 'row' },
+  filterDrawerDismiss: { flex: 1 },
+  filterDrawerPanel: {
+    height: '100%', backgroundColor: '#1E1E24',
+    borderLeftWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
+    paddingHorizontal: 20, paddingBottom: 24,
+  },
+  // Options drawer renders as an overlay layered on top of the main drawer
+  // (inside the same Modal) rather than a second native Modal, which iOS
+  // doesn't reliably stack.
+  filterOptionsOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)', flexDirection: 'row',
+  },
 
   // Empty
   emptyState: { paddingHorizontal: 40, paddingTop: 60, alignItems: 'center', gap: 10 },
@@ -1398,10 +1526,10 @@ const s = StyleSheet.create({
 
   // Card
   card: {
+    width: '100%', maxWidth: 333, minHeight: 287,
     backgroundColor: '#1a1a1a', borderRadius: 24, padding: 16,
     borderWidth: 1,
-
-
+    alignSelf: 'center',
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
   cardAvatarWrap: { marginRight: 14 },
@@ -1419,6 +1547,14 @@ const s = StyleSheet.create({
 
   // Description
   cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
+
+  // Portfolio image(s) — up to 3, swipeable
+  cardImageWrap: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    marginBottom: 14,
+  },
 
   // Info pills
   pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },

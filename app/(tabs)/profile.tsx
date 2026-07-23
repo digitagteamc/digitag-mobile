@@ -9,6 +9,7 @@ import {
   Linking,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   Share,
   StatusBar,
@@ -24,7 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useApplePurchase } from '../../hooks/useApplePurchase';
 import { useRemoteConfig } from '../../hooks/useRemoteConfig';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
-import { createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
+import { completeCollab, createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
 
@@ -61,8 +62,6 @@ interface ProfileData {
 
 export const MENU_ITEMS = [
   { id: 'my_profile', icon: 'person-outline' as const, label: 'My Profile', imgSrc: require('../../assets/myprofile-icon.png') },
-  { id: 'my_posts', icon: 'images-outline' as const, label: 'My Posts', imgSrc: require('../../assets/myposts.png') },
-  { id: 'my_collabs', icon: 'people-outline' as const, label: 'My Collabs', imgSrc: require('../../assets/mycollabs.png') },
   { id: 'profile_views', icon: 'eye-outline' as const, label: 'Who Viewed My Profile', imgSrc: null },
   { id: 'saved', icon: 'heart-outline' as const, label: 'Saved Posts', imgSrc: require('../../assets/savedposts.png') },
   { id: 'settings', icon: 'settings-outline' as const, label: 'Settings', imgSrc: require('../../assets/setting.png') },
@@ -81,11 +80,21 @@ export default function ProfileScreen() {
 
   const theme = useRoleTheme();
   const remoteConfig = useRemoteConfig(token);
-  const applePurchase = useApplePurchase(token, remoteConfig.premiumEnabled);
+  // Hard-disabled for the July 31 release — Apple rejected the subscription
+  // submission (guideline 3.1.2(c): missing EULA/terms metadata in the
+  // purchase flow) and this release needs to ship without Premium at all.
+  // Deliberately ANDed in ahead of remoteConfig.premiumEnabled so nothing
+  // premium-related can appear under ANY backend state, including the
+  // reviewer-allowlist bypass that let Apple's reviewer reach the purchase
+  // flow in the first place. Flip back to true once the subscription
+  // metadata is fixed and ready to resubmit.
+  const PREMIUM_ENABLED_THIS_BUILD = false;
+  const premiumActive = PREMIUM_ENABLED_THIS_BUILD && remoteConfig.premiumEnabled;
+  const applePurchase = useApplePurchase(token, premiumActive);
   useEffect(() => {
     if (applePurchase.error) Alert.alert('Purchase Failed', applePurchase.error);
   }, [applePurchase.error]);
-  const visibleMenuItems = MENU_ITEMS.filter((item) => item.id !== 'profile_views' || remoteConfig.premiumEnabled);
+  const visibleMenuItems = MENU_ITEMS.filter((item) => item.id !== 'profile_views' || premiumActive);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
@@ -99,10 +108,11 @@ export default function ProfileScreen() {
   const [myCollabs, setMyCollabs] = useState<any[]>([]);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  const [activityTab, setActivityTab] = useState<'posts' | 'collab'>('posts');
+  const [expandedActivityIds, setExpandedActivityIds] = useState<Set<string>>(new Set());
+  const [completingCollabId, setCompletingCollabId] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
         if (isGuest || !token) {
           setProfile({
             name: 'Guest',
@@ -195,11 +205,20 @@ export default function ProfileScreen() {
         } finally {
           setLoading(false);
         }
-      };
+  }, [token, isGuest, userPhone, userRole]);
 
+  useFocusEffect(
+    useCallback(() => {
       fetchProfile();
-    }, [token, isGuest])
+    }, [fetchProfile])
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  }, [fetchProfile]);
 
   const isProfileIncomplete = () => {
     if (!profile) return true;
@@ -231,6 +250,293 @@ export default function ProfileScreen() {
     if (id === 'settings') router.navigate('/settings' as any);
     if (id === 'about') router.push('/about-digitag' as any);
     if (id === 'report') router.push('/report-issue' as any);
+  };
+
+  const getTimeAgo = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.round(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    const diffDays = Math.round(diffHrs / 24);
+    return `${diffDays}d ago`;
+  };
+
+  // 1–4 filled ₹ symbols — a rough price tier, not a literal amount, so a
+  // free/low-budget post still renders a legible badge instead of a blank one.
+  const getPriceLevel = (value?: number | string | null) => {
+    const n = typeof value === 'string' ? parseFloat(value.replace(/[^\d.]/g, '')) : value;
+    if (!n || n <= 0) return 1;
+    if (n < 2000) return 1;
+    if (n < 5000) return 2;
+    if (n < 10000) return 3;
+    return 4;
+  };
+
+  // Feeds the "Posts" tab — each of my own posts, decorated with my own
+  // profile attributes (experience/rate/language/location) since those
+  // describe me the poster, not the post itself.
+  const activityPostCards = myPosts.slice(0, 2).map((post) => ({
+    id: post.id,
+    name: profile?.name || 'You',
+    avatarUri: profile?.profilePicture || null,
+    isPremium: profile?.isPremium,
+    category: profile?.categories?.[0] || profile?.category || (userRole === 'FREELANCER' ? 'Freelancer' : 'Creator'),
+    desc: post.description || '',
+    experience: profile?.experienceLevel || 'New',
+    priceLevel: getPriceLevel(post.budget ?? profile?.hourlyRate),
+    languages: profile?.languages?.join(', ') || '—',
+    location: profile?.location || '—',
+    time: getTimeAgo(post.createdAt),
+    onSeePortfolio: () => userId && router.push({ pathname: '/creator-details', params: { userId } } as any),
+  }));
+
+  const handleCompleteCollab = (collabId: string, otherName: string) => {
+    Alert.alert(
+      'Mark as Completed',
+      `Mark your collaboration with ${otherName} as completed? This ends the work session — chat and calls will be closed for both of you.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark Complete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!token) return;
+            setCompletingCollabId(collabId);
+            try {
+              const res = await completeCollab(token, collabId);
+              if (res.success) {
+                setMyCollabs((prev) => prev.map((c) => (c.id === collabId ? { ...c, status: 'COMPLETED' } : c)));
+              } else {
+                Alert.alert('Error', res.error || 'Could not complete collaboration.');
+              }
+            } catch {
+              Alert.alert('Error', 'Network error.');
+            } finally {
+              setCompletingCollabId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  // My Collabs screen's own card UI — kept 1:1 (avatar, name, role,
+  // description, status pill, Mark Complete) rather than the Posts-tab
+  // Experience/Price/Language/Location layout, at the user's request.
+  const renderCollabCard = (collab: any) => {
+    const iAmSender = collab.sender?.id === userId;
+    const other = iAmSender ? collab.receiver : collab.sender;
+    const otherProfile = other?.creatorProfile || other?.freelancerProfile;
+    const otherName = otherProfile?.name || other?.role || 'User';
+    const description = collab.post?.description || collab.message || '';
+    const isCompleted = collab.status === 'COMPLETED';
+    const isCompletingThis = completingCollabId === collab.id;
+    return (
+      <View key={collab.id} className="mb-3 bg-white/5 rounded-xl border border-white/10 p-3.5">
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => other?.id && router.push({ pathname: '/creator-details', params: { userId: other.id } } as any)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+        >
+          <View className="w-12 h-12 rounded-full border items-center justify-center" style={{ backgroundColor: theme.soft, borderColor: theme.border }}>
+            <Text className="text-base font-bold" style={{ fontFamily: 'Poppins_700Bold', color: theme.primary }}>
+              {otherName.slice(0, 2).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text className="text-white text-[15px] font-semibold" style={{ fontFamily: 'Poppins_600SemiBold', flexShrink: 1 }} numberOfLines={1} ellipsizeMode="tail">{otherName}</Text>
+              <VerifiedBadge isPremium={other?.isPremium} size={13} />
+            </View>
+            <Text className="text-[#8A8A99] text-[13px] mt-[2px] capitalize" style={{ fontFamily: 'Poppins_400Regular' }}>{other?.role?.toLowerCase() || ''}</Text>
+            {description ? (
+              <Text className="text-[#8A8A99] text-[13px] mt-1 leading-5" numberOfLines={2} style={{ fontFamily: 'Poppins_400Regular' }}>{description}</Text>
+            ) : null}
+          </View>
+          <View
+            className="rounded-full border px-2.5 py-[5px]"
+            style={isCompleted
+              ? { backgroundColor: 'rgba(100,100,100,0.12)', borderColor: 'rgba(100,100,100,0.3)' }
+              : { backgroundColor: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)' }
+            }
+          >
+            <Text
+              className="text-[11px] font-semibold"
+              style={{ fontFamily: 'Poppins_600SemiBold', color: isCompleted ? '#8A8A99' : '#10B981' }}
+            >
+              {isCompleted ? 'Completed' : 'Active'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        {userRole === 'CREATOR' && !isCompleted && (
+          <TouchableOpacity
+            onPress={() => handleCompleteCollab(collab.id, otherName)}
+            disabled={isCompletingThis}
+            activeOpacity={0.8}
+            style={{
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingVertical: 8,
+              borderRadius: 99,
+              borderWidth: 1,
+              borderColor: 'rgba(16,185,129,0.4)',
+              backgroundColor: 'rgba(16,185,129,0.08)',
+              opacity: isCompletingThis ? 0.5 : 1,
+            }}
+          >
+            <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
+            <Text style={{ color: '#10B981', fontSize: 13, fontFamily: 'Poppins_600SemiBold' }}>
+              {isCompletingThis ? 'Completing...' : 'Mark as Completed'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
+  const handleActivityShare = async (desc: string) => {
+    try { await Share.share({ message: desc || 'Check this out on DigiTag' }); } catch { /* user dismissed */ }
+  };
+
+  const toggleActivityExpanded = (id: string) => {
+    setExpandedActivityIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      return next;
+    });
+  };
+
+  type ActivityCard = {
+    id: string; name: string; avatarUri: string | null; isPremium?: boolean | null;
+    category: string; desc: string; experience: string; priceLevel: number;
+    languages: string; location: string; time: string; onSeePortfolio: () => void;
+  };
+
+  const renderActivityCard = (item: ActivityCard) => {
+    const isExpanded = expandedActivityIds.has(item.id);
+    const needsTruncation = item.desc.length > 100;
+    const shownDesc = isExpanded || !needsTruncation ? item.desc : item.desc.slice(0, 100).trimEnd();
+    return (
+      <View
+        key={item.id}
+        style={{
+          borderRadius: 24,
+          borderWidth: 1,
+          borderColor: 'rgba(156,156,156,0.3)',
+          backgroundColor: 'rgba(30,30,36,1)',
+          padding: 16,
+          marginBottom: 16,
+        }}
+      >
+        {/* Header: avatar + name + category */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: '#333', marginRight: 12 }}>
+            <Image
+              source={item.avatarUri ? { uri: item.avatarUri } : require('../../assets/images/icon.png')}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold', flexShrink: 1 }} numberOfLines={1}>{item.name}</Text>
+              <VerifiedBadge isPremium={item.isPremium} size={14} />
+            </View>
+            <Text style={{ color: theme.primary, fontSize: 13, fontFamily: 'Poppins_500Medium', marginTop: 2 }} numberOfLines={1}>{item.category}</Text>
+          </View>
+        </View>
+
+        {/* Description */}
+        {!!item.desc && (
+          <TouchableOpacity activeOpacity={0.7} disabled={!needsTruncation} onPress={() => toggleActivityExpanded(item.id)}>
+            <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_400Regular', lineHeight: 20, marginBottom: 16 }}>
+              {shownDesc}
+              {needsTruncation && (isExpanded ? ' ' : '... ')}
+              {needsTruncation && (
+                <Text style={{ color: theme.primary, fontFamily: 'Poppins_500Medium' }}>{isExpanded ? 'See less' : 'See more'}</Text>
+              )}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Experience / Price Level */}
+        <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Experience</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="briefcase-outline" size={14} color="#D0D0D6" />
+              <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium' }} numberOfLines={1}>{item.experience}</Text>
+            </View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Price Level (Primary)</Text>
+            <View style={{ flexDirection: 'row', gap: 3 }}>
+              {[1, 2, 3, 4].map((n) => (
+                <Text key={n} style={{ fontSize: 14, fontFamily: 'Poppins_700Bold', color: n <= item.priceLevel ? '#22C55E' : '#3A3A44' }}>₹</Text>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        {/* Language / Location */}
+        <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Language</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="language-outline" size={14} color="#D0D0D6" />
+              <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium', flexShrink: 1 }} numberOfLines={1}>{item.languages}</Text>
+            </View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Location (Primary)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="location-outline" size={14} color="#D0D0D6" />
+              <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium', flexShrink: 1 }} numberOfLines={1}>{item.location}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Message / Call / Share  —  See Portfolio + time */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/messages' as any)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A30', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/messages' as any)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A30', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="call-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleActivityShare(item.desc)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#2A2A30', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="share-social-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity onPress={item.onSeePortfolio} style={{ backgroundColor: theme.primary, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: 'Poppins_600SemiBold' }}>See Portfolio</Text>
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="time-outline" size={12} color="#8A8A99" />
+              <Text style={{ color: '#8A8A99', fontSize: 11, fontFamily: 'Poppins_400Regular' }}>{item.time}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const handleLogout = () => {
@@ -384,6 +690,7 @@ export default function ProfileScreen() {
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         >
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
@@ -643,13 +950,103 @@ export default function ProfileScreen() {
                 })}
               </View>
 
+              {/* ══════════ POSTS / COLLAB ACTIVITY ══════════ */}
+              <View className="flex-row mx-5 mt-6 border-b border-white/10">
+                <TouchableOpacity
+                  style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
+                  activeOpacity={0.75}
+                  onPress={() => setActivityTab('posts')}
+                >
+                  <Image
+                    source={require('../../assets/myposts.png')}
+                    style={{ width: 36, height: 36, opacity: activityTab === 'posts' ? 1 : 0.45 }}
+                    resizeMode="contain"
+                  />
+                  <Text
+                    style={{
+                      marginTop: 4,
+                      fontSize: 14,
+                      fontFamily: activityTab === 'posts' ? 'Poppins_600SemiBold' : 'Poppins_400Regular',
+                      color: activityTab === 'posts' ? '#fff' : '#666',
+                    }}
+                  >
+                    Posts
+                  </Text>
+                  {activityTab === 'posts' && (
+                    <View style={{ height: 2, width: '60%', borderRadius: 1, marginTop: 8, backgroundColor: theme.primary }} />
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
+                  activeOpacity={0.75}
+                  onPress={() => setActivityTab('collab')}
+                >
+                  <Image
+                    source={require('../../assets/mycollabs.png')}
+                    style={{ width: 36, height: 36, opacity: activityTab === 'collab' ? 1 : 0.45 }}
+                    resizeMode="contain"
+                  />
+                  <Text
+                    style={{
+                      marginTop: 4,
+                      fontSize: 14,
+                      fontFamily: activityTab === 'collab' ? 'Poppins_600SemiBold' : 'Poppins_400Regular',
+                      color: activityTab === 'collab' ? '#fff' : '#666',
+                    }}
+                  >
+                    Collab
+                  </Text>
+                  {activityTab === 'collab' && (
+                    <View style={{ height: 2, width: '60%', borderRadius: 1, marginTop: 8, backgroundColor: theme.primary }} />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <View className="px-5 mt-5">
+                {activityTab === 'posts' ? (
+                  activityPostCards.length === 0 ? (
+                    <Text className="text-[#8A8A99] text-center mt-8" style={{ fontFamily: 'Poppins_400Regular' }}>No posts yet.</Text>
+                  ) : (
+                    <>
+                      {activityPostCards.map(renderActivityCard)}
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        onPress={() => handleMenuPress('my_posts')}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}
+                      >
+                        <Text style={{ color: theme.primary, fontSize: 14, fontFamily: 'Poppins_600SemiBold' }}>See All Posts</Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.primary} />
+                      </TouchableOpacity>
+                    </>
+                  )
+                ) : (
+                  myCollabs.length === 0 ? (
+                    <Text className="text-[#8A8A99] text-center mt-8" style={{ fontFamily: 'Poppins_400Regular' }}>No collabs yet.</Text>
+                  ) : (
+                    <>
+                      {myCollabs.slice(0, 2).map(renderCollabCard)}
+                      <TouchableOpacity
+                        activeOpacity={0.75}
+                        onPress={() => handleMenuPress('my_collabs')}
+                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}
+                      >
+                        <Text style={{ color: theme.primary, fontSize: 14, fontFamily: 'Poppins_600SemiBold' }}>See All Collabs</Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.primary} />
+                      </TouchableOpacity>
+                    </>
+                  )
+                )}
+              </View>
+
               {/* ══════════ UPGRADE ══════════
                   Apple 3.1.1 requires In-App Purchase for digital subscriptions,
-                  so iOS goes through StoreKit (react-native-iap) while Android/
+                  so iOS goes through StoreKit (expo-iap) while Android/
                   web keep using Razorpay checkout — never Razorpay on iOS.
-                  Both gated on the remote PREMIUM_ENABLED flag — hidden on
-                  every platform whenever Premium itself is paused. */}
-              {remoteConfig.premiumEnabled && Platform.OS === 'ios' && (
+                  Gated on premiumActive (remote PREMIUM_ENABLED flag AND the
+                  local PREMIUM_ENABLED_THIS_BUILD override above) — hidden on
+                  every platform whenever Premium itself is paused, and
+                  unconditionally hidden this release regardless of backend state. */}
+              {premiumActive && Platform.OS === 'ios' && (
                 <>
                   <TouchableOpacity
                     onPress={handleAppleUpgrade}
@@ -674,7 +1071,7 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 </>
               )}
-              {remoteConfig.premiumEnabled && Platform.OS !== 'ios' && (
+              {premiumActive && Platform.OS !== 'ios' && (
                 <TouchableOpacity
                   onPress={handleUpgrade}
                   disabled={upgrading}

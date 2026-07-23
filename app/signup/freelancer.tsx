@@ -556,6 +556,8 @@ export default function FreelancerSignup() {
         snapchatFollowers: '',
         twitterHandle: '',
         twitterFollowers: '',
+        // Social Media Manager only — independent checkboxes, not a single choice.
+        workTypes: [] as string[],
     });
 
     // Restores in-progress signup data after the OS kills/reloads the app (e.g. while
@@ -607,6 +609,7 @@ export default function FreelancerSignup() {
                         twitterFollowers: p.twitterFollowers?.toString() || '',
                         snapchatHandle: p.snapchatHandle || '',
                         snapchatFollowers: p.snapchatFollowers?.toString() || '',
+                        workTypes: Array.isArray(p.workTypes) ? p.workTypes : [],
                     }));
                 } else if (!cancelled) {
                     // No server profile — restore an in-progress draft, if any.
@@ -766,16 +769,19 @@ export default function FreelancerSignup() {
         }
     };
 
+    const isSocialMediaManager = categories.find((c) => c.id === form.category)?.name === 'Social Media Manager';
+
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
             /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
-            form.bio.trim() !== ''
+            form.bio.trim() !== '' &&
+            (!isSocialMediaManager || form.workTypes.length > 0)
             // portfolioUrl is intentionally optional — not every freelancer has one.
         );
-    }, [form]);
+    }, [form, isSocialMediaManager]);
 
     const isStep2Valid = useMemo(() => {
         return (
@@ -848,6 +854,9 @@ export default function FreelancerSignup() {
         }
         if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
         if (!form.category) next.category = 'Please select a category.';
+        if (isSocialMediaManager && form.workTypes.length === 0) {
+            next.workTypes = 'Please select at least one work type.';
+        }
         if (!form.bio.trim()) next.bio = 'Bio is required.';
         // portfolioUrl is intentionally optional — not every freelancer has one.
         if (mode === 'create' && !igVerified) next.instagram = 'Please verify your Instagram account to continue.';
@@ -915,6 +924,10 @@ export default function FreelancerSignup() {
                 experienceLevel: form.experienceLevel,
                 availability: form.availability,
                 portfolioUrl: form.portfolioUrl.trim(),
+                // Social Media Manager only — empty for every other category so a
+                // stale selection never lingers if the user switches category away
+                // from Social Media Manager after having checked one.
+                workTypes: isSocialMediaManager ? form.workTypes : [],
             };
 
             // Add socials if backend supports them for freelancers
@@ -1065,6 +1078,40 @@ export default function FreelancerSignup() {
                                 itemLabel={(i: any) => i.name}
                                 error={errors.category}
                             />
+                            {isSocialMediaManager && (
+                                <View className="mb-5">
+                                    <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+                                        Work Type <Text className="text-red-500">*</Text>
+                                    </Text>
+                                    <View className="flex-row gap-3">
+                                        {([
+                                            { key: 'PART_TIME', label: 'Part Time' },
+                                            { key: 'FULL_TIME', label: 'Full Time' },
+                                        ] as const).map(({ key, label }) => {
+                                            const checked = form.workTypes.includes(key);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={key}
+                                                    activeOpacity={0.8}
+                                                    onPress={() => setForm({
+                                                        ...form,
+                                                        workTypes: checked
+                                                            ? form.workTypes.filter((w) => w !== key)
+                                                            : [...form.workTypes, key],
+                                                    })}
+                                                    className={`flex-row items-center gap-2 bg-[#131313] px-4 py-3 rounded-[12px] border ${errors.workTypes ? 'border-red-500' : 'border-[#1E1E1E]'}`}
+                                                >
+                                                    <View className={`w-5 h-5 rounded-[4px] border items-center justify-center ${checked ? 'bg-white border-white' : 'border-[#555]'}`}>
+                                                        {checked && <View className="w-2.5 h-2.5 rounded-[2px] bg-black" />}
+                                                    </View>
+                                                    <Text className="text-white font-poppins-regular text-[14px]">{label}</Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                    {errors.workTypes ? <Text className="text-red-500 text-[12px] mt-2 ml-1">{errors.workTypes}</Text> : null}
+                                </View>
+                            )}
                             <FormField
                                 label="Bio / Description"
                                 required

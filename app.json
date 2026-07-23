@@ -14,6 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
+      "appleTeamId": "CKD6A9LCR6",
       "associatedDomains": [
         "applinks:thedigitag.ai"
       ],
@@ -37,7 +38,7 @@
           "fetch"
         ]
       },
-      "buildNumber": "1",
+      "buildNumber": "7",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
@@ -123,6 +124,14 @@
         {
           "android": {
             "usesCleartextTraffic": true
+          },
+          "ios": {
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBMessaging"
+            ]
           }
         }
       ],
@@ -132,8 +141,16 @@
           "locationWhenInUsePermission": "DigiTag needs your location to share it in chat."
         }
       ],
-      "@sentry/react-native",
-      "react-native-iap"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "teamc-ih",
+          "project": "digitag-mobile"
+        }
+      ],
+      "expo-iap",
+      "./plugins/withSentryAuthToken",
+      "./plugins/withRecaptchaEnterprise"
     ],
     "experiments": {
       "typedRoutes": true,

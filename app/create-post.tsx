@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -17,11 +18,13 @@ import React, { useEffect, useRef, useState } from 'react';
   View,
 } from 'react-native';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import { matchesPortfolioCategory } from '../constants/portfolioCategories';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { useLocationSuggestions } from '../hooks/useLocationSuggestions';
 import { deleteDraft, getDraft, newDraftId, saveDraft as persistDraft } from '../services/drafts';
-import { createPost, getPostById, updatePost } from '../services/userService';
+import { prepareImageForUpload } from '../services/imageResize';
+import { createPost, getFullProfile, getPostById, updatePost } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
 
 type CollabChoice = 'UNPAID' | 'PAID';
@@ -109,6 +112,8 @@ export default function CreatePost() {
   const [isCollabOpen, setIsCollabOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [ownerCategories, setOwnerCategories] = useState<string[]>([]);
+  const [postImages, setPostImages] = useState<{ uri: string; name?: string; type?: string }[]>([]);
   const [budget, setBudget] = useState('');
   // null = user's choice not to boost — the post stays visible forever.
   const [visibilityHours, setVisibilityHours] = useState<number | null>(null);
@@ -127,6 +132,30 @@ export default function CreatePost() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProfileCompleted]);
+
+  // Only a freelancer whose own profile profession is one of the portfolio-style
+  // categories (Photography, Property Rental, etc.) gets the image-upload option.
+  // The backend exposes the profile's category under a few different shapes
+  // (a single `category` object, a `categoryNames` array, slugs, ...) — collect
+  // every string we can find and match against any of them.
+  useEffect(() => {
+    if (isCreator || !token) return;
+    getFullProfile(token).then(res => {
+      const p = res.success ? res.data?.profile : null;
+      if (!p) return;
+      const found: string[] = [
+        ...(Array.isArray(p.categoryNames) ? p.categoryNames : []),
+        ...(Array.isArray(p.categorySlugs) ? p.categorySlugs : []),
+        ...(Array.isArray(p.categories) ? p.categories : []),
+        p.category?.name,
+        p.category?.slug,
+        typeof p.category === 'string' ? p.category : null,
+      ].filter((v): v is string => typeof v === 'string' && v.length > 0);
+      setOwnerCategories(found);
+    });
+  }, [isCreator, token]);
+
+  const canUploadImage = !isCreator && matchesPortfolioCategory(ownerCategories);
 
   // Resume a saved draft (opened from My Posts > Drafts).
   useEffect(() => {
@@ -191,6 +220,50 @@ export default function CreatePost() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, body, location, collab, selectedCategory, budget, isEditMode]);
 
+  const MAX_POST_IMAGES = 3;
+
+  const pickPostImage = async () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose a source',
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+            if (!result.canceled && result.assets?.[0]) {
+              const asset = result.assets[0];
+              const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+              setPostImages(prev => prev.length >= MAX_POST_IMAGES ? prev : [...prev, { uri, name: 'post.jpg', type: 'image/jpeg' }]);
+            }
+          },
+        },
+        {
+          text: 'Gallery',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+            if (!result.canceled && result.assets?.[0]) {
+              const asset = result.assets[0];
+              const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+              setPostImages(prev => prev.length >= MAX_POST_IMAGES ? prev : [...prev, { uri, name: 'post.jpg', type: 'image/jpeg' }]);
+            }
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : collabPlaceholder;
 
   // Required to post: title, category, collab type — and budget, but only for
@@ -218,9 +291,11 @@ export default function CreatePost() {
         // Editing never touches boost/expiry — only send it on create.
         ...(isEditMode ? {} : { boostHours: (visibilityHours ?? undefined) as 4 | 12 | 24 | 48 | undefined }),
       };
+      // Editing a post's photo set isn't supported yet — updatePost stays
+      // single-image; create sends every staged image (up to 3).
       const res = isEditMode
         ? await updatePost(String(editPostId), payload, token)
-        : await createPost(payload, token);
+        : await createPost(payload, token, postImages.length ? postImages : undefined);
       if (res.success) {
         await deleteDraft(draftIdRef.current).catch(() => {});
         setPopupType('success');
@@ -388,6 +463,48 @@ export default function CreatePost() {
             </LinearGradient>
           )}
         </View>
+
+        {/* ── Upload Photos (Freelancer, portfolio-style categories only) ── */}
+        {canUploadImage && (
+          <>
+            <Text style={styles.sectionTitle}>Upload Photos</Text>
+            {postImages.length === 0 ? (
+              <TouchableOpacity style={styles.imageUploadBox} onPress={pickPostImage} activeOpacity={0.85}>
+                <View style={styles.imageUploadPlaceholder}>
+                  <LinearGradient
+                    colors={['#C9A6FF', '#F29BD8']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.imageUploadIcon}
+                  >
+                    <Ionicons name="image" size={22} color="#fff" />
+                  </LinearGradient>
+                  <Text style={styles.imageUploadText}>Upload Your work Images</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.imageThumbRow}>
+                {postImages.map((img, i) => (
+                  <View key={img.uri} style={styles.imageThumbWrap}>
+                    <Image source={{ uri: img.uri }} style={styles.imageThumb} />
+                    <TouchableOpacity
+                      style={styles.imageRemoveBtn}
+                      onPress={() => setPostImages(prev => prev.filter((_, idx) => idx !== i))}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close" size={14} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {postImages.length < 3 && (
+                  <TouchableOpacity style={styles.imageThumbAdd} onPress={pickPostImage} activeOpacity={0.85}>
+                    <Ionicons name="add" size={26} color={theme.primary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </>
+        )}
 
         {/* ── Budget (Paid Collab only) ── */}
         {collab === 'PAID' && (
@@ -697,6 +814,61 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   budgetInput: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', paddingVertical: 10 },
+
+  imageUploadBox: {
+    backgroundColor: '#1E1E24',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    height: 150,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  imageUploadPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  imageUploadIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageUploadText: { color: '#C8C8CE', fontSize: 14, fontFamily: 'Poppins_400Regular' },
+  imageThumbRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  imageThumbWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#1E1E24',
+  },
+  imageThumb: { width: '100%', height: '100%' },
+  imageThumbAdd: {
+    width: 96,
+    height: 96,
+    borderRadius: 14,
+    backgroundColor: '#1E1E24',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageRemoveBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   boostCard: {
     width: 370,

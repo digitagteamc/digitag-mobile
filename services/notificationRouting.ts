@@ -30,6 +30,7 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
             }
             break;
         case 'NEW_MESSAGE':
+        case 'MESSAGE_REACTION':
             if (data.conversationId) {
                 router.push({ pathname: '/chat/[id]', params: { id: data.conversationId } } as any);
             }

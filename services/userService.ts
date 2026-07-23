@@ -497,18 +497,20 @@ type PostPayload = {
 };
 
 /**
- * POST /posts — accepts an optional local image file URI that will be sent
- * via multipart/form-data (field name "image"). Without an image, sends JSON.
+ * POST /posts — accepts up to 3 local image file URIs (portfolio-category
+ * posts), sent via multipart/form-data as repeated "images" fields — the
+ * backend accepts .array('images', 3), and every non-portfolio post just
+ * sends one. Without any images, sends JSON.
  */
 export const createPost = async (
     payload: PostPayload,
     token: string,
-    imageFile?: { uri: string; name?: string; type?: string },
+    imageFiles?: { uri: string; name?: string; type?: string }[],
 ) => {
     try {
         const url = `${API_BASE_URL}/posts`;
         let res: Response;
-        if (imageFile) {
+        if (imageFiles && imageFiles.length > 0) {
             const form = new FormData();
             form.append('description', payload.description);
             if (payload.location) form.append('location', payload.location);
@@ -516,11 +518,13 @@ export const createPost = async (
             if (payload.category) form.append('category', payload.category);
             if (payload.budget) form.append('budget', payload.budget);
             if (payload.boostHours) form.append('boostHours', String(payload.boostHours));
-            form.append('image', {
-                uri: imageFile.uri,
-                name: imageFile.name || 'upload.jpg',
-                type: imageFile.type || 'image/jpeg',
-            } as any);
+            imageFiles.forEach((imageFile, i) => {
+                form.append('images', {
+                    uri: imageFile.uri,
+                    name: imageFile.name || `upload-${i}.jpg`,
+                    type: imageFile.type || 'image/jpeg',
+                } as any);
+            });
             res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -739,10 +743,13 @@ export const listCollaborations = async (
     }
 };
 
-/** GET /collaborations/with/:userId — latest collab between me and other user (or null) */
-export const getCollaborationWith = async (token: string, userId: string) => {
+/** GET /collaborations/with/:userId — collab between me and other user (or null).
+ *  Pass postId when the caller cares about one specific post's collaboration
+ *  state (e.g. post-detail) rather than the most recent collab overall. */
+export const getCollaborationWith = async (token: string, userId: string, postId?: string) => {
     try {
-        const body = await request(`/collaborations/with/${userId}`, {
+        const qs = postId ? `?postId=${encodeURIComponent(postId)}` : '';
+        const body = await request(`/collaborations/with/${userId}${qs}`, {
             method: 'GET',
             headers: authHeaders(token),
         });
@@ -814,6 +821,22 @@ export const getCollabRequestQuota = async (token: string) => {
 export const boostPost = async (token: string, postId: string) => {
     try {
         const body = await request(`/posts/${postId}/boost`, { method: 'POST', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** PATCH /posts/:id/status — owner-only. OPEN|COMPLETED|CLOSED. COMPLETED
+ *  keeps the post visible but blocks new collab requests from anyone; CLOSED
+ *  hides it from feeds (reversible by setting back to OPEN). */
+export const updatePostStatus = async (token: string, postId: string, status: 'OPEN' | 'COMPLETED' | 'CLOSED') => {
+    try {
+        const body = await request(`/posts/${postId}/status`, {
+            method: 'PATCH',
+            headers: authHeaders(token),
+            body: JSON.stringify({ status }),
+        });
         return { success: true, data: body?.data };
     } catch (error: any) {
         return { success: false, error: error.message };
@@ -1217,9 +1240,9 @@ export const searchProfiles = async (token: string, q: string, limit: number = 2
             method: 'GET',
             headers: authHeaders(token),
         });
-        return { success: true, data: body?.data ?? [] };
+        return { success: true, data: body?.data ?? { users: [], posts: [] } };
     } catch (error: any) {
-        return { success: false, error: error.message, data: [] };
+        return { success: false, error: error.message, data: { users: [], posts: [] } };
     }
 };
 
@@ -1383,6 +1406,7 @@ export interface PrivacySettings {
     showOnlineStatus: boolean;
     shareDataForPersonalization: boolean;
     pushNotificationsEnabled: boolean;
+    notifyCategoryPosts: boolean;
     preferredLanguage: string;
 }
 

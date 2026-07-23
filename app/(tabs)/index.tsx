@@ -1,4 +1,5 @@
 import { useProfileGate } from '@/context/ProfileGateContext';
+import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +14,7 @@ import {
   ImageBackground,
   Linking,
   Modal,
+  RefreshControl,
   ScrollView,
   Share,
   StatusBar,
@@ -507,7 +509,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentOwnerIds, acceptedCollabOwnerIds, savedPostIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -572,6 +574,11 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                 style={styles.figmaCardAvatarImg}
                 resizeMode="cover"
               />
+              {/* Portfolio work-sample thumbnail badge — freelancer portfolio
+                  categories only, see portfolioThumb in the cards mapping. */}
+              {!!item.portfolioThumb && (
+                <Image source={{ uri: item.portfolioThumb }} style={styles.figmaCardPortfolioBadge} resizeMode="cover" />
+              )}
             </View>
 
             {/* Name & Details */}
@@ -594,14 +601,26 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
             <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
 
-            <Text style={styles.figmaCardPrice}>
-              {item.price === 'Paid Collab'
-                ? (item.budget ? `₹ ${String(item.budget).replace(/^₹\s*/, '')}` : 'Paid Collab')
-                : 'Free Collab'}
-            </Text>
+            <View style={styles.figmaCardPriceRow}>
+              {item.price === 'Paid Collab' && item.budget ? (
+                <>
+                  <Text style={styles.figmaCardStartingFrom}>Starting from </Text>
+                  <Text style={styles.figmaCardPrice}>{`₹ ${String(item.budget).replace(/^₹\s*/, '')}`}</Text>
+                </>
+              ) : (
+                <Text style={styles.figmaCardPrice}>
+                  {item.price === 'Paid Collab' ? 'Paid Collab' : 'Free Collab'}
+                </Text>
+              )}
+            </View>
 
             {/* Bottom Actions */}
-            {acceptedCollabOwnerIds?.has(item.ownerId) ? (
+            {completedCollabPostIds?.has(item.id) ? (
+              <View style={[styles.figmaCollabBtn, { backgroundColor: '#3a3a3a' }]}>
+                <Ionicons name="checkmark-circle-outline" size={15} color="#fff" />
+                <Text style={styles.figmaCollabBtnText}>Collaborated</Text>
+              </View>
+            ) : acceptedCollabOwnerIds?.has(item.ownerId) ? (
               <View style={styles.figmaCardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
                   <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
@@ -616,18 +635,18 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.figmaCollabBtn, { backgroundColor: postColor, opacity: collabSentOwnerIds?.has(item.ownerId) ? 0.6 : 1 }]}
+                style={[styles.figmaCollabBtn, { backgroundColor: postColor, opacity: collabSentPostIds?.has(item.id) ? 0.6 : 1 }]}
                 onPress={() => handleCollab(item.ownerId, item.id)}
                 activeOpacity={0.8}
-                disabled={collabSentOwnerIds?.has(item.ownerId)}
+                disabled={collabSentPostIds?.has(item.id)}
               >
                 <Ionicons
-                  name={collabSentOwnerIds?.has(item.ownerId) ? 'checkmark-circle-outline' : 'people-outline'}
+                  name={collabSentPostIds?.has(item.id) ? 'checkmark-circle-outline' : 'people-outline'}
                   size={15}
                   color="#fff"
                 />
                 <Text style={styles.figmaCollabBtnText}>
-                  {collabSentOwnerIds?.has(item.ownerId) ? 'Request Sent' : 'Collaborate'}
+                  {collabSentPostIds?.has(item.id) ? 'Request Sent' : 'Collaborate'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -647,13 +666,13 @@ export default function Homepage() {
 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createPostWidth, setCreatePostWidth] = useState(0);
   const [userName, setUserName] = useState<string>('');
   const [userTagId, setUserTagId] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { unreadCount } = useNotificationCount();
   const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
-  const [collabSentOwnerIds, setCollabSentOwnerIds] = useState<Set<string>>(new Set());
+  const [collabSentPostIds, setCollabSentPostIds] = useState<Set<string>>(new Set());
+  const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [alertConfig, setAlertConfig] = useState({
     visible: false,
@@ -708,74 +727,93 @@ export default function Homepage() {
     setAlertConfig({ visible: true, title, message });
   };
 
+  const fetchPosts = useCallback(async () => {
+    try {
+      // Browsing the feed doesn't require an account — token is optional here.
+      const res = await getFeed(token);
+      const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
+      // Center on the middle post so its left/right neighbors both peek into
+      // view on open, showing all 3 preview posts at once (per design).
+      if (!hasSetInitialCarouselScroll.current) {
+        const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
+        const initialIndex = visibleCount >= 3 ? 1 : 0;
+        scrollX.setValue(initialIndex * ITEM_SIZE);
+        hasSetInitialCarouselScroll.current = true;
+      }
+      setPosts(allPosts);
+    } catch {
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, isGuest, isProfileCompleted]);
+
+  const fetchUser = useCallback(async () => {
+    if (isGuest || !token) { setUserName('Guest'); return; }
+    const res = await getFullProfile(token);
+    if (res.success && res.data?.profile) {
+      const p = res.data.profile;
+      setUserName(p.name || '');
+      setUserTagId(p.tagId || null);
+      setUserAvatar(p.profilePicture || null);
+    }
+  }, [isGuest, token]);
+
+  const fetchCollabInfo = useCallback(async () => {
+    if (!token || isGuest) return;
+    const res = await listCollaborations(token, { direction: 'all' });
+    if (res.success && Array.isArray(res.data)) {
+      const accepted = new Set<string>();
+      const sent = new Set<string>();
+      const completed = new Set<string>();
+      res.data.forEach((r: any) => {
+        // Contact shortcuts only while ACCEPTED — completing a collab closes
+        // chat/calls (backend enforces the same). This one stays owner-scoped:
+        // messaging/calls are per-pair, not per-post, so having any active
+        // collaboration with someone unlocks contact across all their posts.
+        if (r.status === 'ACCEPTED') {
+          const otherId = r.senderId === userId ? r.receiverId : r.senderId;
+          if (otherId) accepted.add(otherId);
+        }
+        // Post-scoped, unlike accepted above — a pending request on one post
+        // must not show "Request Sent" on that owner's other posts too.
+        if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
+        // Also post-scoped — once the Creator marks this specific
+        // collaboration complete, this card must show "Collaborated"
+        // instead of falling back to the plain Collaborate button (which
+        // otherwise looks like the request never happened, since
+        // completed collabs drop out of `accepted` above).
+        if (r.status === 'COMPLETED' && r.postId) completed.add(r.postId);
+      });
+      setAcceptedCollabOwnerIds(accepted);
+      setCollabSentPostIds(sent);
+      setCompletedCollabPostIds(completed);
+    }
+  }, [token, isGuest, userId]);
+
+  const fetchSavedIds = useCallback(async () => {
+    if (!token || isGuest) return;
+    const res = await getSavedPostIds(token);
+    if (res.success && Array.isArray(res.data)) {
+      setSavedPostIds(new Set(res.data));
+    }
+  }, [token, isGuest]);
+
   useFocusEffect(
     useCallback(() => {
-      const fetchPosts = async () => {
-        try {
-          // Browsing the feed doesn't require an account — token is optional here.
-          const res = await getFeed(token);
-          const allPosts: any[] = Array.isArray(res.data) ? res.data : [];
-          // Center on the middle post so its left/right neighbors both peek into
-          // view on open, showing all 3 preview posts at once (per design).
-          if (!hasSetInitialCarouselScroll.current) {
-            const visibleCount = (isGuest || isProfileCompleted) ? allPosts.length : Math.min(allPosts.length, 3);
-            const initialIndex = visibleCount >= 3 ? 1 : 0;
-            scrollX.setValue(initialIndex * ITEM_SIZE);
-            hasSetInitialCarouselScroll.current = true;
-          }
-          setPosts(allPosts);
-        } catch {
-          setPosts([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      const fetchUser = async () => {
-        if (isGuest || !token) { setUserName('Guest'); return; }
-        const res = await getFullProfile(token);
-        if (res.success && res.data?.profile) {
-          const p = res.data.profile;
-          setUserName(p.name || '');
-          setUserTagId(p.tagId || null);
-          setUserAvatar(p.profilePicture || null);
-        }
-      };
-
-      const fetchCollabInfo = async () => {
-        if (!token || isGuest) return;
-        const res = await listCollaborations(token, { direction: 'all' });
-        if (res.success && Array.isArray(res.data)) {
-          const accepted = new Set<string>();
-          const sent = new Set<string>();
-          res.data.forEach((r: any) => {
-            // Contact shortcuts only while ACCEPTED — completing a collab closes
-            // chat/calls (backend enforces the same).
-            if (r.status === 'ACCEPTED') {
-              const otherId = r.senderId === userId ? r.receiverId : r.senderId;
-              if (otherId) accepted.add(otherId);
-            }
-            if (r.status === 'PENDING' && r.senderId === userId) sent.add(r.receiverId);
-          });
-          setAcceptedCollabOwnerIds(accepted);
-          setCollabSentOwnerIds(sent);
-        }
-      };
-
-      const fetchSavedIds = async () => {
-        if (!token || isGuest) return;
-        const res = await getSavedPostIds(token);
-        if (res.success && Array.isArray(res.data)) {
-          setSavedPostIds(new Set(res.data));
-        }
-      };
-
       fetchPosts();
       fetchUser();
       fetchCollabInfo();
       fetchSavedIds();
-    }, [token, isGuest, userRole, userId])
+    }, [fetchPosts, fetchUser, fetchCollabInfo, fetchSavedIds])
   );
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchPosts(), fetchUser(), fetchCollabInfo(), fetchSavedIds()]);
+    setRefreshing(false);
+  }, [fetchPosts, fetchUser, fetchCollabInfo, fetchSavedIds]);
 
   const getOwnerName = (owner: any) => {
     if (owner?.name) return owner.name;
@@ -902,11 +940,11 @@ export default function Homepage() {
     if (isGuest || !token) { router.push('/role-selection'); return; }
     if (!requireProfile('send a collaboration')) return;
     if (!ownerId) return;
-    if (collabSentOwnerIds.has(ownerId)) return;
+    if (postId && collabSentPostIds.has(postId)) return;
     try {
       const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
       if (res.success) {
-        setCollabSentOwnerIds(prev => new Set([...prev, ownerId]));
+        if (postId) setCollabSentPostIds(prev => new Set([...prev, postId]));
       } else {
         showAlert('Collab Error', res.error || 'Could not send collaboration request.');
       }
@@ -946,6 +984,12 @@ export default function Homepage() {
       budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
       portfolioLink: owner.portfolio || owner.portfolioLink || owner.portfolioUrl || null,
+      // Small thumbnail badge on the avatar — freelancer portfolio categories
+      // only (Photography, Property Rental, Fashion Designers, Models,
+      // Styling & Makeup), same gating as Explore's card carousel.
+      portfolioThumb: owner.role === 'FREELANCER' && matchesPortfolioCategory(owner.categoryNames)
+        ? ((Array.isArray(post.imageUrls) && post.imageUrls[0]) || post.imageUrl || null)
+        : null,
     };
   }), [visiblePosts]);
 
@@ -967,8 +1011,8 @@ export default function Homepage() {
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 70 }}
         showsVerticalScrollIndicator={false}
-        bounces={false}
         removeClippedSubviews={true}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
       >
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>
@@ -1067,6 +1111,11 @@ export default function Homepage() {
             </BlurView>
 
             <View style={styles.headerRightIcons}>
+              {/* Search Button */}
+              <TouchableOpacity onPress={() => router.push('/searchbar' as any)} activeOpacity={0.75}>
+                <Image source={require('../../assets/search.png')} style={{ width: 36, height: 36 }} />
+              </TouchableOpacity>
+
               {/* Analytics Button - from Figma SVG */}
               <TouchableOpacity onPress={() => router.push('/analytics' as any)} activeOpacity={0.75}>
                 {/* <Svg width="36" height="36" viewBox="0 0 36 36" fill="none">
@@ -1283,8 +1332,9 @@ export default function Homepage() {
                   handleCall={handleCall}
                   handleShare={handleShare}
                   handleCollab={handleCollab}
-                  collabSentOwnerIds={collabSentOwnerIds}
+                  collabSentPostIds={collabSentPostIds}
                   acceptedCollabOwnerIds={acceptedCollabOwnerIds}
+                  completedCollabPostIds={completedCollabPostIds}
                   savedPostIds={savedPostIds}
                   userRole={userRole}
                 />
@@ -1334,66 +1384,70 @@ export default function Homepage() {
           </TouchableOpacity>
 
           {/* ══════════════ CREATE POST ══════════════ */}
-          {(userRole === 'CREATOR' || userRole === 'FREELANCER') && (
-            <View style={{ marginTop: 20, marginBottom: 20 }}>
+          <View style={{ marginTop: 20, marginBottom: 6 }}>
+            <View
+              style={[
+                styles.createPostFrame,
+                { borderColor: userRole === 'FREELANCER' ? 'rgba(242,97,29,0.4)' : 'rgba(237,42,145,0.4)' },
+              ]}
+            >
+              <LinearGradient
+                colors={userRole === 'FREELANCER' ? ['#3a1c08', '#0a0a0a'] : ['#3a0a20', '#0a0a0a']}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+              />
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, marginRight: 6 }}>✨</Text>
                 <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>Create Post</Text>
-                <Image
-                  source={
-                    userRole === 'FREELANCER'
-                      ? require('../../assets/star-freelancer.png')
-                      : require('../../assets/star-creator.png')
-                  }
-                  style={{ width: 28, height: 28, marginLeft: 6, marginTop: -6 }}
-                  resizeMode="contain"
-                />
               </View>
               <TouchableOpacity
                 style={styles.createPostCard}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
                 onPress={() => {
                   if (!requireProfile('create a post')) return;
                   router.push('/create-post' as any);
                 }}
-                onLayout={(e) => setCreatePostWidth(e.nativeEvent.layout.width)}
               >
-                {createPostWidth > 0 && (
-                  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-                    <Svg height="100%" width="100%">
-                      <Defs>
-                        <SvgGradient id="dashedGrad" x1="0" y1="0" x2="1" y2="1">
-                          <Stop offset="0" stopColor={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} stopOpacity="1" />
-                          <Stop offset="1" stopColor="#3b82f6" stopOpacity="1" />
-                        </SvgGradient>
-                      </Defs>
-                      <Rect
-                        x="0.5"
-                        y="0.5"
-                        width={createPostWidth - 1.5}
-                        height={178.5}
-                        rx={36}
-                        ry={36}
-                        stroke="url(#dashedGrad)"
-                        strokeWidth="0.4"
-                        strokeDasharray="8, 6"
-                        fill="transparent"
-                      />
-                    </Svg>
-                  </View>
-                )}
-                <Image
-                  source={
-                    userRole === 'FREELANCER'
-                      ? require('../../assets/newpost-freelancer.png')
-                      : require('../../assets/newpost.png')
-                  }
-                  style={{ width: 64, height: 64, marginBottom: 12 }}
-                  resizeMode="contain"
-                />
-                <Text style={styles.createPostText}>Create Your Post</Text>
+              {userRole === 'FREELANCER' ? (
+                <LinearGradient
+                  colors={['#FF9A4D', '#F2611D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.createPostIconWrap}
+                >
+                  <Ionicons name="create-outline" size={24} color="#fff" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.createPostIconWrap, { backgroundColor: '#ed2a91' }]}>
+                  <Ionicons name="create-outline" size={24} color="#fff" />
+                </View>
+              )}
+              <View style={styles.createPostTextWrap}>
+                <Text style={styles.createPostTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                  Post Your Opportunity
+                </Text>
+                <Text style={styles.createPostSubtitle} numberOfLines={2}>
+                  Create a post and reach the right audience.
+                </Text>
+              </View>
+              {userRole === 'FREELANCER' ? (
+                <LinearGradient
+                  colors={['#FF9A4D', '#F2611D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.createPostArrowBtn}
+                >
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </LinearGradient>
+              ) : (
+                <View style={[styles.createPostArrowBtn, { backgroundColor: '#ed2a91' }]}>
+                  <Ionicons name="arrow-forward" size={18} color="#fff" />
+                </View>
+              )}
               </TouchableOpacity>
             </View>
-          )}
+          </View>
 
         </View>
 
@@ -1422,12 +1476,10 @@ export default function Homepage() {
               />
             </Svg>
           </View>
-          {userRole === 'CREATOR' ? (
-            <Image source={require('../../assets/love-creator.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
-          ) : userRole === 'FREELANCER' ? (
+          {userRole === 'FREELANCER' ? (
             <Image source={require('../../assets/love-freelancer.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           ) : (
-            <Ionicons name="heart-outline" size={48} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} style={{ marginBottom: 4 }} />
+            <Image source={require('../../assets/love-creator.png')} style={{ width: 48, height: 48, marginBottom: 4 }} resizeMode="contain" />
           )}
           <View style={{ marginBottom: 16 }}>
             <Text style={styles.bharatTitleLine}>Bharat First</Text>
@@ -1870,6 +1922,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     backgroundColor: '#2A2A32',
+    position: 'relative',
   },
   figmaCardAvatarImg: {
     width: 64,
@@ -1877,6 +1930,16 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     borderWidth: 2,
     borderColor: '#1E1E24',
+  },
+  figmaCardPortfolioBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#0A0A0A',
   },
   figmaCardName: {
     color: '#fff',
@@ -1913,11 +1976,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     lineHeight: 16,
   },
+  figmaCardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  figmaCardStartingFrom: {
+    color: '#a1a2a4',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
   figmaCardPrice: {
     color: '#00a401',
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
-    marginTop: 12,
   },
   figmaCardActions: {
     flexDirection: 'row',
@@ -1978,30 +2051,60 @@ const styles = StyleSheet.create({
   },
 
   // CREATE POST
-  createPostCard: {
-    backgroundColor: '#1E1E24',
-    borderRadius: 36,
-    paddingVertical: 32,
-    alignItems: 'center',
+  createPostFrame: {
+    width: '100%',
+    maxWidth: 408,
+    minHeight: 200,
+    alignSelf: 'center',
     justifyContent: 'center',
-    height: 180,
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 20,
+    overflow: 'hidden',
+    backgroundColor: '#0a0a0a',
+  },
+  createPostCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
   },
   createPostIconWrap: {
-    width: 56,
-    height: 56,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
-  createPostHeartBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
+  createPostTextWrap: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 14,
+    marginRight: 10,
+    padding: 10,
   },
-  createPostText: {
+  createPostTitle: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 15,
     fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 4,
+  },
+  createPostSubtitle: {
+    color: '#9a9aa2',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+    lineHeight: 17,
+  },
+  createPostArrowBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // BHARAT FIRST SECTION

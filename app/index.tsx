@@ -21,7 +21,10 @@ import { clearIncomingCallNotification } from '../services/callNotification';
 import { routeNotificationData } from '../services/notificationRouting';
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
-const INTRO_DURATION_MS = 4000;
+// Was 4000ms — the choreographed animation below now finishes around 2200ms
+// (scaled down proportionally with FILL_DONE_TIME), so this only needs a
+// short hold after that, not a fixed 4s wait on every single app open.
+const INTRO_DURATION_MS = 2400;
 
 // Box dimensions
 const BOX_SIZE = 130;
@@ -164,8 +167,10 @@ export default function Index() {
     const screenOpacity = useSharedValue(1);
 
     useEffect(() => {
-        // Phase 1: Liquid filling takes ~2600ms
-        const FILL_DONE_TIME = 2600;
+        // Phase 1: Liquid filling takes ~1300ms (was 2600ms — the whole intro
+        // choreography below is timed off this constant, so halving it
+        // proportionally speeds up every phase without anything looking cut off).
+        const FILL_DONE_TIME = 1300;
 
         // ── Phase 2: Box fades & scales down slowly ──
         const COLLAPSE_START = FILL_DONE_TIME + 200;
@@ -293,14 +298,14 @@ export default function Index() {
                     {/* White wave (slightly faster, peaks out from behind) */}
                     <PerfectLiquidWave 
                         color="rgba(255, 255, 255, 1)" 
-                        fillDuration={2600} 
+                        fillDuration={1300} 
                         delay={120} 
                     />
                     
                     {/* Pink → Orange gradient wave */}
                     <PerfectLiquidWave 
                         isGradient={true} 
-                        fillDuration={2600} 
+                        fillDuration={1300} 
                         delay={150} 
                     />
                 </Animated.View>

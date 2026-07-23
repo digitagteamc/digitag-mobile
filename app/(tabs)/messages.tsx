@@ -64,7 +64,7 @@ export default function MessagesTab() {
         searchDebounce.current = setTimeout(async () => {
             if (!token) { setProfileLoading(false); return; }
             const res = await searchProfiles(token, search.trim());
-            setProfileResults(res.success ? res.data : []);
+            setProfileResults(res.success && Array.isArray(res.data?.users) ? res.data.users : []);
             setProfileLoading(false);
         }, 350);
         return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };

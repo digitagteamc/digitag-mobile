@@ -1,17 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-    endConnection,
-    finishTransaction,
-    getAvailablePurchases,
-    getSubscriptions,
-    initConnection,
-    Purchase,
-    purchaseErrorListener,
-    purchaseUpdatedListener,
-    requestSubscription,
-    Subscription,
-} from 'react-native-iap';
+import { useIAP, type Purchase, type ProductSubscription } from 'expo-iap';
 import { verifyApplePurchase } from '../services/userService';
 
 // Must exactly match the subscription product id created in App Store
@@ -22,75 +11,107 @@ export const APPLE_PREMIUM_PRODUCT_ID = 'premium_monthly';
 
 type PurchaseState = 'idle' | 'connecting' | 'purchasing' | 'verifying';
 
+// expo-iap's transactionId is deprecated in favor of the unified `id` field —
+// both are populated for iOS purchases today, but `id` is the field the spec
+// is migrating to, so prefer it and fall back for safety.
+function transactionIdOf(purchase: Purchase): string | null {
+    return purchase.transactionId ?? purchase.id ?? null;
+}
+
 /** Owns the whole StoreKit purchase lifecycle: connection, product fetch,
  *  purchase request, backend verification, and finishing the transaction.
- *  iOS only — Android/web use the existing Razorpay flow. */
+ *  iOS only — Android/web use the existing Razorpay flow. expo-iap's useIAP
+ *  hook auto-connects to the store on mount regardless of platform (it's a
+ *  real cross-platform Expo Module, unlike the old Nitro-based
+ *  react-native-iap which isn't supported under Expo Dev Client at all) —
+ *  the `enabled`/Platform.OS gates below only decide whether *we* act on it,
+ *  not whether the hook itself is mounted (Rules of Hooks). */
 export function useApplePurchase(token: string | null, enabled: boolean) {
     const [state, setState] = useState<PurchaseState>('idle');
     const [error, setError] = useState<string | null>(null);
-    const [product, setProduct] = useState<Subscription | null>(null);
     const onPremiumRef = useRef<((isPremium: boolean) => void) | null>(null);
+    const tokenRef = useRef(token);
+    tokenRef.current = token;
+    const finishRef = useRef<(purchase: Purchase) => Promise<void>>(async () => {});
+    const restoringRef = useRef(false);
 
-    useEffect(() => {
-        // Also gated on the remote PREMIUM_ENABLED flag — while Premium is
-        // paused, never touch the native IAP module at all. Matters doubly
-        // right now: no real subscription product exists in App Store Connect
-        // yet, so there's nothing productive an early connection would do.
-        if (Platform.OS !== 'ios' || !enabled) return;
-        let mounted = true;
-        let updateSub: { remove(): void } | null = null;
-        let errorSub: { remove(): void } | null = null;
-
-        const verifyAndFinish = async (purchase: Purchase) => {
-            if (!token || !purchase.transactionId) return;
+    const {
+        connected,
+        subscriptions,
+        fetchProducts,
+        requestPurchase,
+        finishTransaction,
+        getAvailablePurchases,
+        availablePurchases,
+    } = useIAP({
+        onPurchaseSuccess: async (purchase: Purchase) => {
+            const transactionId = transactionIdOf(purchase);
+            if (!tokenRef.current || !transactionId) return;
             setState('verifying');
             try {
-                const res = await verifyApplePurchase(token, purchase.transactionId);
+                const res = await verifyApplePurchase(tokenRef.current, transactionId);
                 if (res.success && res.data?.isPremium) {
                     onPremiumRef.current?.(true);
                     // Tells StoreKit we've delivered the goods — must happen only
                     // after our backend confirms Premium is actually active, or a
                     // failed verification would still let StoreKit stop redelivering
                     // the purchase event on next app launch.
-                    await finishTransaction({ purchase, isConsumable: false });
+                    await finishRef.current(purchase);
                 } else {
                     setError(res.error || 'Could not verify this purchase.');
                 }
             } catch (e: any) {
                 setError(e?.message || 'Could not verify this purchase.');
             } finally {
-                if (mounted) setState('idle');
+                setState('idle');
             }
-        };
+        },
+        onPurchaseError: (e) => {
+            // User cancelling the native sheet is not a real error.
+            if (!/cancel/i.test(e.message || '')) setError(e.message || 'Purchase failed.');
+            setState('idle');
+        },
+    });
 
-        // Everything here — including just calling these functions — can throw
-        // synchronously (e.g. E_IAP_NOT_AVAILABLE when the native module isn't
-        // linked into the current build yet), not just reject asynchronously.
-        // A bare .then()/.catch() chain never attaches in that case, so this
-        // whole block needs to be a real try/catch, not just promise handling.
-        try {
-            initConnection()
-                .then(() => getSubscriptions({ skus: [APPLE_PREMIUM_PRODUCT_ID] }))
-                .then((subs) => { if (mounted && subs?.[0]) setProduct(subs[0]); })
-                .catch((e) => { if (mounted) setError(e?.message || 'Could not connect to the App Store.'); });
+    useEffect(() => {
+        finishRef.current = (purchase) => finishTransaction({ purchase, isConsumable: false });
+    }, [finishTransaction]);
 
-            updateSub = purchaseUpdatedListener(verifyAndFinish);
-            errorSub = purchaseErrorListener((e) => {
-                // User cancelling the native sheet is not a real error.
-                if (mounted && !/cancel/i.test(e.message || '')) setError(e.message || 'Purchase failed.');
-                if (mounted) setState('idle');
-            });
-        } catch (e: any) {
-            if (mounted) setError(e?.message || 'In-App Purchase is not available on this build yet.');
-        }
+    useEffect(() => {
+        // Also gated on the remote PREMIUM_ENABLED flag — while Premium is
+        // paused, never fetch the product at all.
+        if (Platform.OS !== 'ios' || !enabled || !connected) return;
+        fetchProducts({ skus: [APPLE_PREMIUM_PRODUCT_ID], type: 'subs' }).catch((e: any) => {
+            setError(e?.message || 'Could not connect to the App Store.');
+        });
+    }, [enabled, connected, fetchProducts]);
 
-        return () => {
-            mounted = false;
-            updateSub?.remove();
-            errorSub?.remove();
-            try { endConnection(); } catch { /* same as above — must never throw past a cleanup fn */ }
-        };
-    }, [token, enabled]);
+    // getAvailablePurchases() resolves to void and updates `availablePurchases`
+    // state asynchronously (per expo-iap's own hook semantics) — reading that
+    // state right after awaiting the call would see a stale closure, so restore
+    // logic reacts to the state change instead of the call's own resolution.
+    useEffect(() => {
+        if (!restoringRef.current) return;
+        restoringRef.current = false;
+        (async () => {
+            const mine = availablePurchases.filter((p) => p.productId === APPLE_PREMIUM_PRODUCT_ID);
+            if (!mine.length) {
+                setError('No previous purchase found for this Apple ID.');
+                setState('idle');
+                return;
+            }
+            for (const p of mine) {
+                const transactionId = transactionIdOf(p);
+                if (!transactionId || !tokenRef.current) continue;
+                const res = await verifyApplePurchase(tokenRef.current, transactionId);
+                if (res.success && res.data?.isPremium) onPremiumRef.current?.(true);
+            }
+            setState('idle');
+        })();
+    }, [availablePurchases]);
+
+    const product: ProductSubscription | null =
+        subscriptions.find((s) => s.id === APPLE_PREMIUM_PRODUCT_ID) ?? null;
 
     const purchase = useCallback(async (onPremium: (isPremium: boolean) => void) => {
         if (Platform.OS !== 'ios' || !enabled) return;
@@ -98,39 +119,34 @@ export function useApplePurchase(token: string | null, enabled: boolean) {
         setError(null);
         setState('purchasing');
         try {
-            await requestSubscription({ sku: APPLE_PREMIUM_PRODUCT_ID });
-            // Resolution happens in purchaseUpdatedListener above, not here —
-            // requestSubscription only confirms the native sheet was shown.
+            await requestPurchase({
+                type: 'subs',
+                request: { ios: { sku: APPLE_PREMIUM_PRODUCT_ID } },
+            });
+            // Resolution happens in onPurchaseSuccess above, not here —
+            // requestPurchase only confirms the native sheet was shown.
         } catch (e: any) {
             if (!/cancel/i.test(e?.message || '')) setError(e?.message || 'Could not start checkout.');
             setState('idle');
         }
-    }, [enabled]);
+    }, [enabled, requestPurchase]);
 
     /** Apple requires a way to restore prior purchases (a fresh install, or a
      *  user who reinstalled) — re-verifies every still-active purchase found. */
     const restore = useCallback(async (onPremium: (isPremium: boolean) => void) => {
         if (Platform.OS !== 'ios' || !token || !enabled) return;
+        onPremiumRef.current = onPremium;
         setError(null);
         setState('verifying');
+        restoringRef.current = true;
         try {
-            const purchases = await getAvailablePurchases();
-            const mine = purchases.filter((p) => p.productId === APPLE_PREMIUM_PRODUCT_ID);
-            if (!mine.length) {
-                setError('No previous purchase found for this Apple ID.');
-                return;
-            }
-            for (const p of mine) {
-                if (!p.transactionId) continue;
-                const res = await verifyApplePurchase(token, p.transactionId);
-                if (res.success && res.data?.isPremium) onPremium(true);
-            }
+            await getAvailablePurchases();
         } catch (e: any) {
+            restoringRef.current = false;
             setError(e?.message || 'Could not restore purchases.');
-        } finally {
             setState('idle');
         }
-    }, [token, enabled]);
+    }, [token, enabled, getAvailablePurchases]);
 
     return { state, error, product, purchase, restore };
 }
