@@ -290,7 +290,7 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
 const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {platform}
+            {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
         <View className="flex-row gap-2">
             <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
@@ -335,7 +335,7 @@ const InstagramVerifyRow = ({
 }: IgVerifyProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            Instagram
+            Instagram <Text className="text-[#EF4444]">*</Text>
         </Text>
         <View className={`h-[56px] px-4 rounded-[12px] justify-center mb-2 ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'}`}>
             <TextInput
@@ -401,7 +401,7 @@ const SocialVerifyRow = ({
 }: SocialVerifyRowProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {platform}
+            {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
         {verified ? (
             <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
@@ -1253,7 +1253,7 @@ export default function CreatorSignup() {
 
                                 {mode === 'update' ? (
                                     <View className="mb-4">
-                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram</Text>
+                                        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">Instagram <Text className="text-[#EF4444]">*</Text></Text>
                                         <View className="bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center flex-row items-center">
                                             <Text className="text-[#888] font-poppins-regular flex-1">@{form.instagramHandle || '—'}</Text>
                                             <Text className="text-[#555] text-[11px] font-poppins-regular">Verified · Not editable</Text>
