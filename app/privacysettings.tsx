@@ -3,8 +3,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
+    Alert,
     Image,
-    Linking,
     Platform,
     ScrollView,
     StatusBar,
@@ -19,20 +20,43 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
-import { getPrivacySettings, updatePrivacySettings } from '../services/userService';
+import { deleteAccount, getPrivacySettings, updatePrivacySettings } from '../services/userService';
 
 export default function PrivacySettingsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
-    const { token, userRole } = useAuth();
+    const { token, userRole, logout } = useAuth();
+    const [deleting, setDeleting] = useState(false);
 
-    // Deletion isn't self-serve — it's handled by support over email so a
-    // human confirms it's really the account owner asking.
+    // Self-serve, in-app deletion (Apple 5.1.1(v) / Play Data Safety require this —
+    // routing users out to email support to "request" deletion isn't sufficient).
+    // A confirmation step guards against accidental taps; the actual account/data
+    // wipe is DELETE /auth/account, already fully implemented server-side.
     const handleRequestAccountDeletion = () => {
-        const subject = encodeURIComponent('Account Deletion Request');
-        const body = encodeURIComponent('Please delete my DigiTag account.\n\nRegistered mobile number: ');
-        Linking.openURL(`mailto:support@thedigitag.ai?subject=${subject}&body=${body}`).catch(() => {});
+        if (!token || deleting) return;
+        Alert.alert(
+            'Delete your account?',
+            'This permanently deletes your DigiTag account, profile, posts, and messages. This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete Account',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setDeleting(true);
+                        const res = await deleteAccount(token);
+                        setDeleting(false);
+                        if (res.success) {
+                            await logout();
+                            router.replace('/');
+                        } else {
+                            Alert.alert('Something went wrong', res.error || 'Could not delete your account. Please try again.');
+                        }
+                    },
+                },
+            ],
+        );
     };
 
     // Custom Animated Switch Component (same as in settings.tsx)
@@ -224,9 +248,16 @@ export default function PrivacySettingsScreen() {
                             className="bg-[#121212]/50 border border-[#2A2A2A] rounded-3xl p-4"
                             onPress={handleRequestAccountDeletion}
                             activeOpacity={0.75}
+                            disabled={deleting}
                         >
-                            <Text className="text-[#E30000] text-[20px] font-poppins-medium mb-1">Request Account Deletion</Text>
-                            <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Email our support team to permanently delete your account and all data</Text>
+                            {deleting ? (
+                                <ActivityIndicator color="#E30000" />
+                            ) : (
+                                <>
+                                    <Text className="text-[#E30000] text-[20px] font-poppins-medium mb-1">Delete Account</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Permanently delete your account and all your data. This cannot be undone.</Text>
+                                </>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
