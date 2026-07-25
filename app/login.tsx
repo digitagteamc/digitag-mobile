@@ -30,6 +30,20 @@ import { verifyFirebaseToken } from '../services/userService';
 
 type SignupRole = 'CREATOR' | 'FREELANCER';
 
+// Firebase throws raw, technical error text (e.g. "[auth/invalid-verification-code]
+// The sms verification code used to create the phone auth credential is invalid...")
+// straight from confirm.confirm(otp) — map the codes users actually hit to plain copy
+// instead of surfacing that directly.
+function friendlyOtpError(error: any): string {
+    const code = error?.code || '';
+    if (code.includes('invalid-verification-code')) return 'Invalid OTP. Please check the code and try again.';
+    if (code.includes('code-expired')) return 'This OTP has expired. Please request a new one.';
+    if (code.includes('session-expired') || code.includes('invalid-verification-id')) return 'Session expired. Please request a new OTP.';
+    if (code.includes('too-many-requests')) return 'Too many attempts. Please try again later.';
+    if (code.includes('network')) return 'Network error. Please check your connection and try again.';
+    return 'Invalid OTP. Please try again.';
+}
+
 export default function LoginScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ role?: string }>();
@@ -151,7 +165,7 @@ export default function LoginScreen() {
 
                     router.replace('/(tabs)');
                 } catch (error: any) {
-                    setOtpError(error.message || 'Verification failed.');
+                    setOtpError(friendlyOtpError(error));
                 } finally {
                     setLoading(false);
                 }
@@ -259,7 +273,7 @@ export default function LoginScreen() {
 
             router.replace('/(tabs)');
         } catch (error: any) {
-            setOtpError(error.message || 'Verification failed.');
+            setOtpError(friendlyOtpError(error));
         } finally {
             setLoading(false);
         }
