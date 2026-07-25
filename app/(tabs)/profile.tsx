@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   Linking,
   Modal,
   Platform,
@@ -112,6 +113,7 @@ export default function ProfileScreen() {
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   // ── Instagram Accounts (add/verify/remove) ──
+  const [igSectionExpanded, setIgSectionExpanded] = useState(false);
   const [addingIgAccount, setAddingIgAccount] = useState(false);
   const [newIgHandle, setNewIgHandle] = useState('');
   const [igStarting, setIgStarting] = useState(false);
@@ -121,6 +123,18 @@ export default function ProfileScreen() {
   const [removingIgId, setRemovingIgId] = useState<string | null>(null);
   const igPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => () => { if (igPollRef.current) clearInterval(igPollRef.current); }, []);
+
+  // KeyboardAvoidingView doesn't reliably resize content rendered inside a
+  // React Native <Modal> (especially on Android), so the "Add Instagram
+  // Account" sheet tracks keyboard height itself and shifts up manually.
+  const [igKeyboardHeight, setIgKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => setIgKeyboardHeight(e.endCoordinates.height));
+    const hideSub = Keyboard.addListener(hideEvent, () => setIgKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
   const [activityTab, setActivityTab] = useState<'posts' | 'collab'>('posts');
   const [expandedActivityIds, setExpandedActivityIds] = useState<Set<string>>(new Set());
   const [completingCollabId, setCompletingCollabId] = useState<string | null>(null);
@@ -777,7 +791,7 @@ export default function ProfileScreen() {
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
-            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  " resizeMode="cover" />
+            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  opacity-30 " resizeMode="cover" />
             {/* Dark overlay matching index.tsx gradient — darkened further so the
                 background photo stays subdued behind the profile info */}
             <LinearGradient colors={['rgba(0,0,0,0.55)', '#000']} className="absolute inset-0" />
@@ -1033,10 +1047,42 @@ export default function ProfileScreen() {
                 })}
               </View>
 
-              {/* ══════════ INSTAGRAM ACCOUNTS ══════════ */}
+              {/* ══════════ INSTAGRAM ACCOUNTS ══════════
+                  Guests have no profile to attach links to, and a non-guest lands
+                  here only once their profile is already complete (see the
+                  isProfileCompleted gate above), so this only needs to exclude guests. */}
+              {!isGuest && (
+              <>
               <View className="mx-5 mt-4 rounded-[28px] border border-white/10 bg-[#0A0A0A] px-5 py-4">
-                <Text className="text-white text-[16px] mb-3" style={{ fontFamily: 'Poppins_600SemiBold' }}>Instagram Accounts</Text>
+                <Text className="text-white text-[16px] mb-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>Add Social Media Links</Text>
+                <Text className="text-white text-[12px] mb-3" style={{ fontFamily: 'Poppins_400Regular' }}>Proposal pattern for Profile {'>'} Social Links – Manage</Text>
 
+                {/* Collapsed trigger row — tap to expand and manage Instagram links */}
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => setIgSectionExpanded((v) => !v)}
+                  className="flex-row items-center bg-white/5 rounded-[16px] px-3 py-2.5"
+                >
+                  <Image source={require('../../assets/skill-icons_instagram.png')} style={{ width: 36, height: 36, borderRadius: 10, marginRight: 10 }} resizeMode="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_600SemiBold' }}>Instagram</Text>
+                    <Text style={{ color: '#888', fontSize: 12.5, fontFamily: 'Poppins_400Regular', marginTop: 1 }}>
+                      {(profile?.instagramAccounts ?? [])[0] ? `@${(profile?.instagramAccounts ?? [])[0].instagramUsername}` : 'Not connected'}
+                    </Text>
+                  </View>
+                  <View
+                    className="rounded-full px-2.5 py-1 mr-2"
+                    style={{ backgroundColor: 'rgba(16,185,129,0.14)' }}
+                  >
+                    <Text style={{ color: '#10B981', fontSize: 12, fontFamily: 'Poppins_600SemiBold' }}>
+                      {(profile?.instagramAccounts ?? []).length} link{(profile?.instagramAccounts ?? []).length === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                  <Ionicons name={igSectionExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#888" />
+                </TouchableOpacity>
+
+                {igSectionExpanded && (
+                <View className="mt-3">
                 {(profile?.instagramAccounts ?? []).map((acc) => (
                   <View key={acc.id} className="flex-row items-center py-2.5 border-b border-white/5">
                     <TouchableOpacity
@@ -1062,49 +1108,80 @@ export default function ProfileScreen() {
                   </View>
                 ))}
 
-                {addingIgAccount ? (
-                  <View className="mt-3">
-                    <TextInput
-                      value={newIgHandle}
-                      onChangeText={setNewIgHandle}
-                      placeholder="Instagram username or link"
-                      placeholderTextColor="#666"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      className="bg-[#1A1A1A] text-white rounded-[14px] px-4 h-[48px] mb-2.5"
-                      style={{ fontFamily: 'Poppins_400Regular' }}
-                    />
-                    <View className="flex-row gap-2.5">
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => setAddingIgAccount(true)}
+                  className="flex-row items-center justify-center mt-1 py-3"
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={theme.primary} style={{ marginRight: 6 }} />
+                  <Text style={{ color: theme.primary, fontFamily: 'Poppins_600SemiBold', fontSize: 14 }}>Add Instagram Account</Text>
+                </TouchableOpacity>
+                </View>
+                )}
+              </View>
+
+              {/* ══════════ ADD INSTAGRAM ACCOUNT — bottom sheet ══════════ */}
+              <Modal visible={addingIgAccount} transparent animationType="slide" onRequestClose={() => { setAddingIgAccount(false); setNewIgHandle(''); }}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
+                  <View style={{ backgroundColor: '#111', borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '85%', marginBottom: igKeyboardHeight }}>
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
+                      contentContainerStyle={{ padding: 24, paddingBottom: 36 }}
+                    >
+                      <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                        <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="logo-instagram" size={24} color="#fff" />
+                        </View>
+                        <TouchableOpacity
+                          activeOpacity={0.75}
+                          onPress={() => { setAddingIgAccount(false); setNewIgHandle(''); }}
+                          style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#2A2A2A', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Ionicons name="close" size={18} color="#ccc" />
+                        </TouchableOpacity>
+                      </View>
+
+                      <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', marginBottom: 4 }}>Add Instagram Account</Text>
+                      <Text style={{ color: '#888', fontSize: 13, fontFamily: 'Poppins_400Regular', marginBottom: 22 }}>Connect another Instagram account to your profile</Text>
+
+                      <Text style={{ color: '#aaa', fontSize: 13, fontFamily: 'Poppins_400Regular', marginBottom: 8 }}>Instagram Username or Link</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 14, height: 52, paddingHorizontal: 14, marginBottom: 26 }}>
+                        <Ionicons name="logo-instagram" size={18} color="#666" style={{ marginRight: 10 }} />
+                        <TextInput
+                          value={newIgHandle}
+                          onChangeText={setNewIgHandle}
+                          placeholder="e.g. @yourhandle or instagram.com/yourhandle"
+                          placeholderTextColor="#666"
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          style={{ flex: 1, color: '#fff', fontFamily: 'Poppins_400Regular', fontSize: 14 }}
+                        />
+                      </View>
+
                       <TouchableOpacity
-                        activeOpacity={0.8}
+                        activeOpacity={0.85}
                         disabled={igStarting}
                         onPress={handleAddIgAccount}
-                        style={{ flex: 1, backgroundColor: theme.primary, borderRadius: 14, height: 46, alignItems: 'center', justifyContent: 'center' }}
+                        style={{ backgroundColor: theme.primary, borderRadius: 999, height: 54, alignItems: 'center', justifyContent: 'center', marginBottom: 12, opacity: igStarting ? 0.7 : 1 }}
                       >
                         {igStarting ? <ActivityIndicator size="small" color="#fff" /> : (
-                          <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14 }}>Verify</Text>
+                          <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Verify</Text>
                         )}
                       </TouchableOpacity>
                       <TouchableOpacity
-                        activeOpacity={0.8}
+                        activeOpacity={0.85}
                         onPress={() => { setAddingIgAccount(false); setNewIgHandle(''); }}
-                        style={{ flex: 1, borderWidth: 1, borderColor: '#333', borderRadius: 14, height: 46, alignItems: 'center', justifyContent: 'center' }}
+                        style={{ borderWidth: 1, borderColor: '#3A3A3A', borderRadius: 999, height: 54, alignItems: 'center', justifyContent: 'center' }}
                       >
-                        <Text style={{ color: '#888', fontFamily: 'Poppins_500Medium', fontSize: 14 }}>Cancel</Text>
+                        <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Cancel</Text>
                       </TouchableOpacity>
-                    </View>
+                    </ScrollView>
                   </View>
-                ) : (
-                  <TouchableOpacity
-                    activeOpacity={0.75}
-                    onPress={() => setAddingIgAccount(true)}
-                    className="flex-row items-center justify-center mt-1 py-3"
-                  >
-                    <Ionicons name="add-circle-outline" size={18} color={theme.primary} style={{ marginRight: 6 }} />
-                    <Text style={{ color: theme.primary, fontFamily: 'Poppins_600SemiBold', fontSize: 14 }}>Add Instagram Account</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                </View>
+              </Modal>
 
               <IgVerifyModal
                 visible={igModalVisible}
@@ -1116,6 +1193,8 @@ export default function ProfileScreen() {
                 accentColor={theme.primary}
                 onClose={handleIgModalClose}
               />
+              </>
+              )}
 
               {/* ══════════ POSTS / COLLAB ACTIVITY ══════════ */}
               <View className="flex-row mx-5 mt-6 border-b border-white/10">
