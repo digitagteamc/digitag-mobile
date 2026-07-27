@@ -1,5 +1,5 @@
-import { useProfileGate } from '@/context/ProfileGateContext';
 import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,7 +34,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, Defs, Path, Rect, Stop, Svg, LinearGradient as SvgGradient, SvgXml, Text as SvgText, TSpan } from 'react-native-svg';
+import { Circle, Defs, Path, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
@@ -45,7 +45,7 @@ import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 const { width } = Dimensions.get('window');
 
 const CARD_WIDTH = 250;
-const SPACING = 10;
+const SPACING = 0;
 const ITEM_SIZE = CARD_WIDTH + SPACING;
 
 const FALLBACK_BANNER = null;
@@ -73,7 +73,7 @@ const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
 const slide3 = require('../../assets/slides/slide3.webp');
 const slide4 = require('../../assets/slides/slide4.webp');
-
+ 
 
 const CAROUSEL_DATA = [
   {
@@ -220,6 +220,8 @@ const HeroGradientText = ({
   text,
   color,
   gradientColors,
+  gradientStops,
+  deg = 90,
   fontSize = 14,
   fontFamily = 'Poppins_600SemiBold',
   height,
@@ -228,6 +230,8 @@ const HeroGradientText = ({
   text: string;
   color?: string;
   gradientColors?: string[];
+  gradientStops?: { offset: string; color: string }[];
+  deg?: number;
   fontSize?: number;
   fontFamily?: string;
   height?: number;
@@ -237,7 +241,24 @@ const HeroGradientText = ({
   const heightVal = height ?? fontSize * 1.5;
   const gradId = React.useMemo(() => `heroGrad_${text.replace(/[^a-zA-Z0-9]/g, '')}`, [text]);
 
+  const { x1, y1, x2, y2 } = React.useMemo(() => {
+    const angleInRad = ((deg - 90) * Math.PI) / 180;
+    const x = Math.cos(angleInRad);
+    const y = Math.sin(angleInRad);
+    return {
+      x1: `${((0.5 - x / 2) * 100).toFixed(2)}%`,
+      y1: `${((0.5 - y / 2) * 100).toFixed(2)}%`,
+      x2: `${((0.5 + x / 2) * 100).toFixed(2)}%`,
+      y2: `${((0.5 + y / 2) * 100).toFixed(2)}%`,
+    };
+  }, [deg]);
+
   const stops = React.useMemo(() => {
+    if (gradientStops && gradientStops.length >= 2) {
+      return gradientStops.map((st, idx) => (
+        <Stop key={idx} offset={st.offset} stopColor={st.color} stopOpacity="1" />
+      ));
+    }
     if (gradientColors && gradientColors.length >= 2) {
       return gradientColors.map((col, idx) => (
         <Stop key={idx} offset={`${idx / (gradientColors.length - 1)}`} stopColor={col} stopOpacity="1" />
@@ -247,13 +268,13 @@ const HeroGradientText = ({
       <Stop key="0" offset="0" stopColor="#FFFFFF" stopOpacity="1" />,
       <Stop key="1" offset={color ? "1" : "0"} stopColor={color || '#FFFFFF'} stopOpacity="1" />
     ];
-  }, [gradientColors, color]);
+  }, [gradientStops, gradientColors, color]);
 
   return (
     <View style={[{ width: widthVal, height: heightVal }, style]}>
       <Svg height="100%" width="100%" viewBox={`0 0 ${widthVal} ${heightVal}`}>
         <Defs>
-          <SvgGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+          <SvgGradient id={gradId} x1={x1} y1={y1} x2={x2} y2={y2}>
             {stops}
           </SvgGradient>
         </Defs>
@@ -709,7 +730,7 @@ export default function Homepage() {
     ];
   }, [userRole]);
 
-  const catGap = userRole === 'FREELANCER' ? 12 : 12;
+  const catGap = userRole === 'FREELANCER' ? 2 : 2;
   const colWidth = 100;
   const snapInterval = userRole === 'FREELANCER' ? colWidth + catGap : colWidth * 2 + 14 * 2;
 
@@ -1183,7 +1204,7 @@ export default function Homepage() {
           /> */}
         </View>
 
-        <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
+        <View style={{ paddingHorizontal: 10, paddingTop: 32 }}>
           {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
           <View style={{ marginBottom: 10 }}>
             <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>
@@ -1209,7 +1230,7 @@ export default function Homepage() {
               renderItem={({ item: colItems }) => {
                 const isFreelancer = userRole === 'FREELANCER';
                 return (
-                  <View style={[styles.catColumn, { gap: 14, width: 100 }]}>
+                  <View style={[styles.catColumn, { gap: 10, width: 100 }]}>
                     {colItems.map((cat) => {
                       const globalIdx = isFreelancer
                         ? FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)
@@ -1287,11 +1308,7 @@ export default function Homepage() {
         ) : cards.length === 0 ? (
           <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
         ) : (
-          <LinearGradient
-            colors={['transparent', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.10)' : 'rgba(237, 42, 145, 0.10)', userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.15)' : 'rgba(237, 42, 145, 0.15)', 'transparent']}
-            locations={[0, 0.3, 0.7, 1]}
-            style={{ paddingVertical: 10 }}
-          >
+          <View style={{ paddingVertical: 10, position: 'relative' }}>
             <Animated.FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -1340,7 +1357,7 @@ export default function Homepage() {
                 />
               )}
             />
-          </LinearGradient>
+          </View>
         )}
 
         {hasMoreHiddenPosts && (
@@ -1374,12 +1391,12 @@ export default function Homepage() {
             onPress={() => router.push('/explore')}
           >
             <LinearGradient
-              colors={['#FF611A', '#E526A6']}
+              colors={['rgba(255, 97, 26, 1)', 'rgba(229, 38, 166, 1)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.exploreNowBtnGrad}
             >
-              <Text style={styles.exploreNowBtnText}>Explore now</Text>
+              <Text style={styles.exploreNowBtnText}>Explore Now</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -1388,14 +1405,46 @@ export default function Homepage() {
             <View
               style={[
                 styles.createPostFrame,
-                { borderColor: userRole === 'FREELANCER' ? 'rgba(242,97,29,0.4)' : 'rgba(237,42,145,0.4)' },
+                { borderColor: userRole === 'FREELANCER' ? 'rgba(242,105,48,0.36)' : 'rgba(232,51,128,0.35)' },
               ]}
             >
-              <LinearGradient
+              {/* <LinearGradient
                 colors={userRole === 'FREELANCER' ? ['#3a1c08', '#0a0a0a'] : ['#3a0a20', '#0a0a0a']}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
+              /> */}
+              {/* Top-Right Glow Accent */}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  top: -100,
+                  right: -68,
+                  width: 200,
+                  height: 200,
+                  borderRadius: 140,
+                  backgroundColor: userRole === 'FREELANCER' ? '#F26930' : '#E80A70',
+                  opacity: 0.55,
+                  // @ts-ignore
+                  filter: 'blur(35px)',
+                }}
+              />
+              {/* Bottom-Left Glow Accent */}
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: -100,
+                  bottom: -100,
+                  width: 180,
+                  height: 180,
+                  borderRadius: 180,
+                  backgroundColor: userRole === 'FREELANCER' ? '#F26930' : '#E80A70',
+                  opacity: 0.4,
+                  // @ts-ignore
+                  filter: 'blur(35px)',
+                }}
               />
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <Text style={{ fontSize: 18, marginRight: 6 }}>✨</Text>
@@ -1409,42 +1458,52 @@ export default function Homepage() {
                   router.push('/create-post' as any);
                 }}
               >
-              {userRole === 'FREELANCER' ? (
-                <LinearGradient
-                  colors={['#FF9A4D', '#F2611D']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.createPostIconWrap}
-                >
-                  <Ionicons name="create-outline" size={24} color="#fff" />
-                </LinearGradient>
-              ) : (
-                <View style={[styles.createPostIconWrap, { backgroundColor: '#ed2a91' }]}>
-                  <Ionicons name="create-outline" size={24} color="#fff" />
+                {userRole === 'FREELANCER' ? (
+                  <LinearGradient
+                    colors={['#FF9A4D', '#F2611D']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.createPostIconWrap}
+                  >
+                    <Image source={require('../../assets/Pencil-Icon.png')} style={{ width: 24, height: 24 }} resizeMode="contain" />
+                  </LinearGradient>
+                ) : (
+                  <LinearGradient
+                    colors={['rgba(237, 69, 153, 1)', 'rgba(232, 10, 112, 1)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.createPostIconWrap}
+                  >
+                    <Image source={require('../../assets/Pencil-Icon.png')} style={{ width: 24, height: 24 }} resizeMode="contain" />
+                  </LinearGradient>
+                )}
+                <View style={styles.createPostTextWrap}>
+                  <Text style={styles.createPostTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                    Post Your Opportunity
+                  </Text>
+                  <Text style={styles.createPostSubtitle} numberOfLines={2}>
+                    Create a post and reach the right audience.
+                  </Text>
                 </View>
-              )}
-              <View style={styles.createPostTextWrap}>
-                <Text style={styles.createPostTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
-                  Post Your Opportunity
-                </Text>
-                <Text style={styles.createPostSubtitle} numberOfLines={2}>
-                  Create a post and reach the right audience.
-                </Text>
-              </View>
-              {userRole === 'FREELANCER' ? (
-                <LinearGradient
-                  colors={['#FF9A4D', '#F2611D']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.createPostArrowBtn}
-                >
-                  <Ionicons name="arrow-forward" size={18} color="#fff" />
-                </LinearGradient>
-              ) : (
-                <View style={[styles.createPostArrowBtn, { backgroundColor: '#ed2a91' }]}>
-                  <Ionicons name="arrow-forward" size={18} color="#fff" />
-                </View>
-              )}
+                {userRole === 'FREELANCER' ? (
+                  <LinearGradient
+                    colors={['#FF9A4D', '#F2611D']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.createPostArrowBtn}
+                  >
+                    <Image source={require('../../assets/arrow.png')} style={{ width: 18, height: 18 }} resizeMode="contain" />
+                  </LinearGradient>
+                ) : (
+                  <LinearGradient
+                    colors={['#ED4599', '#E80A70']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.createPostArrowBtn}
+                  >
+                    <Image source={require('../../assets/arrow.png')} style={{ width: 18, height: 18 }} resizeMode="contain" />
+                  </LinearGradient>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -1485,7 +1544,11 @@ export default function Homepage() {
             <Text style={styles.bharatTitleLine}>Bharat First</Text>
             <HeroGradientText
               text="Collaboration"
-              gradientColors={['rgba(237, 42, 145, 1)', 'rgba(252, 97, 33, 1)']}
+              deg={90}
+              gradientStops={[
+                { offset: '14.08%', color: 'rgba(237, 42, 145, 1)' },
+                { offset: '110.25%', color: 'rgba(252, 97, 33, 1)' },
+              ]}
               fontSize={32}
               fontFamily="Poppins_700Bold"
               height={40}
@@ -1495,7 +1558,11 @@ export default function Homepage() {
               <Text style={styles.bharatTitleLine}>Network For </Text>
               <HeroGradientText
                 text={userRole === 'FREELANCER' ? 'Freelancers' : 'Creators'}
-                gradientColors={['rgba(237, 42, 145, 1)', 'rgba(252, 97, 33, 1)']}
+                deg={90}
+                gradientStops={[
+                  { offset: '14.08%', color: '#ED2A91' },
+                  { offset: '110.25%', color: '#FC6121' },
+                ]}
                 fontSize={32}
                 fontFamily="Poppins_700Bold"
                 height={40}
@@ -1504,7 +1571,7 @@ export default function Homepage() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', }}>
             <Text style={styles.bharatSubtitle}>All-in-one space for {userRole === 'FREELANCER' ? 'Freelancers' : 'creators'} </Text>
-            <Image source={imgTargetNew} style={{ width: 22, height: 22, marginBottom: 10 }} />
+            <Image source={imgTargetNew} style={{ width: 16, height: 16, marginBottom: 4 }} />
           </View>
           <View style={{ flexDirection: 'row', marginVertical: 10 }}>
             <Text style={[styles.bharatDivider, { opacity: 0.6 }]}>----</Text>
@@ -1519,7 +1586,7 @@ export default function Homepage() {
 
           <View style={styles.bharatBtnRow}>
             <TouchableOpacity
-              style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91' }]}
+              style={[styles.bharatPinkBtn, { backgroundColor: userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 1)' : 'rgba(237, 42, 145, 1)' }]}
               onPress={() => Linking.openURL('https://www.instagram.com/digitagapp/')}
             >
               <Text style={styles.bharatPinkBtnText}>Digitag_official</Text>
@@ -1529,13 +1596,12 @@ export default function Homepage() {
               onPress={() => Linking.openURL('https://wa.me/917680805720')}
             >
               <Ionicons name="logo-whatsapp" size={14} color="#ffffffff" />
-              <Text style={styles.bharatOutlineBtnText}> </Text>
-            </TouchableOpacity>
+             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91', }]}
               onPress={() => Linking.openURL('tel:+917680805720')}
             >
-              <Ionicons name="call-outline" size={18} color={userRole === 'FREELANCER' ? '#ffffffff' : '#ffffffff'} />
+              <Ionicons name="call-outline" size={14} color={userRole === 'FREELANCER' ? '#ffffffff' : '#ffffffff'} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1820,9 +1886,9 @@ const styles = StyleSheet.create({
   },
   catPagination: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     justifyContent: 'center',
-    marginTop: 0,
+    marginTop: -10,
   },
   catDot: {
     width: 8,
@@ -1831,8 +1897,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f4f6ff',
   },
   catGradientBorder: {
-    width: 100,
-    height: 96,
+    width: 90,
+    height: 86,
     borderRadius: 24,
     padding: 1,
 
@@ -1842,19 +1908,19 @@ const styles = StyleSheet.create({
     borderRadius: 22.8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+    paddingVertical: 1,
+    paddingHorizontal: 1,
     width: '100%',
     height: '100%',
   },
   catGridImgCreator: {
-    width: 28,
-    height: 24,
+    width: 26,
+    height: 20,
     marginBottom: 8,
   },
   catGridLabel: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: 'Poppins_400Regular',
     textAlign: 'center',
     lineHeight: 14,
@@ -1870,20 +1936,20 @@ const styles = StyleSheet.create({
   // RECENT UPDATES CARDS
   cardsList: {
     paddingHorizontal: (width - 280) / 2,
-    gap: 16,
+    gap: 10,
   },
   figmaCardGradientBorder: {
     width: 251,
     height: 350,
     borderRadius: 24,
-    padding: 0.8,
+    padding: 0.4,
     alignItems: 'center',
     justifyContent: 'center',
   },
   figmaCard: {
     width: 248,
     height: 347,
-    backgroundColor: '#28282a',
+    backgroundColor: '#1E1E1E',
     borderRadius: 23.6,
     alignItems: 'center',
     position: 'relative',
@@ -2028,14 +2094,12 @@ const styles = StyleSheet.create({
   },
 
   exploreNowContainer: {
-    marginTop: 15,
-    marginBottom: 40,
+    marginTop: 12,
+    marginBottom: 20,
     alignSelf: 'center',
-    shadowColor: '#FF4D66',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 15,
-    elevation: 8,
+
+
+
   },
   exploreNowBtnGrad: {
     width: 224,
@@ -2046,7 +2110,7 @@ const styles = StyleSheet.create({
   },
   exploreNowBtnText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Poppins_500Medium',
   },
 
@@ -2057,17 +2121,17 @@ const styles = StyleSheet.create({
     minHeight: 200,
     alignSelf: 'center',
     justifyContent: 'center',
-    borderRadius: 28,
+    borderRadius: 24,
     borderWidth: 1,
     padding: 20,
     overflow: 'hidden',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#050409',
   },
   createPostCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     paddingVertical: 10,
@@ -2083,19 +2147,19 @@ const styles = StyleSheet.create({
   createPostTextWrap: {
     flex: 1,
     minWidth: 0,
-    marginLeft: 14,
-    marginRight: 10,
+    
     padding: 10,
   },
   createPostTitle: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Poppins_600SemiBold',
     marginBottom: 4,
+    flexDirection: "row"
   },
   createPostSubtitle: {
-    color: '#9a9aa2',
-    fontSize: 12,
+    color: '#9e9ca8',
+    fontSize: 10.5,
     fontFamily: 'Poppins_400Regular',
     lineHeight: 17,
   },
@@ -2109,11 +2173,11 @@ const styles = StyleSheet.create({
 
   // BHARAT FIRST SECTION
   bharatSection: {
-    marginTop: 40,
+    marginTop: 30,
     backgroundColor: '#111111',
     paddingHorizontal: 16,
     paddingTop: 32,
-    paddingBottom: 120,
+    paddingBottom: 60,
     marginBottom: 0,
   },
   bharatTitleLine: {
@@ -2124,7 +2188,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   bharatSubtitle: {
-    color: '#bbb',
+    color: '#fff',
     fontSize: 16,
     fontFamily: 'Poppins_400Regular',
 
@@ -2169,6 +2233,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     justifyContent: 'center',
     alignItems: 'center',
+   
   },
 
   // CONTACT SECTION
