@@ -958,8 +958,28 @@ export default function ProfileScreen() {
 
                 {/* Social Icons Row — only the links the user actually provided */}
                 {(() => {
-                  const socials: { key: string; src?: any; icon?: any; color?: string; url: string; platform?: string }[] = [];
-                  if (profile?.instagramHandle) socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: instagramUrl(profile.instagramHandle) });
+                  const socials: { key: string; src?: any; icon?: any; color?: string; url: string; platform?: string; onPress?: () => void }[] = [];
+                  const igAccounts = profile?.instagramAccounts ?? [];
+                  if (igAccounts.length > 1) {
+                    socials.push({
+                      key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: '',
+                      onPress: () => Alert.alert(
+                        'Choose an Instagram account',
+                        undefined,
+                        [
+                          ...igAccounts.map((acc) => ({
+                            text: `@${acc.instagramUsername}`,
+                            onPress: () => Linking.openURL(instagramUrl(acc.instagramUsername)).catch(() => {}),
+                          })),
+                          { text: 'Cancel', style: 'cancel' as const },
+                        ],
+                      ),
+                    });
+                  } else if (igAccounts.length === 1) {
+                    socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: instagramUrl(igAccounts[0].instagramUsername) });
+                  } else if (profile?.instagramHandle) {
+                    socials.push({ key: 'ig', src: require('../../assets/skill-icons_instagram.png'), url: instagramUrl(profile.instagramHandle) });
+                  }
                   if (profile?.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(profile.youtubeHandle) });
                   if (profile?.facebookHandle) socials.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(profile.facebookHandle) });
                   if (profile?.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: twitterUrl(profile.twitterHandle) });
@@ -968,7 +988,7 @@ export default function ProfileScreen() {
                   return (
                     <View className="flex-row items-center mt-5 gap-3.5">
                       {socials.map(s => s.src ? (
-                        <TouchableOpacity key={s.key} activeOpacity={0.8} onPress={() => openLink(s.url)}>
+                        <TouchableOpacity key={s.key} activeOpacity={0.8} onPress={() => s.onPress ? s.onPress() : openLink(s.url)}>
                           <View className="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
                             <Image source={s.src} className="w-full h-full" resizeMode="cover" />
                           </View>

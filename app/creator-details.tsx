@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Dimensions,
     Image,
     Linking,
@@ -264,11 +265,28 @@ export default function CreatorDetails() {
     };
     // Each provided link renders as its own clickable icon — instagram, youtube,
     // twitter/X and portfolio are independent fields and can all be present at once.
-    const socials: { key: string; icon: any; color: string; url: string; platform?: string }[] = [];
-    if (Array.isArray(profile.instagramAccounts) && profile.instagramAccounts.length > 0) {
-        profile.instagramAccounts.forEach((acc: { id: string; instagramUsername: string }) => {
-            socials.push({ key: `ig-${acc.id}`, icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(acc.instagramUsername) });
+    // Instagram is the one exception: a profile can have several connected accounts,
+    // so it's always a single icon — tapping it opens the account directly if there's
+    // only one, or shows a picker to choose which one if there's more than one.
+    const socials: { key: string; icon: any; color: string; url: string; platform?: string; onPress?: () => void }[] = [];
+    const igAccounts = Array.isArray(profile.instagramAccounts) ? profile.instagramAccounts : [];
+    if (igAccounts.length > 1) {
+        socials.push({
+            key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: '',
+            onPress: () => Alert.alert(
+                'Choose an Instagram account',
+                undefined,
+                [
+                    ...igAccounts.map((acc: { id: string; instagramUsername: string }) => ({
+                        text: `@${acc.instagramUsername}`,
+                        onPress: () => openLink(instagramUrl(acc.instagramUsername)),
+                    })),
+                    { text: 'Cancel', style: 'cancel' as const },
+                ],
+            ),
         });
+    } else if (igAccounts.length === 1) {
+        socials.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(igAccounts[0].instagramUsername) });
     } else if (p.instagramHandle) {
         socials.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(p.instagramHandle) });
     }
@@ -386,7 +404,7 @@ export default function CreatorDetails() {
                                         key={s.key}
                                         style={[styles.socialIcon, { backgroundColor: s.color }]}
                                         activeOpacity={0.8}
-                                        onPress={() => openLink(s.url)}
+                                        onPress={() => s.onPress ? s.onPress() : openLink(s.url)}
                                     >
                                         {s.platform === 'X' ? (
                                             <FontAwesome6 name={s.icon} size={16} color="#fff" />
