@@ -179,7 +179,7 @@ export default function HelpSupportScreen() {
               <TouchableOpacity
                 className="flex-row items-center py-3.5 px-3"
                 activeOpacity={0.7}
-                onPress={() => Linking.openURL('https://thedigitag.ai/delete-account').catch(() => {})}
+                onPress={() => router.push('/privacysettings')}
               >
                 <View className="w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border border-red-500/30 mr-4">
                   <Ionicons name="trash-outline" size={20} color="#EF4444" />

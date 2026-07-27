@@ -265,7 +265,13 @@ export default function CreatorDetails() {
     // Each provided link renders as its own clickable icon — instagram, youtube,
     // twitter/X and portfolio are independent fields and can all be present at once.
     const socials: { key: string; icon: any; color: string; url: string; platform?: string }[] = [];
-    if (p.instagramHandle) socials.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(p.instagramHandle) });
+    if (Array.isArray(profile.instagramAccounts) && profile.instagramAccounts.length > 0) {
+        profile.instagramAccounts.forEach((acc: { id: string; instagramUsername: string }) => {
+            socials.push({ key: `ig-${acc.id}`, icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(acc.instagramUsername) });
+        });
+    } else if (p.instagramHandle) {
+        socials.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(p.instagramHandle) });
+    }
     if (p.youtubeHandle) socials.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(p.youtubeHandle) });
     if (p.facebookHandle) socials.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(p.facebookHandle) });
     if (p.twitterHandle) socials.push({ key: 'tw', platform: 'X', icon: 'x-twitter', color: '#000000', url: twitterUrl(p.twitterHandle) });

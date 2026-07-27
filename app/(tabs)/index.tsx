@@ -1043,7 +1043,10 @@ export default function Homepage() {
                     <Text style={styles.heroDesc}>{item.desc1}</Text>
                     <Text style={styles.heroDesc}>{item.desc2}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
+                  {/* Contact + Create Community — commented out for both Freelancer and
+                      Creator roles per request. Do not delete; functionality (help-support
+                      link, CommunityModal) is left intact for a future re-enable. */}
+                  {/* <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20 }}>
                     <TouchableOpacity style={[styles.contactBtn, { backgroundColor: item.gradient[1], marginTop: 0 }]} activeOpacity={0.8} onPress={() => router.push('/help-support' as any)}>
                       <Text style={[styles.contactBtnText, item.id === '4' && { color: '#000' }]}>Contact</Text>
                     </TouchableOpacity>
@@ -1060,7 +1063,7 @@ export default function Homepage() {
                         </View>
                       </TouchableOpacity>
                     )}
-                  </View>
+                  </View> */}
                 </View>
               </View>
             )}
@@ -1173,11 +1176,11 @@ export default function Homepage() {
           </View>
 
           {/* Fade the hero carousel into the page background before the category section */}
-          <LinearGradient
+          {/* <LinearGradient
             colors={['transparent', '#060606']}
             style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }}
             pointerEvents="none"
-          />
+          /> */}
         </View>
 
         <View style={{ paddingHorizontal: 16, paddingTop: 32 }}>
@@ -1231,9 +1234,9 @@ export default function Homepage() {
                               )}
                               <Text
                                 style={styles.catGridLabel}
-                                numberOfLines={2}
+                                numberOfLines={/[\n ]/.test(cat.label) ? 2 : 1}
                                 adjustsFontSizeToFit
-                                minimumFontScale={0.75}
+                                minimumFontScale={0.6}
                               >
                                 {cat.label}
                               </Text>
@@ -1839,8 +1842,8 @@ const styles = StyleSheet.create({
     borderRadius: 22.8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
     width: '100%',
     height: '100%',
   },
@@ -1855,6 +1858,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     textAlign: 'center',
     lineHeight: 14,
+    width: '100%',
+    alignSelf: 'stretch',
   },
   catGridImgFreelancerChip: {
     width: 26,

@@ -1283,6 +1283,45 @@ export const getInstagramVerificationStatus = async (token: string, id: string) 
     }
 };
 
+export interface InstagramAccount {
+    id: string;
+    instagramUsername: string;
+    followers: number | null;
+    verifiedAt: string;
+}
+
+/**
+ * GET /instagram/accounts
+ * Lists every Instagram account this user has connected/verified.
+ */
+export const listInstagramAccounts = async (token: string) => {
+    try {
+        const body = await request('/instagram/accounts', {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: (body?.data ?? []) as InstagramAccount[] };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] as InstagramAccount[] };
+    }
+};
+
+/**
+ * DELETE /instagram/accounts/:id
+ * Disconnects a previously verified Instagram account.
+ */
+export const removeInstagramAccount = async (token: string, id: string) => {
+    try {
+        await request(`/instagram/accounts/${id}`, {
+            method: 'DELETE',
+            headers: authHeaders(token),
+        });
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ───────────────────────── SOCIAL (YOUTUBE / FACEBOOK) VERIFICATION ─────────────────────────── */
 
 /**

@@ -1,7 +1,7 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
   Share,
   StatusBar,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -21,11 +22,12 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
+import IgVerifyModal from '../../Components/IgVerifyModal';
 import { useAuth } from '../../context/AuthContext';
 import { useApplePurchase } from '../../hooks/useApplePurchase';
 import { useRemoteConfig } from '../../hooks/useRemoteConfig';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
-import { completeCollab, createSubscription, getFullProfile, getMyPosts, getUserStats, listCollaborations } from '../../services/userService';
+import { completeCollab, createSubscription, getFullProfile, getInstagramVerificationStatus, getMyPosts, getUserStats, InstagramAccount, listCollaborations, listInstagramAccounts, removeInstagramAccount, startInstagramVerification } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
 
@@ -42,6 +44,7 @@ interface ProfileData {
   email?: string | null;
   location?: string | null;
   languages?: string[] | null;
+  instagramAccounts?: InstagramAccount[];
   // Creator-specific
   instagramHandle?: string | null;
   instagramFollowers?: number | null;
@@ -108,6 +111,16 @@ export default function ProfileScreen() {
   const [myCollabs, setMyCollabs] = useState<any[]>([]);
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
+  // ── Instagram Accounts (add/verify/remove) ──
+  const [addingIgAccount, setAddingIgAccount] = useState(false);
+  const [newIgHandle, setNewIgHandle] = useState('');
+  const [igStarting, setIgStarting] = useState(false);
+  const [igVerification, setIgVerification] = useState<{ id: string; code: string; instagramUsername: string; digiTagInstagram: string; expiresAt: string } | null>(null);
+  const [igModalStatus, setIgModalStatus] = useState<string>('PENDING');
+  const [igModalVisible, setIgModalVisible] = useState(false);
+  const [removingIgId, setRemovingIgId] = useState<string | null>(null);
+  const igPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (igPollRef.current) clearInterval(igPollRef.current); }, []);
   const [activityTab, setActivityTab] = useState<'posts' | 'collab'>('posts');
   const [expandedActivityIds, setExpandedActivityIds] = useState<Set<string>>(new Set());
   const [completingCollabId, setCompletingCollabId] = useState<string | null>(null);
@@ -130,11 +143,12 @@ export default function ProfileScreen() {
           if (res.success && res.data?.profiles) {
             setProfiles(res.data.profiles);
           }
-          // Fetch counts, posts and collabs in parallel
-          const [countRes, postsRes, collabsRes] = await Promise.all([
+          // Fetch counts, posts, collabs, and connected Instagram accounts in parallel
+          const [countRes, postsRes, collabsRes, igAccountsRes] = await Promise.all([
             getUserStats(token),
             getMyPosts(token, { limit: '20' }),
             listCollaborations(token, { direction: 'all' }),
+            listInstagramAccounts(token),
           ]);
           if (countRes.success && countRes.data) {
             setFollowerCount(countRes.data.followerCount ?? 0);
@@ -161,6 +175,7 @@ export default function ProfileScreen() {
               email: p.email || null,
               location: p.location || null,
               languages: p.languages?.length > 0 ? p.languages : (p.language ? [p.language] : null),
+              instagramAccounts: igAccountsRes.success ? igAccountsRes.data : [],
             };
             if (role === 'CREATOR') {
               Object.assign(base, {
@@ -219,6 +234,73 @@ export default function ProfileScreen() {
     await fetchProfile();
     setRefreshing(false);
   }, [fetchProfile]);
+
+  const handleAddIgAccount = async () => {
+    if (!newIgHandle.trim() || !token || igStarting) return;
+    setIgStarting(true);
+    try {
+      const res = await startInstagramVerification(token, newIgHandle.trim());
+      if (!res.success || !res.data) {
+        Alert.alert('Error', res.error || 'Could not start verification');
+        return;
+      }
+      setIgVerification(res.data);
+      setIgModalStatus('PENDING');
+      setIgModalVisible(true);
+      setAddingIgAccount(false);
+      setNewIgHandle('');
+      igPollRef.current = setInterval(async () => {
+        if (!res.data?.id || !token) return;
+        const statusRes = await getInstagramVerificationStatus(token, res.data.id);
+        if (statusRes.success && statusRes.data) {
+          const s = statusRes.data.status;
+          setIgModalStatus(s);
+          if (s === 'VERIFIED') {
+            if (igPollRef.current) clearInterval(igPollRef.current);
+            igPollRef.current = null;
+            fetchProfile();
+          } else if (s === 'EXPIRED' || s === 'FAILED') {
+            if (igPollRef.current) clearInterval(igPollRef.current);
+            igPollRef.current = null;
+          }
+        }
+      }, 4000);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Could not start verification');
+    } finally {
+      setIgStarting(false);
+    }
+  };
+
+  const handleIgModalClose = () => {
+    setIgModalVisible(false);
+    if (igModalStatus === 'EXPIRED' || igModalStatus === 'FAILED') {
+      setIgVerification(null);
+      setIgModalStatus('PENDING');
+    }
+  };
+
+  const handleRemoveIgAccount = (account: InstagramAccount) => {
+    Alert.alert(
+      'Remove account?',
+      `Disconnect @${account.instagramUsername} from your profile?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (!token) return;
+            setRemovingIgId(account.id);
+            const res = await removeInstagramAccount(token, account.id);
+            setRemovingIgId(null);
+            if (res.success) fetchProfile();
+            else Alert.alert('Error', res.error || 'Could not remove account');
+          },
+        },
+      ],
+    );
+  };
 
   const isProfileIncomplete = () => {
     if (!profile) return true;
@@ -696,8 +778,9 @@ export default function ProfileScreen() {
           <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
             <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  " resizeMode="cover" />
-            {/* Dark overlay matching index.tsx gradient */}
-            <LinearGradient colors={['rgba(0,0,0,0.2)', '#000']} className="absolute inset-0" />
+            {/* Dark overlay matching index.tsx gradient — darkened further so the
+                background photo stays subdued behind the profile info */}
+            <LinearGradient colors={['rgba(0,0,0,0.55)', '#000']} className="absolute inset-0" />
             {/* Top Navigation Row */}
             <View className="flex-row justify-between items-center px-6" style={{ marginTop: Math.max(insets.top, statusBarHeight) + 8 }}>
               <TouchableOpacity onPress={() => {
@@ -949,6 +1032,90 @@ export default function ProfileScreen() {
                   );
                 })}
               </View>
+
+              {/* ══════════ INSTAGRAM ACCOUNTS ══════════ */}
+              <View className="mx-5 mt-4 rounded-[28px] border border-white/10 bg-[#0A0A0A] px-5 py-4">
+                <Text className="text-white text-[16px] mb-3" style={{ fontFamily: 'Poppins_600SemiBold' }}>Instagram Accounts</Text>
+
+                {(profile?.instagramAccounts ?? []).map((acc) => (
+                  <View key={acc.id} className="flex-row items-center py-2.5 border-b border-white/5">
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      className="flex-row items-center flex-1"
+                      onPress={() => Linking.openURL(instagramUrl(acc.instagramUsername)).catch(() => {})}
+                    >
+                      <Image source={require('../../assets/skill-icons_instagram.png')} style={{ width: 28, height: 28, borderRadius: 8, marginRight: 10 }} resizeMode="cover" />
+                      <View style={{ flex: 1 }}>
+                        <Text className="text-white text-[14px]" style={{ fontFamily: 'Poppins_500Medium' }}>@{acc.instagramUsername}</Text>
+                        {acc.followers != null && (
+                          <Text style={{ color: '#888', fontSize: 12, fontFamily: 'Poppins_400Regular' }}>{acc.followers.toLocaleString()} followers</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity activeOpacity={0.7} disabled={removingIgId === acc.id} onPress={() => handleRemoveIgAccount(acc)} style={{ padding: 6 }}>
+                      {removingIgId === acc.id ? (
+                        <ActivityIndicator size="small" color="#666" />
+                      ) : (
+                        <Ionicons name="close-circle-outline" size={20} color="#666" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                {addingIgAccount ? (
+                  <View className="mt-3">
+                    <TextInput
+                      value={newIgHandle}
+                      onChangeText={setNewIgHandle}
+                      placeholder="Instagram username or link"
+                      placeholderTextColor="#666"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      className="bg-[#1A1A1A] text-white rounded-[14px] px-4 h-[48px] mb-2.5"
+                      style={{ fontFamily: 'Poppins_400Regular' }}
+                    />
+                    <View className="flex-row gap-2.5">
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        disabled={igStarting}
+                        onPress={handleAddIgAccount}
+                        style={{ flex: 1, backgroundColor: theme.primary, borderRadius: 14, height: 46, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        {igStarting ? <ActivityIndicator size="small" color="#fff" /> : (
+                          <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14 }}>Verify</Text>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => { setAddingIgAccount(false); setNewIgHandle(''); }}
+                        style={{ flex: 1, borderWidth: 1, borderColor: '#333', borderRadius: 14, height: 46, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Text style={{ color: '#888', fontFamily: 'Poppins_500Medium', fontSize: 14 }}>Cancel</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setAddingIgAccount(true)}
+                    className="flex-row items-center justify-center mt-1 py-3"
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color={theme.primary} style={{ marginRight: 6 }} />
+                    <Text style={{ color: theme.primary, fontFamily: 'Poppins_600SemiBold', fontSize: 14 }}>Add Instagram Account</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <IgVerifyModal
+                visible={igModalVisible}
+                code={igVerification?.code}
+                instagramUsername={igVerification?.instagramUsername}
+                digiTagInstagram={igVerification?.digiTagInstagram}
+                expiresAt={igVerification?.expiresAt}
+                status={igModalStatus}
+                accentColor={theme.primary}
+                onClose={handleIgModalClose}
+              />
 
               {/* ══════════ POSTS / COLLAB ACTIVITY ══════════ */}
               <View className="flex-row mx-5 mt-6 border-b border-white/10">
