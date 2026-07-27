@@ -30,6 +30,20 @@ export function setRefreshTokenCallback(fn: () => Promise<string | null>) {
     _refreshTokenFn = fn;
 }
 
+// Fired once when the backend reports the signed-in account as suspended/deleted
+// (details.code === 'ACCOUNT_SUSPENDED') — set by AuthContext to force a clean
+// logout with a real message, instead of every screen just failing silently.
+let _accountSuspendedFn: (() => void) | null = null;
+export function setAccountSuspendedCallback(fn: () => void) {
+    _accountSuspendedFn = fn;
+}
+let _suspendedHandledOnce = false;
+/** Call after any successful login so a future suspension (on this or a
+ *  different account, same app session) can trigger the callback again. */
+export function resetAccountSuspendedGuard() {
+    _suspendedHandledOnce = false;
+}
+
 async function request(path: string, options: RequestInit = {}, _retry = true) {
     const res = await fetch(`${API_BASE_URL}${path}`, options);
     let json: any = null;
@@ -48,6 +62,11 @@ async function request(path: string, options: RequestInit = {}, _retry = true) {
             };
             return request(path, newOptions, false);
         }
+    }
+
+    if (res.status === 403 && json?.details?.code === 'ACCOUNT_SUSPENDED' && _accountSuspendedFn && !_suspendedHandledOnce) {
+        _suspendedHandledOnce = true;
+        _accountSuspendedFn();
     }
 
     if (!res.ok) {

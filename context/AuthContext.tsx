@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging, { getToken as getFcmToken } from '@react-native-firebase/messaging';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { refreshToken as apiRefreshToken, setRefreshTokenCallback, unregisterFcmToken } from '../services/userService';
+import { refreshToken as apiRefreshToken, resetAccountSuspendedGuard, setAccountSuspendedCallback, setRefreshTokenCallback, unregisterFcmToken } from '../services/userService';
 
 export type Role = 'CREATOR' | 'FREELANCER';
 
@@ -95,6 +97,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     }, []);
 
+    // A suspended/deleted account still holds a valid token, so it isn't caught
+    // by the 401 refresh flow above — the backend rejects it with a 403 on every
+    // request instead. Without this, the app just shows blank/broken screens.
+    // State setters are stable across renders, so this only needs to run once.
+    useEffect(() => {
+        setAccountSuspendedCallback(() => {
+            (async () => {
+                setIsGuest(false);
+                setUserPhone(null);
+                setUserId(null);
+                setToken(null);
+                setRefreshTokenState(null);
+                setUserRole(null);
+                setIsProfileCompleted(false);
+                setProfilesState(EMPTY_PROFILES);
+                await clearStorage();
+                router.replace('/login');
+                Alert.alert(
+                    'Account suspended',
+                    'Your account has been suspended. Contact support if you believe this is a mistake.',
+                );
+            })();
+        });
+    }, []);
+
     async function restoreSession() {
         try {
             const [
@@ -178,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const login: AuthContextType['login'] = async ({ phone, token: tk, refreshToken: rTk, role, id, isProfileCompleted: ipc, profiles: incomingProfiles }) => {
+        resetAccountSuspendedGuard();
         setIsGuest(false);
         setUserPhone(phone);
         if (tk) setToken(tk);
