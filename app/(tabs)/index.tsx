@@ -1306,6 +1306,21 @@ export default function Homepage() {
           <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
         ) : (
           <View style={{ paddingVertical: 10, position: 'relative' }}>
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                right: -200,
+                top: '50%',
+                marginTop: -275.5,
+                width: 551,
+                height: 551,
+                borderRadius: 551,
+                backgroundColor: userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.20)' : 'rgba(237, 42, 145, 0.20)',
+                // @ts-ignore
+                filter: 'blur(132.5px)',
+              }}
+            />
             <Animated.FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
