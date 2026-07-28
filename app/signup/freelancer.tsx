@@ -755,41 +755,51 @@ export default function FreelancerSignup() {
                 {
                     text: 'Camera',
                     onPress: async () => {
-                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                        if (status !== 'granted') {
-                            Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
-                            return;
-                        }
-                        const result = await ImagePicker.launchCameraAsync({
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.8,
-                        });
-                        if (!result.canceled && result.assets?.[0]) {
-                            const asset = result.assets[0];
-                            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-                            setForm(prev => ({ ...prev, profilePicture: uri, profilePictureMimeType: 'image/jpeg' }));
+                        try {
+                            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                            if (status !== 'granted') {
+                                Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
+                                return;
+                            }
+                            const result = await ImagePicker.launchCameraAsync({
+                                allowsEditing: true,
+                                aspect: [1, 1],
+                                quality: 0.8,
+                            });
+                            if (!result.canceled && result.assets?.[0]) {
+                                const asset = result.assets[0];
+                                const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                                setForm(prev => ({ ...prev, profilePicture: uri, profilePictureMimeType: 'image/jpeg' }));
+                            }
+                        } catch (e) {
+                            console.error('[pickImage] Camera error:', e);
+                            Alert.alert('Camera Error', 'Could not open the camera. Please try again.');
                         }
                     },
                 },
                 {
                     text: 'Gallery',
                     onPress: async () => {
-                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                        if (status !== 'granted') {
-                            Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
-                            return;
-                        }
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                            mediaTypes: ['images'],
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.8,
-                        });
-                        if (!result.canceled && result.assets?.[0]) {
-                            const asset = result.assets[0];
-                            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-                            setForm(prev => ({ ...prev, profilePicture: uri, profilePictureMimeType: 'image/jpeg' }));
+                        try {
+                            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                            if (status !== 'granted') {
+                                Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
+                                return;
+                            }
+                            const result = await ImagePicker.launchImageLibraryAsync({
+                                mediaTypes: ['images'],
+                                allowsEditing: true,
+                                aspect: [1, 1],
+                                quality: 0.8,
+                            });
+                            if (!result.canceled && result.assets?.[0]) {
+                                const asset = result.assets[0];
+                                const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                                setForm(prev => ({ ...prev, profilePicture: uri, profilePictureMimeType: 'image/jpeg' }));
+                            }
+                        } catch (e) {
+                            console.error('[pickImage] Gallery error:', e);
+                            Alert.alert('Gallery Error', 'Could not open the gallery. Please try again.');
                         }
                     },
                 },

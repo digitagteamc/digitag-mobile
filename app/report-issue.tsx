@@ -42,11 +42,18 @@ export default function ReportIssueScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePickScreenshot = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-      setScreenshot({ uri });
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permission Required', 'Gallery access is needed to pick a screenshot.'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.7 });
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+        setScreenshot({ uri });
+      }
+    } catch (e) {
+      console.error('[handlePickScreenshot] error:', e);
+      Alert.alert('Gallery Error', 'Could not open the gallery. Please try again.');
     }
   };
 

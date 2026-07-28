@@ -338,24 +338,36 @@ export default function ChatScreen() {
     // size limit even after ImagePicker's own JPEG quality setting, since quality
     // alone doesn't shrink pixel dimensions.
     const handleCamera = async () => {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) { Alert.alert('Permission Required', 'Camera access is needed to take photos.'); return; }
-        // No forced crop step — a photo taken here should go straight to the
-        // preview/send flow, same as picking one from the gallery already does.
-        const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.75 });
-        if (!result.canceled && result.assets[0]) {
-            const asset = result.assets[0];
-            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-            setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+        try {
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) { Alert.alert('Permission Required', 'Camera access is needed to take photos.'); return; }
+            // No forced crop step — a photo taken here should go straight to the
+            // preview/send flow, same as picking one from the gallery already does.
+            const result = await ImagePicker.launchCameraAsync({ mediaTypes: 'images', quality: 0.75 });
+            if (!result.canceled && result.assets[0]) {
+                const asset = result.assets[0];
+                const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+            }
+        } catch (e) {
+            console.error('[handleCamera] error:', e);
+            Alert.alert('Camera Error', 'Could not open the camera. Please try again.');
         }
     };
 
     const handleAttach = async () => {
-        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.75 });
-        if (!result.canceled && result.assets[0]) {
-            const asset = result.assets[0];
-            const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-            setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+        try {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!perm.granted) { Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.'); return; }
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', quality: 0.75 });
+            if (!result.canceled && result.assets[0]) {
+                const asset = result.assets[0];
+                const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                setImageToSend({ ...asset, uri, mimeType: 'image/jpeg' });
+            }
+        } catch (e) {
+            console.error('[handleAttach] error:', e);
+            Alert.alert('Gallery Error', 'Could not open the gallery. Please try again.');
         }
     };
 

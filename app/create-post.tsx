@@ -230,32 +230,42 @@ export default function CreatePost() {
         {
           text: 'Camera',
           onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
-              return;
-            }
-            const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
-            if (!result.canceled && result.assets?.[0]) {
-              const asset = result.assets[0];
-              const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-              setPostImages(prev => prev.length >= MAX_POST_IMAGES ? prev : [...prev, { uri, name: 'post.jpg', type: 'image/jpeg' }]);
+            try {
+              const { status } = await ImagePicker.requestCameraPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
+                return;
+              }
+              const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+              if (!result.canceled && result.assets?.[0]) {
+                const asset = result.assets[0];
+                const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                setPostImages(prev => prev.length >= MAX_POST_IMAGES ? prev : [...prev, { uri, name: 'post.jpg', type: 'image/jpeg' }]);
+              }
+            } catch (e) {
+              console.error('[pickPostImage] Camera error:', e);
+              Alert.alert('Camera Error', 'Could not open the camera. Please try again.');
             }
           },
         },
         {
           text: 'Gallery',
           onPress: async () => {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
-              return;
-            }
-            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-            if (!result.canceled && result.assets?.[0]) {
-              const asset = result.assets[0];
-              const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
-              setPostImages(prev => prev.length >= MAX_POST_IMAGES ? prev : [...prev, { uri, name: 'post.jpg', type: 'image/jpeg' }]);
+            try {
+              const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (status !== 'granted') {
+                Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
+                return;
+              }
+              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+              if (!result.canceled && result.assets?.[0]) {
+                const asset = result.assets[0];
+                const uri = await prepareImageForUpload(asset.uri, asset.width, asset.height);
+                setPostImages(prev => prev.length >= MAX_POST_IMAGES ? prev : [...prev, { uri, name: 'post.jpg', type: 'image/jpeg' }]);
+              }
+            } catch (e) {
+              console.error('[pickPostImage] Gallery error:', e);
+              Alert.alert('Gallery Error', 'Could not open the gallery. Please try again.');
             }
           },
         },

@@ -182,7 +182,7 @@ export default function CallScreen() {
             await joinChannel(res.data.token, res.data.channelName, res.data.appId);
             // setCallMode / startTimer driven by onUserJoined to avoid double-start
         } else {
-            Alert.alert('Error', 'Could not accept call');
+            Alert.alert('Error', res.error || 'Could not accept call');
             safeNavigateBack();
         }
     }, [token, params.callId, stopRing, joinChannel, safeNavigateBack]);
