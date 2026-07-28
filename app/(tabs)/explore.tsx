@@ -667,7 +667,7 @@ export default function ExploreTab() {
   }, [token, isGuest]));
 
   const handleBookmark = useCallback(async (postId: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('save this post') || !token) return;
     const isSaved = savedPostIds.has(postId);
     setSavedPostIds(prev => {
       const next = new Set(prev);
@@ -682,7 +682,7 @@ export default function ExploreTab() {
         return next;
       });
     }
-  }, [isGuest, token, router, savedPostIds]);
+  }, [token, requireProfile, savedPostIds]);
 
   useFocusEffect(useCallback(() => {
     if (!token || !userId) return;
@@ -903,8 +903,7 @@ export default function ExploreTab() {
   };
 
   const handleMessage = async (ownerId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('message this user')) return;
+    if (!requireProfile('message this user') || !token) return;
     if (!ownerId) return;
     const res = await openConversationWith(token, ownerId);
     if (res.success && res.data?.id) {
@@ -915,8 +914,7 @@ export default function ExploreTab() {
   };
 
   const handleCall = useCallback(async (calleeId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('call this user')) return;
+    if (!requireProfile('call this user') || !token) return;
     if (!calleeId) return;
     try {
       const res = await initiateCall(token, calleeId);
@@ -939,11 +937,10 @@ export default function ExploreTab() {
     } catch (err: any) {
       Alert.alert('Call Failed', err?.message || 'Network error.');
     }
-  }, [isGuest, token, router, requireProfile]);
+  }, [token, router, requireProfile]);
 
   const handleCollab = useCallback(async (ownerId: string, postId: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('send a collab request')) return;
+    if (!requireProfile('send a collab request') || !token) return;
     if (collabSentIds.has(postId)) return;
     try {
       const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
@@ -956,7 +953,7 @@ export default function ExploreTab() {
     } catch {
       Alert.alert('Error', 'Could not send collab request.');
     }
-  }, [isGuest, token, router, requireProfile, collabSentIds]);
+  }, [token, router, requireProfile, collabSentIds]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     const postTheme = getRoleTheme(item.ownerRole);

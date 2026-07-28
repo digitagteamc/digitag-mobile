@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import { useAuth } from '../context/AuthContext';
+import { useProfileGate } from '../context/ProfileGateContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getCategories, searchProfiles } from '../services/userService';
 import { useRoleTheme } from '../theme/useRoleTheme';
@@ -26,6 +27,7 @@ type ResultTab = 'All' | 'Accounts' | 'Posts';
 export default function SearchbarScreen() {
   const router = useRouter();
   const { token, isGuest, userRole } = useAuth();
+  const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [accountResults, setAccountResults] = useState<any[]>([]);
@@ -114,12 +116,12 @@ export default function SearchbarScreen() {
   }, [searchQuery, token]);
 
   const openAccount = (userId: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('view this profile')) return;
     router.push({ pathname: '/creator-details', params: { userId } } as any);
   };
 
   const openPost = (postId: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('view this post')) return;
     router.push({ pathname: '/post-detail', params: { postId } } as any);
   };
 

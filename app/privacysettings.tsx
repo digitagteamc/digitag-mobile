@@ -20,14 +20,28 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
+import { useProfileGate } from '@/context/ProfileGateContext';
 import { deleteAccount, getPrivacySettings, updatePrivacySettings } from '../services/userService';
 
 export default function PrivacySettingsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
-    const { token, userRole, logout } = useAuth();
+    const { token, isGuest, userRole, logout } = useAuth();
+    const { requireProfile } = useProfileGate();
     const [deleting, setDeleting] = useState(false);
+
+    // Guests have nothing here to actually persist — gate the whole screen at
+    // entry instead of chasing every link that points at it (Settings, About,
+    // Help & Support all navigate here).
+    useEffect(() => {
+        if (isGuest || !token) {
+            if (!requireProfile('change privacy settings')) {
+                router.back();
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Self-serve, in-app deletion (Apple 5.1.1(v) / Play Data Safety require this —
     // routing users out to email support to "request" deletion isn't sufficient).

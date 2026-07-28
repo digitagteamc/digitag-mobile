@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { createContext, useCallback, useContext, useState } from 'react';
 import CompleteProfileModal from '../Components/ui/CompleteProfileModal';
+import ConfirmActionModal from '../Components/ui/ConfirmActionModal';
 import { useAuth } from './AuthContext';
 
 interface ProfileGateCtx {
@@ -19,11 +20,13 @@ export function ProfileGateProvider({ children }: { children: React.ReactNode })
 
     const [modalVisible, setModalVisible] = useState(false);
     const [pendingAction, setPendingAction] = useState('');
+    const [guestGateVisible, setGuestGateVisible] = useState(false);
+    const [pendingGuestAction, setPendingGuestAction] = useState('');
 
     const requireProfile = useCallback((action: string): boolean => {
         if (isGuest || !token) {
-            // Still use Alert for the sign-in case (less common)
-            router.push('/role-selection');
+            setPendingGuestAction(action);
+            setGuestGateVisible(true);
             return false;
         }
         if (isProfileCompleted) return true;
@@ -31,7 +34,16 @@ export function ProfileGateProvider({ children }: { children: React.ReactNode })
         setPendingAction(action);
         setModalVisible(true);
         return false;
-    }, [isGuest, token, isProfileCompleted, router]);
+    }, [isGuest, token, isProfileCompleted]);
+
+    const handleGuestGateConfirm = useCallback(() => {
+        setGuestGateVisible(false);
+        router.push('/role-selection');
+    }, [router]);
+
+    const handleGuestGateDismiss = useCallback(() => {
+        setGuestGateVisible(false);
+    }, []);
 
     const handleComplete = useCallback(() => {
         setModalVisible(false);
@@ -54,6 +66,15 @@ export function ProfileGateProvider({ children }: { children: React.ReactNode })
                 action={pendingAction}
                 onComplete={handleComplete}
                 onDismiss={handleDismiss}
+            />
+            <ConfirmActionModal
+                visible={guestGateVisible}
+                title="Login or sign up to continue"
+                message={pendingGuestAction ? `Create an account or log in to ${pendingGuestAction}.` : 'Create an account or log in to continue.'}
+                confirmLabel="Login / Sign Up"
+                confirmColor="#ED2A91"
+                onConfirm={handleGuestGateConfirm}
+                onDismiss={handleGuestGateDismiss}
             />
         </ProfileGateContext.Provider>
     );

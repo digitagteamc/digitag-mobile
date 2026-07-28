@@ -833,7 +833,7 @@ export default function Homepage() {
   };
 
   const handleBookmark = async (postId: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('save this post') || !token) return;
     const isSaved = savedPostIds.has(postId);
     // Optimistic update
     setSavedPostIds(prev => {
@@ -873,8 +873,7 @@ export default function Homepage() {
   };
 
   const handleMessage = async (ownerId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('message this user')) return;
+    if (!requireProfile('message this user') || !token) return;
     if (!ownerId) return;
 
     try {
@@ -890,8 +889,7 @@ export default function Homepage() {
   };
 
   const handleCall = async (calleeId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('call this user')) return;
+    if (!requireProfile('call this user') || !token) return;
     if (!calleeId) return;
     const callee = cards.find(c => c.ownerId === calleeId);
     try {
@@ -937,8 +935,7 @@ export default function Homepage() {
   };
 
   const handleCollab = async (ownerId?: string, postId?: string) => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
-    if (!requireProfile('send a collaboration')) return;
+    if (!requireProfile('send a collaboration') || !token) return;
     if (!ownerId) return;
     if (postId && collabSentPostIds.has(postId)) return;
     try {
@@ -1117,7 +1114,7 @@ export default function Homepage() {
               </TouchableOpacity>
 
               {/* Analytics Button - from Figma SVG */}
-              <TouchableOpacity onPress={() => router.push('/analytics' as any)} activeOpacity={0.75}>
+              <TouchableOpacity onPress={() => { if (requireProfile('view analytics')) router.push('/analytics' as any); }} activeOpacity={0.75}>
                 {/* <Svg width="36" height="36" viewBox="0 0 36 36" fill="none">
                   <G data-figma-bg-blur-radius="15">
                     <Mask id="path-1-inside-1_4770_5356" fill="white">

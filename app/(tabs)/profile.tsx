@@ -25,6 +25,7 @@ import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import IgVerifyModal from '../../Components/IgVerifyModal';
 import { useAuth } from '../../context/AuthContext';
+import { useProfileGate } from '../../context/ProfileGateContext';
 import { useApplePurchase } from '../../hooks/useApplePurchase';
 import { useRemoteConfig } from '../../hooks/useRemoteConfig';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
@@ -79,6 +80,7 @@ const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_c
 export default function ProfileScreen() {
   const router = useRouter();
   const { token, isGuest, userPhone, userRole, userId, logout, setProfiles, isProfileCompleted } = useAuth();
+  const { requireProfile } = useProfileGate();
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
   const insets = useSafeAreaInsets();
 
@@ -321,13 +323,20 @@ export default function ProfileScreen() {
     return !profile.bio && !profile.category && !(profile.categories?.length);
   };
 
+  const MENU_ACTION_LABELS: Record<string, string> = {
+    my_profile: 'view your profile',
+    saved: 'view your saved items',
+    my_posts: 'view your posts',
+    my_collabs: 'view your collaborations',
+    report: 'report this',
+  };
+
   const handleMenuPress = (id: string) => {
     // A guest has no account to complete — send them to sign up instead of the
     // "finish your profile" modal, which would otherwise push them straight into
     // the signup form with no token to attach it to.
     if (PROFILE_REQUIRED_ITEMS.has(id) && (isGuest || !token)) {
-      router.push('/role-selection');
-      return;
+      if (!requireProfile(MENU_ACTION_LABELS[id] || 'do that')) return;
     }
     if (PROFILE_REQUIRED_ITEMS.has(id) && isProfileIncomplete()) {
       setShowCompleteProfileModal(true);
@@ -643,7 +652,7 @@ export default function ProfileScreen() {
   // Dev-only entry point for now — final placement is the "Complete Your Profile"
   // success popup, per the product ask. Wired to a real Razorpay subscription.
   const handleUpgrade = async () => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('upgrade to premium') || !token) return;
     if (upgrading) return;
     setUpgrading(true);
     try {
@@ -674,7 +683,7 @@ export default function ProfileScreen() {
   };
 
   const handleAppleUpgrade = async () => {
-    if (isGuest || !token) { router.push('/role-selection'); return; }
+    if (!requireProfile('upgrade to premium')) return;
     await applePurchase.purchase((isPremium) => {
       if (isPremium) {
         setProfile((prev) => (prev ? { ...prev, isPremium: true } : prev));
@@ -840,7 +849,7 @@ export default function ProfileScreen() {
                     activeOpacity={0.7}
                     onPress={() => {
                       setShowDropdown(false);
-                      if (isGuest || !token) { router.push('/role-selection'); return; }
+                      if (!requireProfile('edit your profile')) return;
                       const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
                       router.push(editPath as any);
                     }}
@@ -860,7 +869,7 @@ export default function ProfileScreen() {
                     activeOpacity={0.7}
                     onPress={async () => {
                       setShowDropdown(false);
-                      if (isGuest || !token) { router.push('/role-selection'); return; }
+                      if (!requireProfile('share your profile')) return;
                       try {
                         await Share.share({
                           message: `Check out my profile on digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
@@ -1452,7 +1461,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
               onPress={() => {
                 setIsPhotoModalOpen(false);
-                if (isGuest || !token) { router.push('/role-selection'); return; }
+                if (!requireProfile('edit your profile')) return;
                 const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
                 router.push({ pathname: editPath, params: { step: '2' } } as any);
               }}
