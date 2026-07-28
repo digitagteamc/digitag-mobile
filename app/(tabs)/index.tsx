@@ -4,6 +4,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -1671,10 +1672,19 @@ export default function Homepage() {
             ) : selectedPortfolioLink ? (
               <TouchableOpacity
                 style={styles.portfolioLinkContainer}
-                onPress={() => {
-                  let url = selectedPortfolioLink;
+                onPress={async () => {
+                  let url = selectedPortfolioLink.trim();
+                  if (!url) return;
                   if (!url.startsWith('http://') && !url.startsWith('https://')) { url = 'https://' + url; }
-                  Linking.openURL(url);
+                  try {
+                    await WebBrowser.openBrowserAsync(url);
+                  } catch {
+                    try {
+                      await Linking.openURL(url);
+                    } catch {
+                      Alert.alert('Could not open link', 'This portfolio link could not be opened.');
+                    }
+                  }
                 }}
               >
                 <Text style={styles.portfolioLinkText}>{selectedPortfolioLink}</Text>

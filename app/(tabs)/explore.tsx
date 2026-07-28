@@ -6,6 +6,7 @@ import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -1333,10 +1334,19 @@ export default function ExploreTab() {
             {portfolioLoading ? (
               <ActivityIndicator color="#A78BFA" style={{ marginTop: 16 }} />
             ) : selectedPortfolioLink ? (
-              <TouchableOpacity style={s.portfolioRow} onPress={() => {
-                let url = selectedPortfolioLink;
+              <TouchableOpacity style={s.portfolioRow} onPress={async () => {
+                let url = selectedPortfolioLink.trim();
+                if (!url) return;
                 if (!url.startsWith('http')) url = 'https://' + url;
-                Linking.openURL(url);
+                try {
+                  await WebBrowser.openBrowserAsync(url);
+                } catch {
+                  try {
+                    await Linking.openURL(url);
+                  } catch {
+                    Alert.alert('Could not open link', 'This portfolio link could not be opened.');
+                  }
+                }
               }}>
                 <Text style={s.portfolioLinkText}>{selectedPortfolioLink}</Text>
                 <Feather name="arrow-up-right" size={20} color="#A78BFA" />

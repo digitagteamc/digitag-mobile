@@ -1,6 +1,7 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -260,8 +261,20 @@ export default function CreatorDetails() {
     const joinedLabel = profile.createdAt
         ? `Joined ${new Date(profile.createdAt).toLocaleString('en-US', { month: 'long', year: 'numeric' })}`
         : null;
-    const openLink = (url: string | null | undefined) => {
-        if (url) Linking.openURL(url).catch(() => { });
+    const openLink = async (url: string | null | undefined) => {
+        if (!url) return;
+        let target = url.trim();
+        if (!target) return;
+        if (!target.startsWith('http://') && !target.startsWith('https://')) target = 'https://' + target;
+        try {
+            await WebBrowser.openBrowserAsync(target);
+        } catch {
+            try {
+                await Linking.openURL(target);
+            } catch {
+                showAlert('Could not open link', 'This link could not be opened.');
+            }
+        }
     };
     // Each provided link renders as its own clickable icon — instagram, youtube,
     // twitter/X and portfolio are independent fields and can all be present at once.
