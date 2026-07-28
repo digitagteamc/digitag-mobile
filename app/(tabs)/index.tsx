@@ -14,6 +14,7 @@ import {
   ImageBackground,
   Linking,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   Share,
@@ -213,6 +214,34 @@ const StrokeText = ({ text, strokeColor, style }: { text: string, strokeColor: s
         </SvgText>
       </Svg>
     </View>
+  );
+};
+
+// Ambient glow behind the hero carousel, pinned to its top-right corner.
+// Figma: 551x551 circle, rgba(<role color>, 0.20), blur(132.5px).
+// iOS only — RN's shadowRadius/shadowColor blur (the only way to get a
+// soft colored glow like this) doesn't render the same way via Android's
+// elevation-based shadow model, so this would look wrong there.
+const GLOW_SIZE = 551;
+const HeroGlow = ({ color }: { color: string }) => {
+  if (Platform.OS !== 'ios') return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute',
+        top: -GLOW_SIZE / 2,
+        right: -GLOW_SIZE / 2,
+        width: GLOW_SIZE,
+        height: GLOW_SIZE,
+        borderRadius: GLOW_SIZE / 2,
+        backgroundColor: color,
+        shadowColor: color,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 132.5,
+      }}
+    />
   );
 };
 
@@ -1056,6 +1085,7 @@ export default function Homepage() {
       >
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>
+          <HeroGlow color={theme.softStrong} />
           <Carousel
             loop={true}
             width={width}
