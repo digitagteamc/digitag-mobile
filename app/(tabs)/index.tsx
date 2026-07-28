@@ -34,7 +34,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Circle, Defs, Path, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, SvgXml } from 'react-native-svg';
+import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
@@ -287,6 +287,28 @@ const HeroGradientText = ({
         >
           {text}
         </SvgText>
+      </Svg>
+    </View>
+  );
+};
+
+// Soft circular glow — an SVG radial gradient fading to transparent, instead of
+// a solid circle + CSS `filter: blur()`. RN's `filter` style is web-only and
+// silently no-ops on iOS, which rendered these as hard-edged solid circles
+// ("bulbs") instead of a soft glow. This works identically on iOS and Android.
+const GlowCircle = ({ size, color, opacity = 1, style }: { size: number; color: string; opacity?: number; style?: any }) => {
+  const gradId = React.useMemo(() => `glow_${Math.random().toString(36).slice(2, 10)}`, []);
+  return (
+    <View pointerEvents="none" style={[{ width: size, height: size }, style]}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor={color} stopOpacity={opacity} />
+            <Stop offset="55%" stopColor={color} stopOpacity={opacity * 0.45} />
+            <Stop offset="100%" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${gradId})`} />
       </Svg>
     </View>
   );
@@ -1306,20 +1328,12 @@ export default function Homepage() {
           <Text style={{ color: '#fff', textAlign: 'center', marginTop: 30 }}>No posts found</Text>
         ) : (
           <View style={{ paddingVertical: 10, position: 'relative' }}>
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                right: -200,
-                top: '50%',
-                marginTop: -275.5,
-                width: 551,
-                height: 551,
-                borderRadius: 551,
-                backgroundColor: userRole === 'FREELANCER' ? 'rgba(242, 105, 48, 0.20)' : 'rgba(237, 42, 145, 0.20)',
-                // @ts-ignore
-                filter: 'blur(132.5px)',
-              }}
+            <GlowCircle
+              
+              size={551}
+              color={userRole === 'FREELANCER' ? '#F26930' : '#ED2A91'}
+              opacity={0.12}
+              style={{ position: 'absolute', right: -150, top: '50%', marginTop: -270.5, width: 551, height: 551, borderRadius:551 }}
             />
             <Animated.FlatList
               horizontal
@@ -1427,36 +1441,18 @@ export default function Homepage() {
                 style={StyleSheet.absoluteFillObject}
               /> */}
               {/* Top-Right Glow Accent */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  top: -100,
-                  right: -68,
-                  width: 200,
-                  height: 200,
-                  borderRadius: 140,
-                  backgroundColor: userRole === 'FREELANCER' ? '#F26930' : '#E80A70',
-                  opacity: 0.55,
-                  // @ts-ignore
-                  filter: 'blur(35px)',
-                }}
+              <GlowCircle
+                size={220}
+                color={userRole === 'FREELANCER' ? '#F26930' : '#E80A70'}
+                opacity={0.35}
+                style={{ position: 'absolute', top: -90, right: -68 }}
               />
               {/* Bottom-Left Glow Accent */}
-              <View
-                pointerEvents="none"
-                style={{
-                  position: 'absolute',
-                  left: -100,
-                  bottom: -100,
-                  width: 180,
-                  height: 180,
-                  borderRadius: 180,
-                  backgroundColor: userRole === 'FREELANCER' ? '#F26930' : '#E80A70',
-                  opacity: 0.4,
-                  // @ts-ignore
-                  filter: 'blur(35px)',
-                }}
+              <GlowCircle
+                size={190}
+                color={userRole === 'FREELANCER' ? '#F26930' : '#E80A70'}
+                opacity={0.4}
+                style={{ position: 'absolute', left: -90, bottom: -100 }}
               />
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <Text style={{ fontSize: 18, marginRight: 6 }}>✨</Text>
