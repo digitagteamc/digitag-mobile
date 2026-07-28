@@ -253,6 +253,10 @@ export default function ProfileScreen() {
 
   const handleAddIgAccount = async () => {
     if (!newIgHandle.trim() || !token || igStarting) return;
+    // A stale interval from a previous attempt would still be polling the old
+    // (now server-side expired) record and could race with this new one,
+    // intermittently overwriting a fresh PENDING with a stale EXPIRED.
+    if (igPollRef.current) { clearInterval(igPollRef.current); igPollRef.current = null; }
     setIgStarting(true);
     try {
       const res = await startInstagramVerification(token, newIgHandle.trim());

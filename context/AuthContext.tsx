@@ -172,11 +172,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         }
                         setProfilesState(profilesMap);
 
-                        // Prefer the per-role completion flag (kept in sync by setActiveRole/setProfiles)
-                        // over the legacy flat flag, since the flat flag doesn't track role switches.
-                        const completedForRole = role && Object.prototype.hasOwnProperty.call(profilesMap, role)
-                            ? profilesMap[role as Role]
-                            : storedProfileDone[1] === 'true';
+                        // Trust either signal, not just the per-role map. EMPTY_PROFILES always has
+                        // both keys present (just false), so the old "does the key exist" check never
+                        // actually fell back to the legacy flag — if the app was killed before the
+                        // PROFILES write flushed (e.g. right after finishing signup), profilesMap silently
+                        // reverted to false even though setProfileCompletedPersist's flat flag write had
+                        // gone through, incorrectly sending a freshly-signed-up user back through signup.
+                        const completedForRole = Boolean(
+                            (role && profilesMap[role as Role] === true) || storedProfileDone[1] === 'true'
+                        );
                         setIsProfileCompleted(completedForRole);
                     }
                     // If refresh fails (expired/revoked), session stays null → user goes to login

@@ -27,6 +27,14 @@ export default function IgVerifyModal({ visible, code, instagramUsername, digiTa
     }, [visible, expiresAt]);
     const mins = Math.floor(secondsLeft / 60);
     const secs = secondsLeft % 60;
+
+    // Shown once per fresh verification attempt, before the code itself —
+    // walks the user through what they're about to do so the code+DM screen
+    // isn't the first thing they see with no context.
+    const [showIntro, setShowIntro] = React.useState(true);
+    React.useEffect(() => {
+        if (visible && status === 'PENDING') setShowIntro(true);
+    }, [visible, code]);
     return (
         <Modal visible={visible} transparent animationType="slide">
             <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
@@ -40,13 +48,56 @@ export default function IgVerifyModal({ visible, code, instagramUsername, digiTa
                                 <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Done</Text>
                             </TouchableOpacity>
                         </>
-                    ) : status === 'EXPIRED' || status === 'FAILED' ? (
+                    ) : status === 'FAILED' ? (
+                        <>
+                            <Text style={{ color: '#ef4444', fontSize: 40, textAlign: 'center', marginBottom: 8 }}>✕</Text>
+                            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', textAlign: 'center', marginBottom: 8 }}>Wrong Instagram Account</Text>
+                            <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+                                That code was sent from a different Instagram account. Please DM it from @{instagramUsername} — the account you entered — then tap Try Again for a new code.
+                            </Text>
+                            <TouchableOpacity onPress={onClose} style={{ backgroundColor: accentColor, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Try Again</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : status === 'EXPIRED' ? (
                         <>
                             <Text style={{ color: '#ef4444', fontSize: 40, textAlign: 'center', marginBottom: 8 }}>✕</Text>
                             <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', textAlign: 'center', marginBottom: 8 }}>Code Expired</Text>
                             <Text style={{ color: '#aaa', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>The verification code expired. Tap Verify again to get a new code.</Text>
                             <TouchableOpacity onPress={onClose} style={{ backgroundColor: accentColor, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
                                 <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>Try Again</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : showIntro ? (
+                        <>
+                            <Text style={{ color: '#fff', fontSize: 20, fontFamily: 'Poppins_700Bold', marginBottom: 4 }}>How verification works</Text>
+                            <Text style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+                                A few quick steps to confirm this Instagram account is really yours:
+                            </Text>
+                            {[
+                                `We'll show you a one-time 6-digit code`,
+                                `Open Instagram and go to your DMs`,
+                                `Send a new message containing just that code to @${digiTagInstagram}`,
+                                `Come back here — we detect it automatically, usually within 30 seconds`,
+                            ].map((step, i) => (
+                                <View key={i} style={{ flexDirection: 'row', marginBottom: 14 }}>
+                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: accentColor, alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 1 }}>
+                                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins_700Bold' }}>{i + 1}</Text>
+                                    </View>
+                                    <Text style={{ color: '#ccc', fontSize: 13.5, flex: 1, lineHeight: 19 }}>{step}</Text>
+                                </View>
+                            ))}
+                            <Text style={{ color: '#555', fontSize: 11.5, textAlign: 'center', marginTop: 4, marginBottom: 20 }}>
+                                Only DMs from @{instagramUsername} are accepted — messages from any other account are ignored.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setShowIntro(false)}
+                                style={{ backgroundColor: accentColor, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 15 }}>Show my code</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={onClose} style={{ borderWidth: 1, borderColor: '#333', borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: '#888', fontFamily: 'Poppins_500Medium', fontSize: 15 }}>Cancel</Text>
                             </TouchableOpacity>
                         </>
                     ) : (

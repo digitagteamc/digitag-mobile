@@ -1363,8 +1363,9 @@ export const startSocialVerification = async (token: string, platform: 'YOUTUBE'
 
 /**
  * GET /social-verifications/status/:id
- * Polls the verification status. Returns { id, status, socialAccountId, accountName }
+ * Polls the verification status. Returns { id, status, socialAccountId, accountName, failureReason }
  * status is one of: PENDING | VERIFIED | EXPIRED | FAILED
+ * failureReason is only set when status is FAILED (e.g. "No YouTube channel was found for this Google account")
  */
 export const getSocialVerificationStatus = async (token: string, id: string) => {
     try {

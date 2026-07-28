@@ -383,6 +383,12 @@ type SocialVerifyRowProps = {
     verifying: boolean;
     accountLabel?: string;
     onVerifyPress: () => void;
+    // Optional manual entry field shown above the Verify button — lets the user
+    // paste/type their profile link directly instead of only having the OAuth
+    // button as the sole way to provide it.
+    linkValue?: string;
+    onLinkChange?: (v: string) => void;
+    linkPlaceholder?: string;
 };
 
 const SocialVerifyRow = ({
@@ -391,11 +397,24 @@ const SocialVerifyRow = ({
     verifying,
     accountLabel,
     onVerifyPress,
+    linkValue,
+    onLinkChange,
+    linkPlaceholder,
 }: SocialVerifyRowProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
             {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
+        {!verified && onLinkChange ? (
+            <TextInput
+                placeholder={linkPlaceholder || `${platform} profile link`}
+                placeholderTextColor="#555"
+                value={linkValue}
+                onChangeText={onLinkChange}
+                autoCapitalize="none"
+                className="bg-[#1A1A1A] h-[48px] px-4 rounded-[12px] text-white font-poppins-regular mb-2.5"
+            />
+        ) : null}
         {verified ? (
             <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
                 <Text className="text-white font-poppins-regular flex-1" numberOfLines={1}>
@@ -588,6 +607,10 @@ export default function FreelancerSignup() {
 
     const handleIgVerify = async () => {
         if (!form.instagramHandle.trim() || !token) return;
+        // A stale interval from a previous attempt would still be polling the
+        // old (now server-side expired) record and could race with this new
+        // one, intermittently overwriting a fresh PENDING with a stale EXPIRED.
+        if (igPollRef.current) { clearInterval(igPollRef.current); igPollRef.current = null; }
         setIgVerifying(true);
         try {
             const res = await startInstagramVerification(token, form.instagramHandle.trim());
@@ -683,7 +706,7 @@ export default function FreelancerSignup() {
                     return;
                 }
                 if (s === 'EXPIRED' || s === 'FAILED') {
-                    Alert.alert('Verification failed', `We couldn't verify your ${label} account. Please try again.`);
+                    Alert.alert('Verification failed', statusRes.data.failureReason || `We couldn't verify your ${label} account. Please try again.`);
                     return;
                 }
             }
@@ -1096,6 +1119,9 @@ export default function FreelancerSignup() {
                                     verifying={socialVerifying.FACEBOOK}
                                     accountLabel={socialAccountNames.FACEBOOK || form.facebookHandle}
                                     onVerifyPress={() => handleSocialVerify('FACEBOOK')}
+                                    linkValue={form.facebookHandle}
+                                    onLinkChange={(v: string) => setForm({ ...form, facebookHandle: v })}
+                                    linkPlaceholder="facebook.com/username or profile link"
                                 />
                                 <SocialRow
                                     platform="Twitter / X"
