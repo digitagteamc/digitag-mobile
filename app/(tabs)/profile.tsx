@@ -804,7 +804,7 @@ export default function ProfileScreen() {
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
-            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  opacity-30 " resizeMode="cover" />
+            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  opacity-[0.80] " resizeMode="cover" />
             {/* Dark overlay matching index.tsx gradient — darkened further so the
                 background photo stays subdued behind the profile info */}
             <LinearGradient colors={['rgba(0,0,0,0.55)', '#000']} className="absolute inset-0" />
@@ -915,7 +915,7 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 onPress={() => setIsPhotoModalOpen(true)}
                 activeOpacity={0.9}
-                className="w-[68px] h-[68px] rounded-full border-2 border-white/60 overflow-hidden bg-[#222]"
+                className="w-[68px] h-[68px] rounded-full   overflow-hidden bg-[#222]"
               >
                 <Image
                   source={profile?.profilePicture ? { uri: profile.profilePicture } : require('../../assets/images/icon.png')}
@@ -1030,16 +1030,12 @@ export default function ProfileScreen() {
           {viewMode === 'main' ? (
               <>
                 {/* ══════════ MENU CARD ══════════ */}
-                <View 
-                  className="mx-5 mt-4 rounded-[28px] border  bg-[#0A0A0A]"
+                <View
+                  className="mx-5 mt-8 rounded-[28px] border bg-[rgba(0, 0, 0, 0.30)]"
                   style={{
-                    shadowColor: '#fff',
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.5,
-                    shadowRadius: 15,
-                    elevation: 10,
-                    borderColor: '#fff',
-                    borderWidth: 0.3,
+                    borderColor: 'rgba(255,255,255,0.16)',
+                    borderWidth: 1,
+                     
                   }}
                 >
                 {visibleMenuItems.map((item, index) => {
@@ -1070,7 +1066,7 @@ export default function ProfileScreen() {
                             <Text style={{ color: '#666', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>{countLabel}</Text>
                           )}
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color="#555" />
+                        <Ionicons name="chevron-forward" size={18} color="#fff" />
                       </TouchableOpacity>
                       {index < visibleMenuItems.length - 1 && (
                         <View className="h-[0.5px] bg-white/10 mx-5" />
@@ -1086,9 +1082,9 @@ export default function ProfileScreen() {
                   isProfileCompleted gate above), so this only needs to exclude guests. */}
               {!isGuest && (
               <>
-              <View className="mx-5 mt-4 rounded-[28px] border border-white/10 bg-[#0A0A0A] px-5 py-4">
-                <Text className="text-white text-[16px] mb-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>Add Social Media Links</Text>
-                <Text className="text-white text-[12px] mb-3" style={{ fontFamily: 'Poppins_400Regular' }}>Proposal pattern for Profile {'>'} Social Links – Manage</Text>
+              <View className="mx-5 mt-4 rounded-[28px]   px-5 py-4">
+                <Text className="text-white text-[18px] mb-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>Add Social Media Links</Text>
+                <Text className="text-[#a1a2a4] text-[12px] mb-3" style={{ fontFamily: 'Poppins_400Regular' }}>Proposal pattern for Profile {'>'} Social Links – Manage</Text>
 
                 {/* Collapsed trigger row — tap to expand and manage Instagram links */}
                 <TouchableOpacity
@@ -1111,7 +1107,7 @@ export default function ProfileScreen() {
                       {(profile?.instagramAccounts ?? []).length} link{(profile?.instagramAccounts ?? []).length === 1 ? '' : 's'}
                     </Text>
                   </View>
-                  <Ionicons name={igSectionExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#888" />
+                  <Ionicons name={igSectionExpanded ? 'chevron-up' : 'chevron-down'} size={18} color="#fff" />
                 </TouchableOpacity>
 
                 {igSectionExpanded && (
@@ -1230,9 +1226,17 @@ export default function ProfileScreen() {
               )}
 
               {/* ══════════ POSTS / COLLAB ACTIVITY ══════════ */}
-              <View className="flex-row mx-5 mt-6 border-b border-white/10">
+              <View
+                className="flex-row mx-5 mt-6"
+                style={{
+                  paddingLeft: 40,
+                   gap: 90,
+                  borderBottomWidth: 1,
+                  borderBottomColor: 'rgba(255,255,255,0.1)',
+                }}
+              >
                 <TouchableOpacity
-                  style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
+                  style={{ alignItems: 'center', paddingVertical: 10 }}
                   activeOpacity={0.75}
                   onPress={() => setActivityTab('posts')}
                 >
@@ -1252,11 +1256,11 @@ export default function ProfileScreen() {
                     Posts
                   </Text>
                   {activityTab === 'posts' && (
-                    <View style={{ height: 2, width: '60%', borderRadius: 1, marginTop: 8, backgroundColor: theme.primary }} />
+                    <View style={{ position: 'absolute', bottom: -2, alignSelf: 'center', height: 2, width: '200%', borderRadius: 1, backgroundColor: theme.primary }} />
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}
+                  style={{ alignItems: 'center', paddingVertical: 10 }}
                   activeOpacity={0.75}
                   onPress={() => setActivityTab('collab')}
                 >
@@ -1276,12 +1280,12 @@ export default function ProfileScreen() {
                     Collab
                   </Text>
                   {activityTab === 'collab' && (
-                    <View style={{ height: 2, width: '60%', borderRadius: 1, marginTop: 8, backgroundColor: theme.primary }} />
+                    <View style={{ position: 'absolute', bottom: -2, alignSelf: 'center', height: 2, width: '200%', borderRadius: 1, backgroundColor: theme.primary }} />
                   )}
                 </TouchableOpacity>
               </View>
 
-              <View className="px-5 mt-5">
+              <View className="px-5 ">
                 {activityTab === 'posts' ? (
                   activityPostCards.length === 0 ? (
                     <Text className="text-[#8A8A99] text-center mt-8" style={{ fontFamily: 'Poppins_400Regular' }}>No posts yet.</Text>

@@ -1997,7 +1997,7 @@ const styles = StyleSheet.create({
   figmaCard: {
     width: 248,
     height: 347,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#121212',
     borderRadius: 23.6,
     alignItems: 'center',
     position: 'relative',
@@ -2060,6 +2060,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Poppins_500Medium',
     marginTop: 8,
+    width: '80%',
+    textAlign: 'center',
   },
   figmaCardMetaRow: {
     flexDirection: 'row',
