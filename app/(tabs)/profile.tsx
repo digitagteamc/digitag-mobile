@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   Keyboard,
   Linking,
@@ -104,6 +105,24 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
+
+  // Hardware back button: while viewing My Profile's details sub-view,
+  // go back to the main Profile view first instead of falling through to
+  // React Navigation's default behavior (which jumps to the Home tab).
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (viewMode === 'details') {
+          setViewMode('main');
+          return true;
+        }
+        return false;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [viewMode])
+  );
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
@@ -779,8 +798,6 @@ export default function ProfileScreen() {
     );
   }
 
-  const iconBorderClass = profile?.role?.toUpperCase() === 'FREELANCER' ? ' ' : ' ';
-
   return (
     <View className="flex-1 bg-[#060606]">
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
@@ -1380,73 +1397,37 @@ export default function ProfileScreen() {
             <View className="px-4 mt-8">
               <Text className="text-white text-xl font-semibold mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Profile Details</Text>
 
-              {/* Profile Details Card */}
+              {/* Profile Details Card — styled to match the Menu card exactly:
+                  same container, row padding/gap, icon presentation, text
+                  hierarchy (bold label + gray value), divider and chevron. */}
               <View
-                className="rounded-[24px] px-2 py-4 border bg-[#0A0A0A]"
+                className="rounded-[28px] border bg-[rgba(0, 0, 0, 0.30)]"
                 style={{
-                  shadowColor: '#fff',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 15,
-                  elevation: 10,
-                  borderColor: '#fff',
-                  borderWidth: 0.3,
+                  borderColor: 'rgba(255,255,255,0.16)',
+                  borderWidth: 1,
                 }}
               >
-                {/* Email Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3  ">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border `}>
-                    <Image source={require('../../assets/mailicon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Email</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.email || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Bio Row */}
-                <View className="flex-row items-start gap-4 px-3 py-3  border-[#222]">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
-                    <Image source={require('../../assets/myprofile-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Bio</Text>
-                    <Text className="text-white text-[15px] leading-5" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.bio || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Location Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 ">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
-                    <Image source={require('../../assets/map-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Location</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.location || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Category Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 ">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
-                    <Image source={require('../../assets/category-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Category</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.categories?.join(', ') || profile?.category || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Language Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Image source={require('../../assets/language-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Language</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.languages?.join(', ') || 'Not provided'}</Text>
-                  </View>
-                </View>
+                {[
+                  { key: 'email', icon: require('../../assets/mailicon.png'), label: 'Email', value: profile?.email || 'Not provided' },
+                  { key: 'bio', icon: require('../../assets/myprofile-icon.png'), label: 'Bio', value: profile?.bio || 'Not provided' },
+                  { key: 'location', icon: require('../../assets/map-icon.png'), label: 'Location', value: profile?.location || 'Not provided' },
+                  { key: 'category', icon: require('../../assets/category-icon.png'), label: 'Category', value: profile?.categories?.join(', ') || profile?.category || 'Not provided' },
+                  { key: 'language', icon: require('../../assets/language-icon.png'), label: 'Language', value: profile?.languages?.join(', ') || 'Not provided' },
+                ].map((row, index, rows) => (
+                  <React.Fragment key={row.key}>
+                    <View className="flex-row items-center py-2 px-5 gap-4">
+                      <Image source={row.icon} style={{  width: 36, height: 36 }} resizeMode="contain" />
+                      <View style={{ flex: 1 }}>
+                        <Text className="text-[#666] text-[16px]" style={{ fontFamily: 'Poppins_400Regular' }}>{row.label}</Text>
+                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins_400Regular' }}>{row.value}</Text>
+                      </View>
+                      {/* <Ionicons name="chevron-forward" size={18} color="#fff" /> */}
+                    </View>
+                    {index < rows.length - 1 && (
+                      <View className="h-[0.5px] bg-white/10 mx-5" />
+                    )}
+                  </React.Fragment>
+                ))}
               </View>
 
             </View>

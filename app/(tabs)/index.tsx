@@ -1,6 +1,7 @@
 import { matchesPortfolioCategory } from '@/constants/portfolioCategories';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -12,7 +13,6 @@ import {
   Animated,
   Dimensions,
   Image,
-  ImageBackground,
   Linking,
   Modal,
   Platform,
@@ -28,6 +28,7 @@ import {
 } from 'react-native';
 import Reanimated, {
   cancelAnimation,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -75,7 +76,86 @@ const slide1 = require('../../assets/slides/slide1.webp');
 const slide2 = require('../../assets/slides/slide2.webp');
 const slide3 = require('../../assets/slides/slide3.webp');
 const slide4 = require('../../assets/slides/slide4.webp');
- 
+
+
+// Hero carousel images for Creator role and guest mode only — Freelancer
+// keeps the original local slide images (see CAROUSEL_DATA below).
+const CREATOR_HERO_IMAGES = [
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Creator+1.png',
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Creator+2.png',
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Creator+3.png',
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Creator+4.png',
+];
+
+// Hero carousel images for Freelancer role only. Title/description content
+// for these is still the original CAROUSEL_DATA copy — pending replacement.
+const FREELANCER_HERO_IMAGES = [
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Freelancer+1.png',
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Freelancer+2.png',
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Freelancer+3.png',
+  'https://digitag-web-media.s3.ap-south-1.amazonaws.com/Freelancer+4.png',
+];
+
+// Title/description text paired with the Creator hero images above — index
+// for index, same as CREATOR_HERO_IMAGES. titleLine3 is intentionally
+// omitted (these are 2-line headlines, unlike Freelancer's 3-line ones).
+const CREATOR_HERO_CONTENT = [
+  {
+    titleLine1: 'Turn Content Into',
+    titleLine2: 'Opportunities',
+    desc1: 'Discover paid collaborations, grow your audience, and',
+    desc2: 'make every post count with Digitag.',
+  },
+  {
+    titleLine1: 'Collaborate With 100%',
+    titleLine2: 'Verified Brands',
+    desc1: 'Discover paid collaborations, grow your audience and',
+    desc2: 'make every post count with Digitag.',
+  },
+  {
+    titleLine1: 'Your Creator',
+    titleLine2: 'Journey Starts Here',
+    desc1: 'Build your profile, showcase your talent, and connect with',
+    desc2: 'brands looking for creators like you.',
+  },
+  {
+    titleLine1: 'Create Connect',
+    titleLine2: 'Collaborate',
+    desc1: 'Find the right brand partnerships, expand your reach and',
+    desc2: 'unlock new opportunities.',
+  },
+];
+
+// Title/description text paired with the Freelancer hero images above —
+// index for index, same as FREELANCER_HERO_IMAGES. These titles are single
+// line (titleLine2 left empty, guarded in render), unlike Creator's 2-line
+// headlines.
+const FREELANCER_HERO_CONTENT = [
+  {
+    titleLine1: 'Why Get Verified?',
+    titleLine2: '',
+    desc1: 'Unlock exclusive benefits with your Verified Badge.',
+    desc2: '',
+  },
+  {
+    titleLine1: 'Get Verified. Get Noticed.',
+    titleLine2: '',
+    desc1: 'Build trust, stand out from the crowd, and let clients',
+    desc2: "know you're a genuine professional.",
+  },
+  {
+    titleLine1: 'Find. Collaborate. Create.',
+    titleLine2: '',
+    desc1: 'Create your first post and showcase your talent.',
+    desc2: '',
+  },
+  {
+    titleLine1: 'Work Without Boundaries',
+    titleLine2: '',
+    desc1: 'Find freelance opportunities from anywhere, anytime.',
+    desc2: '',
+  },
+];
 
 const CAROUSEL_DATA = [
   {
@@ -244,6 +324,25 @@ const HeroGlow = ({ color }: { color: string }) => {
       }}
     />
   );
+};
+
+// Hero carousel pagination dot — driven continuously by the carousel's
+// onProgressChange value (not the discrete onSnapToItem index), so it stays
+// in sync while dragging instead of only updating once a snap completes.
+// Handles the circular wrap for loop={true} (e.g. dot 0 should also light up
+// as progress approaches the end and wraps back to the start).
+const HeroDot = ({ index, total, progress }: { index: number; total: number; progress: SharedValue<number> }) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    const p = ((progress.value % total) + total) % total;
+    const rawDiff = Math.abs(p - index);
+    const diff = Math.min(rawDiff, total - rawDiff, 1);
+    return {
+      opacity: 1 - diff * 0.7,
+      transform: [{ scale: 1.2 - diff * 0.4 }],
+    };
+  });
+  return <Reanimated.View style={[styles.dot, animatedStyle]} />;
 };
 
 const HeroGradientText = ({
@@ -582,7 +681,11 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
+  const [descMeasured, setDescMeasured] = React.useState(false);
+  const [descTruncated, setDescTruncated] = React.useState(false);
+  const [descCutLength, setDescCutLength] = React.useState(0);
+
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -605,6 +708,11 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
   const postTheme = getRoleTheme(item.ownerRole);
   const postColor = postTheme.primary;
+  const isCreatorOwner = (item.ownerRole || '').toUpperCase() === 'CREATOR';
+  const expertBadgeBg = isCreatorOwner ? '#460628' : '#4C2409';
+  const expertBadgeGradient = isCreatorOwner
+    ? ['rgba(237, 42, 145, 1)', 'rgba(206, 10, 113, 1)', 'rgba(175, 4, 95, 1)']
+    : ['rgba(255, 152, 42, 1)', 'rgba(245, 136, 92, 1)', 'rgba(227, 86, 28, 1)'];
 
   return (
     <View style={{ width: ITEM_SIZE, alignItems: 'center', justifyContent: 'center' }}>
@@ -625,20 +733,29 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               colors={['rgba(255, 255, 255, 0.05)', 'transparent']}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }}
             />
-            {/* Top Absolute Row */}
-            <View style={styles.figmaCardTopRow}>
-              <View style={styles.figmaCardRoleBadge}>
-                <Text style={styles.figmaCardRoleText}>{item.role}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleShare(item.id)}>
-                  <Ionicons name="share-social-outline" size={18} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.figmaCardBookmarkBtn} onPress={() => handleBookmark(item.id)}>
-                  <Ionicons name={savedPostIds?.has(item.id) ? 'bookmark' : 'bookmark-outline'} size={18} color={savedPostIds?.has(item.id) ? postColor : '#fff'} />
-                </TouchableOpacity>
-              </View>
-            </View>
+
+            {/* Bookmark */}
+            <TouchableOpacity
+              style={styles.figmaCardBookmarkBtn}
+              onPress={() => handleBookmark(item.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Image
+                source={require('../../assets/Save.png')}
+                style={styles.figmaCardBookmarkIcon}
+                resizeMode="contain"
+              />
+              {/* Icon-only cutout (transparent bg, generated from Save.png) layered
+                  on top so tinting the "saved" state colors just the bookmark
+                  glyph — the dark circle underneath stays untouched. */}
+              {savedPostIds?.has(item.id) && (
+                <Image
+                  source={require('../../assets/SaveIconOnly.png')}
+                  style={[styles.figmaCardBookmarkIcon, { position: 'absolute', tintColor: postColor }]}
+                  resizeMode="contain"
+                />
+              )}
+            </TouchableOpacity>
 
             {/* Avatar */}
             <View style={styles.figmaCardAvatarWrap}>
@@ -654,75 +771,133 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               )}
             </View>
 
-            {/* Name & Details */}
+            {/* Name */}
             <Text style={styles.figmaCardName} numberOfLines={1} ellipsizeMode="tail">
               {item.name}
             </Text>
 
-            <View style={styles.figmaCardMetaRow}>
-              <TouchableOpacity
-                style={[styles.figmaCardPortfolioBtn, { backgroundColor: postColor }]}
-                onPress={() => handleSeePortfolio(item.ownerId, item.ownerRole)}
-              >
-                <Text style={styles.figmaCardPortfolioText}>See Portfolio</Text>
-              </TouchableOpacity>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 12 }}>
-                <Ionicons name="time-outline" size={14} color="#a1a2a4" />
-                <Text style={styles.figmaCardTimeText}> {item.time}</Text>
-              </View>
-            </View>
-
-            <Text style={styles.figmaCardDesc} numberOfLines={3}>{item.desc}</Text>
-
-            <View style={styles.figmaCardPriceRow}>
-              {item.price === 'Paid Collab' && item.budget ? (
-                <>
-                  <Text style={styles.figmaCardStartingFrom}>Starting from </Text>
-                  <Text style={styles.figmaCardPrice}>{`₹ ${String(item.budget).replace(/^₹\s*/, '')}`}</Text>
-                </>
-              ) : (
-                <Text style={styles.figmaCardPrice}>
-                  {item.price === 'Paid Collab' ? 'Paid Collab' : 'Free Collab'}
-                </Text>
+            {/* Role + Experience badge */}
+            <View style={styles.figmaCardRoleRow}>
+              <Text style={styles.figmaCardRoleText} numberOfLines={1}>{item.role}</Text>
+              {!!item.experience && (
+                <LinearGradient
+                  colors={expertBadgeGradient as any}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.figmaCardExpertBadgeGradient}
+                >
+                  <View style={[styles.figmaCardExpertBadge, { backgroundColor: expertBadgeBg }]}>
+                    <MaskedView
+                      style={{ width: 12, height: 12 }}
+                      maskElement={<Ionicons name="star" size={12} color="#000" />}
+                    >
+                      <LinearGradient
+                        colors={expertBadgeGradient as any}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={{ width: 12, height: 12 }}
+                      />
+                    </MaskedView>
+                    <Text style={[styles.figmaCardExpertText, { color: '#fff' }]} numberOfLines={1}>{item.experience}</Text>
+                  </View>
+                </LinearGradient>
               )}
             </View>
 
-            {/* Bottom Actions */}
-            {completedCollabPostIds?.has(item.id) ? (
-              <View style={[styles.figmaCollabBtn, { backgroundColor: '#3a3a3a' }]}>
-                <Ionicons name="checkmark-circle-outline" size={15} color="#fff" />
-                <Text style={styles.figmaCollabBtnText}>Collaborated</Text>
-              </View>
-            ) : acceptedCollabPostIds?.has(item.id) ? (
-              <View style={styles.figmaCardActions}>
-                <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
-                  <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
-                  </ImageBackground>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleCall(item.ownerId)} activeOpacity={0.75}>
-                  <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
-                    <Ionicons name="call-outline" size={18} color="#fff" />
-                  </ImageBackground>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[styles.figmaCollabBtn, { backgroundColor: postColor, opacity: collabSentPostIds?.has(item.id) ? 0.6 : 1 }]}
-                onPress={() => handleCollab(item.ownerId, item.id)}
-                activeOpacity={0.8}
-                disabled={collabSentPostIds?.has(item.id)}
-              >
-                <Ionicons
-                  name={collabSentPostIds?.has(item.id) ? 'checkmark-circle-outline' : 'people-outline'}
-                  size={15}
-                  color="#fff"
-                />
-                <Text style={styles.figmaCollabBtnText}>
-                  {collabSentPostIds?.has(item.id) ? 'Request Sent' : 'Collaborate'}
+            {/* Description (body only — the post title is never shown here).
+                "See more" only appears when the text actually overflows 3
+                lines — measured via a hidden, unclamped layer since
+                onTextLayout reports already-clamped lines once
+                numberOfLines is set. The visible text is then cut by
+                character count (not numberOfLines) once truncated, because
+                numberOfLines' own ellipsis clamp would cut the whole Text
+                tree at the line limit — including the nested "See more"
+                Text appended after it — silently swallowing the link. */}
+            {!!item.desc && (
+              <View>
+                {!descMeasured && (
+                  <Text
+                    style={[styles.figmaCardDesc, { position: 'absolute', left: 0, right: 0, opacity: 0 }]}
+                    onTextLayout={(e) => {
+                      const lines = e.nativeEvent.lines;
+                      if (lines.length > 3) {
+                        let len = 0;
+                        for (let i = 0; i < 3; i++) len += lines[i].text.length;
+                        setDescCutLength(len);
+                        setDescTruncated(true);
+                      }
+                      setDescMeasured(true);
+                    }}
+                  >
+                    {item.desc}
+                  </Text>
+                )}
+                <Text style={styles.figmaCardDesc} numberOfLines={descTruncated ? undefined : 3}>
+                  {descTruncated
+                    ? `${item.desc.slice(0, Math.max(0, descCutLength - 12)).trimEnd()}... `
+                    : item.desc}
+                  {descTruncated && (
+                    <Text style={[styles.figmaCardSeeMore, { color: postColor }]}>See more</Text>
+                  )}
                 </Text>
-              </TouchableOpacity>
+              </View>
             )}
+
+            {/* Meta pills: price + time */}
+            <View style={styles.figmaCardPillRow}>
+              <View style={[styles.figmaCardPricePill, { backgroundColor: item.price === 'Paid Collab' ? 'rgba(14,25,9,100)' : 'rgba(167,139,250,0.16)' }]}>
+                <Ionicons name={item.price === 'Paid Collab' ? 'wallet' : 'gift-outline'} size={12} color={item.price === 'Paid Collab' ? '#5abf39' : '#a78bfa'} />
+                <Text
+                  style={[styles.figmaCardPricePillText, { color: item.price === 'Paid Collab' ? '#5abf39' : '#a78bfa' }]}
+                  numberOfLines={1}
+                >
+                  {item.price === 'Paid Collab' && item.budget ? `Starts from ₹${String(item.budget).replace(/^₹\s*/, '')}` : (item.price === 'Paid Collab' ? 'Paid Collab' : 'Free Collab')}
+                </Text>
+              </View>
+              <View style={styles.figmaCardTimePill}>
+                <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                <Text style={styles.figmaCardTimePillText} numberOfLines={1}>{item.time}</Text>
+              </View>
+            </View>
+
+            {/* Bottom Actions */}
+            <View style={styles.figmaCardBottomRow}>
+              {completedCollabPostIds?.has(item.id) ? (
+                <View style={[styles.figmaCardRequestBtn, { backgroundColor: '#3a3a3a' }]}>
+                  <Ionicons name="checkmark-circle-outline" size={14} color="#fff" />
+                  <Text style={styles.figmaCardRequestBtnText}>Collaborated</Text>
+                </View>
+              ) : acceptedCollabPostIds?.has(item.id) ? (
+                <View style={styles.figmaCardIconActionsRow}>
+                  <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75} style={styles.figmaCardIconAction}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={16} color="#fff" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleCall(item.ownerId)} activeOpacity={0.75} style={styles.figmaCardIconAction}>
+                    <Ionicons name="call-outline" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.figmaCardRequestBtn, { backgroundColor: postColor, opacity: collabSentPostIds?.has(item.id) ? 0.6 : 1 }]}
+                  onPress={() => handleCollab(item.ownerId, item.id)}
+                  activeOpacity={0.8}
+                  disabled={collabSentPostIds?.has(item.id)}
+                >
+                  {collabSentPostIds?.has(item.id) ? (
+                    <Ionicons name="checkmark-circle-outline" size={14} color="#fff" />
+                  ) : (
+                    <Image
+                      source={require('../../assets/collaborate.png')}
+                      style={{ width: 14, height: 14, tintColor: '#fff' }}
+                      resizeMode="contain"
+                    />
+                  )}
+                  <Text style={styles.figmaCardRequestBtnText} numberOfLines={1}>
+                    {collabSentPostIds?.has(item.id) ? 'Sent' : 'Collaborate'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </TouchableOpacity>
         </LinearGradient>
       </Animated.View>
@@ -736,6 +911,26 @@ export default function Homepage() {
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
+
+  // Hero carousel: Creator role and guest mode show the S3 creator images
+  // with their matching headline/description; Freelancer shows the S3
+  // freelancer images with its own matching headline/description.
+  const heroCarouselData = useMemo(() => {
+    if (userRole === 'FREELANCER') {
+      return CAROUSEL_DATA.map((item, i) => ({
+        ...item,
+        ...FREELANCER_HERO_CONTENT[i],
+        titleLine3: '',
+        image: { uri: FREELANCER_HERO_IMAGES[i] },
+      }));
+    }
+    return CAROUSEL_DATA.map((item, i) => ({
+      ...item,
+      ...CREATOR_HERO_CONTENT[i],
+      titleLine3: '',
+      image: { uri: CREATOR_HERO_IMAGES[i] },
+    }));
+  }, [userRole]);
 
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -757,7 +952,9 @@ export default function Homepage() {
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // Continuous carousel scroll position (via onProgressChange), driving the
+  // pagination dots in real time instead of only on snap completion.
+  const heroProgress = useSharedValue(0);
   const [communityModalVisible, setCommunityModalVisible] = useState(false);
 
   // Filter categories based on role: show only first 4 for Freelancers, all 8 for others.
@@ -787,7 +984,37 @@ export default function Homepage() {
   const snapInterval = userRole === 'FREELANCER' ? colWidth + catGap : colWidth * 2 + 14 * 2;
 
   const scrollXCat = useRef(new Animated.Value(0)).current;
-  const activeCatPage = Animated.divide(scrollXCat, snapInterval);
+  // Memoized so the node keeps a stable identity across re-renders — this
+  // component re-renders often, and Animated.divide() would otherwise
+  // produce a brand-new node every time, constantly retriggering the
+  // listener effect below and starving catPageIndex of real updates.
+  const activeCatPage = useMemo(() => Animated.divide(scrollXCat, snapInterval), [scrollXCat, snapInterval]);
+
+  // Instagram-style paginator: only CAT_MAX_DOTS dots fit in the visible
+  // "viewport"; the rest of the strip sits clipped outside it. Rather than
+  // discretely swapping which dots are rendered (which pops instead of
+  // scrolling), the whole dot row is one Animated.View whose translateX is
+  // interpolated straight off activeCatPage — so as you drag the category
+  // list, the next dot smoothly slides into view exactly in step with the
+  // scroll, like a real scrolling pagination strip.
+  // Creator/guest's "Freelancers by Category" list (5 pages) shows a tighter
+  // 2-dot strip; Freelancer's "Creators by Category" list (13 pages) keeps 4.
+  const CAT_MAX_DOTS = userRole === 'FREELANCER' ? 4 : 2;
+  const CAT_DOT_SIZE = 8;
+  const CAT_DOT_GAP = 6;
+
+  const totalCatPages = availableCategoryColumns.length;
+  const catViewportWidth = CAT_MAX_DOTS * CAT_DOT_SIZE + (CAT_MAX_DOTS - 1) * CAT_DOT_GAP;
+  const catFullRowWidth = totalCatPages * CAT_DOT_SIZE + Math.max(0, totalCatPages - 1) * CAT_DOT_GAP;
+  const catMaxScroll = Math.max(0, catFullRowWidth - catViewportWidth);
+  const catNeedsScroll = totalCatPages > CAT_MAX_DOTS;
+  const catDotsTranslateX = catNeedsScroll
+    ? activeCatPage.interpolate({
+      inputRange: [0, CAT_MAX_DOTS - 1, totalCatPages - 1],
+      outputRange: [0, 0, -catMaxScroll],
+      extrapolate: 'clamp',
+    })
+    : 0;
   const scrollX = useRef(new Animated.Value(0)).current;
   // Matches the carousel FlatList's initialScrollIndex, which itself only applies
   // once on first mount — so this must also only run once. Without this guard,
@@ -1035,6 +1262,10 @@ export default function Homepage() {
     const roleLabel = owner.role
       ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase()
       : 'User';
+    // description is stored as "title\n\nbody" (see create-post.tsx) — the
+    // card shows only the body, never the title.
+    const [, ...descBodyParts] = String(post.description || '').split('\n\n');
+    const descBody = descBodyParts.join('\n\n');
     return {
       id: post.id,
       owner: owner,
@@ -1046,7 +1277,8 @@ export default function Homepage() {
       avatarUri: pic,
       name,
       role: roleLabel,
-      desc: post.description,
+      experience: owner.experience || '',
+      desc: descBody,
       price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: post.budget || null,
       time: getTimeAgo(post.createdAt),
@@ -1090,9 +1322,11 @@ export default function Homepage() {
             height={432}
             autoPlay={true}
             windowSize={2}
-            data={CAROUSEL_DATA}
+            data={heroCarouselData}
             scrollAnimationDuration={800}
-            onSnapToItem={(index) => setCurrentSlide(index)}
+            onProgressChange={(_, absoluteProgress) => {
+              heroProgress.value = absoluteProgress;
+            }}
             renderItem={({ item }) => (
               <View style={{ flex: 1 }}>
                 <Image
@@ -1101,15 +1335,16 @@ export default function Homepage() {
                   resizeMode="cover"
                 />
 
-                <View style={{ position: 'absolute', bottom: 25, left: 16 }}>
-                  <View>
-                    <Text style={styles.heroTitle} >{item.titleLine1} </Text>
-                    <Text style={styles.heroTitle} >{item.titleLine2} </Text>
-                    <Text style={styles.heroTitle}  >{item.titleLine3} </Text>
+                {/* Same centered placement/styling for both roles. */}
+                <View style={{ position: 'absolute', bottom: 25, left: 0, right: 0, alignItems: 'center', paddingHorizontal: 24 }}>
+                  <View style={{ alignItems: 'center', width: '100%' }}>
+                    <Text style={[styles.heroTitle, { textAlign: 'center', width: '100%' }]}>{item.titleLine1} </Text>
+                    {!!item.titleLine2 && <Text style={[styles.heroTitle, { textAlign: 'center', width: '100%' }]}>{item.titleLine2} </Text>}
+                    {!!item.titleLine3 && <Text style={[styles.heroTitle, { textAlign: 'center', width: '100%' }]}>{item.titleLine3} </Text>}
                   </View>
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={styles.heroDesc}>{item.desc1}</Text>
-                    <Text style={styles.heroDesc}>{item.desc2}</Text>
+                  <View style={{ marginTop: 12, alignItems: 'center', width: '100%' }}>
+                    <Text style={[styles.heroDesc, { textAlign: 'center', width: '100%' }]}>{item.desc1}</Text>
+                    {!!item.desc2 && <Text style={[styles.heroDesc, { textAlign: 'center', width: '100%' }]}>{item.desc2}</Text>}
                   </View>
                   {/* Contact + Create Community — commented out for both Freelancer and
                       Creator roles per request. Do not delete; functionality (help-support
@@ -1138,8 +1373,8 @@ export default function Homepage() {
           />
           {/* Pagination Dots */}
           <View style={styles.paginationContainer}>
-            {CAROUSEL_DATA.map((_, index) => (
-              <View key={index} style={[styles.dot, currentSlide === index ? styles.activeDot : null]} />
+            {heroCarouselData.map((_, index) => (
+              <HeroDot key={index} index={index} total={heroCarouselData.length} progress={heroProgress} />
             ))}
           </View>
 
@@ -1317,10 +1552,21 @@ export default function Homepage() {
                 );
               }}
             />
-            {/* Pagination Dots */}
-            {userRole !== 'FREELANCER' && (
-              <View style={styles.catPagination}>
-                {[0, 1].map((i) => {
+            {/* Pagination Dots — only CAT_MAX_DOTS worth of width is visible
+                (overflow hidden); the full-length dot row scrolls inside it
+                via a single translateX interpolated directly off
+                activeCatPage, so the next dot slides smoothly into view in
+                real time as the category list is dragged, instead of
+                popping in once some threshold is crossed. */}
+            <View style={[styles.catPagination, { width: catViewportWidth, overflow: 'hidden' }]}>
+              <Animated.View
+                style={{
+                  flexDirection: 'row',
+                  gap: CAT_DOT_GAP,
+                  transform: [{ translateX: catDotsTranslateX }],
+                }}
+              >
+                {Array.from({ length: totalCatPages }, (_, i) => i).map((i) => {
                   const opacity = activeCatPage.interpolate({
                     inputRange: [i - 1, i, i + 1],
                     outputRange: [0.3, 1, 0.3],
@@ -1334,15 +1580,12 @@ export default function Homepage() {
                   return (
                     <Animated.View
                       key={i}
-                      style={[
-                        styles.catDot,
-                        { opacity, transform: [{ scale }] }
-                      ]}
+                      style={[styles.catDot, { opacity, transform: [{ scale }] }]}
                     />
                   );
                 })}
-              </View>
-            )}
+              </Animated.View>
+            </View>
           </View>
         </View>
 
@@ -1357,11 +1600,11 @@ export default function Homepage() {
         ) : (
           <View style={{ paddingVertical: 10, position: 'relative' }}>
             <GlowCircle
-              
+
               size={551}
               color={userRole === 'FREELANCER' ? '#F26930' : '#ED2A91'}
               opacity={0.12}
-              style={{ position: 'absolute', right: -150, top: '50%', marginTop: -270.5, width: 551, height: 551, borderRadius:551 }}
+              style={{ position: 'absolute', right: -150, top: '50%', marginTop: -270.5, width: 551, height: 551, borderRadius: 551 }}
             />
             <Animated.FlatList
               horizontal
@@ -1398,7 +1641,6 @@ export default function Homepage() {
                   CARD_WIDTH={CARD_WIDTH}
                   handlePostTap={handlePostTap}
                   handleBookmark={handleBookmark}
-                  handleSeePortfolio={handleSeePortfolio}
                   handleMessage={handleMessage}
                   handleCall={handleCall}
                   handleShare={handleShare}
@@ -1632,7 +1874,7 @@ export default function Homepage() {
               onPress={() => Linking.openURL('https://wa.me/917680805720')}
             >
               <Ionicons name="logo-whatsapp" size={14} color="#ffffffff" />
-             </TouchableOpacity>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.bharatOutlineBtn, { borderColor: userRole === 'FREELANCER' ? '#f26930' : '#ed2a91', }]}
               onPress={() => Linking.openURL('tel:+917680805720')}
@@ -1736,7 +1978,7 @@ const styles = StyleSheet.create({
   },
   floatingHeader: {
     borderRadius: 999,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 14,
     overflow: 'hidden',
     flexShrink: 1,
@@ -1777,7 +2019,7 @@ const styles = StyleSheet.create({
   },
   headerName: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     lineHeight: 16,
   },
@@ -1840,14 +2082,16 @@ const styles = StyleSheet.create({
 
   heroTitle: {
     color: '#fff',
-    fontSize: 38,
-    fontFamily: 'Poppins_800ExtraBold',
-    lineHeight: 48,
+    fontSize: 22,
+    fontFamily: 'Poppins_700Bold',
+    lineHeight: 36,
+    alignContent: 'center',
+    textTransform: 'uppercase',
   },
   heroDesc: {
     color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Poppins_500Medium',
+    fontSize: 10,
+    fontFamily: 'Poppins_400Regular',
 
     lineHeight: 18,
   },
@@ -1899,11 +2143,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 10,
-    backgroundColor: '#828282',
-  },
-  activeDot: {
-    width: 12,
-    backgroundColor: '#ffffffff',
+    backgroundColor: '#f9f4f6ff',
   },
 
   // CATEGORIES GRID
@@ -1930,16 +2170,14 @@ const styles = StyleSheet.create({
     height: 96,
   },
   catPagination: {
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
+    alignSelf: 'center',
     marginTop: -10,
   },
   catDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#f9f4f6ff',
+    backgroundColor: '#fff',
   },
   catGradientBorder: {
     width: 90,
@@ -2000,47 +2238,34 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  figmaCardTopRow: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  figmaCardBookmarkBtn: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 12,
+    right: 12,
+    width: 30,
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
     zIndex: 10,
   },
-  figmaCardRoleBadge: {
-    backgroundColor: '#10151e',
-    borderBottomRightRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  figmaCardRoleText: {
-    color: '#fff',
-    fontSize: 11,
-    fontFamily: 'Poppins_400Regular',
-  },
-  figmaCardBookmarkBtn: {
-    padding: 12,
+  figmaCardBookmarkIcon: {
+    width: 30,
+    height: 30,
   },
   figmaCardAvatarWrap: {
-    marginTop: 40,
+    marginTop: 20,
     alignItems: 'center',
     justifyContent: 'center',
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#2A2A32',
+    backgroundColor: '#303340',
     position: 'relative',
   },
   figmaCardAvatarImg: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    borderWidth: 2,
-    borderColor: '#1E1E24',
   },
   figmaCardPortfolioBadge: {
     position: 'absolute',
@@ -2054,88 +2279,132 @@ const styles = StyleSheet.create({
   },
   figmaCardName: {
     color: '#fff',
-    fontSize: 20,
-    fontFamily: 'Poppins_500Medium',
-    marginTop: 8,
-    width: '80%',
+    fontSize: 18,
+    fontFamily: 'Poppins_600SemiBold',
+    marginTop: 10,
+    width: '85%',
     textAlign: 'center',
   },
-  figmaCardMetaRow: {
+  figmaCardRoleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    gap: 8,
+    marginTop: 8,
+    maxWidth: '90%',
   },
-  figmaCardPortfolioBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+  figmaCardRoleText: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontFamily: 'Poppins_500Medium',
+    flexShrink: 1,
+  },
+  figmaCardExpertBadgeGradient: {
     borderRadius: 99,
+    padding: 1,
+    flexShrink: 0,
   },
-  figmaCardPortfolioText: {
-    color: '#fff',
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
+  figmaCardExpertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 99,
+    flexShrink: 0,
   },
-  figmaCardTimeText: {
-    color: '#a1a2a4',
+  figmaCardExpertText: {
     fontSize: 10,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'Poppins_500Medium',
+
   },
   figmaCardDesc: {
     color: '#d1d2d4',
-    fontSize: 11,
-    fontFamily: 'Poppins_300Light',
-    textAlign: 'center',
-    marginTop: 12,
-    paddingHorizontal: 16,
-    lineHeight: 16,
-  },
-  figmaCardPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-  },
-  figmaCardStartingFrom: {
-    color: '#a1a2a4',
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
+    textAlign: 'center',
+    marginTop: 10,
+    paddingHorizontal: 16,
+    lineHeight: 18,
   },
-  figmaCardPrice: {
-    color: '#00a401',
-    fontSize: 12,
+  figmaCardSeeMore: {
     fontFamily: 'Poppins_500Medium',
   },
-  figmaCardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    position: 'absolute',
-    bottom: 20,
-  },
-  figmaCollabBtn: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+  figmaCardPillRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#ed2a91',
-    borderRadius: 99,
-    paddingVertical: 10,
+    gap: 8,
+    marginTop: 12,
   },
-  figmaCollabBtnText: {
+  figmaCardPricePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    maxWidth: '58%',
+    borderColor: '#1d410e',
+    borderWidth: 1,
+
+  },
+  figmaCardPricePillText: {
+    fontSize: 10,
+    fontFamily: 'Poppins_500Medium',
+  },
+  figmaCardTimePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#141315',
+    borderColor: '#3e3d3d',
+    borderWidth: 1,
+    justifyContent: 'center',
+
+  },
+  figmaCardTimePillText: {
+    color: '#a1a2a4',
+    fontSize: 10,
+    fontFamily: 'Poppins_500Medium',
+  },
+  figmaCardBottomRow: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  figmaCardRequestBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    borderRadius: 99,
+    paddingVertical: 9,
+  },
+  figmaCardRequestBtnText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
   },
-  figmaCardActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  figmaCardIconActionsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  figmaCardIconAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     borderWidth: 1,
-    borderColor: '#373839',
+    borderColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2194,7 +2463,7 @@ const styles = StyleSheet.create({
   createPostTextWrap: {
     flex: 1,
     minWidth: 0,
-    
+
     padding: 10,
   },
   createPostTitle: {
@@ -2280,7 +2549,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_400Regular',
     justifyContent: 'center',
     alignItems: 'center',
-   
+
   },
 
   // CONTACT SECTION
