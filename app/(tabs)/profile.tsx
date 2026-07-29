@@ -1112,19 +1112,34 @@ export default function ProfileScreen() {
                     >
                       <Image source={require('../../assets/skill-icons_instagram.png')} style={{ width: 28, height: 28, borderRadius: 8, marginRight: 10 }} resizeMode="cover" />
                       <View style={{ flex: 1 }}>
-                        <Text className="text-white text-[14px]" style={{ fontFamily: 'Poppins_500Medium' }}>@{acc.instagramUsername}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text className="text-white text-[14px]" style={{ fontFamily: 'Poppins_500Medium' }}>@{acc.instagramUsername}</Text>
+                          {acc.isPrimary && (
+                            <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                              <Text style={{ color: '#888', fontSize: 10, fontFamily: 'Poppins_500Medium' }}>PRIMARY</Text>
+                            </View>
+                          )}
+                        </View>
                         {acc.followers != null && (
                           <Text style={{ color: '#888', fontSize: 12, fontFamily: 'Poppins_400Regular' }}>{acc.followers.toLocaleString()} followers</Text>
                         )}
                       </View>
                     </TouchableOpacity>
-                    <TouchableOpacity activeOpacity={0.7} disabled={removingIgId === acc.id} onPress={() => handleRemoveIgAccount(acc)} style={{ padding: 6 }}>
-                      {removingIgId === acc.id ? (
-                        <ActivityIndicator size="small" color="#666" />
-                      ) : (
-                        <Ionicons name="close-circle-outline" size={20} color="#666" />
-                      )}
-                    </TouchableOpacity>
+                    {/* Primary account (the first ever verified, usually at signup) is
+                        permanent — no remove option, only later-added accounts can be removed. */}
+                    {acc.isPrimary ? (
+                      <View style={{ padding: 6 }}>
+                        <Ionicons name="lock-closed-outline" size={18} color="#444" />
+                      </View>
+                    ) : (
+                      <TouchableOpacity activeOpacity={0.7} disabled={removingIgId === acc.id} onPress={() => handleRemoveIgAccount(acc)} style={{ padding: 6 }}>
+                        {removingIgId === acc.id ? (
+                          <ActivityIndicator size="small" color="#666" />
+                        ) : (
+                          <Ionicons name="close-circle-outline" size={20} color="#666" />
+                        )}
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
 

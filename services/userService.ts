@@ -1307,6 +1307,8 @@ export interface InstagramAccount {
     instagramUsername: string;
     followers: number | null;
     verifiedAt: string;
+    // The first account ever verified (usually at signup) — permanent, can't be removed.
+    isPrimary?: boolean;
 }
 
 /**
