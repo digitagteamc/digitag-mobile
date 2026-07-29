@@ -20,7 +20,7 @@ import { switchRole as apiSwitchRole } from '../services/userService';
  */
 export default function SwitchRoleScreen() {
     const router = useRouter();
-    const { token, userRole, profiles, setActiveRole } = useAuth();
+    const { token, userRole, profiles, login, userPhone } = useAuth();
     const [busy, setBusy] = useState<Role | null>(null);
 
     const choose = async (role: Role) => {
@@ -31,17 +31,26 @@ export default function SwitchRoleScreen() {
         setBusy(role);
         const res = await apiSwitchRole(token, role);
         setBusy(null);
-        if (!res.success) {
+        if (!res.success || !res.data) {
             Alert.alert('Could not switch', res.error || 'Please try again.');
             return;
         }
 
-        setActiveRole(role);
+        // Update local session state and storage with new profile tokens
+        login({
+            phone: userPhone || res.data.user.mobileNumber,
+            token: res.data.tokens.accessToken,
+            refreshToken: res.data.tokens.refreshToken,
+            role: res.data.activeRole,
+            id: res.data.user.id,
+            isProfileCompleted: res.data.isProfileCompleted,
+            profiles: res.data.profiles,
+        });
 
         // If the target role already has a profile, drop the user straight
         // into the tabs in that role. Otherwise send them to the signup form
         // for the role they just activated.
-        if (profiles[role]) {
+        if (res.data.profiles[role]) {
             router.replace('/(tabs)');
         } else {
             const target = role === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
