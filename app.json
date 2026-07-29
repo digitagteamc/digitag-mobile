@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
-      "appleTeamId": "CKD6A9LCR6",
+      "appleTeamId": "3Z6MMTXLV4",
       "associatedDomains": [
         "applinks:thedigitag.ai"
       ],
@@ -35,7 +35,8 @@
         ],
         "UIBackgroundModes": [
           "remote-notification",
-          "fetch"
+          "fetch",
+          "voip"
         ]
       },
       "buildNumber": "9",
@@ -150,7 +151,8 @@
       ],
       "expo-iap",
       "./plugins/withSentryAuthToken",
-      "./plugins/withRecaptchaEnterprise"
+      "./plugins/withRecaptchaEnterprise",
+      "./plugins/withPushKit"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1428,6 +1428,18 @@ export const registerFcmToken = async (token: string, fcmToken: string, platform
     } catch {}
 };
 
+/** iOS only — registers this device's PushKit VoIP token so incoming calls
+ *  can wake the app and ring via CallKit even when fully backgrounded/killed. */
+export const registerVoipToken = async (token: string, voipToken: string) => {
+    try {
+        await request('/calls/voip-token', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ voipToken }),
+        });
+    } catch {}
+};
+
 /** Remove this device's push token so calls/messages stop after logout. */
 export const unregisterFcmToken = async (token: string, fcmToken: string) => {
     try {

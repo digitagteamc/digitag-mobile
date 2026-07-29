@@ -8,11 +8,19 @@ import {
     createAgoraRtcEngine,
 } from 'react-native-agora';
 import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import RNCallKeep from 'react-native-callkeep';
+import RNVoipPushNotification from 'react-native-voip-push-notification';
 import { useAuth } from './AuthContext';
 import { clearIncomingCallNotification } from '../services/callNotification';
-import { acceptCall as apiAcceptCall, declineCall as apiDeclineCall, endCall as apiEndCall } from '../services/userService';
+import {
+    acceptCall as apiAcceptCall,
+    declineCall as apiDeclineCall,
+    endCall as apiEndCall,
+    registerVoipToken as apiRegisterVoipToken,
+} from '../services/userService';
 
 const RING_ASSET = require('../assets/sounds/ringtone.mp3');
+const IS_IOS = Platform.OS === 'ios';
 
 export type CallMode = 'idle' | 'incoming' | 'outgoing' | 'active';
 
@@ -29,6 +37,10 @@ export interface IncomingCallParams {
     callId: string;
     remoteName?: string;
     remoteImage?: string;
+    // True when this call was surfaced via a VoIP push (already reported to
+    // CallKit natively) rather than the regular notifee flow — skips a
+    // redundant displayIncomingCall.
+    fromVoipPush?: boolean;
 }
 
 interface CallContextValue {
@@ -68,7 +80,14 @@ async function requestAudioPermission(): Promise<boolean> {
 /** Owns the Agora call session independently of whatever screen is currently
  *  mounted — a call must keep running (talkable, ringable) if the user
  *  navigates away from the call screen, the same way a real phone call does.
- *  Mounted once at the app root; app/call.tsx is just a view onto this state. */
+ *  Mounted once at the app root; app/call.tsx is just a view onto this state.
+ *
+ *  On iOS this also drives CallKit (native call UI, works from the lock
+ *  screen) via PushKit VoIP pushes, so an incoming call reliably wakes the
+ *  app and rings even when it's fully backgrounded or killed — a plain FCM
+ *  push can't guarantee that on iOS. Android keeps using the existing
+ *  notifee full-screen-intent ringing flow (already reliable there); this
+ *  context doesn't touch that. */
 export function CallProvider({ children }: { children: React.ReactNode }) {
     const { token } = useAuth();
     const router = useRouter();
@@ -90,6 +109,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const callIdRef = useRef<string | null>(null);
     const tokenRef = useRef(token);
     tokenRef.current = token;
+    // CallKit's UUID for the call currently tracked with the OS — same value
+    // as callId (backend ids are already UUIDs), kept separate in case that
+    // ever changes.
+    const callUUIDRef = useRef<string | null>(null);
+    const isOutgoingRef = useRef(false);
 
     const stopRing = useCallback(() => {
         const sound = ringSoundRef.current;
@@ -127,6 +151,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         setCallMode('idle');
         setCallId(null);
         callIdRef.current = null;
+        callUUIDRef.current = null;
+        isOutgoingRef.current = false;
     }, []);
 
     const teardownEngine = useCallback(() => {
@@ -136,15 +162,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     /** Ends the current call — the ONLY place the Agora engine actually gets
-     *  torn down. Never called just because a screen unmounted. */
-    const endCall = useCallback(async () => {
+     *  torn down. Never called just because a screen unmounted.
+     *  `reportToCallKeep` is false when this runs AS A RESULT of CallKeep's
+     *  own endCall event, so we don't tell it to end a call it already knows
+     *  ended. */
+    const endCall = useCallback(async (reportToCallKeep = true) => {
         if (endedRef.current) return;
         endedRef.current = true;
         stopRing();
         const id = callIdRef.current;
+        const uuid = callUUIDRef.current;
         if (id) await clearIncomingCallNotification(id).catch(() => {});
         teardownEngine();
         if (tokenRef.current && id) await apiEndCall(tokenRef.current, id).catch(() => {});
+        if (IS_IOS && reportToCallKeep && uuid) {
+            try { RNCallKeep.endCall(uuid); } catch {}
+        }
         resetCallState();
     }, [stopRing, teardownEngine, resetCallState]);
 
@@ -167,6 +200,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                     stopRing();
                     setCallMode('active');
                     startTimer();
+                    if (IS_IOS && callUUIDRef.current) {
+                        try {
+                            if (isOutgoingRef.current) RNCallKeep.reportConnectedOutgoingCallWithUUID(callUUIDRef.current);
+                            RNCallKeep.setCurrentCallActive(callUUIDRef.current);
+                        } catch {}
+                    }
                 },
                 onUserOffline: () => { endCall(); },
             });
@@ -184,24 +223,37 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const startOutgoingCall = useCallback(async (params: OutgoingCallParams) => {
         endedRef.current = false;
         callIdRef.current = params.callId;
+        callUUIDRef.current = params.callId;
+        isOutgoingRef.current = true;
         setCallId(params.callId);
         setRemoteName(params.remoteName || 'User');
         setRemoteImage(params.remoteImage);
         setCallMode('outgoing');
         setIsMinimized(false);
         startRing();
+        if (IS_IOS) {
+            try { RNCallKeep.startCall(params.callId, params.remoteName || 'User', params.remoteName, 'generic', false); } catch {}
+        }
         await joinChannel(params.agoraToken, params.channelName, params.appId);
     }, [joinChannel, startRing]);
 
     const startIncomingCall = useCallback((params: IncomingCallParams) => {
         endedRef.current = false;
         callIdRef.current = params.callId;
+        callUUIDRef.current = params.callId;
+        isOutgoingRef.current = false;
         setCallId(params.callId);
         setRemoteName(params.remoteName || 'User');
         setRemoteImage(params.remoteImage);
         setCallMode('incoming');
         setIsMinimized(false);
         startRing();
+        // A VoIP push already reported this to CallKit before we got here
+        // (Apple requires that to happen synchronously on receipt) — don't
+        // double-report it.
+        if (IS_IOS && !params.fromVoipPush) {
+            try { RNCallKeep.displayIncomingCall(params.callId, params.remoteName || 'User', params.remoteName, 'generic', false); } catch {}
+        }
     }, [startRing]);
 
     const acceptCallFn = useCallback(async () => {
@@ -218,13 +270,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         }
     }, [stopRing, joinChannel, endCall]);
 
-    const declineCallFn = useCallback(async () => {
+    const declineCallFn = useCallback(async (reportToCallKeep = true) => {
         if (endedRef.current) return;
         endedRef.current = true;
         stopRing();
         const id = callIdRef.current;
+        const uuid = callUUIDRef.current;
         if (id) await clearIncomingCallNotification(id).catch(() => {});
         if (tokenRef.current && id) await apiDeclineCall(tokenRef.current, id).catch(() => {});
+        if (IS_IOS && reportToCallKeep && uuid) {
+            try { RNCallKeep.endCall(uuid); } catch {}
+        }
         resetCallState();
     }, [stopRing, resetCallState]);
 
@@ -240,7 +296,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }, [callMode, isSpeaker]);
 
     const toggleMute = useCallback(() => {
-        setIsMuted(prev => { engineRef.current?.muteLocalAudioStream(!prev); return !prev; });
+        setIsMuted(prev => {
+            const next = !prev;
+            engineRef.current?.muteLocalAudioStream(next);
+            if (IS_IOS && callUUIDRef.current) {
+                try { RNCallKeep.setMutedCall(callUUIDRef.current, next); } catch {}
+            }
+            return next;
+        });
     }, []);
 
     const toggleSpeaker = useCallback(() => {
@@ -258,6 +321,95 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         setIsMinimized(false);
         router.push({ pathname: '/call', params: { mode: 'resume' } } as any);
     }, [router]);
+
+    // Refs so the CallKeep/VoIP-push listeners (registered once, empty dep
+    // array) always call the CURRENT version of these — same reasoning as
+    // tokenRef above.
+    const acceptCallRef = useRef(acceptCallFn);
+    acceptCallRef.current = acceptCallFn;
+    const declineCallRef = useRef(declineCallFn);
+    declineCallRef.current = declineCallFn;
+    const endCallRef = useRef(endCall);
+    endCallRef.current = endCall;
+    const startIncomingCallRef = useRef(startIncomingCall);
+    startIncomingCallRef.current = startIncomingCall;
+    const callModeRef = useRef(callMode);
+    callModeRef.current = callMode;
+
+    // ── CallKit setup (iOS) — native call UI, works from the lock screen and
+    // is what makes a call reliably ring even when the app is backgrounded or
+    // killed. Registered once at the root regardless of whether a call is in
+    // progress, same as a real phone's call-handling service.
+    useEffect(() => {
+        RNCallKeep.setup({
+            ios: {
+                appName: 'DigiTag',
+                supportsVideo: false,
+                includesCallsInRecents: false,
+            },
+            android: {
+                alertTitle: 'Permissions required',
+                alertDescription: 'DigiTag needs access to manage phone calls',
+                cancelButton: 'Cancel',
+                okButton: 'OK',
+                additionalPermissions: [],
+            },
+        }).catch((err: any) => console.error('[CallKeep] setup failed', err));
+
+        const onAnswer = RNCallKeep.addEventListener('answerCall', () => {
+            acceptCallRef.current();
+        });
+        const onEnd = RNCallKeep.addEventListener('endCall', () => {
+            // CallKit already knows the call ended (user hung up from the
+            // native UI/lock screen) — don't report back to it.
+            if (callModeRef.current === 'incoming') declineCallRef.current(false);
+            else endCallRef.current(false);
+        });
+        const onMute = RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted }) => {
+            setIsMuted(muted);
+        });
+
+        return () => {
+            onAnswer.remove();
+            onEnd.remove();
+            onMute.remove();
+        };
+    }, []);
+
+    // ── VoIP push registration (iOS only) — lets an incoming call wake the
+    // app and ring even when it's fully backgrounded or killed, which a
+    // regular FCM push can't guarantee on iOS.
+    useEffect(() => {
+        if (!IS_IOS || !token) return;
+
+        RNVoipPushNotification.addEventListener('register', (voipToken: string) => {
+            apiRegisterVoipToken(token, voipToken).catch(() => {});
+        });
+
+        RNVoipPushNotification.addEventListener('notification', (payload: any) => {
+            const data = payload?.data ?? payload;
+            const callIdFromPush = data?.callId;
+            const callerName = data?.callerName;
+            const uuid = payload?.uuid || callIdFromPush;
+            if (!callIdFromPush || !uuid) return;
+
+            // Apple requires reportNewIncomingCall (via displayIncomingCall)
+            // synchronously on every VoIP push, or the app risks being cut
+            // off from future ones — do this before anything else.
+            try {
+                RNCallKeep.displayIncomingCall(uuid, callerName || 'User', callerName, 'generic', false);
+            } catch {}
+            startIncomingCallRef.current({ callId: callIdFromPush, remoteName: callerName, fromVoipPush: true });
+            RNVoipPushNotification.onVoipNotificationCompleted(uuid);
+        });
+
+        RNVoipPushNotification.registerVoipToken();
+
+        return () => {
+            RNVoipPushNotification.removeEventListener('register');
+            RNVoipPushNotification.removeEventListener('notification');
+        };
+    }, [token]);
 
     const value: CallContextValue = {
         callMode,
