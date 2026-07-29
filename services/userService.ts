@@ -1310,6 +1310,43 @@ export interface InstagramAccount {
 }
 
 /**
+ * GET /instagram/reusable-account
+ * Checks whether a sibling role-profile of this same account (e.g. this
+ * person's Creator profile, if they're now signing up as Freelancer) has
+ * already verified an Instagram account this user could reuse instantly.
+ * Returns { instagramUsername, followers } or null if there's nothing to reuse.
+ */
+export const getReusableInstagramAccount = async (token: string) => {
+    try {
+        const body = await request('/instagram/reusable-account', {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+/**
+ * POST /instagram/reuse-account
+ * Instantly links an already-verified Instagram account from a sibling
+ * role-profile to this user — no new DM round-trip needed.
+ */
+export const reuseInstagramAccount = async (token: string, instagramUsername: string) => {
+    try {
+        const body = await request('/instagram/reuse-account', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ instagramUsername }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: null };
+    }
+};
+
+/**
  * GET /instagram/accounts
  * Lists every Instagram account this user has connected/verified.
  */
