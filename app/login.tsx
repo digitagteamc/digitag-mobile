@@ -60,6 +60,16 @@ export default function LoginScreen() {
     const [step, setStep] = useState(1); // 1: Phone, 2: OTP
     const [countdown, setCountdown] = useState(0);
     const otpInputRef = useRef<TextInput>(null);
+    // Android's SMS auto-retrieval can sign the user into Firebase in the
+    // background (triggering the onAuthStateChanged listener below) at the same
+    // moment the user taps Next (triggering handleVerifyOtp) — both call
+    // Firebase's confirm/verify independently with no coordination, which can
+    // trip Firebase's own "too many requests" abuse guard even though neither
+    // side did anything wrong, while the other side quietly finishes and
+    // navigates home — hence an error showing right as the app enters Home.
+    // This flag makes the two paths mutually exclusive: whichever gets there
+    // first wins, the other bails out instead of firing a redundant attempt.
+    const verifyingRef = useRef(false);
     const phoneScrollRef = useRef<ScrollView>(null);
     const phoneFieldY = useRef(0);
 
@@ -136,7 +146,8 @@ export default function LoginScreen() {
         if (step !== 2) return;
 
         const unsubscribe = auth().onAuthStateChanged(async (user) => {
-            if (user && user.phoneNumber === `+91${phoneNumber.replace(/\s+/g, '')}`) {
+            if (user && user.phoneNumber === `+91${phoneNumber.replace(/\s+/g, '')}` && !verifyingRef.current) {
+                verifyingRef.current = true;
                 setLoading(true);
                 setOtpError(null);
                 try {
@@ -168,6 +179,7 @@ export default function LoginScreen() {
                     setOtpError(friendlyOtpError(error));
                 } finally {
                     setLoading(false);
+                    verifyingRef.current = false;
                 }
             }
         });
@@ -229,6 +241,11 @@ export default function LoginScreen() {
         if (!otp.trim()) { setOtpError('Please enter the OTP.'); return; }
         if (!/^\d+$/.test(otp)) { setOtpError('OTP must contain digits only.'); return; }
         if (otp.length !== 6) { setOtpError('OTP must be exactly 6 digits.'); return; }
+        // Auto-retrieval may already be verifying this same code in the background
+        // (see the onAuthStateChanged listener above) — don't fire a redundant,
+        // competing verification attempt on top of it.
+        if (verifyingRef.current) return;
+        verifyingRef.current = true;
 
         setLoading(true);
         setOtpError(null);
@@ -276,6 +293,7 @@ export default function LoginScreen() {
             setOtpError(friendlyOtpError(error));
         } finally {
             setLoading(false);
+            verifyingRef.current = false;
         }
     };
 

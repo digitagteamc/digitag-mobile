@@ -1,6 +1,8 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { CallProvider } from '@/context/CallContext';
 import { NotificationCountProvider, useNotificationCount } from '@/context/NotificationCountContext';
 import { ProfileGateProvider } from '@/context/ProfileGateContext';
+import OngoingCallBar from '@/Components/OngoingCallBar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import {
@@ -213,7 +215,9 @@ function RootLayout() {
                 <AuthProvider>
                     <NotificationCountProvider>
                     <ProfileGateProvider>
+                    <CallProvider>
                         <NotificationHandler />
+                        <OngoingCallBar />
                         <Stack
                             screenOptions={{
                                 headerShown: false,
@@ -256,6 +260,7 @@ function RootLayout() {
                             <Stack.Screen name="profile/[tagId]" options={{ animation: 'fade', animationDuration: 200 }} />
                             <Stack.Screen name="post/[postId]" options={{ animation: 'fade', animationDuration: 200 }} />
                         </Stack>
+                    </CallProvider>
                     </ProfileGateProvider>
                     </NotificationCountProvider>
                 </AuthProvider>

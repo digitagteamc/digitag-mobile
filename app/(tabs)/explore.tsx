@@ -33,7 +33,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SvgXml } from 'react-native-svg';
+import { Path, Svg, SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 
 const { width } = Dimensions.get('window');
@@ -501,11 +501,13 @@ function parseBudgetValue(budget: string | null | undefined): number | null {
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
-// Main filter drawer (Collab Type / Experience / Language / Location list) slides
-// in from the right and covers the full screen. Tapping one of its rows opens a
-// second, narrower drawer stacked on top of it with that filter's option list.
+// Filter drawer (Collab Type / Experience / Language / Location) slides in
+// from the right and covers the full screen: a left-side list of filter
+// categories and a right-side pane showing that category's options.
 const FILTER_DRAWER_WIDTH = Dimensions.get('window').width;
-const FILTER_OPTIONS_DRAWER_WIDTH = Math.round(Dimensions.get('window').width * 0.8);
+// 130px on typical/larger phones; compacts down on narrow devices so the
+// options pane never gets crammed into a sliver.
+const FILTER_CATEGORY_LIST_WIDTH = Math.min(10, Math.round(FILTER_DRAWER_WIDTH * 0.35));
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
@@ -574,7 +576,7 @@ export default function ExploreTab() {
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
-  const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
+  const [acceptedCollabPostIds, setAcceptedCollabPostIds] = useState<Set<string>>(new Set());
   const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
@@ -584,12 +586,13 @@ export default function ExploreTab() {
   const [selectedExperience, setSelectedExperience] = useState<string | null>(null);
   const [selectedBudgetRange, setSelectedBudgetRange] = useState<string | null>(null);
   const [selectedSort, setSelectedSort] = useState<string | null>(null);
+  // Which filter category's options are currently shown in the right pane —
+  // null just means "default to the first row" (see activeFilterRow below).
   const [filterModalType, setFilterModalType] = useState<'language' | 'location' | 'price' | 'experience' | 'budget' | 'sort' | null>(null);
   const [filterPanelVisible, setFilterPanelVisible] = useState(false);
   const drawerX = useSharedValue(FILTER_DRAWER_WIDTH);
-  const optionsDrawerX = useSharedValue(FILTER_OPTIONS_DRAWER_WIDTH);
 
-  // Slide in whenever a drawer opens; closing animates back out first, then
+  // Slide in whenever the drawer opens; closing animates back out first, then
   // unmounts the Modal once the animation would have finished — Modal's
   // `visible` prop has no exit-animation hook of its own.
   useEffect(() => {
@@ -599,30 +602,14 @@ export default function ExploreTab() {
     }
   }, [filterPanelVisible]);
 
-  useEffect(() => {
-    if (filterModalType !== null) {
-      optionsDrawerX.value = FILTER_OPTIONS_DRAWER_WIDTH;
-      optionsDrawerX.value = withTiming(0, { duration: 240 });
-    }
-  }, [filterModalType]);
-
   const closeFilterDrawer = () => {
     drawerX.value = withTiming(FILTER_DRAWER_WIDTH, { duration: 220 });
     setFilterModalType(null);
     setTimeout(() => setFilterPanelVisible(false), 220);
   };
 
-  const closeOptionsDrawer = () => {
-    optionsDrawerX.value = withTiming(FILTER_OPTIONS_DRAWER_WIDTH, { duration: 200 });
-    setTimeout(() => setFilterModalType(null), 200);
-  };
-
   const drawerAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: drawerX.value }],
-  }));
-
-  const optionsDrawerAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: optionsDrawerX.value }],
   }));
 
   const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Punjabi', 'Marathi', 'Bengali', 'Gujarati'];
@@ -693,12 +680,11 @@ export default function ExploreTab() {
         const pendingPostIds = new Set<string>();
         const completedPostIds = new Set<string>();
         res.data.forEach((r: any) => {
-          // Contact shortcuts only while ACCEPTED — completing a collab closes
-          // chat/calls (backend enforces the same), so the card reverts to
-          // showing the Collaborate button for a fresh request.
-          if (r.status === 'ACCEPTED') {
-            const otherId = r.senderId === userId ? r.receiverId : r.senderId;
-            if (otherId) accepted.add(otherId);
+          // Post-scoped — a Creator can have multiple posts, and an accepted
+          // collaboration on one of them must only unlock chat/call for that
+          // specific post, not every other post they've made.
+          if (r.status === 'ACCEPTED' && r.postId) {
+            accepted.add(r.postId);
           }
           if (r.status === 'PENDING' && r.senderId === userId && r.postId) {
             pendingPostIds.add(r.postId);
@@ -712,7 +698,7 @@ export default function ExploreTab() {
             completedPostIds.add(r.postId);
           }
         });
-        setAcceptedCollabOwnerIds(accepted);
+        setAcceptedCollabPostIds(accepted);
         // Server is the source of truth on every visit — replaces any stale local-only
         // "Request Sent" state and also restores it if the app was closed/reopened.
         setCollabSentIds(pendingPostIds);
@@ -1074,7 +1060,7 @@ export default function ExploreTab() {
               <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
               <Text style={s.bigCollabBtnText}>Collaborated</Text>
             </View>
-          ) : acceptedCollabOwnerIds.has(item.ownerId) ? (
+          ) : acceptedCollabPostIds.has(item.id) ? (
             <View style={s.cardBottom}>
               <View style={s.cardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
@@ -1122,7 +1108,7 @@ export default function ExploreTab() {
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, handleBookmark]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, handleBookmark]);
 
   // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
   // the main right-side filter drawer (behind the header's filter icon). Tapping a row
@@ -1136,31 +1122,15 @@ export default function ExploreTab() {
     { key: 'location', label: 'Location', placeholder: 'Select location', value: selectedLocation, setValue: setSelectedLocation, options: LOCATION_OPTIONS },
   ];
 
-  const activeFilterRow = FILTER_ROWS.find((row) => row.key === filterModalType) || null;
+  // filterModalType null just means "nothing tapped yet this time" — default
+  // the right pane to the first row so it's never empty, matching the
+  // reference design where a category is always active.
+  const activeFilterKey = filterModalType ?? FILTER_ROWS[0].key;
+  const activeFilterRow = FILTER_ROWS.find((row) => row.key === activeFilterKey) || FILTER_ROWS[0];
 
-  const filterPanelContent = (
-    <View>
-      {FILTER_ROWS.map((row) => (
-        <View key={row.key} style={s.filterAccordionItem}>
-          <Text style={s.filterLabel}>{row.label}</Text>
-          <TouchableOpacity
-            style={[s.filterDropdown, row.value ? s.filterDropdownActive : null]}
-            activeOpacity={0.7}
-            onPress={() => setFilterModalType(row.key)}
-          >
-            <Text style={[s.filterPlaceholder, row.value ? s.filterValueText : null]}>{row.value || row.placeholder}</Text>
-            {row.value ? (
-              <TouchableOpacity onPress={() => row.setValue(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="close-circle" size={16} color="#ED2A91" />
-              </TouchableOpacity>
-            ) : (
-              <Ionicons name="chevron-forward" size={16} color="#6e7180" />
-            )}
-          </TouchableOpacity>
-        </View>
-      ))}
-    </View>
-  );
+  const clearAllFilters = () => {
+    FILTER_ROWS.forEach((row) => row.setValue(null));
+  };
 
   // Sidebar now owns category selection; the FlatList's header is just the per-category hero card.
   const listHeader = useMemo(() => (
@@ -1359,63 +1329,87 @@ export default function ExploreTab() {
       </Modal>
 
       {/* ═══ FILTER DRAWER (slides in from the right, behind the header's filter icon) ═══
-          Both drawers live inside ONE Modal — stacking two separate native <Modal>s
-          on iOS is unreliable (the second one doesn't reliably present on top of the
-          first), so the options drawer is instead an absolutely-positioned overlay
-          layered above the main drawer's content, inside the same Modal. */}
+          Single full-screen panel: a left-side list of filter categories and
+          a right-side pane of that category's options, with a Filters/Clear
+          All header and a Close/Apply footer. */}
       <Modal
         visible={filterPanelVisible}
         transparent
         animationType="fade"
-        onRequestClose={() => (filterModalType !== null ? closeOptionsDrawer() : closeFilterDrawer())}
+        onRequestClose={closeFilterDrawer}
       >
         <View style={s.filterDrawerOverlay}>
           <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeFilterDrawer} />
           <Animated.View style={[s.filterDrawerPanel, { width: FILTER_DRAWER_WIDTH, paddingTop: insets.top + 20 }, drawerAnimStyle]}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Filters</Text>
-              <TouchableOpacity style={s.modalClose} onPress={closeFilterDrawer}>
-                <Feather name="x" size={18} color="#fff" />
+            <View style={s.filterHeaderRow}>
+              <Text style={s.filterHeaderTitle}>Filters</Text>
+              <TouchableOpacity onPress={clearAllFilters} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={[s.filterClearAllText,  ]}>Clear All</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-              {filterPanelContent}
-            </ScrollView>
-          </Animated.View>
-        </View>
 
-        {filterModalType !== null && (
-          <View style={s.filterOptionsOverlay}>
-            <TouchableOpacity style={s.filterDrawerDismiss} activeOpacity={1} onPress={closeOptionsDrawer} />
-            <Animated.View style={[s.filterDrawerPanel, { width: FILTER_OPTIONS_DRAWER_WIDTH, paddingTop: insets.top + 20 }, optionsDrawerAnimStyle]}>
-              <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>{activeFilterRow?.label || 'Select'}</Text>
-                <TouchableOpacity style={s.modalClose} onPress={closeOptionsDrawer}>
-                  <Feather name="x" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
-                {activeFilterRow?.options.map((option) => {
-                  const isSelected = activeFilterRow.value === option;
+            <View style={s.filterBodyRow}>
+              {/* Left: filter categories */}
+              <ScrollView style={s.filterCategoryList} showsVerticalScrollIndicator={false} bounces={false}>
+                {FILTER_ROWS.map((row) => {
+                  const isActive = row.key === activeFilterKey;
                   return (
                     <TouchableOpacity
-                      key={option}
-                      style={[s.filterOptionRow, isSelected && s.filterOptionRowActive]}
+                      key={row.key}
+                      style={[s.filterCategoryItem, isActive && s.filterCategoryItemActive]}
                       activeOpacity={0.7}
-                      onPress={() => {
-                        activeFilterRow.setValue(isSelected ? null : option);
-                        closeOptionsDrawer();
-                      }}
+                      onPress={() => setFilterModalType(row.key)}
                     >
-                      <Text style={[s.filterOptionText, isSelected && { color: '#ED2A91' }]}>{option}</Text>
-                      {isSelected && <Ionicons name="checkmark" size={18} color="#ED2A91" />}
+                      <Text style={[s.filterCategoryText, isActive && s.filterCategoryTextActive]} numberOfLines={2}>
+                        {row.label}
+                      </Text>
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
-            </Animated.View>
-          </View>
-        )}
+
+              {/* Right: options for the active category */}
+              <ScrollView style={s.filterOptionsList} showsVerticalScrollIndicator={false} bounces={false}>
+                {activeFilterRow.options.map((option) => {
+                  const isSelected = activeFilterRow.value === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={s.filterOptionRow}
+                      activeOpacity={0.7}
+                      onPress={() => activeFilterRow.setValue(isSelected ? null : option)}
+                    >
+                      {/* Ionicons' "checkmark" glyph is a fixed-weight font
+                          icon — it has no stroke-width control. A custom SVG
+                          path lets us draw a bolder tick instead. */}
+                      <Svg width={16} height={16} viewBox="0 0 24 24">
+                        <Path
+                          d="M4 12.5L9.5 18L20 6"
+                          fill="none"
+                          stroke={isSelected ? '#fff' : '#6e7180'}
+                          strokeWidth={4}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                      <Text style={[s.filterOptionText, !isSelected && { color: 'rgba(255,255,255,0.60)' }]}>{option}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={[s.filterFooterRow, { paddingBottom: insets.bottom || 12 }]}>
+              <TouchableOpacity style={s.filterFooterBtn} activeOpacity={0.7} onPress={closeFilterDrawer}>
+                <Text style={s.filterFooterCloseText}>CLOSE</Text>
+              </TouchableOpacity>
+              <View style={s.filterFooterDivider} />
+              <TouchableOpacity style={s.filterFooterBtn} activeOpacity={0.7} onPress={closeFilterDrawer}>
+                <Text style={[s.filterFooterApplyText  ]}>APPLY</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
       </Modal>
     </View>
   );
@@ -1496,32 +1490,35 @@ const s = StyleSheet.create({
   },
 
   // Filters
-  filterAccordionItem: { paddingHorizontal: 8, marginBottom: 20 },
-  filterLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', marginBottom: 6 },
-  filterDropdown: {
-    height: 46, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1, borderColor: 'rgba(64,64,64,0.5)',
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, justifyContent: 'space-between',
-  },
-  filterPlaceholder: { color: '#6e7180', fontSize: 13, fontFamily: 'Poppins_400Regular' },
-  filterDropdownActive: { borderColor: '#ED2A91', backgroundColor: 'rgba(237,42,145,0.08)' },
-  filterValueText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_400Regular' },
-
   // Filter drawer (slides in from the right)
   filterDrawerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', flexDirection: 'row' },
   filterDrawerDismiss: { flex: 1 },
   filterDrawerPanel: {
-    height: '100%', backgroundColor: '#1E1E24',
-    borderLeftWidth: 1, borderColor: 'rgba(156,156,156,0.3)',
-    paddingHorizontal: 20, paddingBottom: 24,
+    height: '100%', backgroundColor: '#060606',
   },
-  // Options drawer renders as an overlay layered on top of the main drawer
-  // (inside the same Modal) rather than a second native Modal, which iOS
-  // doesn't reliably stack.
-  filterOptionsOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.4)', flexDirection: 'row',
+  filterHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderColor: '#524d4d',
   },
+  filterHeaderTitle: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium' },
+  filterClearAllText: { fontSize: 16, fontFamily: 'Poppins_500Medium', color: '#fb4c4c'},
+  filterBodyRow: { flex: 1, flexDirection: 'row' },
+  filterCategoryList: {
+    width: FILTER_CATEGORY_LIST_WIDTH, backgroundColor: '#323131',
+  },
+  filterCategoryItem: { paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderColor: '#524d4d' },
+  filterCategoryItemActive: { backgroundColor: '#060606', borderColor: '#524d4d', borderBottomWidth: 1, },
+  filterCategoryText: { color: '#939292', fontSize: 14, fontFamily: 'Poppins_400Regular' },
+  filterCategoryTextActive: { color: '#fff', fontFamily: 'Poppins_500Medium', },
+  filterOptionsList: { flex: 1, paddingHorizontal: 16, },
+  filterFooterRow: {
+    flexDirection: 'row', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  filterFooterBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 18 },
+  filterFooterDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.15)' },
+  filterFooterCloseText: {color: '#fff', fontSize: 14, fontFamily: 'Poppins_500Medium'  },
+  filterFooterApplyText: {fontSize: 14, fontFamily: 'Poppins_500Medium', color: '#fb4c4c'},
 
   // Empty
   emptyState: { paddingHorizontal: 40, paddingTop: 60, alignItems: 'center', gap: 10 },
@@ -1616,10 +1613,9 @@ const s = StyleSheet.create({
   noPortfolio: { color: '#8A8A99', fontSize: 14, fontFamily: 'Poppins_400Regular', marginTop: 10 },
 
   filterOptionRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingVertical: 14, paddingHorizontal: 4,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomWidth: 1, borderBottomColor: '#282828',
   },
-  filterOptionRowActive: { backgroundColor: 'rgba(237,42,145,0.06)', borderRadius: 8, paddingHorizontal: 8 },
-  filterOptionText: { color: '#fff', fontSize: 15, fontFamily: 'Poppins_400Regular' },
+  filterOptionText: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_400Regular' },
 });

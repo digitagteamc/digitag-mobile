@@ -2,7 +2,7 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.9",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitag",
@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ai.thedigitag.app",
-      "appleTeamId": "CKD6A9LCR6",
+      "appleTeamId": "3Z6MMTXLV4",
       "associatedDomains": [
         "applinks:thedigitag.ai"
       ],
@@ -35,10 +35,11 @@
         ],
         "UIBackgroundModes": [
           "remote-notification",
-          "fetch"
+          "fetch",
+          "voip"
         ]
       },
-      "buildNumber": "8",
+      "buildNumber": "10",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
@@ -150,7 +151,8 @@
       ],
       "expo-iap",
       "./plugins/withSentryAuthToken",
-      "./plugins/withRecaptchaEnterprise"
+      "./plugins/withRecaptchaEnterprise",
+      "./plugins/withPushKit"
     ],
     "experiments": {
       "typedRoutes": true,

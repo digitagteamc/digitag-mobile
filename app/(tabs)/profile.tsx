@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   Keyboard,
   Linking,
@@ -104,6 +105,24 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'main' | 'details'>('main');
+
+  // Hardware back button: while viewing My Profile's details sub-view,
+  // go back to the main Profile view first instead of falling through to
+  // React Navigation's default behavior (which jumps to the Home tab).
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (viewMode === 'details') {
+          setViewMode('main');
+          return true;
+        }
+        return false;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [viewMode])
+  );
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
@@ -373,20 +392,9 @@ export default function ProfileScreen() {
     return `${diffDays}d ago`;
   };
 
-  // 1–4 filled ₹ symbols — a rough price tier, not a literal amount, so a
-  // free/low-budget post still renders a legible badge instead of a blank one.
-  const getPriceLevel = (value?: number | string | null) => {
-    const n = typeof value === 'string' ? parseFloat(value.replace(/[^\d.]/g, '')) : value;
-    if (!n || n <= 0) return 1;
-    if (n < 2000) return 1;
-    if (n < 5000) return 2;
-    if (n < 10000) return 3;
-    return 4;
-  };
-
-  // Feeds the "Posts" tab — each of my own posts, decorated with my own
-  // profile attributes (experience/rate/language/location) since those
-  // describe me the poster, not the post itself.
+  // Feeds the "Posts" tab — each of my own posts. Experience/languages still
+  // describe me the poster, but location and budget describe this specific
+  // post/opportunity, so they come from the post itself, not my profile.
   const activityPostCards = myPosts.slice(0, 2).map((post) => ({
     id: post.id,
     name: profile?.name || 'You',
@@ -395,9 +403,10 @@ export default function ProfileScreen() {
     category: profile?.categories?.[0] || profile?.category || (userRole === 'FREELANCER' ? 'Freelancer' : 'Creator'),
     desc: post.description || '',
     experience: profile?.experienceLevel || 'New',
-    priceLevel: getPriceLevel(post.budget ?? profile?.hourlyRate),
+    isPaidCollab: post.collaborationType === 'PAID',
+    budget: post.budget || null,
     languages: profile?.languages?.join(', ') || '—',
-    location: profile?.location || '—',
+    location: post.location || '—',
     time: getTimeAgo(post.createdAt),
     onSeePortfolio: () => userId && router.push({ pathname: '/creator-details', params: { userId } } as any),
   }));
@@ -524,7 +533,7 @@ export default function ProfileScreen() {
 
   type ActivityCard = {
     id: string; name: string; avatarUri: string | null; isPremium?: boolean | null;
-    category: string; desc: string; experience: string; priceLevel: number;
+    category: string; desc: string; experience: string; isPaidCollab: boolean; budget: number | string | null;
     languages: string; location: string; time: string; onSeePortfolio: () => void;
   };
 
@@ -585,11 +594,12 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Price Level (Primary)</Text>
-            <View style={{ flexDirection: 'row', gap: 3 }}>
-              {[1, 2, 3, 4].map((n) => (
-                <Text key={n} style={{ fontSize: 14, fontFamily: 'Poppins_700Bold', color: n <= item.priceLevel ? '#22C55E' : '#3A3A44' }}>₹</Text>
-              ))}
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Budget</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="cash-outline" size={14} color="#D0D0D6" />
+              <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium' }} numberOfLines={1}>
+                {item.isPaidCollab ? (item.budget ? `₹${item.budget}` : 'Paid Collab') : 'Free Collab'}
+              </Text>
             </View>
           </View>
         </View>
@@ -604,7 +614,7 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Location (Primary)</Text>
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Location</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="location-outline" size={14} color="#D0D0D6" />
               <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium', flexShrink: 1 }} numberOfLines={1}>{item.location}</Text>
@@ -787,8 +797,6 @@ export default function ProfileScreen() {
       </View>
     );
   }
-
-  const iconBorderClass = profile?.role?.toUpperCase() === 'FREELANCER' ? ' ' : ' ';
 
   return (
     <View className="flex-1 bg-[#060606]">
@@ -1121,19 +1129,34 @@ export default function ProfileScreen() {
                     >
                       <Image source={require('../../assets/skill-icons_instagram.png')} style={{ width: 28, height: 28, borderRadius: 8, marginRight: 10 }} resizeMode="cover" />
                       <View style={{ flex: 1 }}>
-                        <Text className="text-white text-[14px]" style={{ fontFamily: 'Poppins_500Medium' }}>@{acc.instagramUsername}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text className="text-white text-[14px]" style={{ fontFamily: 'Poppins_500Medium' }}>@{acc.instagramUsername}</Text>
+                          {acc.isPrimary && (
+                            <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                              <Text style={{ color: '#888', fontSize: 10, fontFamily: 'Poppins_500Medium' }}>PRIMARY</Text>
+                            </View>
+                          )}
+                        </View>
                         {acc.followers != null && (
                           <Text style={{ color: '#888', fontSize: 12, fontFamily: 'Poppins_400Regular' }}>{acc.followers.toLocaleString()} followers</Text>
                         )}
                       </View>
                     </TouchableOpacity>
-                    <TouchableOpacity activeOpacity={0.7} disabled={removingIgId === acc.id} onPress={() => handleRemoveIgAccount(acc)} style={{ padding: 6 }}>
-                      {removingIgId === acc.id ? (
-                        <ActivityIndicator size="small" color="#666" />
-                      ) : (
-                        <Ionicons name="close-circle-outline" size={20} color="#666" />
-                      )}
-                    </TouchableOpacity>
+                    {/* Primary account (the first ever verified, usually at signup) is
+                        permanent — no remove option, only later-added accounts can be removed. */}
+                    {acc.isPrimary ? (
+                      <View style={{ padding: 6 }}>
+                        <Ionicons name="lock-closed-outline" size={18} color="#444" />
+                      </View>
+                    ) : (
+                      <TouchableOpacity activeOpacity={0.7} disabled={removingIgId === acc.id} onPress={() => handleRemoveIgAccount(acc)} style={{ padding: 6 }}>
+                        {removingIgId === acc.id ? (
+                          <ActivityIndicator size="small" color="#666" />
+                        ) : (
+                          <Ionicons name="close-circle-outline" size={20} color="#666" />
+                        )}
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
 
@@ -1374,73 +1397,37 @@ export default function ProfileScreen() {
             <View className="px-4 mt-8">
               <Text className="text-white text-xl font-semibold mb-4" style={{ fontFamily: 'Poppins_600SemiBold' }}>Profile Details</Text>
 
-              {/* Profile Details Card */}
+              {/* Profile Details Card — styled to match the Menu card exactly:
+                  same container, row padding/gap, icon presentation, text
+                  hierarchy (bold label + gray value), divider and chevron. */}
               <View
-                className="rounded-[24px] px-2 py-4 border bg-[#0A0A0A]"
+                className="rounded-[28px] border bg-[rgba(0, 0, 0, 0.30)]"
                 style={{
-                  shadowColor: '#fff',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 15,
-                  elevation: 10,
-                  borderColor: '#fff',
-                  borderWidth: 0.3,
+                  borderColor: 'rgba(255,255,255,0.16)',
+                  borderWidth: 1,
                 }}
               >
-                {/* Email Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3  ">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border `}>
-                    <Image source={require('../../assets/mailicon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Email</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.email || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Bio Row */}
-                <View className="flex-row items-start gap-4 px-3 py-3  border-[#222]">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
-                    <Image source={require('../../assets/myprofile-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Bio</Text>
-                    <Text className="text-white text-[15px] leading-5" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.bio || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Location Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 ">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
-                    <Image source={require('../../assets/map-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Location</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.location || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Category Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3 ">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border  `}>
-                    <Image source={require('../../assets/category-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Category</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.categories?.join(', ') || profile?.category || 'Not provided'}</Text>
-                  </View>
-                </View>
-
-                {/* Language Row */}
-                <View className="flex-row items-center gap-4 px-3 py-3">
-                  <View className={`w-10 h-10 rounded-full bg-[#1A1A1A] items-center justify-center border ${iconBorderClass}`}>
-                    <Image source={require('../../assets/language-icon.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                  </View>
-                  <View>
-                    <Text className="text-[#666] text-sm" style={{ fontFamily: 'Poppins_400Regular' }}>Language</Text>
-                    <Text className="text-white text-[15px]" style={{ fontFamily: 'Poppins_400Regular' }}>{profile?.languages?.join(', ') || 'Not provided'}</Text>
-                  </View>
-                </View>
+                {[
+                  { key: 'email', icon: require('../../assets/mailicon.png'), label: 'Email', value: profile?.email || 'Not provided' },
+                  { key: 'bio', icon: require('../../assets/myprofile-icon.png'), label: 'Bio', value: profile?.bio || 'Not provided' },
+                  { key: 'location', icon: require('../../assets/map-icon.png'), label: 'Location', value: profile?.location || 'Not provided' },
+                  { key: 'category', icon: require('../../assets/category-icon.png'), label: 'Category', value: profile?.categories?.join(', ') || profile?.category || 'Not provided' },
+                  { key: 'language', icon: require('../../assets/language-icon.png'), label: 'Language', value: profile?.languages?.join(', ') || 'Not provided' },
+                ].map((row, index, rows) => (
+                  <React.Fragment key={row.key}>
+                    <View className="flex-row items-center py-2 px-5 gap-4">
+                      <Image source={row.icon} style={{  width: 36, height: 36 }} resizeMode="contain" />
+                      <View style={{ flex: 1 }}>
+                        <Text className="text-[#666] text-[16px]" style={{ fontFamily: 'Poppins_400Regular' }}>{row.label}</Text>
+                        <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins_400Regular' }}>{row.value}</Text>
+                      </View>
+                      {/* <Ionicons name="chevron-forward" size={18} color="#fff" /> */}
+                    </View>
+                    {index < rows.length - 1 && (
+                      <View className="h-[0.5px] bg-white/10 mx-5" />
+                    )}
+                  </React.Fragment>
+                ))}
               </View>
 
             </View>

@@ -355,9 +355,15 @@ export default function PostDetail() {
               </View>
             </View>
 
-            <TouchableOpacity style={[styles.viewProfileBtn, { borderColor: accent }]} activeOpacity={0.8} onPress={goToProfile}>
-              <Text style={[styles.viewProfileText, { color: accent }]}>View Profile</Text>
-            </TouchableOpacity>
+            <View style={styles.profileActionsRow}>
+              <TouchableOpacity style={[styles.viewProfileBtn, { borderColor: accent }]} activeOpacity={0.8} onPress={goToProfile}>
+                <Text style={[styles.viewProfileText, { color: accent }]}>View Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.viewProfileBtn, { borderColor: accent }]} activeOpacity={0.8} onPress={handleSeePortfolio}>
+                <Ionicons name="briefcase-outline" size={14} color={accent} />
+                <Text style={[styles.viewProfileText, { color: accent }]}>Portfolio</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.metaRow}>
               {post.location ? (
@@ -446,58 +452,46 @@ export default function PostDetail() {
           {!isOwn && (contactUnlocked || canCollaborate) && (
             <View style={styles.actionsWrap}>
               {contactUnlocked ? (
-                <>
-                  <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent }]} onPress={handleSeePortfolio} activeOpacity={0.8}>
-                    <Ionicons name="briefcase-outline" size={18} color={accent} />
-                    <Text style={[styles.outlineBtnText, { color: accent }]}>Portfolio</Text>
+                <View style={styles.secondaryActions}>
+                  <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent, flex: 1 }]} onPress={handleMessage} activeOpacity={0.8}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color={accent} />
+                    <Text style={[styles.outlineBtnText, { color: accent }]}>Message</Text>
                   </TouchableOpacity>
-                  <View style={styles.secondaryActions}>
-                    <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent, flex: 1 }]} onPress={handleMessage} activeOpacity={0.8}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={18} color={accent} />
-                      <Text style={[styles.outlineBtnText, { color: accent }]}>Message</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.filledBtn, { backgroundColor: accent, flex: 1 }]} onPress={handleCall} activeOpacity={0.8}>
-                      <Ionicons name="call-outline" size={18} color="#fff" />
-                      <Text style={styles.filledBtnText}>Call</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <View style={styles.primaryActionsRow}>
-                  <TouchableOpacity style={[styles.outlineBtn, { borderColor: accent, flex: 0.85 }]} onPress={handleSeePortfolio} activeOpacity={0.8}>
-                    <Ionicons name="briefcase-outline" size={18} color={accent} />
-                    <Text style={[styles.outlineBtnText, { color: accent }]}>Portfolio</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.filledBtn,
-                      { flex: 1.25, backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
-                      collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
-                      (myCollabCompleted || positionFilled) && { backgroundColor: '#3a3a3a' },
-                      collabBusy && { opacity: 0.6 },
-                    ]}
-                    onPress={handleCollab}
-                    disabled={collabBusy || collabStatus === 'PENDING' || myCollabCompleted || positionFilled}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={
-                        collabStatus === 'PENDING' ? 'time-outline'
-                          : myCollabCompleted || positionFilled ? 'checkmark-circle-outline'
-                          : 'people-outline'
-                      }
-                      size={18}
-                      color={collabStatus === 'PENDING' ? '#f59e0b' : '#fff'}
-                    />
-                    <Text style={[styles.filledBtnText, collabStatus === 'PENDING' && { color: '#f59e0b' }]}>
-                      {collabBusy ? 'Sending…'
-                        : collabStatus === 'PENDING' ? 'Request Pending'
-                        : myCollabCompleted ? 'Collaborated'
-                        : positionFilled ? 'Position Filled'
-                        : 'Collaborate'}
-                    </Text>
+                  <TouchableOpacity style={[styles.filledBtn, { backgroundColor: accent, flex: 1 }]} onPress={handleCall} activeOpacity={0.8}>
+                    <Ionicons name="call-outline" size={18} color="#fff" />
+                    <Text style={styles.filledBtnText}>Call</Text>
                   </TouchableOpacity>
                 </View>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.filledBtn,
+                    { backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
+                    collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
+                    (myCollabCompleted || positionFilled) && { backgroundColor: '#3a3a3a' },
+                    collabBusy && { opacity: 0.6 },
+                  ]}
+                  onPress={handleCollab}
+                  disabled={collabBusy || collabStatus === 'PENDING' || myCollabCompleted || positionFilled}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={
+                      collabStatus === 'PENDING' ? 'time-outline'
+                        : myCollabCompleted || positionFilled ? 'checkmark-circle-outline'
+                        : 'people-outline'
+                    }
+                    size={18}
+                    color={collabStatus === 'PENDING' ? '#f59e0b' : '#fff'}
+                  />
+                  <Text style={[styles.filledBtnText, collabStatus === 'PENDING' && { color: '#f59e0b' }]}>
+                    {collabBusy ? 'Sending…'
+                      : collabStatus === 'PENDING' ? 'Request Pending'
+                      : myCollabCompleted ? 'Collaborated'
+                      : positionFilled ? 'Position Filled'
+                      : 'Collaborate'}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           )}
@@ -706,13 +700,22 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
   },
 
+  profileActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+  },
   viewProfileBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     alignSelf: 'flex-start',
     borderWidth: 1,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 14,
   },
   viewProfileText: {
     fontSize: 13,

@@ -32,7 +32,9 @@ import {
     getCategories,
     getInstagramVerificationStatus,
     getMyCreatorProfile,
+    getReusableInstagramAccount,
     getSocialVerificationStatus,
+    reuseInstagramAccount,
     startInstagramVerification,
     startSocialVerification,
     submitCreatorApplication,
@@ -1030,8 +1032,60 @@ export default function CreatorSignup() {
         }
     };
 
+    // Instantly links an Instagram account already verified under this same
+    // person's other role-profile (e.g. they verified it as a Creator, now
+    // signing up as Freelancer) — no new DM needed since ownership was
+    // already proven.
+    const applyReusedInstagram = (username: string, followers: number | null) => {
+        setForm(prev => ({
+            ...prev,
+            instagramHandle: username,
+            instagramFollowers: followers != null ? String(followers) : prev.instagramFollowers,
+        }));
+        setIgVerified(true);
+    };
+
     // ── Instagram DM verification ──
     const handleIgVerify = async () => {
+        if (!token || !form.instagramHandle.trim()) return;
+
+        // If this account already verified a different (or the same) Instagram
+        // handle under a sibling role-profile, offer to reuse it instantly
+        // instead of always requiring a fresh DM round-trip.
+        const reusableRes = await getReusableInstagramAccount(token);
+        if (reusableRes.success && reusableRes.data?.instagramUsername) {
+            const { instagramUsername, followers } = reusableRes.data;
+            Alert.alert(
+                'Instagram already verified',
+                `You already verified @${instagramUsername} for your other profile. Use it here too, or verify a different account?`,
+                [
+                    {
+                        text: `Use @${instagramUsername}`,
+                        onPress: async () => {
+                            setIgVerifying(true);
+                            try {
+                                const res = await reuseInstagramAccount(token, instagramUsername);
+                                if (res.success && res.data) {
+                                    applyReusedInstagram(res.data.instagramUsername, res.data.followers ?? followers ?? null);
+                                } else {
+                                    Alert.alert('Error', res.error || 'Could not link this Instagram account');
+                                }
+                            } finally {
+                                setIgVerifying(false);
+                            }
+                        },
+                    },
+                    { text: 'Verify a different account', onPress: () => startFreshIgVerification() },
+                    { text: 'Cancel', style: 'cancel' },
+                ]
+            );
+            return;
+        }
+
+        await startFreshIgVerification();
+    };
+
+    const startFreshIgVerification = async () => {
         if (!token || !form.instagramHandle.trim()) return;
         // A stale interval from a previous attempt would still be polling the
         // old (now server-side expired) record and could race with this new
