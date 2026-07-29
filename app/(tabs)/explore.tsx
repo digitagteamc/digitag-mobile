@@ -574,7 +574,7 @@ export default function ExploreTab() {
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
-  const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
+  const [acceptedCollabPostIds, setAcceptedCollabPostIds] = useState<Set<string>>(new Set());
   const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
@@ -693,12 +693,11 @@ export default function ExploreTab() {
         const pendingPostIds = new Set<string>();
         const completedPostIds = new Set<string>();
         res.data.forEach((r: any) => {
-          // Contact shortcuts only while ACCEPTED — completing a collab closes
-          // chat/calls (backend enforces the same), so the card reverts to
-          // showing the Collaborate button for a fresh request.
-          if (r.status === 'ACCEPTED') {
-            const otherId = r.senderId === userId ? r.receiverId : r.senderId;
-            if (otherId) accepted.add(otherId);
+          // Post-scoped — a Creator can have multiple posts, and an accepted
+          // collaboration on one of them must only unlock chat/call for that
+          // specific post, not every other post they've made.
+          if (r.status === 'ACCEPTED' && r.postId) {
+            accepted.add(r.postId);
           }
           if (r.status === 'PENDING' && r.senderId === userId && r.postId) {
             pendingPostIds.add(r.postId);
@@ -712,7 +711,7 @@ export default function ExploreTab() {
             completedPostIds.add(r.postId);
           }
         });
-        setAcceptedCollabOwnerIds(accepted);
+        setAcceptedCollabPostIds(accepted);
         // Server is the source of truth on every visit — replaces any stale local-only
         // "Request Sent" state and also restores it if the app was closed/reopened.
         setCollabSentIds(pendingPostIds);
@@ -1074,7 +1073,7 @@ export default function ExploreTab() {
               <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
               <Text style={s.bigCollabBtnText}>Collaborated</Text>
             </View>
-          ) : acceptedCollabOwnerIds.has(item.ownerId) ? (
+          ) : acceptedCollabPostIds.has(item.id) ? (
             <View style={s.cardBottom}>
               <View style={s.cardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
@@ -1122,7 +1121,7 @@ export default function ExploreTab() {
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, handleBookmark]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, handleBookmark]);
 
   // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
   // the main right-side filter drawer (behind the header's filter icon). Tapping a row

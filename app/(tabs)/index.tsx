@@ -582,7 +582,7 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabOwnerIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleSeePortfolio, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
   const inputRange = [
     (index - 1) * ITEM_SIZE,
     index * ITEM_SIZE,
@@ -693,7 +693,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                 <Ionicons name="checkmark-circle-outline" size={15} color="#fff" />
                 <Text style={styles.figmaCollabBtnText}>Collaborated</Text>
               </View>
-            ) : acceptedCollabOwnerIds?.has(item.ownerId) ? (
+            ) : acceptedCollabPostIds?.has(item.id) ? (
               <View style={styles.figmaCardActions}>
                 <TouchableOpacity onPress={() => handleMessage(item.ownerId)} activeOpacity={0.75}>
                   <ImageBackground source={require('../../assets/bg-icons.png')} style={styles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
@@ -743,7 +743,7 @@ export default function Homepage() {
   const [userTagId, setUserTagId] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { unreadCount } = useNotificationCount();
-  const [acceptedCollabOwnerIds, setAcceptedCollabOwnerIds] = useState<Set<string>>(new Set());
+  const [acceptedCollabPostIds, setAcceptedCollabPostIds] = useState<Set<string>>(new Set());
   const [collabSentPostIds, setCollabSentPostIds] = useState<Set<string>>(new Set());
   const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
@@ -840,15 +840,12 @@ export default function Homepage() {
       const sent = new Set<string>();
       const completed = new Set<string>();
       res.data.forEach((r: any) => {
-        // Contact shortcuts only while ACCEPTED — completing a collab closes
-        // chat/calls (backend enforces the same). This one stays owner-scoped:
-        // messaging/calls are per-pair, not per-post, so having any active
-        // collaboration with someone unlocks contact across all their posts.
-        if (r.status === 'ACCEPTED') {
-          const otherId = r.senderId === userId ? r.receiverId : r.senderId;
-          if (otherId) accepted.add(otherId);
-        }
-        // Post-scoped, unlike accepted above — a pending request on one post
+        // Post-scoped — a Creator can have multiple posts, and an accepted
+        // collaboration on one of them must only unlock chat/call for that
+        // specific post, not every other post they've made (a single post's
+        // collaboration isn't a blanket relationship across all their posts).
+        if (r.status === 'ACCEPTED' && r.postId) accepted.add(r.postId);
+        // Post-scoped, same reasoning — a pending request on one post
         // must not show "Request Sent" on that owner's other posts too.
         if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
         // Also post-scoped — once the Creator marks this specific
@@ -858,7 +855,7 @@ export default function Homepage() {
         // completed collabs drop out of `accepted` above).
         if (r.status === 'COMPLETED' && r.postId) completed.add(r.postId);
       });
-      setAcceptedCollabOwnerIds(accepted);
+      setAcceptedCollabPostIds(accepted);
       setCollabSentPostIds(sent);
       setCompletedCollabPostIds(completed);
     }
@@ -1407,7 +1404,7 @@ export default function Homepage() {
                   handleShare={handleShare}
                   handleCollab={handleCollab}
                   collabSentPostIds={collabSentPostIds}
-                  acceptedCollabOwnerIds={acceptedCollabOwnerIds}
+                  acceptedCollabPostIds={acceptedCollabPostIds}
                   completedCollabPostIds={completedCollabPostIds}
                   savedPostIds={savedPostIds}
                   userRole={userRole}
