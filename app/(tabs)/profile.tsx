@@ -373,20 +373,9 @@ export default function ProfileScreen() {
     return `${diffDays}d ago`;
   };
 
-  // 1–4 filled ₹ symbols — a rough price tier, not a literal amount, so a
-  // free/low-budget post still renders a legible badge instead of a blank one.
-  const getPriceLevel = (value?: number | string | null) => {
-    const n = typeof value === 'string' ? parseFloat(value.replace(/[^\d.]/g, '')) : value;
-    if (!n || n <= 0) return 1;
-    if (n < 2000) return 1;
-    if (n < 5000) return 2;
-    if (n < 10000) return 3;
-    return 4;
-  };
-
-  // Feeds the "Posts" tab — each of my own posts, decorated with my own
-  // profile attributes (experience/rate/language/location) since those
-  // describe me the poster, not the post itself.
+  // Feeds the "Posts" tab — each of my own posts. Experience/languages still
+  // describe me the poster, but location and budget describe this specific
+  // post/opportunity, so they come from the post itself, not my profile.
   const activityPostCards = myPosts.slice(0, 2).map((post) => ({
     id: post.id,
     name: profile?.name || 'You',
@@ -395,9 +384,10 @@ export default function ProfileScreen() {
     category: profile?.categories?.[0] || profile?.category || (userRole === 'FREELANCER' ? 'Freelancer' : 'Creator'),
     desc: post.description || '',
     experience: profile?.experienceLevel || 'New',
-    priceLevel: getPriceLevel(post.budget ?? profile?.hourlyRate),
+    isPaidCollab: post.collaborationType === 'PAID',
+    budget: post.budget || null,
     languages: profile?.languages?.join(', ') || '—',
-    location: profile?.location || '—',
+    location: post.location || '—',
     time: getTimeAgo(post.createdAt),
     onSeePortfolio: () => userId && router.push({ pathname: '/creator-details', params: { userId } } as any),
   }));
@@ -524,7 +514,7 @@ export default function ProfileScreen() {
 
   type ActivityCard = {
     id: string; name: string; avatarUri: string | null; isPremium?: boolean | null;
-    category: string; desc: string; experience: string; priceLevel: number;
+    category: string; desc: string; experience: string; isPaidCollab: boolean; budget: number | string | null;
     languages: string; location: string; time: string; onSeePortfolio: () => void;
   };
 
@@ -585,11 +575,12 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Price Level (Primary)</Text>
-            <View style={{ flexDirection: 'row', gap: 3 }}>
-              {[1, 2, 3, 4].map((n) => (
-                <Text key={n} style={{ fontSize: 14, fontFamily: 'Poppins_700Bold', color: n <= item.priceLevel ? '#22C55E' : '#3A3A44' }}>₹</Text>
-              ))}
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Budget</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="cash-outline" size={14} color="#D0D0D6" />
+              <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium' }} numberOfLines={1}>
+                {item.isPaidCollab ? (item.budget ? `₹${item.budget}` : 'Paid Collab') : 'Free Collab'}
+              </Text>
             </View>
           </View>
         </View>
@@ -604,7 +595,7 @@ export default function ProfileScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Location (Primary)</Text>
+            <Text style={{ color: '#8A8A99', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>Location</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="location-outline" size={14} color="#D0D0D6" />
               <Text style={{ color: '#D0D0D6', fontSize: 13.5, fontFamily: 'Poppins_500Medium', flexShrink: 1 }} numberOfLines={1}>{item.location}</Text>
