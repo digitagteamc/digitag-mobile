@@ -17,7 +17,6 @@ import {
   Modal,
   Platform,
   RefreshControl,
-  ScrollView,
   Share,
   StatusBar,
   StyleSheet,
@@ -43,6 +42,7 @@ import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
 import { useNotificationCount } from '../../context/NotificationCountContext';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { buildCreatorSocialLinks, SocialLink } from '../../services/socialLinks';
 import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, joinWaitlist, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
@@ -1146,6 +1146,7 @@ export default function Homepage() {
     await Promise.all([fetchPosts(), fetchUser(), fetchCollabInfo(), fetchSavedIds()]);
     setRefreshing(false);
   }, [fetchPosts, fetchUser, fetchCollabInfo, fetchSavedIds]);
+  const pullToRefresh = usePullToRefresh(onRefresh, refreshing);
 
   const getOwnerName = (owner: any) => {
     if (owner?.name) return owner.name;
@@ -1351,13 +1352,27 @@ export default function Homepage() {
     <View style={styles.root}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: 70 }}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
+        scrollEventThrottle={16}
+        {...(Platform.OS === 'ios'
+          ? { onScroll: pullToRefresh.onScroll, onScrollEndDrag: pullToRefresh.onScrollEndDrag }
+          : { refreshControl: <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" /> })}
       >
+        {Platform.OS === 'ios' && (
+          <Animated.View
+            pointerEvents="none"
+            style={[{ position: 'absolute', top: 14, left: 0, right: 0, alignItems: 'center', zIndex: 50 }, pullToRefresh.indicatorStyle]}
+          >
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(20,20,20,0.85)', alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color="#ED2A91" size="small" />
+            </View>
+          </Animated.View>
+        )}
+        <Animated.View style={Platform.OS === 'ios' ? pullToRefresh.contentStyle : undefined}>
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>
           {/* <HeroGlow color={theme.softStrong} /> */}
@@ -1929,8 +1944,10 @@ export default function Homepage() {
           </View>
         </View>
 
+        </Animated.View>
+
         <CommunityModal visible={communityModalVisible} onClose={() => setCommunityModalVisible(false)} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* ══════════════ PORTFOLIO MODAL ══════════════ */}
       <Modal

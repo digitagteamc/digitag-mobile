@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   BackHandler,
   Image,
   Keyboard,
@@ -28,6 +29,7 @@ import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/ProfileGateContext';
 import { useApplePurchase } from '../../hooks/useApplePurchase';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { useRemoteConfig } from '../../hooks/useRemoteConfig';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../services/socialLinks';
 import { completeCollab, createSubscription, getFullProfile, getInstagramVerificationStatus, getMyPosts, getUserStats, InstagramAccount, listCollaborations, listInstagramAccounts, removeInstagramAccount, startInstagramVerification } from '../../services/userService';
@@ -269,6 +271,7 @@ export default function ProfileScreen() {
     await fetchProfile();
     setRefreshing(false);
   }, [fetchProfile]);
+  const pullToRefresh = usePullToRefresh(onRefresh, refreshing);
 
   const handleAddIgAccount = async () => {
     if (!newIgHandle.trim() || !token || igStarting) return;
@@ -803,12 +806,26 @@ export default function ProfileScreen() {
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
       <SafeAreaView className="flex-1" edges={['left', 'right']}>
-        <ScrollView
+        <Animated.ScrollView
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
+          scrollEventThrottle={16}
+          {...(Platform.OS === 'ios'
+            ? { onScroll: pullToRefresh.onScroll, onScrollEndDrag: pullToRefresh.onScrollEndDrag }
+            : { refreshControl: <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" /> })}
         >
+          {Platform.OS === 'ios' && (
+            <Animated.View
+              pointerEvents="none"
+              style={[{ position: 'absolute', top: 14, left: 0, right: 0, alignItems: 'center', zIndex: 50 }, pullToRefresh.indicatorStyle]}
+            >
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(20,20,20,0.85)', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator color="#ED2A91" size="small" />
+              </View>
+            </Animated.View>
+          )}
+          <Animated.View style={Platform.OS === 'ios' ? pullToRefresh.contentStyle : undefined}>
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
@@ -1358,7 +1375,8 @@ export default function ProfileScreen() {
 
             </View>
           )}
-        </ScrollView>
+          </Animated.View>
+        </Animated.ScrollView>
       </SafeAreaView>
 
       {/* ══════════ 3-DOT DROPDOWN MENU ══════════ */}
