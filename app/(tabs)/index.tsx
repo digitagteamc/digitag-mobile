@@ -65,6 +65,7 @@ const imgFashion = require('../../assets/tabs-icons-freelancer/FashionDesigners.
 const imgProperty = require('../../assets/tabs-icons-freelancer/PropertyRental.png');
 const imgVoiceOver = require('../../assets/tabs-icons-freelancer/VoiceOver.png');
 const imgModal = require('../../assets/tabs-icons-freelancer/Modals.png');
+const imgSocialMediaManager = require('../../assets/tabs-icons-freelancer/SocialMediaManager.png');
 // Preload prevention - images will be required lazily
 
 // const imgStars = require('../../assets/categories/stars.gif');
@@ -217,6 +218,7 @@ const CATEGORIES = [
   { id: 'property', label: 'Property\nRental', image: imgProperty, icon: 'home-outline' as const },
   { id: 'voice', label: 'Voice Over', image: imgVoiceOver, icon: 'mic-outline' as const },
   { id: 'models', label: 'Models', image: imgModal, icon: 'walk-outline' as const },
+  { id: 'social-media-manager', label: 'Social Media\nManager', image: imgSocialMediaManager, icon: 'share-social-outline' as const },
 ];
 
 const FREELANCER_CATEGORIES = [
@@ -974,13 +976,15 @@ export default function Homepage() {
       }
       return cols;
     }
-    return [
-      [CATEGORIES[0], CATEGORIES[5]],
-      [CATEGORIES[1], CATEGORIES[6]],
-      [CATEGORIES[2], CATEGORIES[7]],
-      [CATEGORIES[3], CATEGORIES[8]],
-      [CATEGORIES[4], CATEGORIES[9]],
-    ];
+    const cols: any[][] = [];
+    const mid = Math.ceil(CATEGORIES.length / 2);
+    for (let i = 0; i < mid; i++) {
+      cols.push([
+        CATEGORIES[i],
+        CATEGORIES[i + mid]
+      ].filter(Boolean));
+    }
+    return cols;
   }, [userRole]);
 
   const catGap = userRole === 'FREELANCER' ? 2 : 2;

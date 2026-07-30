@@ -69,6 +69,7 @@ const tf_fashion = require('../../assets/tabs-icons-freelancer/FashionDesigners.
 const tf_voice = require('../../assets/tabs-icons-freelancer/VoiceOver.png');
 const tf_models = require('../../assets/tabs-icons-freelancer/Modals.png');
 const tf_property = require('../../assets/tabs-icons-freelancer/PropertyRental.png');
+const tf_socialmedia = require('../../assets/tabs-icons-freelancer/SocialMediaManager.png');
 
 
 const fh_lifestyle = require('../../assets/categories-freelancers/Lifestyle-Living1.webp');
@@ -209,6 +210,17 @@ const CATEGORIES = [
     heroDesc: 'Explore premium rental homes, apartments, and workspaces tailored to your needs.',
     gradient: ['#B45309', '#92400E'] as [string, string],
     charStyle: { right: -40, bottom: -63, width: 225, height: 225 }
+  },
+  {
+    id: 'social-media-manager',
+    label: 'Social Media\nManager',
+    icon: tf_socialmedia,
+    // Placeholder hero gif until a dedicated one is provided.
+    image: imgGrowth,
+    heroLine1: 'Grow Your Brand on  ', heroLine2: ' Every Platform', heroLine3: '',
+    heroDesc: 'Skilled social media managers to plan, post, and grow your presence across platforms.',
+    gradient: ['#0A3EFA', '#062B9E'] as [string, string],
+    charStyle: { right: -40, bottom: -60, width: 240, height: 240 }
   },
 ];
 
