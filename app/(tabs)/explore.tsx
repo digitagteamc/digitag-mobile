@@ -57,8 +57,8 @@ const imgStylingicon = require('../../assets/tabs_icons/Stylingicon.webp');
 const imgFashionicon = require('../../assets/tabs_icons/fashionicon.webp');
 const imgPropertyicon = require('../../assets/tabs_icons/Propertyicon.webp');
 const imgVoiceicon = require('../../assets/tabs_icons/VoiceOvericon.webp');
-const imgAllCreator = require('../../assets/all-creator.png');
-const imgAllFreelancer = require('../../assets/all-freelancer.png');
+const imgAllCreator = require('../../assets/all-freelancer.png');
+const imgAllFreelancer = require('../../assets/all-creator.png');
 
 const tf_photography = require('../../assets/tabs-icons-freelancer/Photography.png');
 const tf_editor = require('../../assets/tabs-icons-freelancer/editors.png');
@@ -512,6 +512,19 @@ function parseBudgetValue(budget: string | null | undefined): number | null {
   const n = parseFloat(digits);
   return Number.isFinite(n) ? n : null;
 }
+
+// Display-only formatting for the budget pill — turns each run of digits
+// into "K" notation (5000 -> 5K, 12500 -> 12.5K) so a range like
+// "5000-10000" becomes "5K-10K". Doesn't touch the underlying budget value
+// used anywhere else (e.g. parseBudgetValue above for filtering).
+const formatBudgetK = (value: string | number) => {
+  return String(value).replace(/\d+/g, (match) => {
+    const num = parseInt(match, 10);
+    if (num < 1000) return match;
+    const k = num / 1000;
+    return `${Number.isInteger(k) ? k : k.toFixed(1)}K`;
+  });
+};
 
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
@@ -1071,7 +1084,7 @@ export default function ExploreTab() {
               <View style={[s.pill, { borderColor: 'rgba(251,191,36,0.4)' }]}>
                 <Ionicons name="wallet-outline" size={13} color="#fbbf24" />
                 <Text style={s.pillText} numberOfLines={1}>
-                  Starting from <Text style={{ color: '#fbbf24' }}>₹{item.budget}</Text>
+                  Starting from <Text style={{ color: '#fbbf24' }}>₹{formatBudgetK(item.budget)}</Text>
                 </Text>
               </View>
             )}

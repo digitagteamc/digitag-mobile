@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Circle, Defs, RadialGradient, Stop, Svg } from 'react-native-svg';
 import PortfolioImageCarousel from '../Components/PortfolioImageCarousel';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
@@ -50,6 +51,39 @@ function timeAgo(dateStr?: string) {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
 }
+
+// Display-only formatting for the budget pill — turns each run of digits
+// into "K" notation (5000 -> 5K, 12500 -> 12.5K) so a range like
+// "5000-10000" becomes "5K-10K". Doesn't touch the underlying budget value.
+function formatBudgetK(value: string | number) {
+  return String(value).replace(/\d+/g, (match) => {
+    const num = parseInt(match, 10);
+    if (num < 1000) return match;
+    const k = num / 1000;
+    return `${Number.isInteger(k) ? k : k.toFixed(1)}K`;
+  });
+}
+
+// Ambient glow circle (same technique as the Home screen's background
+// glows) — an SVG radial gradient, not RN's shadow* props, so it renders
+// identically on iOS and Android instead of being iOS-only.
+const GlowCircle = ({ size, color, opacity = 1, style }: { size: number; color: string; opacity?: number; style?: any }) => {
+  const gradId = React.useMemo(() => `glow_${Math.random().toString(36).slice(2, 10)}`, []);
+  return (
+    <View pointerEvents="none" style={[{ width: size, height: size }, style]}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor={color} stopOpacity={opacity} />
+            <Stop offset="55%" stopColor={color} stopOpacity={opacity * 0.45} />
+            <Stop offset="100%" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${gradId})`} />
+      </Svg>
+    </View>
+  );
+};
 
 export default function PostDetail() {
   const router = useRouter();
@@ -301,11 +335,11 @@ export default function PostDetail() {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-      <LinearGradient
+      {/* <LinearGradient
         colors={[accent + 'B3', accent + '40', 'transparent']}
         style={styles.headerGlow}
         pointerEvents="none"
-      />
+      /> */}
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
 
         {/* Top bar */}
@@ -339,9 +373,13 @@ export default function PostDetail() {
                   setShowReportModal(true);
                 }}
                 disabled={isReported}
-                style={styles.iconBtn}
+                style={[styles.iconBtn, { backgroundColor: 'transparent' }]}
               >
-                <Feather name="flag" size={18} color={isReported ? accent : '#fff'} />
+                <Image
+                  source={require('../assets/report-post-view.png')}
+                  style={{ width: 34, height: 34, tintColor: isReported ? accent : undefined }}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -359,7 +397,16 @@ export default function PostDetail() {
           )}
 
           {/* Main profile card */}
-          <View style={styles.card}>
+          <View style={[styles.card, { borderColor: theme.border }]}>
+            {/* Top ambient glow, colored by role — SVG-based so it renders
+                on both iOS and Android (unlike RN's shadow-blur props). */}
+            <GlowCircle
+              size={400}
+              color={accent}
+              opacity={0.55}
+              style={{ position: 'absolute', top: -230, alignSelf: 'center' }}
+            />
+
             <View style={styles.cardTopRow}>
               <Image source={pic ? { uri: pic } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
               <View style={styles.identityCol}>
@@ -414,7 +461,7 @@ export default function PostDetail() {
               {isPaid && post.budget ? (
                 <View style={[styles.pillSolid, { backgroundColor: 'rgba(34,197,94,0.15)', borderColor: '#22c55e' }]}>
                   <Ionicons name="cash-outline" size={13} color="#22c55e" />
-                  <Text style={[styles.pillSolidText, { color: '#22c55e' }]}>₹ {String(post.budget).replace(/^₹\s*/, '')}</Text>
+                  <Text style={[styles.pillSolidText, { color: '#22c55e' }]}>₹ {formatBudgetK(String(post.budget).replace(/^₹\s*/, ''))}</Text>
                 </View>
               ) : null}
               <View style={[styles.pillSolid, { backgroundColor: isPaid ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.15)', borderColor: isPaid ? '#22c55e' : '#a78bfa' }]}>
@@ -692,6 +739,8 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
+    position: 'relative',
+    overflow: 'hidden',
   },
   cardTopRow: {
     flexDirection: 'row',
@@ -702,6 +751,8 @@ const styles = StyleSheet.create({
     height: 76,
     borderRadius: 38,
     backgroundColor: '#2A2A2A',
+    borderWidth: 1,
+    borderColor: ''
   },
   identityCol: { flex: 1, marginLeft: 14 },
   ownerName: {

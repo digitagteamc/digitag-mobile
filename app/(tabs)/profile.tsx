@@ -807,6 +807,7 @@ export default function ProfileScreen() {
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
+          bounces={Platform.OS === 'ios' ? false : undefined}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         >
           {/* ══════════ HERO HEADER ══════════ */}

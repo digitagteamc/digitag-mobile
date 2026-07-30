@@ -684,6 +684,19 @@ const CommunityModal = ({ visible, onClose }: { visible: boolean; onClose: () =>
   );
 };
 
+// Display-only formatting for the price pill's budget figure — turns each
+// run of digits into "K" notation (5000 -> 5K, 12500 -> 12.5K) so a range
+// like "5000-10000" becomes "5K-10K". Doesn't touch the underlying budget
+// value anywhere else, purely how this one pill renders it.
+const formatBudgetK = (value: string | number) => {
+  return String(value).replace(/\d+/g, (match) => {
+    const num = parseInt(match, 10);
+    if (num < 1000) return match;
+    const k = num / 1000;
+    return `${Number.isInteger(k) ? k : k.toFixed(1)}K`;
+  });
+};
+
 // Optimization: Memoized Carousel Card component to prevent re-renders
 const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
   const [descMeasured, setDescMeasured] = React.useState(false);
@@ -855,13 +868,13 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
             {/* Meta pills: price + time */}
             <View style={styles.figmaCardPillRow}>
-              <View style={[styles.figmaCardPricePill, { backgroundColor: item.price === 'Paid Collab' ? 'rgba(14,25,9,100)' : 'rgba(167,139,250,0.16)', borderColor: item.price === 'Paid Collab' ? 'rgba(14,25,9,100)' : 'rgba(167,139,250,0.16)' }]}>
+              <View style={[styles.figmaCardPricePill, { backgroundColor: item.price === 'Paid Collab' ? 'rgba(90,191,57,0.16)' : 'rgba(167,139,250,0.16)', borderColor: item.price === 'Paid Collab' ? 'rgba(90,191,57,1)' : 'rgba(167,139,250,0.16)' }]}>
                 <Ionicons name={item.price === 'Paid Collab' ? 'wallet' : 'gift-outline'} size={12} color={item.price === 'Paid Collab' ? '#5abf39' : '#a78bfa'} />
                 <Text
                   style={[styles.figmaCardPricePillText, { color: item.price === 'Paid Collab' ? '#5abf39' : '#a78bfa' }]}
                   numberOfLines={1}
                 >
-                  {item.price === 'Paid Collab' && item.budget ? `Starts from ₹${String(item.budget).replace(/^₹\s*/, '')}` : (item.price === 'Paid Collab' ? 'Paid Collab' : 'Free Collab')}
+                  {item.price === 'Paid Collab' && item.budget ? `Starts from ₹${formatBudgetK(String(item.budget).replace(/^₹\s*/, ''))}` : (item.price === 'Paid Collab' ? 'Paid Collab' : 'Free Collab')}
                 </Text>
               </View>
               <View style={styles.figmaCardTimePill}>
@@ -1343,6 +1356,7 @@ export default function Homepage() {
         contentContainerStyle={{ paddingBottom: 70 }}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
+        bounces={Platform.OS === 'ios' ? false : undefined}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
       >
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
