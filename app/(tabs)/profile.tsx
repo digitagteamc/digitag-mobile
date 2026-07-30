@@ -816,7 +816,7 @@ export default function ProfileScreen() {
             <Image
               source={require('../../assets/images/profile_hero_bg.webp')}
               className="absolute inset-0 w-full h-[300px]"
-              style={{ opacity: 0.8 }}
+              style={{ opacity: Platform.OS === 'ios' ? 0.4 : 0.8 }}
               resizeMode="cover"
             />
             {/* Dark overlay matching index.tsx gradient — darkened further so the
