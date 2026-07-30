@@ -749,12 +749,13 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                 style={styles.figmaCardBookmarkIcon}
                 resizeMode="contain"
               />
-              {/* Icon-only cutout (transparent bg, generated from Save.png) layered
-                  on top so tinting the "saved" state colors just the bookmark
-                  glyph — the dark circle underneath stays untouched. */}
+              {/* Filled bookmark (transparent bg, flood-filled from Save.png's
+                  outline) layered on top so the "saved" state reads as a
+                  solid filled icon, not just a recolored outline — the dark
+                  circle underneath stays untouched. */}
               {savedPostIds?.has(item.id) && (
                 <Image
-                  source={require('../../assets/SaveIconOnly.png')}
+                  source={require('../../assets/SaveFilled.png')}
                   style={[styles.figmaCardBookmarkIcon, { position: 'absolute', tintColor: postColor }]}
                   resizeMode="contain"
                 />
@@ -809,14 +810,19 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
             </View>
 
             {/* Description (body only — the post title is never shown here).
-                "See more" only appears when the text actually overflows 3
-                lines — measured via a hidden, unclamped layer since
-                onTextLayout reports already-clamped lines once
-                numberOfLines is set. The visible text is then cut by
-                character count (not numberOfLines) once truncated, because
-                numberOfLines' own ellipsis clamp would cut the whole Text
-                tree at the line limit — including the nested "See more"
-                Text appended after it — silently swallowing the link. */}
+                Capped at 3 lines. The bottom action row is no longer
+                position:absolute (see the flexible spacer below), so a
+                full 3-line description no longer overlaps it — content and
+                the button now share the card's height via normal flow
+                instead of competing for the same fixed offset. "See more"
+                only appears when the text actually overflows 3 lines —
+                measured via a hidden, unclamped layer since onTextLayout
+                reports already-clamped lines once numberOfLines is set. The
+                visible text is then cut by character count (not
+                numberOfLines) once truncated, because numberOfLines' own
+                ellipsis clamp would cut the whole Text tree at the line
+                limit — including the nested "See more" Text appended after
+                it — silently swallowing the link. */}
             {!!item.desc && (
               <View>
                 {!descMeasured && (
@@ -849,7 +855,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
 
             {/* Meta pills: price + time */}
             <View style={styles.figmaCardPillRow}>
-              <View style={[styles.figmaCardPricePill, { backgroundColor: item.price === 'Paid Collab' ? 'rgba(14,25,9,100)' : 'rgba(167,139,250,0.16)' }]}>
+              <View style={[styles.figmaCardPricePill, { backgroundColor: item.price === 'Paid Collab' ? 'rgba(14,25,9,100)' : 'rgba(167,139,250,0.16)', borderColor: item.price === 'Paid Collab' ? 'rgba(14,25,9,100)' : 'rgba(167,139,250,0.16)' }]}>
                 <Ionicons name={item.price === 'Paid Collab' ? 'wallet' : 'gift-outline'} size={12} color={item.price === 'Paid Collab' ? '#5abf39' : '#a78bfa'} />
                 <Text
                   style={[styles.figmaCardPricePillText, { color: item.price === 'Paid Collab' ? '#5abf39' : '#a78bfa' }]}
@@ -864,10 +870,18 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               </View>
             </View>
 
+            {/* Flexible spacer — pushes the bottom action row to the card's
+                bottom edge regardless of how tall the content above it is,
+                so short descriptions don't leave a big dead gap and long
+                ones never overlap the button (both were happening with the
+                old position:absolute bottom row, which sat at a fixed
+                offset no matter what). */}
+            <View style={{ flex: 1 }} />
+
             {/* Bottom Actions */}
             <View style={styles.figmaCardBottomRow}>
               {completedCollabPostIds?.has(item.id) ? (
-                <View style={[styles.figmaCardRequestBtn, { backgroundColor: '#3a3a3a' }]}>
+                <View style={[styles.figmaCardRequestBtn, { backgroundColor: '#246307' }]}>
                   <Ionicons name="checkmark-circle-outline" size={14} color="#fff" />
                   <Text style={styles.figmaCardRequestBtnText}>Collaborated</Text>
                 </View>
@@ -1333,7 +1347,7 @@ export default function Homepage() {
       >
         {/* ══════════════ HERO CAROUSEL ══════════════ */}
         <View style={{ height: 432, position: 'relative' }}>
-          <HeroGlow color={theme.softStrong} />
+          {/* <HeroGlow color={theme.softStrong} /> */}
           <Carousel
             loop={true}
             width={width}
@@ -2013,12 +2027,12 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 10,
-    marginTop: 15,
+    marginTop: 4,
   },
   floatingHeader: {
     borderRadius: 999,
@@ -2297,7 +2311,7 @@ const styles = StyleSheet.create({
     height: 30,
   },
   figmaCardAvatarWrap: {
-    marginTop: 20,
+    marginTop: 14,
     alignItems: 'center',
     justifyContent: 'center',
     width: 72,
@@ -2325,7 +2339,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontFamily: 'Poppins_600SemiBold',
-    marginTop: 10,
+    marginTop: 6,
     width: '85%',
     textAlign: 'center',
   },
@@ -2333,7 +2347,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    marginTop: 6,
     maxWidth: '90%',
   },
   figmaCardRoleText: {
@@ -2415,10 +2429,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_500Medium',
   },
   figmaCardBottomRow: {
-    position: 'absolute',
-    bottom: 14,
-    left: 14,
-    right: 14,
+    width: '100%',
+    paddingHorizontal: 14,
+    marginBottom: 14,
     flexDirection: 'row',
     gap: 4,
   },

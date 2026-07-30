@@ -315,11 +315,21 @@ export default function PostDetail() {
           </TouchableOpacity>
           <Text style={styles.topTitle}>Post View</Text>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity onPress={handleSave} style={styles.iconBtn}>
-              <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={19} color={isSaved ? accent : '#fff'} />
+            <TouchableOpacity onPress={handleSave} style={[styles.iconBtn, { backgroundColor: 'transparent' }]}>
+              <Image source={require('../assets/Save.png')} style={{ width: 34, height: 34 }} resizeMode="contain" />
+              {/* Filled bookmark layered on top so the "saved" state reads as a
+                  solid filled icon, not just a recolored outline — same
+                  treatment as the Home/Explore post cards. */}
+              {isSaved && (
+                <Image
+                  source={require('../assets/SaveFilled.png')}
+                  style={{ width: 34, height: 34, position: 'absolute', tintColor: accent }}
+                  resizeMode="contain"
+                />
+              )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleShare} style={styles.iconBtn}>
-              <Feather name="share-2" size={18} color="#fff" />
+            <TouchableOpacity onPress={handleShare} style={[styles.iconBtn, { backgroundColor: 'transparent' }]}>
+              <Image source={require('../assets/share.png')} style={{ width: 34, height: 34 }} resizeMode="contain" />
             </TouchableOpacity>
             {!isOwn && (
               <TouchableOpacity
@@ -353,7 +363,7 @@ export default function PostDetail() {
             <View style={styles.cardTopRow}>
               <Image source={pic ? { uri: pic } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
               <View style={styles.identityCol}>
-                <Text style={styles.ownerName} numberOfLines={1}>{name}</Text>
+                <Text style={styles.ownerName}>{name}</Text>
                 <View style={styles.roleRow}>
                   {!!roleLabel && <Text style={styles.ownerRole}>{roleLabel}</Text>}
                   {post.category ? (
@@ -479,7 +489,7 @@ export default function PostDetail() {
                     styles.filledBtn,
                     { backgroundColor: collabStatus === 'PENDING' ? 'transparent' : accent },
                     collabStatus === 'PENDING' && { borderWidth: 1.5, borderColor: '#f59e0b' },
-                    (myCollabCompleted || positionFilled) && { backgroundColor: '#3a3a3a' },
+                    (myCollabCompleted || positionFilled) && { backgroundColor: '#246307' },
                     collabBusy && { opacity: 0.6 },
                   ]}
                   onPress={handleCollab}

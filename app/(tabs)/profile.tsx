@@ -812,7 +812,12 @@ export default function ProfileScreen() {
           {/* ══════════ HERO HEADER ══════════ */}
           <View className="h-[300px] w-full relative overflow-hidden">
             {/* Background image matching index.tsx */}
-            <Image source={require('../../assets/images/profile_hero_bg.webp')} className="absolute inset-0 w-full h-[300px]  opacity-[0.80] " resizeMode="cover" />
+            <Image
+              source={require('../../assets/images/profile_hero_bg.webp')}
+              className="absolute inset-0 w-full h-[300px]"
+              style={{ opacity: 0.8 }}
+              resizeMode="cover"
+            />
             {/* Dark overlay matching index.tsx gradient — darkened further so the
                 background photo stays subdued behind the profile info */}
             <LinearGradient colors={['rgba(0,0,0,0.55)', '#000']} className="absolute inset-0" />
@@ -834,7 +839,7 @@ export default function ProfileScreen() {
               <>
                 {/* Backdrop to dismiss */}
                 <TouchableOpacity
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                  style={{ position: 'absolute', top: -10, left: 0, right: 0, bottom: 10 }}
                   activeOpacity={1}
                   onPress={() => setShowDropdown(false)}
                 />
@@ -1090,15 +1095,23 @@ export default function ProfileScreen() {
                   isProfileCompleted gate above), so this only needs to exclude guests. */}
               {!isGuest && (
               <>
-              <View className="mx-5 mt-4 rounded-[28px]   px-5 py-4">
+              <View
+                className="mx-5 mt-4 rounded-[28px] px-5 py-4"
+                 
+              >
                 <Text className="text-white text-[18px] mb-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>Add Social Media Links</Text>
                 <Text className="text-[#a1a2a4] text-[12px] mb-3" style={{ fontFamily: 'Poppins_400Regular' }}>Proposal pattern for Profile {'>'} Social Links – Manage</Text>
 
+                {/* Instagram + Add Account live in one shared card — the
+                    trigger row, expanded account list, and add-account
+                    button all sit inside this single bg/border container
+                    instead of each having their own box. */}
+                <View style={{ backgroundColor: '#141414', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', borderRadius: 16, overflow: 'hidden' }}>
                 {/* Collapsed trigger row — tap to expand and manage Instagram links */}
                 <TouchableOpacity
                   activeOpacity={0.75}
                   onPress={() => setIgSectionExpanded((v) => !v)}
-                  className="flex-row items-center bg-white/5 rounded-[16px] px-3 py-2.5"
+                  className="flex-row items-center px-3 py-2.5"
                 >
                   <Image source={require('../../assets/skill-icons_instagram.png')} style={{ width: 36, height: 36, borderRadius: 10, marginRight: 10 }} resizeMode="cover" />
                   <View style={{ flex: 1 }}>
@@ -1119,7 +1132,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
 
                 {igSectionExpanded && (
-                <View className="mt-3">
+                <View className="px-3 pb-1">
                 {(profile?.instagramAccounts ?? []).map((acc) => (
                   <View key={acc.id} className="flex-row items-center py-2.5 border-b border-white/5">
                     <TouchableOpacity
@@ -1170,6 +1183,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
                 </View>
                 )}
+                </View>
               </View>
 
               {/* ══════════ ADD INSTAGRAM ACCOUNT — bottom sheet ══════════ */}
@@ -1250,7 +1264,7 @@ export default function ProfileScreen() {
 
               {/* ══════════ POSTS / COLLAB ACTIVITY ══════════ */}
               <View
-                className="flex-row mx-5 mt-6"
+                className="flex-row mx-5 mt-8"
                 style={{
                   paddingLeft: 40,
                    gap: 90,
@@ -1308,10 +1322,10 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View className="px-5 ">
+              <View className="px-5 mt-6">
                 {activityTab === 'posts' ? (
                   activityPostCards.length === 0 ? (
-                    <Text className="text-[#8A8A99] text-center mt-8" style={{ fontFamily: 'Poppins_400Regular' }}>No posts yet.</Text>
+                    <Text className="text-[#8A8A99] text-center" style={{ fontFamily: 'Poppins_400Regular' }}>No posts yet.</Text>
                   ) : (
                     <>
                       {activityPostCards.map(renderActivityCard)}
@@ -1415,7 +1429,7 @@ export default function ProfileScreen() {
                   { key: 'language', icon: require('../../assets/language-icon.png'), label: 'Language', value: profile?.languages?.join(', ') || 'Not provided' },
                 ].map((row, index, rows) => (
                   <React.Fragment key={row.key}>
-                    <View className="flex-row items-center py-2 px-5 gap-4">
+                    <View className="flex-row items-center py-4 px-5 gap-4">
                       <Image source={row.icon} style={{  width: 36, height: 36 }} resizeMode="contain" />
                       <View style={{ flex: 1 }}>
                         <Text className="text-[#666] text-[16px]" style={{ fontFamily: 'Poppins_400Regular' }}>{row.label}</Text>

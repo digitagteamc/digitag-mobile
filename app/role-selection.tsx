@@ -390,10 +390,21 @@ export default function RoleSelectionScreen() {
                                     style={{ width: cardWidth }}
                                 >
                                     <View style={{ position: 'relative', paddingTop: imgOverflow }}>
-                                        {/* Floating image — adaptive to card width */}
+                                        {/* Floating image — adaptive to card width. Brand's asset
+                                            has different intrinsic proportions than the others and
+                                            renders oversized at the shared imgSize, so it gets a
+                                            fixed size instead. */}
                                         <Image
                                             source={role.image}
-                                            style={{ position: 'absolute', top: 0, width: imgSize, height: imgSize, zIndex: 10, alignSelf: 'center' }}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                width: role.id === 'brand' ? 112 : imgSize,
+                                                height: role.id === 'brand' ? 102 : imgSize,
+                                                marginTop: role.id === 'brand' ? 30 : 0,
+                                                zIndex: 10,
+                                                alignSelf: 'center',
+                                            }}
                                             resizeMode="contain"
                                         />
 

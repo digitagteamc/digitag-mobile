@@ -52,12 +52,13 @@ const imgProperty = require('../../assets/tabs-gifs/propertygif.gif');
 const imgPhotographyicon = require('../../assets/tabs_icons/Photographyicon.webp');
 const imgEditoricon = require('../../assets/tabs_icons/editoricon.webp');
 const imgVideographyicon = require('../../assets/tabs_icons/Videographyicon.webp');
-const imgGrowthicon = require('../../assets/tabs_icons/Growthicon.webp');
 const imgScriptWritersicon = require('../../assets/tabs_icons/Scripticon.webp');
 const imgStylingicon = require('../../assets/tabs_icons/Stylingicon.webp');
 const imgFashionicon = require('../../assets/tabs_icons/fashionicon.webp');
 const imgPropertyicon = require('../../assets/tabs_icons/Propertyicon.webp');
 const imgVoiceicon = require('../../assets/tabs_icons/VoiceOvericon.webp');
+const imgAllCreator = require('../../assets/all-creator.png');
+const imgAllFreelancer = require('../../assets/all-freelancer.png');
 
 const tf_photography = require('../../assets/tabs-icons-freelancer/Photography.png');
 const tf_editor = require('../../assets/tabs-icons-freelancer/editors.png');
@@ -104,12 +105,12 @@ const CATEGORIES = [
   {
     id: 'all',
     label: 'All',
-    icon: tf_growth,
+    icon: imgAllCreator,
     image: imgPhotography,
     heroLine1: 'Explore Our Creators', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Discover top talents and connect with the right people for any project.',
     gradient: ['#3b82f6', '#2563eb'] as [string, string],
-    charStyle: { right: -45, bottom: -65, width: 111, height: 104, }
+    charStyle: { right: -40, bottom: -40, width: 111, height: 104, }
   },
   {
     id: 'photography',
@@ -119,7 +120,7 @@ const CATEGORIES = [
     heroLine1: 'Capture Every Moment', heroLine2: 'Beautifully', heroLine3: '',
     heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.',
     gradient: ['#6366f1', '#4f46e5'] as [string, string],
-    charStyle: { right: -45, bottom: -65, width: 230, height: 230, }
+    charStyle: { right: -40, bottom: -40, width: 230, height: 230, }
   },
   {
     id: 'editor',
@@ -129,7 +130,7 @@ const CATEGORIES = [
     heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
     gradient: ['#9D174D', '#831843'] as [string, string],
-    charStyle: { right: -57, bottom: -67, width: 220, height: 220 }
+    charStyle: { right: -30, bottom: -40, width: 220, height: 220 }
   },
   {
     id: 'videography',
@@ -139,7 +140,7 @@ const CATEGORIES = [
     heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
     gradient: ['#0284C7', '#075985'] as [string, string],
-    charStyle: { right: -55, bottom: -50, width: 230, height: 230 }
+    charStyle: { right: -35, bottom: -50, width: 230, height: 230 }
   },
   {
     id: 'growth',
@@ -149,7 +150,7 @@ const CATEGORIES = [
     heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '',
     heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.',
     gradient: ['#4338CA', '#3730A3'] as [string, string],
-    charStyle: { right: -40, bottom: -60, width: 240, height: 240 }
+    charStyle: { right: -30, bottom: -40, width: 240, height: 240 }
   },
   {
     id: 'script',
@@ -159,7 +160,7 @@ const CATEGORIES = [
     heroLine1: 'Turning Ideas into ', heroLine2: 'Powerful Scripts', heroLine3: '',
     heroDesc: 'Creative scripts crafted for films, ads, reels, podcasts, and digital content.',
     gradient: ['#1E3A8A', '#1E40AF'] as [string, string],
-    charStyle: { right: -30, bottom: -55, width: 220, height: 220 }
+    charStyle: { right: -30, bottom: -45, width: 220, height: 220 }
   },
   {
     id: 'styling',
@@ -169,7 +170,7 @@ const CATEGORIES = [
     heroLine1: 'Beauty Styled to ', heroLine2: 'Perfection', heroLine3: '',
     heroDesc: 'Expert makeup and styling designed to elevate every look with elegance and precision.',
     gradient: ['#7E22CE', '#6B21A8'] as [string, string],
-    charStyle: { right: -35, bottom: -45, width: 230, height: 230 }
+    charStyle: { right: -25, bottom: -45, width: 230, height: 230 }
   },
   {
     id: 'fashion',
@@ -521,7 +522,7 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 const FILTER_DRAWER_WIDTH = Dimensions.get('window').width;
 // 130px on typical/larger phones; compacts down on narrow devices so the
 // options pane never gets crammed into a sliver.
-const FILTER_CATEGORY_LIST_WIDTH = Math.min(10, Math.round(FILTER_DRAWER_WIDTH * 0.35));
+const FILTER_CATEGORY_LIST_WIDTH = Math.min(130, Math.round(FILTER_DRAWER_WIDTH * 0.35));
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
@@ -732,7 +733,7 @@ export default function ExploreTab() {
         {
           id: 'all',
           label: 'All',
-          icon: imgGrowthicon,
+          icon: imgAllFreelancer,
           image: imgPhotography,
           heroLine1: 'Explore Our Freelancers', heroLine2: ' ', heroLine3: '',
           heroDesc: 'Discover top talents and connect with the right people for any project.',
@@ -985,7 +986,7 @@ export default function ExploreTab() {
             </View>
             <View style={s.cardNameArea}>
               <View style={s.cardNameRow}>
-                <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
+                <Text style={s.cardName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
                 <Ionicons name="shield-checkmark" size={14} color={accent} style={{ marginLeft: 6, flexShrink: 0 }} />
               </View>
               <View style={s.cardMetaRow}>
@@ -1000,11 +1001,18 @@ export default function ExploreTab() {
             </View>
             {/* Bookmark */}
             <TouchableOpacity style={s.bookmarkBtn} onPress={() => handleBookmark(item.id)}>
-              <Ionicons
-                name={savedPostIds.has(item.id) ? 'bookmark' : 'bookmark-outline'}
-                size={18}
-                color={savedPostIds.has(item.id) ? accent : '#fff'}
-              />
+              <Image source={require('../../assets/Save.png')} style={{ width: 34, height: 34 }} resizeMode="contain" />
+              {/* Filled bookmark (transparent bg, flood-filled from Save.png's
+                  outline) layered on top so the "saved" state reads as a
+                  solid filled icon, not just a recolored outline — the dark
+                  circle underneath stays untouched. */}
+              {savedPostIds.has(item.id) && (
+                <Image
+                  source={require('../../assets/SaveFilled.png')}
+                  style={{ width: 34, height: 34, position: 'absolute', tintColor: accent }}
+                  resizeMode="contain"
+                />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -1078,7 +1086,7 @@ export default function ExploreTab() {
 
           {/* Bottom Actions */}
           {completedCollabPostIds.has(item.id) ? (
-            <View style={[s.bigCollabBtn, { backgroundColor: '#3a3a3a' }]}>
+            <View style={[s.bigCollabBtn, { backgroundColor: '#246307' }]}>
               <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
               <Text style={s.bigCollabBtnText}>Collaborated</Text>
             </View>
@@ -1117,13 +1125,17 @@ export default function ExploreTab() {
               activeOpacity={0.8}
               disabled={collabSentIds.has(item.id)}
             >
-              <Ionicons
-                name={collabSentIds.has(item.id) ? 'checkmark-circle-outline' : 'paper-plane-outline'}
-                size={16}
-                color="#fff"
-              />
+              {collabSentIds.has(item.id) ? (
+                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+              ) : (
+                <Image
+                  source={require('../../assets/collaborate.png')}
+                  style={{ width: 16, height: 16, tintColor: '#fff' }}
+                  resizeMode="contain"
+                />
+              )}
               <Text style={s.bigCollabBtnText}>
-                {collabSentIds.has(item.id) ? 'Request Sent' : 'Send Request'}
+                {collabSentIds.has(item.id) ? 'Sent' : 'Collaborate'}
               </Text>
             </TouchableOpacity>
           )}
@@ -1205,7 +1217,7 @@ export default function ExploreTab() {
             activeOpacity={0.8}
             onPress={() => setFilterPanelVisible(true)}
           >
-            <Ionicons name="options-outline" size={20} color="#fff" />
+            <Image source={require('../../assets/filter.png')} style={{ width: 20, height: 20 }} resizeMode="contain" />
           </TouchableOpacity>
         </View>
         <Text style={s.subtitle}>Discover & Connect with the right people</Text>
@@ -1487,17 +1499,25 @@ const s = StyleSheet.create({
     gap: 8,
   },
   sidebarItemActive: {
-    borderRadius: 16,
+    // Closest RN equivalent of the CSS box-shadow: RN has no multi-shadow or
+    // inset-shadow support, so the two inset highlights (top/bottom, 0.15
+    // white) become 1px top/bottom border lines; the rest of the box-shadow
+    // list is all ≤0.05 opacity (functionally invisible) so it's skipped.
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderBottomWidth: 1,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    shadowColor: 'rgba(145,145,145,1)',
+    shadowOffset: { width: -2, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
   sidebarLabel: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 11,
     lineHeight: 13,
-    fontFamily: 'Poppins_500Medium',
+    fontFamily: 'Poppins_400Regular',
     textAlign: 'center',
     includeFontPadding: false,
   },
@@ -1585,11 +1605,11 @@ const s = StyleSheet.create({
   cardInitials: { fontSize: 20, fontWeight: '700' },
   cardNameArea: { flex: 1, paddingTop: 4, minWidth: 0 },
   cardNameRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
-  cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', flexShrink: 1 },
+  cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', width: '80%' },
   cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
   cardPortfolioLink: { fontSize: 12, fontFamily: 'Poppins_400Regular' },
   bookmarkBtn: {
-    width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(39,39,42,0.5)',
+    width: 34, height: 34,
     justifyContent: 'center', alignItems: 'center',
   },
 
@@ -1608,10 +1628,10 @@ const s = StyleSheet.create({
   pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   pill: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(64,64,64,0.5)',
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7,
+    backgroundColor: 'rgba(255,255,255,0.05)',  
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
   },
-  pillText: { color: '#a1a2a4', fontSize: 11, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
+  pillText: { color: '#a1a1aa', fontSize: 12, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
 
   // Bottom
   cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
