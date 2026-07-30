@@ -20,8 +20,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PortfolioImageCarousel from '../Components/PortfolioImageCarousel';
 import { useAuth } from '../context/AuthContext';
+import { useCall } from '../context/CallContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { useRoleTheme } from '../theme/useRoleTheme';
+import { buildCreatorSocialLinks, SocialLink } from '../services/socialLinks';
 import {
   getCollaborationWith,
   getPostById,
@@ -52,6 +54,7 @@ function timeAgo(dateStr?: string) {
 export default function PostDetail() {
   const router = useRouter();
   const { token, userId: myId, userRole } = useAuth();
+  const call = useCall();
   const { requireProfile } = useProfileGate();
   const theme = useRoleTheme();
   const { postId } = useLocalSearchParams<{ postId: string }>();
@@ -77,6 +80,7 @@ export default function PostDetail() {
   // Portfolio modal state (same pattern as the Home screen's "See Portfolio")
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
+  const [selectedSocialLinks, setSelectedSocialLinks] = useState<SocialLink[] | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
   const load = useCallback(async () => {
@@ -189,6 +193,7 @@ export default function PostDetail() {
   const handleCall = async () => {
     if (!requireProfile('call this user')) return;
     if (!token || !owner.id) return;
+    if (call.callMode !== 'idle') { call.resume(); return; }
     try {
       const res = await initiateCall(token, owner.id);
       if (res.success && res.data) {
@@ -237,12 +242,18 @@ export default function PostDetail() {
     // Uses the public profile endpoint — viewing a portfolio link is browsing,
     // same as the rest of the profile, so it works for guests too.
     setSelectedPortfolioLink(null);
+    setSelectedSocialLinks(null);
     setPortfolioLoading(true);
     setPortfolioModalVisible(true);
     try {
       if (!owner.id) { setPortfolioLoading(false); return; }
       const res = await getUserById(owner.id, token);
-      const profileData = res.success ? (res.data?.creatorProfile || res.data?.freelancerProfile) : null;
+      if (!res.success) return;
+      // Creators don't have a real portfolio (no portfolio-image upload, no
+      // portfolio URL field in creator signup) — show their social accounts
+      // instead of an always-empty portfolio-link modal.
+      if (owner.role === 'CREATOR') { setSelectedSocialLinks(buildCreatorSocialLinks(res.data)); return; }
+      const profileData = res.data?.creatorProfile || res.data?.freelancerProfile;
       const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
       setSelectedPortfolioLink(link);
     } catch {
@@ -561,7 +572,7 @@ export default function PostDetail() {
               <View style={styles.portfolioModalHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <Feather name="link" size={20} color="#fff" />
-                  <Text style={styles.portfolioModalTitle}>Portfolio Links</Text>
+                  <Text style={styles.portfolioModalTitle}>{selectedSocialLinks ? 'Social Links' : 'Portfolio Links'}</Text>
                 </View>
                 <TouchableOpacity style={styles.portfolioModalCloseBtn} onPress={() => setPortfolioModalVisible(false)}>
                   <Feather name="x" size={18} color="#fff" />
@@ -569,6 +580,22 @@ export default function PostDetail() {
               </View>
               {portfolioLoading ? (
                 <ActivityIndicator color={accent} style={{ marginTop: 16 }} />
+              ) : selectedSocialLinks ? (
+                selectedSocialLinks.length > 0 ? (
+                  selectedSocialLinks.map((link) => (
+                    <TouchableOpacity
+                      key={link.key}
+                      style={styles.portfolioLinkContainer}
+                      onPress={() => Linking.openURL(link.url)}
+                    >
+                      <Ionicons name={link.icon as any} size={20} color={link.color} />
+                      <Text style={[styles.portfolioLinkText, { marginLeft: 10 }]} numberOfLines={1}>{link.url}</Text>
+                      <Feather name="arrow-up-right" size={20} color={accent} />
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={styles.noPortfolioText}>No social links provided.</Text>
+                )
               ) : selectedPortfolioLink ? (
                 <TouchableOpacity
                   style={styles.portfolioLinkContainer}

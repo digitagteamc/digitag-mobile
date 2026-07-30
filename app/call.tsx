@@ -99,9 +99,19 @@ export default function CallScreen() {
     // Android hardware back minimizes (keeps the call alive) instead of
     // falling through to the default "pop" — same intent either way, but this
     // guarantees minimize() runs first.
+    //
+    // Ref, not a direct closure: this listener is registered once (empty deps
+    // — re-subscribing on every render would be wasteful), but safeNavigateBack
+    // is redefined each render and closes over call.minimize, which is itself a
+    // useCallback keyed on callMode. A directly-captured closure would freeze
+    // on whatever callMode was at mount (still 'idle', before the call even
+    // started), so its minimize() would always no-op — the ref keeps this
+    // reading the current version every time back is pressed.
+    const safeNavigateBackRef = useRef(safeNavigateBack);
+    safeNavigateBackRef.current = safeNavigateBack;
     useEffect(() => {
         const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-            safeNavigateBack();
+            safeNavigateBackRef.current();
             return true;
         });
         return () => sub.remove();
@@ -224,11 +234,6 @@ export default function CallScreen() {
                         </View>
                     </View>
                 </BlurView>
-
-                <TouchableOpacity style={styles.minimizeHint} onPress={safeNavigateBack} activeOpacity={0.7}>
-                    <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
-                    <Text style={styles.minimizeHintText}>Minimize — call stays connected</Text>
-                </TouchableOpacity>
             </View>
         </View>
     );
@@ -377,16 +382,5 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
         shadowRadius: 10,
-    },
-    minimizeHint: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 8,
-    },
-    minimizeHintText: {
-        color: '#9CA3AF',
-        fontSize: 12,
-        fontFamily: 'Poppins_400Regular',
     },
 });

@@ -41,7 +41,9 @@ import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgGra
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
+import { useCall } from '../../context/CallContext';
 import { useNotificationCount } from '../../context/NotificationCountContext';
+import { buildCreatorSocialLinks, SocialLink } from '../../services/socialLinks';
 import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, joinWaitlist, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
@@ -909,6 +911,7 @@ export default function Homepage() {
   const router = useRouter();
   const { token, isGuest, userRole, userId, isProfileCompleted } = useAuth();
   const { requireProfile } = useProfileGate();
+  const call = useCall();
   const theme = useRoleTheme();
   const insets = useSafeAreaInsets();
 
@@ -950,6 +953,7 @@ export default function Homepage() {
 
   const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
+  const [selectedSocialLinks, setSelectedSocialLinks] = useState<SocialLink[] | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
   // Continuous carousel scroll position (via onProgressChange), driving the
@@ -1188,6 +1192,7 @@ export default function Homepage() {
   const handleCall = async (calleeId?: string) => {
     if (!requireProfile('call this user') || !token) return;
     if (!calleeId) return;
+    if (call.callMode !== 'idle') { call.resume(); return; }
     const callee = cards.find(c => c.ownerId === calleeId);
     try {
       const res = await initiateCall(token, calleeId);
@@ -1216,12 +1221,21 @@ export default function Homepage() {
     // Uses the public profile endpoint — viewing a portfolio link is browsing,
     // same as the rest of the profile, so it works for guests too.
     setSelectedPortfolioLink(null);
+    setSelectedSocialLinks(null);
     setPortfolioLoading(true);
     setPortfolioModalVisible(true);
     try {
       if (!ownerId) { setPortfolioLoading(false); return; }
       const res = await getUserById(ownerId, token);
-      const profileData = res.success ? (res.data?.creatorProfile || res.data?.freelancerProfile) : null;
+      if (!res.success) return;
+      // Creators don't have a real portfolio (no portfolio-image upload, no
+      // portfolio URL field in creator signup) — show their social accounts
+      // instead of an always-empty portfolio-link modal.
+      if (ownerRole === 'CREATOR') {
+        setSelectedSocialLinks(buildCreatorSocialLinks(res.data));
+        return;
+      }
+      const profileData = res.data?.creatorProfile || res.data?.freelancerProfile;
       const link = profileData?.portfolioUrl || profileData?.portfolio || profileData?.portfolioLink || null;
       setSelectedPortfolioLink(link);
     } catch (e) {
@@ -1900,7 +1914,7 @@ export default function Homepage() {
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderLeft}>
                 <Feather name="link" size={20} color="#fff" />
-                <Text style={styles.modalTitle}>Portfolio Links</Text>
+                <Text style={styles.modalTitle}>{selectedSocialLinks ? 'Social Links' : 'Portfolio Links'}</Text>
               </View>
               <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setPortfolioModalVisible(false)}>
                 <Feather name="x" size={18} color="#fff" />
@@ -1908,6 +1922,32 @@ export default function Homepage() {
             </View>
             {portfolioLoading ? (
               <ActivityIndicator color="#A78BFA" style={{ marginTop: 16 }} />
+            ) : selectedSocialLinks ? (
+              selectedSocialLinks.length > 0 ? (
+                selectedSocialLinks.map((link) => (
+                  <TouchableOpacity
+                    key={link.key}
+                    style={styles.portfolioLinkContainer}
+                    onPress={async () => {
+                      try {
+                        await WebBrowser.openBrowserAsync(link.url);
+                      } catch {
+                        try {
+                          await Linking.openURL(link.url);
+                        } catch {
+                          Alert.alert('Could not open link', 'This link could not be opened.');
+                        }
+                      }
+                    }}
+                  >
+                    <Ionicons name={link.icon as any} size={20} color={link.color} />
+                    <Text style={[styles.portfolioLinkText, { marginLeft: 10 }]} numberOfLines={1}>{link.url}</Text>
+                    <Feather name="arrow-up-right" size={20} color="#A78BFA" />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text style={styles.noPortfolioText}>No social links provided.</Text>
+              )
             ) : selectedPortfolioLink ? (
               <TouchableOpacity
                 style={styles.portfolioLinkContainer}

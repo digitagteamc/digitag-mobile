@@ -352,6 +352,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 supportsVideo: false,
                 includesCallsInRecents: false,
             },
+            // Never reached at runtime (the IS_IOS guard above returns first
+            // on Android), but IOptions requires this key regardless.
+            android: {
+                alertTitle: '',
+                alertDescription: '',
+                cancelButton: '',
+                okButton: '',
+                additionalPermissions: [],
+            },
         }).catch((err: any) => console.error('[CallKeep] setup failed', err));
 
         const onAnswer = RNCallKeep.addEventListener('answerCall', () => {

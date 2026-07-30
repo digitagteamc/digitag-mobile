@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { useCall } from '../context/CallContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import {
     blockUser,
@@ -48,6 +49,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function CreatorDetails() {
     const router = useRouter();
     const { token, userId: myId, userRole } = useAuth();
+    const call = useCall();
     const { requireProfile, isProfileCompleted } = useProfileGate();
     const { id: paramId, userId: paramUserId, postId: paramPostId } = useLocalSearchParams<{ id?: string; userId?: string; postId?: string }>();
     const [resolvedUserId, setResolvedUserId] = useState<string | null>(paramUserId || paramId || null);
@@ -199,6 +201,7 @@ export default function CreatorDetails() {
     const handleCall = async () => {
         if (!requireProfile('call this user')) return;
         if (!token || !resolvedUserId) return;
+        if (call.callMode !== 'idle') { call.resume(); return; }
         try {
             const res = await initiateCall(token, resolvedUserId);
             if (res.success && res.data) {
