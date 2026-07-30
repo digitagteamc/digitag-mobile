@@ -28,8 +28,11 @@ import '../global.css';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearIncomingCallNotification } from '../services/callNotification';
 import { displayGeneralNotification } from '../services/generalNotification';
+import { installNavigationGuard } from '../services/navigationGuard';
 import { routeNotificationData } from '../services/notificationRouting';
 import { declineCall, registerFcmToken } from '../services/userService';
+
+installNavigationGuard();
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
 
