@@ -796,6 +796,7 @@ export default function ExploreTab() {
     property: 'property-rental',
     voice: 'voice-over',
     models: 'models',
+    'social-media-manager': 'social-media-management',
   };
 
   // Freelancer tab IDs (f1-f26) → exact backend Category slug (used when

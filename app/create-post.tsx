@@ -40,6 +40,7 @@ const CREATOR_CATEGORIES = [
   'Property Rental',
   'Voice Over',
   'Models',
+  'Social Media Manager',
 ];
 
 const FREELANCER_CATEGORIES = [
