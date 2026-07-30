@@ -1356,7 +1356,6 @@ export default function Homepage() {
         contentContainerStyle={{ paddingBottom: 70 }}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={true}
-        bounces={Platform.OS === 'ios' ? false : undefined}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
       >
         {/* ══════════════ HERO CAROUSEL ══════════════ */}

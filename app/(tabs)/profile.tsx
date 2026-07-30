@@ -22,9 +22,9 @@ import {
 } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import IgVerifyModal from '../../Components/IgVerifyModal';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
-import IgVerifyModal from '../../Components/IgVerifyModal';
 import { useAuth } from '../../context/AuthContext';
 import { useProfileGate } from '../../context/ProfileGateContext';
 import { useApplePurchase } from '../../hooks/useApplePurchase';
@@ -807,7 +807,6 @@ export default function ProfileScreen() {
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={false}
-          bounces={Platform.OS === 'ios' ? false : undefined}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         >
           {/* ══════════ HERO HEADER ══════════ */}
@@ -816,7 +815,7 @@ export default function ProfileScreen() {
             <Image
               source={require('../../assets/images/profile_hero_bg.webp')}
               className="absolute inset-0 w-full h-[300px]"
-              style={{ opacity: Platform.OS === 'ios' ? 0.4 : 0.8 }}
+              style={{ opacity: Platform.OS === 'ios' ? 0.2 : 0.8 }}
               resizeMode="cover"
             />
             {/* Dark overlay matching index.tsx gradient — darkened further so the
@@ -834,94 +833,6 @@ export default function ProfileScreen() {
                 <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
-
-            {/* ══════════ 3-DOT DROPDOWN MENU ══════════ */}
-            {showDropdown && (
-              <>
-                {/* Backdrop to dismiss */}
-                <TouchableOpacity
-                  style={{ position: 'absolute', top: -10, left: 0, right: 0, bottom: 10 }}
-                  activeOpacity={1}
-                  onPress={() => setShowDropdown(false)}
-                />
-                <View style={{
-                  position: 'absolute',
-                  top: Math.max(insets.top, statusBarHeight) + 48,
-                  right: 16,
-                  backgroundColor: '#1A1A1A',
-                  borderRadius: 18,
-                  paddingVertical: 6,
-                  minWidth: 190,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.5,
-                  shadowRadius: 16,
-                  elevation: 20,
-                  borderWidth: 1,
-                  borderColor: '#2A2A2A',
-                  zIndex: 999,
-                }}>
-                  {/* Edit Profile */}
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setShowDropdown(false);
-                      if (!requireProfile('edit your profile')) return;
-                      const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
-                      router.push(editPath as any);
-                    }}
-                  >
-                    <View style={{ justifyContent: 'center', alignItems: 'center' }}>
-                      <Image source={require('../../assets/edit.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                    </View>
-                    <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Edit Profile</Text>
-                  </TouchableOpacity>
-
-                  {/* Divider */}
-                  <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
-
-                  {/* Share Profile */}
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
-                    activeOpacity={0.7}
-                    onPress={async () => {
-                      setShowDropdown(false);
-                      if (!requireProfile('share your profile')) return;
-                      try {
-                        await Share.share({
-                          message: `Check out my profile on digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
-                          title: 'digitag Profile',
-                        });
-                      } catch (_) {}
-                    }}
-                  >
-                    <View style={{  justifyContent: 'center', alignItems: 'center' }}>
-                      <Image source={require('../../assets/share.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-                    </View>
-                    <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Share Profile</Text>
-                  </TouchableOpacity>
-
-                  {/* Divider */}
-                  <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
-
-                  {/* Logout */}
-                  <TouchableOpacity
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      setShowDropdown(false);
-                      handleLogout();
-                    }}
-                  >
-                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FF0000', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="log-out-outline" size={18} color="#fff" />
-                    </View>
-                    <Text style={{ color: '#FF3B3B', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Logout</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
 
             {/* Profile Info Block */}
             <View className="flex-row  px-6 mt-6 gap-5">
@@ -1449,6 +1360,91 @@ export default function ProfileScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* ══════════ 3-DOT DROPDOWN MENU ══════════ */}
+      <Modal visible={showDropdown} transparent animationType="fade" onRequestClose={() => setShowDropdown(false)}>
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={() => setShowDropdown(false)}
+        >
+          <View style={{
+            position: 'absolute',
+            top: Math.max(insets.top, statusBarHeight) + 48,
+            right: 16,
+            backgroundColor: '#1A1A1A',
+            borderRadius: 18,
+            paddingVertical: 6,
+            minWidth: 190,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.5,
+            shadowRadius: 16,
+            elevation: 20,
+            borderWidth: 1,
+            borderColor: '#2A2A2A',
+          }}>
+            {/* Edit Profile */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
+              activeOpacity={0.7}
+              onPress={() => {
+                setShowDropdown(false);
+                if (!requireProfile('edit your profile')) return;
+                const editPath = userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator';
+                router.push(editPath as any);
+              }}
+            >
+              <View style={{ justifyContent: 'center', alignItems: 'center' }}>
+                <Image source={require('../../assets/edit.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
+              </View>
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Edit Profile</Text>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
+
+            {/* Share Profile */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
+              activeOpacity={0.7}
+              onPress={async () => {
+                setShowDropdown(false);
+                if (!requireProfile('share your profile')) return;
+                try {
+                  await Share.share({
+                    message: `Check out my profile on digitag! @${profile?.tagId ?? ''}\nhttps://thedigitag.ai/profile/${profile?.tagId ?? ''}`,
+                    title: 'digitag Profile',
+                  });
+                } catch (_) {}
+              }}
+            >
+              <View style={{  justifyContent: 'center', alignItems: 'center' }}>
+                <Image source={require('../../assets/share.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
+              </View>
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Share Profile</Text>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={{ height: 0.5, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} />
+
+            {/* Logout */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 14 }}
+              activeOpacity={0.7}
+              onPress={() => {
+                setShowDropdown(false);
+                handleLogout();
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#FF0000', justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name="log-out-outline" size={18} color="#fff" />
+              </View>
+              <Text style={{ color: '#FF3B3B', fontSize: 15, fontFamily: 'Poppins_500Medium' }}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ══════════ PHOTO PREVIEW MODAL ══════════ */}
       <Modal visible={isPhotoModalOpen} transparent animationType="fade">
