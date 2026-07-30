@@ -339,20 +339,18 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     // ── CallKit setup (iOS) — native call UI, works from the lock screen and
     // is what makes a call reliably ring even when the app is backgrounded or
     // killed. Registered once at the root regardless of whether a call is in
-    // progress, same as a real phone's call-handling service.
+    // progress, same as a real phone's call-handling service. iOS only —
+    // Android keeps using the existing notifee full-screen-intent ringing
+    // flow (see class comment above), so setup() must not run there, or its
+    // account-permission alert prompts on every single app launch.
     useEffect(() => {
+        if (!IS_IOS) return;
+
         RNCallKeep.setup({
             ios: {
                 appName: 'DigiTag',
                 supportsVideo: false,
                 includesCallsInRecents: false,
-            },
-            android: {
-                alertTitle: 'Permissions required',
-                alertDescription: 'DigiTag needs access to manage phone calls',
-                cancelButton: 'Cancel',
-                okButton: 'OK',
-                additionalPermissions: [],
             },
         }).catch((err: any) => console.error('[CallKeep] setup failed', err));
 
