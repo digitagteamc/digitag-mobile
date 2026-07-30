@@ -32,6 +32,7 @@ import ConfirmActionModal from '../../Components/ui/ConfirmActionModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import ZoomableImage from '../../Components/ui/ZoomableImage';
 import { useAuth } from '../../context/AuthContext';
+import { useCall } from '../../context/CallContext';
 import { prepareImageForUpload } from '../../services/imageResize';
 import {
     deleteMessage as apiDeleteMessage,
@@ -211,6 +212,7 @@ export default function ChatScreen() {
     const router = useRouter();
     const { id } = useLocalSearchParams<{ id: string }>();
     const { token, userId } = useAuth();
+    const call = useCall();
     const insets = useSafeAreaInsets();
     const myTheme = useRoleTheme();
 
@@ -575,6 +577,7 @@ export default function ChatScreen() {
         const peer = otherRef.current;
         if (!token) { Alert.alert('Error', 'Not signed in'); return; }
         if (!peer?.id) { Alert.alert('Still loading', 'Conversation not loaded yet. Please wait a moment.'); return; }
+        if (call.callMode !== 'idle') { call.resume(); return; }
 
         initiateCall(token, peer.id).then((res) => {
             if (res.success && res.data) {

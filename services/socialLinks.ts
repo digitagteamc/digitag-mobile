@@ -42,3 +42,35 @@ export const twitterUrl = (handle: string) => {
     if (/twitter\.com|x\.com/i.test(v)) return `https://${v}`;
     return `https://x.com/${v.replace(/^@/, '')}`;
 };
+
+export interface SocialLink {
+    key: string;
+    icon: string;
+    color: string;
+    url: string;
+}
+
+/**
+ * Builds a Creator's social-links list (Instagram/YouTube/Facebook/Twitter)
+ * from a fetched profile (the shape returned by getUserById/getFullProfile).
+ * Used wherever "Portfolio" is tapped on a Creator's profile — creators don't
+ * have a real portfolio the way freelancers do (no portfolio-image upload,
+ * no portfolio URL field in creator signup), so their social accounts are
+ * shown instead.
+ */
+export function buildCreatorSocialLinks(profileData: any): SocialLink[] {
+    const links: SocialLink[] = [];
+    const p = profileData?.creatorProfile || profileData?.freelancerProfile || {};
+    const igAccounts = Array.isArray(profileData?.instagramAccounts) ? profileData.instagramAccounts : [];
+    if (igAccounts.length > 0) {
+        igAccounts.forEach((acc: { id?: string; instagramUsername: string }, i: number) => {
+            links.push({ key: `ig-${acc.id || i}`, icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(acc.instagramUsername) });
+        });
+    } else if (p.instagramHandle) {
+        links.push({ key: 'ig', icon: 'logo-instagram', color: '#E4405F', url: instagramUrl(p.instagramHandle) });
+    }
+    if (p.youtubeHandle) links.push({ key: 'yt', icon: 'logo-youtube', color: '#FF0000', url: youtubeUrl(p.youtubeHandle) });
+    if (p.facebookHandle) links.push({ key: 'fb', icon: 'logo-facebook', color: '#1877F2', url: facebookUrl(p.facebookHandle) });
+    if (p.twitterHandle) links.push({ key: 'tw', icon: 'logo-twitter', color: '#000000', url: twitterUrl(p.twitterHandle) });
+    return links;
+}
