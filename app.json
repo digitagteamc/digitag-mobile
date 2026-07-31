@@ -2,7 +2,7 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.14",
+    "version": "1.0.15",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitag",
@@ -40,7 +40,7 @@
           "voip"
         ]
       },
-      "buildNumber": "3",
+      "buildNumber": "1",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
