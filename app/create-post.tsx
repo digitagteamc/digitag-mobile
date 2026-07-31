@@ -579,8 +579,8 @@ export default function CreatePost() {
                     />
                   ) : null}
                   <Text style={styles.durationIcon}>{item.icon}</Text>
-                  <Text style={[styles.durationText, active && styles.activeDurationText]}>{item.label}</Text>
-                  <Text style={[styles.durationSub, active && styles.activeDurationSub]}>{item.sub}</Text>
+                  <Text style={[styles.durationText, active && styles.activeDurationText]} numberOfLines={1}>{item.label}</Text>
+                  <Text style={[styles.durationSub, active && styles.activeDurationSub]} numberOfLines={1} adjustsFontSizeToFit>{item.sub}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -882,16 +882,11 @@ const styles = StyleSheet.create({
   },
 
   boostCard: {
-    width: 370,
-    height: 313,
-    alignSelf: 'center',
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'rgba(150, 50, 255, 0.2)', // Subtle purple border
     padding: 15,
-    
     marginVertical: 16,
-    marginHorizontal: 20,
     marginBottom: 24,
     backgroundColor: '#14141a', // Slightly darker background
   },
@@ -936,16 +931,17 @@ const styles = StyleSheet.create({
     color: '#888',
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
-    marginTop: 2,
+    
   },
 
   durationRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap:4,
     marginBottom: 24,
   },
   durationPill: {
-    width: 78,
+    flex: 1,
     height: 72,
     backgroundColor: '#24242e',
     borderWidth: 1,
@@ -953,6 +949,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    overflow: 'hidden',
   },
   activeDurationPill: {
     borderColor: 'transparent',
@@ -965,18 +963,22 @@ const styles = StyleSheet.create({
   },
   durationIcon: {
     fontSize: 16,
-    marginBottom: 6,
+  
+    textAlign: 'center',
   },
   durationText: {
     color: '#fffefeff',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_700Bold',
+    textAlign: 'center',
+    width: '100%',
   },
   durationSub: {
     color: '#808099',
-    fontSize: 8,
-    fontFamily: 'Poppins_400Regular',
-    marginTop: 2,
+    fontSize: 7,
+    fontFamily: 'Poppins_400Regular', 
+    textAlign: 'center',
+    width: '100%',
   },
   activeDurationText: {
     color: '#fff',

@@ -1,4 +1,5 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -6,7 +7,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Dimensions,
     Image,
     Linking,
     Modal,
@@ -14,6 +14,7 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
+    useWindowDimensions,
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -43,11 +44,12 @@ import ConfirmActionModal from '../Components/ui/ConfirmActionModal';
 import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import ReportModal from '../Components/ui/ReportModal';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-
 export default function CreatorDetails() {
     const router = useRouter();
+    // Recomputed on rotation/fold instead of a module-level snapshot, so the
+    // page stays laid out correctly across phones, tablets, and foldables.
+    const { width: screenWidth } = useWindowDimensions();
+    const cardMaxWidth = Math.min(408, screenWidth - 40);
     const { token, userId: myId, userRole } = useAuth();
     const call = useCall();
     const { requireProfile, isProfileCompleted } = useProfileGate();
@@ -253,6 +255,12 @@ export default function CreatorDetails() {
     const headerGradient = isFreelancerProfile
         ? ['rgba(242, 105, 48, 0.4)', 'rgba(0, 0, 0, 0)']
         : ['rgba(237, 42, 145, 0.4)', 'rgba(0, 0, 0, 0)'];
+    // Same Experience-badge treatment as the post view's profile card —
+    // solid role-tinted fill, gradient border, gradient-masked star icon.
+    const expertBg = isFreelancerProfile ? '#4C2409' : '#460628';
+    const expertGradientColors = isFreelancerProfile
+        ? ['rgba(255, 152, 42, 1)', 'rgba(245, 136, 92, 1)', 'rgba(227, 86, 28, 1)']
+        : ['rgba(237, 42, 145, 1)', 'rgba(206, 10, 113, 1)', 'rgba(175, 4, 95, 1)'];
 
     const p = profile.freelancerProfile || profile.creatorProfile || {};
     const name = p.name || (isFreelancerProfile ? 'Freelancer' : 'Creator');
@@ -357,7 +365,7 @@ export default function CreatorDetails() {
                         </View>
                     </View>
                     {/* Profile Card */}
-                    <View style={styles.profileCard}>
+                    <View style={[styles.profileCard, { width: cardMaxWidth }]}>
                         <View style={styles.cardHeader}>
                             <Image source={p.profilePicture ? { uri: p.profilePicture } : require('../assets/images/icon.png')} style={styles.avatar} resizeMode="cover" />
                             <View style={styles.headerButtons}>
@@ -384,37 +392,63 @@ export default function CreatorDetails() {
                             <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{name}</Text>
                             <VerifiedBadge isPremium={profile?.isPremium} size={17} />
                         </View>
+
                         <Text style={styles.category}>{category}</Text>
 
-                        <View style={styles.infoGrid}>
+                        {/* Experience badge — same gradient-border/gradient-star
+                            treatment as the post view's profile card. */}
+                        {!!experienceText && (
+                            <LinearGradient
+                                colors={expertGradientColors as any}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.expertBadgeBorder}
+                            >
+                                <View style={[styles.expertBadge, { backgroundColor: expertBg }]}>
+                                    <MaskedView
+                                        style={{ width: 12, height: 12, marginBottom: 3 }}
+                                        maskElement={<Ionicons name="star" size={12} color="#000" />}
+                                    >
+                                        <LinearGradient
+                                            colors={expertGradientColors as any}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                            style={{ width: 12, height: 12 }}
+                                        />
+                                    </MaskedView>
+                                    <Text style={[styles.expertBadgeText, { color: '#fff' }]} numberOfLines={1}>{experienceText}</Text>
+                                </View>
+                            </LinearGradient>
+                        )}
+
+                        <View style={styles.infoStack}>
                             {location ? (
-                                <View style={styles.infoItem}>
+                                <View style={styles.infoItemFull}>
                                     <Ionicons name="location-outline" size={18} color="#A0A0A0" />
                                     <Text style={styles.infoText}>{location}</Text>
                                 </View>
                             ) : null}
                             {joinedLabel ? (
-                                <View style={styles.infoItem}>
+                                <View style={styles.infoItemFull}>
                                     <Ionicons name="calendar-outline" size={18} color="#A0A0A0" />
                                     <Text style={styles.infoText}>{joinedLabel}</Text>
                                 </View>
                             ) : null}
+                        </View>
+
+                        <View style={styles.infoGrid}>
                             {languagesText ? (
                                 <View style={styles.infoItem}>
                                     <Ionicons name="language-outline" size={18} color="#A0A0A0" />
                                     <Text style={styles.infoText}>{languagesText}</Text>
                                 </View>
                             ) : null}
-                            {experienceText ? (
-                                <View style={styles.infoItem}>
-                                    <Ionicons name="briefcase-outline" size={18} color="#A0A0A0" />
-                                    <Text style={styles.infoText}>{experienceText}</Text>
-                                </View>
-                            ) : null}
                         </View>
 
                         {socials.length > 0 ? (
-                            <View style={styles.socialRow}>
+                            <>
+                                <Text style={styles.socialLabel}>Social Media Platform</Text>
+                                <View style={styles.socialRow}>
                                 {socials.map(s => (
                                     <TouchableOpacity
                                         key={s.key}
@@ -429,7 +463,8 @@ export default function CreatorDetails() {
                                         )}
                                     </TouchableOpacity>
                                 ))}
-                            </View>
+                                </View>
+                            </>
                         ) : null}
 
                         <View style={styles.aboutSection}>
@@ -443,7 +478,7 @@ export default function CreatorDetails() {
                         collabStatus to decide whether Message/Call are unlocked. */}
 
                     {/* Stats Card */}
-                    <View style={styles.statsCard}>
+                    <View style={[styles.statsCard, { width: cardMaxWidth }]}>
                         <TouchableOpacity
                             style={styles.statBox}
                             activeOpacity={0.7}
@@ -469,7 +504,7 @@ export default function CreatorDetails() {
                     </View>
 
                     {/* Specializations Section */}
-                    <View style={styles.specializationsSection}>
+                    <View style={[styles.specializationsSection, { width: cardMaxWidth }]}>
                         <Text style={styles.specialTitle}>Specializations</Text>
                         <View style={styles.chipsContainer}>
                             {specializations.map((spec, idx) => (
@@ -621,7 +656,6 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     profileCard: {
-        width: Math.min(408, SCREEN_WIDTH - 40),
          borderRadius: 20,
         padding: 24,
         marginBottom: 20,
@@ -670,7 +704,7 @@ const styles = StyleSheet.create({
         height: 36,
         borderRadius: 99,
         gap: 5,
-        width: 100
+        minWidth: 100
     },
     messageBtnText: {
         color: '#fff',
@@ -689,7 +723,7 @@ const styles = StyleSheet.create({
         borderRadius: 99,
         borderWidth: 1,
         gap: 4,
-        width: 96,
+        minWidth: 96,
 
     },
     followBtnText: {
@@ -717,6 +751,34 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         marginBottom: 4,
     },
+    expertBadgeBorder: {
+        borderRadius: 99,
+        padding: 1,
+        alignSelf: 'flex-start',
+        marginTop: 6,
+        marginBottom: 4,
+    },
+    expertBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 99,
+    },
+    expertBadgeText: {
+        fontSize: 10,
+        fontFamily: 'Poppins_500Medium',
+    },
+    infoStack: {
+        gap: 6,
+        marginBottom: 10,
+    },
+    infoItemFull: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+    },
     infoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
@@ -736,6 +798,12 @@ const styles = StyleSheet.create({
         letterSpacing: -0.5,
         flexShrink: 1,
     },
+    socialLabel: {
+        color: '#fff',
+        fontSize: 12,
+        fontFamily: fonts.medium,
+        marginBottom: 8,
+    },
     socialRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -743,37 +811,36 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     socialIcon: {
-        width: 34,
-        height: 34,
+        width: 30,
+        height: 30,
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
     aboutSection: {
         gap: 4,
-        marginHorizontal: 20,
-        marginBottom: 25,
+         marginBottom: 25,
     },
     aboutTitle: {
         color: '#fff',
         fontSize: 16,
-        fontFamily: fonts.bold,
+        fontFamily: fonts.semibold,
     },
     aboutBio: {
         color: '#B0B0B0',
-        fontSize: 13,
+        fontSize: 12,
         lineHeight: 18,
         fontFamily: fonts.regular,
     },
     statsCard: {
-        backgroundColor: 'rgba(243, 243, 243, 0.1)',
+        backgroundColor: 'rgba(255, 255, 255, 0.10)',
         borderRadius: 20,
         flexDirection: 'row',
         paddingVertical: 20,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.05)',
-        marginHorizontal: 20,
+        borderColor: 'rgba(64, 64, 64, 0.50)',
+        alignSelf: 'center',
     },
     statBox: {
         flex: 1,
@@ -790,6 +857,7 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontFamily: fonts.regular,
         lineHeight:20,
+        marginTop: 4,
         
     },
     statDivider: {
@@ -799,12 +867,12 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     specializationsSection: {
-        backgroundColor: 'rgba(243, 243, 243, 0.1)',
+        backgroundColor: '#141315',
         borderRadius: 24,
         padding: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.05)',
-        marginHorizontal: 20,
+        borderColor: '#282728',
+        alignSelf: 'center',
     },
     specialTitle: {
         color: '#fff',

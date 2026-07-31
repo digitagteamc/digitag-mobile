@@ -1619,7 +1619,7 @@ const s = StyleSheet.create({
   cardInitials: { fontSize: 20, fontWeight: '700' },
   cardNameArea: { flex: 1, paddingTop: 4, minWidth: 0 },
   cardNameRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
-  cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', width: '80%' },
+  cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', maxWidth: '80%', flexShrink: 1 },
   cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
   cardPortfolioLink: { fontSize: 12, fontFamily: 'Poppins_400Regular' },
   bookmarkBtn: {

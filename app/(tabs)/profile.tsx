@@ -1,4 +1,5 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,6 +24,7 @@ import {
 } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Circle, Defs, RadialGradient, Stop, Svg } from 'react-native-svg';
 import IgVerifyModal from '../../Components/IgVerifyModal';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
@@ -35,6 +37,25 @@ import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../../service
 import { completeCollab, createSubscription, getFullProfile, getInstagramVerificationStatus, getMyPosts, getUserStats, InstagramAccount, listCollaborations, listInstagramAccounts, removeInstagramAccount, startInstagramVerification } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
 
+// Ambient glow — an SVG radial gradient rather than RN's shadow* props, so it
+// renders identically on iOS and Android instead of being iOS-only.
+const GlowCircle = ({ size, color, opacity = 1, style }: { size: number; color: string; opacity?: number; style?: any }) => {
+  const gradId = React.useMemo(() => `glow_${Math.random().toString(36).slice(2, 10)}`, []);
+  return (
+    <View pointerEvents="none" style={[{ width: size, height: size }, style]}>
+      <Svg width={size} height={size}>
+        <Defs>
+          <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor={color} stopOpacity={opacity} />
+            <Stop offset="55%" stopColor={color} stopOpacity={opacity * 0.45} />
+            <Stop offset="100%" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={size / 2} cy={size / 2} r={size / 2} fill={`url(#${gradId})`} />
+      </Svg>
+    </View>
+  );
+};
 
 interface ProfileData {
   name: string;
@@ -779,22 +800,116 @@ export default function ProfileScreen() {
   }
 
   if (!isGuest && !isProfileCompleted) {
+    const gold = '#E8C88F';
     return (
-      <View className="flex-1 bg-[#060606] justify-center items-center px-8">
+      <View className="flex-1 bg-[#060606] justify-center items-center px-6">
         <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
-        <Text className="text-white text-2xl font-bold mb-2" style={{ fontFamily: 'Poppins_700Bold' }} numberOfLines={1} ellipsizeMode="tail">
-          Hi, {profile?.name || userPhone || 'there'}!
-        </Text>
-        <Text className="text-[#888] text-sm text-center mb-8" style={{ fontFamily: 'Poppins_400Regular' }}>
-          Complete your profile to unlock posts, follows, collaborations and more.
-        </Text>
-        <TouchableOpacity
-          onPress={() => router.push((userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
-          style={{ backgroundColor: theme.primary, borderRadius: 99, paddingHorizontal: 32, paddingVertical: 14 }}
+
+        {/* Ambient glow behind the card for a premium, backlit feel */}
+        <GlowCircle
+          size={420}
+          color={theme.primary}
+          opacity={0.35}
+          style={{ position: 'absolute', alignSelf: 'center' }}
+        />
+
+        <LinearGradient
+          colors={[gold, theme.primary, 'rgba(255,255,255,0.05)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ width: '100%', maxWidth: 360, borderRadius: 29, padding: 1 }}
         >
-          <Text className="text-white font-bold text-base" style={{ fontFamily: 'Poppins_700Bold' }}>Complete Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleLogout} className="mt-6">
+          <BlurView
+            intensity={50}
+            tint="dark"
+            style={{
+              borderRadius: 28,
+              overflow: 'hidden',
+              paddingHorizontal: 28,
+              paddingVertical: 36,
+              alignItems: 'center',
+              backgroundColor: 'rgba(20,18,16,0.55)',
+            }}
+          >
+            <Text
+              style={{
+                color: gold,
+                fontSize: 11,
+                fontFamily: 'Poppins_600SemiBold',
+                letterSpacing: 2.5,
+                marginBottom: 16,
+              }}
+            >
+              UNLOCK YOUR PROFILE
+            </Text>
+
+            <LinearGradient
+              colors={[gold, theme.primary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ width: 84, height: 84, borderRadius: 42, padding: 2, marginBottom: 22 }}
+            >
+              <View
+                style={{
+                  flex: 1,
+                  borderRadius: 40,
+                  backgroundColor: '#161215',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="diamond" size={32} color={gold} />
+              </View>
+            </LinearGradient>
+
+            <Text
+              className="text-white text-xl mb-2 text-center"
+              style={{ fontFamily: 'Poppins_700Bold' }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              Hi, {profile?.name || userPhone || 'there'}!
+            </Text>
+            <Text
+              className="text-[#fff] text-sm text-center mb-7"
+              style={{ fontFamily: 'Poppins_400Regular', lineHeight: 20 }}
+            >
+              You're almost there — finish setting up your profile to unlock posts, follows, collaborations and more.
+            </Text>
+
+            <LinearGradient
+              colors={['transparent', 'rgba(232,200,143,0.4)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ height: 1, width: '100%', marginBottom: 24 }}
+            />
+
+            <TouchableOpacity
+              onPress={() => router.push((userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
+              activeOpacity={0.85}
+              style={{ width: '100%', borderRadius: 99, shadowColor: theme.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }}
+            >
+              <LinearGradient
+                colors={[gold, theme.primary, theme.hover]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  borderRadius: 99,
+                  paddingVertical: 16,
+                }}
+              >
+                <Text className="text-white font-bold text-base" style={{ fontFamily: 'Poppins_700Bold' }}>Complete Profile</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </LinearGradient>
+            </TouchableOpacity>
+          </BlurView>
+        </LinearGradient>
+
+        <TouchableOpacity onPress={handleLogout} className="mt-8">
           <Text className="text-red-400 text-sm" style={{ fontFamily: 'Poppins_500Medium' }}>Logout</Text>
         </TouchableOpacity>
       </View>

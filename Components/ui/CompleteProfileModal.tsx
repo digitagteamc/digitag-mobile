@@ -116,11 +116,10 @@ const styles = StyleSheet.create({
     },
     card: {
         width: CARD_WIDTH,
-        backgroundColor: '#17171F',
+        backgroundColor: '#1e1e24',
         borderRadius: 32,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
+        
         paddingBottom: 32,
     },
     closeBtn: {
@@ -172,21 +171,21 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     primaryBtn: {
-        paddingVertical: 16,
+        paddingVertical: 10,
         borderRadius: 30,
         alignItems: 'center',
         justifyContent: 'center',
     },
     primaryBtnText: {
         color: '#fff',
-        fontSize: 17,
+        fontSize: 16,
         fontFamily: 'Poppins_600SemiBold',
     },
     laterBtn: {
         width: '100%',
     },
     laterBtnInner: {
-        paddingVertical: 16,
+        paddingVertical: 10,
         borderRadius: 30,
         alignItems: 'center',
         justifyContent: 'center',
@@ -197,7 +196,7 @@ const styles = StyleSheet.create({
     },
     laterBtnText: {
         color: '#fff',
-        fontSize: 17,
+        fontSize: 16,
         fontFamily: 'Poppins_500Medium',
     },
 });

@@ -806,7 +806,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                 >
                   <View style={[styles.figmaCardExpertBadge, { backgroundColor: expertBadgeBg }]}>
                     <MaskedView
-                      style={{ width: 12, height: 12 }}
+                      style={{ width: 12, height: 12, marginBottom:3 }}
                       maskElement={<Ionicons name="star" size={12} color="#000" />}
                     >
                       <LinearGradient
@@ -1784,7 +1784,7 @@ export default function Homepage() {
                 opacity={0.4}
                 style={{ position: 'absolute', left: -90, bottom: -100 }}
               />
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center',   }}>
                 <Text style={{ fontSize: 18, marginRight: 6 }}>✨</Text>
                 <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>Create Post</Text>
               </View>
@@ -2521,7 +2521,7 @@ const styles = StyleSheet.create({
   createPostFrame: {
     width: '100%',
     maxWidth: 408,
-    minHeight: 200,
+    minHeight: 170,
     alignSelf: 'center',
     justifyContent: 'center',
     borderRadius: 24,
