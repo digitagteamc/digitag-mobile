@@ -24,6 +24,22 @@ export class ApiRequestError extends Error {
     }
 }
 
+/** Turns a validation-error response into something a user can actually read.
+ *  `details` (when present) is the backend's Joi error array —
+ *  [{ path, message, source }] — whose `message` fields are already
+ *  human-readable ("bio length must be less than or equal to 1000 characters
+ *  long"); the bug this fixes was dumping the whole array via
+ *  JSON.stringify(details) into the alert text instead of just extracting
+ *  those messages. Falls back to the plain error message when there are no
+ *  structured details (network errors, 500s, etc). */
+function describeApiError(error: any): string {
+    const details = error instanceof ApiRequestError ? error.details : null;
+    if (Array.isArray(details) && details.length) {
+        return details.map((d: any) => d?.message).filter(Boolean).join('\n');
+    }
+    return error?.message || 'Something went wrong';
+}
+
 // Token refresh callback — set by AuthContext to avoid circular imports
 let _refreshTokenFn: (() => Promise<string | null>) | null = null;
 export function setRefreshTokenCallback(fn: () => Promise<string | null>) {
@@ -403,9 +419,8 @@ export const submitCreatorApplication = async (formData: any, token: string) => 
         console.log('✅ Creator profile created');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        const details = error instanceof ApiRequestError ? error.details : null;
-        console.warn('❌ submitCreatorApplication error:', error.message, details);
-        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
+        console.warn('❌ submitCreatorApplication error:', error.message, error?.details);
+        return { success: false, error: describeApiError(error) };
     }
 };
 
@@ -421,9 +436,8 @@ export const updateCreatorProfile = async (data: any, token: string) => {
         console.log('✅ Creator Profile updated successfully');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        const details = error instanceof ApiRequestError ? error.details : null;
-        console.warn('❌ updateCreatorProfile error:', error.message, details);
-        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
+        console.warn('❌ updateCreatorProfile error:', error.message, error?.details);
+        return { success: false, error: describeApiError(error) };
     }
 };
 
@@ -465,8 +479,7 @@ export const createFreelancerProfile = async (data: any, token: string) => {
         });
         return { success: true, data: body?.data };
     } catch (error: any) {
-        const details = error instanceof ApiRequestError ? error.details : null;
-        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
+        return { success: false, error: describeApiError(error) };
     }
 };
 
@@ -482,9 +495,8 @@ export const updateFreelancerProfile = async (data: any, token: string) => {
         console.log('✅ Freelancer Profile updated successfully');
         return { success: true, data: body?.data };
     } catch (error: any) {
-        const details = error instanceof ApiRequestError ? error.details : null;
-        console.warn('❌ updateFreelancerProfile error:', error.message, details);
-        return { success: false, error: details ? `${error.message}\n${JSON.stringify(details, null, 2)}` : error.message };
+        console.warn('❌ updateFreelancerProfile error:', error.message, error?.details);
+        return { success: false, error: describeApiError(error) };
     }
 };
 
