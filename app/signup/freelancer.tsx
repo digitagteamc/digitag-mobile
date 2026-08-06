@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import EmailVerifyModal from '@/Components/EmailVerifyModal';
 import IgVerifyModal from '@/Components/IgVerifyModal';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,6 +42,8 @@ import {
     updateFreelancerProfile,
     uploadImage,
 } from '../../services/userService';
+
+const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
 const LEVELS = [
@@ -353,6 +356,47 @@ const InstagramVerifyRow = ({
     </View>
 );
 
+const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }: any) => {
+    const validFormat = EMAIL_FORMAT_RE.test(value.trim());
+    return (
+        <View className="mb-5">
+            <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+                Email Id <Text className="text-[#EF4444]">*</Text>
+            </Text>
+            <View className={`h-[56px] px-4 rounded-[12px] justify-center mb-2 ${verified ? 'bg-[#1a1200] border border-[#F26930]/30' : 'bg-[#1A1A1A]'} ${error ? 'border border-red-500' : ''}`}>
+                <TextInput
+                    placeholder="Email Id"
+                    placeholderTextColor="#555"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={value}
+                    onChangeText={onValueChange}
+                    className="text-white font-poppins-regular"
+                />
+            </View>
+            {error ? <Text className="text-red-500 text-[12px] mb-2 ml-1">{error}</Text> : null}
+            <TouchableOpacity
+                onPress={onVerifyPress}
+                disabled={verified || !validFormat}
+                activeOpacity={0.8}
+                style={{
+                    backgroundColor: verified ? '#16a34a' : ACCENT,
+                    borderRadius: 10,
+                    height: 40,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: !validFormat && !verified ? 0.4 : 1,
+                }}
+            >
+                <Text className="text-white font-poppins-semibold text-[13px]">
+                    {verified ? '✓ Verified' : 'Verify Email'}
+                </Text>
+            </TouchableOpacity>
+        </View>
+    );
+};
+
 const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
@@ -478,6 +522,15 @@ export default function FreelancerSignup() {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
+    // Email verification state — originalEmail is whatever was already on the
+    // server (already verified when it was first saved), so re-editing an
+    // unrelated field doesn't force re-verifying an unchanged address.
+    // verifiedEmail is whatever's been freshly verified via the modal this
+    // session. The current value counts as "ok" if it matches either.
+    const [originalEmail, setOriginalEmail] = useState<string | null>(null);
+    const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+    const [emailVerifyModalVisible, setEmailVerifyModalVisible] = useState(false);
+
     // Instagram verification states
     const [igVerified, setIgVerified] = useState(false);
     const [igVerifying, setIgVerifying] = useState(false);
@@ -542,6 +595,7 @@ export default function FreelancerSignup() {
                     setMode('update');
                     draftRestoredRef.current = true; // editing real data — never overwrite with a stale draft
                     AsyncStorage.removeItem(FREELANCER_DRAFT_KEY).catch(() => {});
+                    setOriginalEmail(p.email || null);
                     const skills = Array.isArray(p.skills) ? p.skills : [];
                     setForm(prev => ({
                         ...prev,
@@ -786,17 +840,23 @@ export default function FreelancerSignup() {
 
     const isSocialMediaManager = categories.find((c) => c.id === form.category)?.name === 'Social Media Manager';
 
+    const emailOk = useMemo(() => {
+        const current = form.email.trim().toLowerCase();
+        if (!EMAIL_FORMAT_RE.test(current)) return false;
+        return current === (originalEmail || '').trim().toLowerCase() || current === (verifiedEmail || '').trim().toLowerCase();
+    }, [form.email, originalEmail, verifiedEmail]);
+
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
+            emailOk &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
             form.bio.trim() !== '' &&
             (!isSocialMediaManager || form.workTypes.length > 0)
             // portfolioUrl is intentionally optional — not every freelancer has one.
         );
-    }, [form, isSocialMediaManager]);
+    }, [form, isSocialMediaManager, emailOk]);
 
     const isStep2Valid = useMemo(() => {
         return (
@@ -874,8 +934,10 @@ export default function FreelancerSignup() {
     const handleNext = () => {
         const next: Record<string, string> = {};
         if (!form.name.trim()) next.name = 'Full name is required.';
-        if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        if (!form.email.trim() || !EMAIL_FORMAT_RE.test(form.email.trim())) {
             next.email = 'Please enter a valid email address.';
+        } else if (!emailOk) {
+            next.email = 'Please verify your email address.';
         }
         if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
         if (!form.category) next.category = 'Please select a category.';
@@ -1067,13 +1129,11 @@ export default function FreelancerSignup() {
                                 onChangeText={(v: string) => setForm({ ...form, name: v })}
                                 error={errors.name}
                             />
-                            <FormField
-                                label="Email Id"
-                                required
-                                placeholder="Email Id"
-                                keyboardType="email-address"
+                            <EmailVerifyRow
                                 value={form.email}
-                                onChangeText={(v: string) => setForm({ ...form, email: v })}
+                                onValueChange={(v: string) => setForm({ ...form, email: v })}
+                                verified={emailOk}
+                                onVerifyPress={() => setEmailVerifyModalVisible(true)}
                                 error={errors.email}
                             />
                             <SelectField
@@ -1337,6 +1397,16 @@ export default function FreelancerSignup() {
                 accentColor={ACCENT}
                 onClose={handleIgModalClose}
             />
+            {token && (
+                <EmailVerifyModal
+                    visible={emailVerifyModalVisible}
+                    token={token}
+                    email={form.email.trim().toLowerCase()}
+                    accentColor={ACCENT}
+                    onVerified={(verified: string) => { setVerifiedEmail(verified); setEmailVerifyModalVisible(false); }}
+                    onClose={() => setEmailVerifyModalVisible(false)}
+                />
+            )}
         </SafeAreaView>
     );
 }

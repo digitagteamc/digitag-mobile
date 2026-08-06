@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
+import EmailVerifyModal from '../../Components/EmailVerifyModal';
 import { useAuth } from '../../context/AuthContext';
 import { useLocationSuggestions } from '../../hooks/useLocationSuggestions';
 import { prepareImageForUpload } from '../../services/imageResize';
@@ -41,6 +42,8 @@ import {
     updateCreatorProfile,
     uploadImage,
 } from '../../services/userService';
+
+const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
 const LEVELS = ['Beginner', 'Intermediate', 'Pro'];
@@ -390,6 +393,56 @@ const InstagramVerifyRow = ({
     </View>
 );
 
+// ── Email Verification ──────────────────────────────────────────
+type EmailVerifyProps = {
+    value: string;
+    onValueChange: (v: string) => void;
+    verified: boolean;
+    onVerifyPress: () => void;
+    error?: string;
+};
+
+const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }: EmailVerifyProps) => {
+    const validFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+    return (
+        <View className="mb-5">
+            <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+                Email Id <Text className="text-red-500">*</Text>
+            </Text>
+            <View className={`h-[56px] px-4 rounded-[12px] justify-center mb-2 ${verified ? 'bg-[#0f2a0f]' : 'bg-[#1A1A1A]'} ${error ? 'border border-red-500' : ''}`}>
+                <TextInput
+                    placeholder="Email Id"
+                    placeholderTextColor="#555"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    value={value}
+                    onChangeText={onValueChange}
+                    className="text-white font-poppins-regular"
+                />
+            </View>
+            {error ? <Text className="text-red-500 text-[12px] mb-2 ml-1">{error}</Text> : null}
+            <TouchableOpacity
+                onPress={onVerifyPress}
+                disabled={verified || !validFormat}
+                activeOpacity={0.8}
+                style={{
+                    backgroundColor: verified ? '#16a34a' : '#F02C8C',
+                    borderRadius: 10,
+                    height: 40,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: !validFormat && !verified ? 0.4 : 1,
+                }}
+            >
+                <Text className="text-white font-poppins-semibold text-[13px]">
+                    {verified ? '✓ Verified' : 'Verify Email'}
+                </Text>
+            </TouchableOpacity>
+        </View>
+    );
+};
+
 // ── YouTube / Facebook OAuth Verification ──────────────────────
 // No manual inputs — the OAuth flow fills the handle (and follower count where
 // the platform provides it) automatically, so the row is just a Verify button
@@ -705,6 +758,15 @@ export default function CreatorSignup() {
         });
     }, []);
 
+    // Email verification state — originalEmail is whatever was already on the
+    // server (already verified when it was first saved), so re-editing an
+    // unrelated field doesn't force re-verifying an unchanged address.
+    // verifiedEmail is whatever's been freshly verified via the modal this
+    // session. The current value counts as "ok" if it matches either.
+    const [originalEmail, setOriginalEmail] = useState<string | null>(null);
+    const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+    const [emailVerifyModalVisible, setEmailVerifyModalVisible] = useState(false);
+
     // Instagram verification state
     const [igVerified, setIgVerified] = useState(false);
     const [igVerifying, setIgVerifying] = useState(false);
@@ -763,6 +825,7 @@ export default function CreatorSignup() {
                     setMode('update');
                     draftRestoredRef.current = true; // editing real data — never overwrite with a stale draft
                     AsyncStorage.removeItem(CREATOR_DRAFT_KEY).catch(() => {});
+                    setOriginalEmail(p.email || null);
                     setForm(prev => ({
                         ...prev,
                         name: p.name || '',
@@ -832,15 +895,21 @@ export default function CreatorSignup() {
         return () => backHandler.remove();
     }, [step]);
 
+    const emailOk = useMemo(() => {
+        const current = form.email.trim().toLowerCase();
+        if (!EMAIL_FORMAT_RE.test(current)) return false;
+        return current === (originalEmail || '').trim().toLowerCase() || current === (verifiedEmail || '').trim().toLowerCase();
+    }, [form.email, originalEmail, verifiedEmail]);
+
     const isStep1Valid = useMemo(() => {
         return (
             form.name.trim() !== '' &&
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
+            emailOk &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
             form.bio.trim() !== ''
         );
-    }, [form]);
+    }, [form, emailOk]);
 
     const isStep2Valid = useMemo(() => {
         return (
@@ -922,8 +991,10 @@ export default function CreatorSignup() {
     const handleNext = () => {
         const next: Record<string, string> = {};
         if (!form.name.trim()) next.name = 'Full name is required.';
-        if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+        if (!form.email.trim() || !EMAIL_FORMAT_RE.test(form.email.trim())) {
             next.email = 'Please enter a valid email address.';
+        } else if (!emailOk) {
+            next.email = 'Please verify your email address.';
         }
         if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
         if (!form.category) next.category = 'Please select a category.';
@@ -1297,13 +1368,11 @@ export default function CreatorSignup() {
                                 onChangeText={(v: string) => setForm({ ...form, name: v })}
                                 error={errors.name}
                             />
-                            <FormField
-                                label="Email Id"
-                                required
-                                placeholder="Email Id"
-                                keyboardType="email-address"
+                            <EmailVerifyRow
                                 value={form.email}
-                                onChangeText={(v: string) => setForm({ ...form, email: v })}
+                                onValueChange={(v: string) => setForm({ ...form, email: v })}
+                                verified={emailOk}
+                                onVerifyPress={() => setEmailVerifyModalVisible(true)}
                                 error={errors.email}
                             />
                             <SelectField
@@ -1504,6 +1573,16 @@ export default function CreatorSignup() {
                     expiresAt={igVerification.expiresAt}
                     status={igVerification.status}
                     onClose={handleIgModalClose}
+                />
+            )}
+            {token && (
+                <EmailVerifyModal
+                    visible={emailVerifyModalVisible}
+                    token={token}
+                    email={form.email.trim().toLowerCase()}
+                    accentColor="#F02C8C"
+                    onVerified={(verified) => { setVerifiedEmail(verified); setEmailVerifyModalVisible(false); }}
+                    onClose={() => setEmailVerifyModalVisible(false)}
                 />
             )}
         </SafeAreaView>

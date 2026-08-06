@@ -1392,6 +1392,42 @@ export const removeInstagramAccount = async (token: string, id: string) => {
     }
 };
 
+/* ───────────────────────── EMAIL VERIFICATION ─────────────────────────── */
+
+/**
+ * POST /email-verifications/start
+ * Sends a 6-digit code to the given email address. Returns { id, email, expiresAt }.
+ */
+export const startEmailVerification = async (token: string, email: string) => {
+    try {
+        const body = await request('/email-verifications/start', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ email }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error), data: null };
+    }
+};
+
+/**
+ * POST /email-verifications/verify
+ * Confirms the code sent above. Returns { verified: true, email } on success.
+ */
+export const verifyEmailCode = async (token: string, id: string, code: string) => {
+    try {
+        const body = await request('/email-verifications/verify', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify({ id, code }),
+        });
+        return { success: true, data: body?.data ?? null };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error), data: null };
+    }
+};
+
 /* ───────────────────────── SOCIAL (YOUTUBE / FACEBOOK) VERIFICATION ─────────────────────────── */
 
 /**
