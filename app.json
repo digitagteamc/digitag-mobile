@@ -45,7 +45,7 @@
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 50,
+      "versionCode": 52,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
