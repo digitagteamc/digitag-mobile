@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   Linking,
@@ -28,6 +29,7 @@ import { useCall } from '../context/CallContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import { buildCreatorSocialLinks, SocialLink } from '../services/socialLinks';
 import {
+  cancelCollaboration,
   getCollaborationWith,
   getPostById,
   getReportStatus,
@@ -98,6 +100,8 @@ export default function PostDetail() {
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [collabStatus, setCollabStatus] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'COMPLETED' | 'DECLINED' | 'CANCELLED'>('NONE');
+  const [collabId, setCollabId] = useState<string | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
   // Product rule (matches the backend gates): chat/calls are open only while
   // a collaboration is ACCEPTED — completing it closes contact until a new
   // collab is accepted.
@@ -111,6 +115,7 @@ export default function PostDetail() {
   // Popup state
   const [popupVisible, setPopupVisible] = useState(false);
   const [popupType, setPopupType] = useState<'success' | 'error'>('success');
+  const [popupTitle, setPopupTitle] = useState('Success');
   const [popupMessage, setPopupMessage] = useState('');
 
   // Portfolio modal state (same pattern as the Home screen's "See Portfolio")
@@ -137,7 +142,10 @@ export default function PostDetail() {
           getSavedPostIds(token),
           getReportStatus(token, 'POST', postId),
         ]);
-        if (collabRes.success) setCollabStatus(((collabRes as any).data?.status ?? 'NONE') as any);
+        if (collabRes.success) {
+          setCollabStatus(((collabRes as any).data?.status ?? 'NONE') as any);
+          setCollabId((collabRes as any).data?.id ?? null);
+        }
         if (savedRes.success && Array.isArray(savedRes.data)) setIsSaved(savedRes.data.includes(postId));
         if (reportRes.success) setIsReported(Boolean((reportRes as any).data?.reported));
       }
@@ -184,7 +192,9 @@ export default function PostDetail() {
       const res = await sendCollaboration(token, { receiverId: owner.id, postId, message: 'I would love to collaborate with you!' });
       if (res.success !== false) {
         setCollabStatus('PENDING');
+        setCollabId((res as any).data?.id ?? null);
         setPopupType('success');
+        setPopupTitle('Collab Sent!');
         setPopupMessage('Your collaboration request has been sent.');
         setPopupVisible(true);
       } else {
@@ -201,6 +211,45 @@ export default function PostDetail() {
     }
   };
 
+  const handleCancelCollab = () => {
+    if (!token || !collabId || cancelBusy) return;
+    Alert.alert(
+      'Cancel request?',
+      'This will withdraw your collaboration request. You can send a new one later.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel Request',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelBusy(true);
+            try {
+              const res = await cancelCollaboration(token, collabId);
+              if (res.success !== false) {
+                setCollabStatus('NONE');
+                setCollabId(null);
+                setPopupType('success');
+                setPopupTitle('Request Cancelled');
+                setPopupMessage('Your collaboration request has been cancelled.');
+                setPopupVisible(true);
+              } else {
+                setPopupType('error');
+                setPopupMessage((res as any).error || 'Could not cancel the request.');
+                setPopupVisible(true);
+              }
+            } catch {
+              setPopupType('error');
+              setPopupMessage('Could not cancel the request.');
+              setPopupVisible(true);
+            } finally {
+              setCancelBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleUpdateStatus = async (status: 'OPEN' | 'COMPLETED' | 'CLOSED') => {
     if (!token || !postId || statusBusy) return;
     setStatusBusy(true);
@@ -209,6 +258,7 @@ export default function PostDetail() {
       if (res.success) {
         setPost((prev: any) => (prev ? { ...prev, status } : prev));
         setPopupType('success');
+        setPopupTitle('Updated!');
         setPopupMessage(
           status === 'COMPLETED' ? 'Post marked as completed.' : status === 'CLOSED' ? 'Post closed.' : 'Post reopened.',
         );
@@ -593,15 +643,17 @@ export default function PostDetail() {
                 </View>
               ) : collabStatus === 'PENDING' ? (
                 <TouchableOpacity
-                  style={[styles.collabBtnGradient, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#f59e0b' }]}
-                  onPress={handleCollab}
-                  disabled
+                  style={[styles.collabBtnGradient, { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: '#f59e0b' }, cancelBusy && { opacity: 0.6 }]}
+                  onPress={handleCancelCollab}
+                  disabled={!collabId || cancelBusy}
                   activeOpacity={0.8}
                 >
                   <View style={[styles.collabBtnIconWrap, { backgroundColor: 'rgba(245,158,11,0.15)' }]}>
-                    <Ionicons name="time-outline" size={20} color="#f59e0b" />
+                    <Ionicons name={collabId ? 'close-circle-outline' : 'time-outline'} size={20} color="#f59e0b" />
                   </View>
-                  <Text style={[styles.collabBtnTitle, { color: '#f59e0b' }]}>Request Pending</Text>
+                  <Text style={[styles.collabBtnTitle, { color: '#f59e0b' }]}>
+                    {collabId ? 'Request Pending · Tap to Cancel' : 'Request Pending'}
+                  </Text>
                 </TouchableOpacity>
               ) : myCollabCompleted || positionFilled ? (
                 <View style={[styles.collabBtnGradient, { backgroundColor: '#246307' }]}>
@@ -690,7 +742,7 @@ export default function PostDetail() {
               </View>
 
               <Text style={styles.modalTitle}>
-                {popupType === 'success' ? 'Collab Sent!' : 'Error'}
+                {popupType === 'success' ? popupTitle : 'Error'}
               </Text>
 
               <Text style={styles.modalMessage}>{popupMessage}</Text>

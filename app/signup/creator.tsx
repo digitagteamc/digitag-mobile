@@ -97,6 +97,7 @@ const FormField = ({
     multiline,
     keyboardType = 'default',
     error,
+    maxLength,
 }: any) => (
     <View className="mb-5">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
@@ -114,7 +115,14 @@ const FormField = ({
             className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
                 } ${error ? 'border border-red-500' : ''}`}
         />
-        {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
+        <View className="flex-row justify-between items-start mt-1.5 ml-1 mr-1">
+            {error ? <Text className="text-red-500 text-[12px] flex-1">{error}</Text> : <View />}
+            {maxLength ? (
+                <Text className={`text-[11px] ${(value?.length || 0) > maxLength ? 'text-red-500' : 'text-[#666]'}`}>
+                    {value?.length || 0}/{maxLength}
+                </Text>
+            ) : null}
+        </View>
     </View>
 );
 
@@ -920,6 +928,7 @@ export default function CreatorSignup() {
         if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
         if (!form.category) next.category = 'Please select a category.';
         if (!form.bio.trim()) next.bio = 'Bio is required.';
+        else if (form.bio.trim().length > 1000) next.bio = 'Bio must be 1000 characters or less.';
         if (mode === 'create' && !igVerified) next.instagram = 'Please verify your Instagram account to continue.';
         // Snapchat also lives on this step — validate it here, not at final
         // submit, or the error would show on a step the user already left.
@@ -1333,6 +1342,7 @@ export default function CreatorSignup() {
                                 value={form.bio}
                                 onChangeText={(v: string) => setForm({ ...form, bio: v })}
                                 error={errors.bio}
+                                maxLength={1000}
                             />
                             {/* Social Media Section */}
                             <View className="mt-4 mb-8">
