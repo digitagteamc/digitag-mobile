@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCall } from '@/context/CallContext';
 import { useProfileGate } from '@/context/ProfileGateContext';
 import { buildCreatorSocialLinks, SocialLink } from '@/services/socialLinks';
-import { getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
+import { cancelCollaboration, getFeed, getSavedPostIds, getUserById, initiateCall, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '@/services/userService';
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -605,7 +605,10 @@ export default function ExploreTab() {
   const [selectedPortfolioLink, setSelectedPortfolioLink] = useState<string | null>(null);
   const [selectedSocialLinks, setSelectedSocialLinks] = useState<SocialLink[] | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
-  const [collabSentIds, setCollabSentIds] = useState<Set<string>>(new Set());
+  // Maps postId -> collaboration id, not just a Set, so a pending request can
+  // be cancelled (DELETE /collaborations/:id) directly from this card.
+  const [collabSentIds, setCollabSentIds] = useState<Map<string, string>>(new Map());
+  const [cancellingCollabPostId, setCancellingCollabPostId] = useState<string | null>(null);
   const [acceptedCollabPostIds, setAcceptedCollabPostIds] = useState<Set<string>>(new Set());
   const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
@@ -707,7 +710,7 @@ export default function ExploreTab() {
     listCollaborations(token, { direction: 'all' }).then(res => {
       if (res.success && Array.isArray(res.data)) {
         const accepted = new Set<string>();
-        const pendingPostIds = new Set<string>();
+        const pendingPostIds = new Map<string, string>();
         const completedPostIds = new Set<string>();
         res.data.forEach((r: any) => {
           // Post-scoped — a Creator can have multiple posts, and an accepted
@@ -717,7 +720,7 @@ export default function ExploreTab() {
             accepted.add(r.postId);
           }
           if (r.status === 'PENDING' && r.senderId === userId && r.postId) {
-            pendingPostIds.add(r.postId);
+            pendingPostIds.set(r.postId, r.id);
           }
           // Post-scoped, like pendingPostIds above — once the Creator marks this
           // specific collaboration complete, this card must show "Collaborated"
@@ -968,16 +971,52 @@ export default function ExploreTab() {
     if (collabSentIds.has(postId)) return;
     try {
       const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
-      if (res.success !== false) {
-        setCollabSentIds(prev => new Set(prev).add(postId));
+      if (res.success !== false && (res as any).data?.id) {
+        setCollabSentIds(prev => new Map(prev).set(postId, (res as any).data.id));
         Alert.alert('Collab Sent!', 'Your collaboration request has been sent.');
       } else {
-        Alert.alert('Error', res.error || 'Could not send collab request.');
+        Alert.alert('Error', (res as any).error || 'Could not send collab request.');
       }
     } catch {
       Alert.alert('Error', 'Could not send collab request.');
     }
   }, [token, router, requireProfile, collabSentIds]);
+
+  const handleCancelCollab = useCallback((postId: string) => {
+    if (!token) return;
+    const collabId = collabSentIds.get(postId);
+    if (!collabId || cancellingCollabPostId) return;
+    Alert.alert(
+      'Cancel request?',
+      'This will withdraw your collaboration request. You can send a new one later.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel Request',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingCollabPostId(postId);
+            try {
+              const res = await cancelCollaboration(token, collabId);
+              if (res.success !== false) {
+                setCollabSentIds(prev => {
+                  const next = new Map(prev);
+                  next.delete(postId);
+                  return next;
+                });
+              } else {
+                Alert.alert('Error', (res as any).error || 'Could not cancel the request.');
+              }
+            } catch {
+              Alert.alert('Error', 'Could not cancel the request.');
+            } finally {
+              setCancellingCollabPostId(null);
+            }
+          },
+        },
+      ],
+    );
+  }, [token, collabSentIds, cancellingCollabPostId]);
 
   const renderItem = useCallback(({ item }: { item: any }) => {
     const postTheme = getRoleTheme(item.ownerRole);
@@ -1132,31 +1171,34 @@ export default function ExploreTab() {
                 </TouchableOpacity>
               </View>
             </View>
+          ) : collabSentIds.has(item.id) ? (
+            <TouchableOpacity
+              style={[s.bigCollabBtn, { backgroundColor: accent, opacity: cancellingCollabPostId === item.id ? 0.6 : 1 }]}
+              onPress={() => handleCancelCollab(item.id)}
+              activeOpacity={0.8}
+              disabled={cancellingCollabPostId === item.id}
+            >
+              <Ionicons name="close-circle-outline" size={16} color="#fff" />
+              <Text style={s.bigCollabBtnText}>Sent · Tap to Cancel</Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[s.bigCollabBtn, { backgroundColor: accent, opacity: collabSentIds.has(item.id) ? 0.6 : 1 }]}
+              style={[s.bigCollabBtn, { backgroundColor: accent }]}
               onPress={() => handleCollab(item.ownerId, item.id)}
               activeOpacity={0.8}
-              disabled={collabSentIds.has(item.id)}
             >
-              {collabSentIds.has(item.id) ? (
-                <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-              ) : (
-                <Image
-                  source={require('../../assets/collaborate.png')}
-                  style={{ width: 16, height: 16, tintColor: '#fff' }}
-                  resizeMode="contain"
-                />
-              )}
-              <Text style={s.bigCollabBtnText}>
-                {collabSentIds.has(item.id) ? 'Sent' : 'Collaborate'}
-              </Text>
+              <Image
+                source={require('../../assets/collaborate.png')}
+                style={{ width: 16, height: 16, tintColor: '#fff' }}
+                resizeMode="contain"
+              />
+              <Text style={s.bigCollabBtnText}>Collaborate</Text>
             </TouchableOpacity>
           )}
         </TouchableOpacity>
       </View>
     );
-  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleShare, collabSentIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, handleBookmark]);
+  }, [expandedPosts, handleCardTap, handlePortfolio, handleMessage, handleCall, handleCollab, handleCancelCollab, handleShare, collabSentIds, cancellingCollabPostId, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, handleBookmark]);
 
   // Reusable filter form (Collab Type / Experience / Language / Location) — lives inside
   // the main right-side filter drawer (behind the header's filter icon). Tapping a row

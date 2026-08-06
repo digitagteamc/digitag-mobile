@@ -44,7 +44,7 @@ import { useCall } from '../../context/CallContext';
 import { useNotificationCount } from '../../context/NotificationCountContext';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { buildCreatorSocialLinks, SocialLink } from '../../services/socialLinks';
-import { getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, joinWaitlist, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
+import { cancelCollaboration, getFeed, getFullProfile, getSavedPostIds, getUserById, initiateCall, joinWaitlist, listCollaborations, openConversationWith, sendCollaboration, toggleSavePost } from '../../services/userService';
 import { getRoleTheme, useRoleTheme } from '../../theme/useRoleTheme';
 
 const { width } = Dimensions.get('window');
@@ -698,7 +698,7 @@ const formatBudgetK = (value: string | number) => {
 };
 
 // Optimization: Memoized Carousel Card component to prevent re-renders
-const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleMessage, handleCall, handleShare, handleCollab, collabSentPostIds, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
+const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, handlePostTap, handleBookmark, handleMessage, handleCall, handleShare, handleCollab, handleCancelCollab, collabSentPostIds, cancellingCollabPostId, acceptedCollabPostIds, completedCollabPostIds, savedPostIds, userRole }: any) => {
   const [descMeasured, setDescMeasured] = React.useState(false);
   const [descTruncated, setDescTruncated] = React.useState(false);
   const [descCutLength, setDescCutLength] = React.useState(0);
@@ -907,24 +907,31 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
                     <Ionicons name="call-outline" size={16} color="#fff" />
                   </TouchableOpacity>
                 </View>
+              ) : collabSentPostIds?.has(item.id) ? (
+                <TouchableOpacity
+                  style={[styles.figmaCardRequestBtn, { backgroundColor: postColor, opacity: cancellingCollabPostId === item.id ? 0.6 : 1 }]}
+                  onPress={() => handleCancelCollab(item.id)}
+                  activeOpacity={0.8}
+                  disabled={cancellingCollabPostId === item.id}
+                >
+                  <Ionicons name="close-circle-outline" size={14} color="#fff" />
+                  <Text style={styles.figmaCardRequestBtnText} numberOfLines={1}>
+                    Sent · Tap to Cancel
+                  </Text>
+                </TouchableOpacity>
               ) : (
                 <TouchableOpacity
-                  style={[styles.figmaCardRequestBtn, { backgroundColor: postColor, opacity: collabSentPostIds?.has(item.id) ? 0.6 : 1 }]}
+                  style={[styles.figmaCardRequestBtn, { backgroundColor: postColor }]}
                   onPress={() => handleCollab(item.ownerId, item.id)}
                   activeOpacity={0.8}
-                  disabled={collabSentPostIds?.has(item.id)}
                 >
-                  {collabSentPostIds?.has(item.id) ? (
-                    <Ionicons name="checkmark-circle-outline" size={14} color="#fff" />
-                  ) : (
-                    <Image
-                      source={require('../../assets/collaborate.png')}
-                      style={{ width: 14, height: 14, tintColor: '#fff' }}
-                      resizeMode="contain"
-                    />
-                  )}
+                  <Image
+                    source={require('../../assets/collaborate.png')}
+                    style={{ width: 14, height: 14, tintColor: '#fff' }}
+                    resizeMode="contain"
+                  />
                   <Text style={styles.figmaCardRequestBtnText} numberOfLines={1}>
-                    {collabSentPostIds?.has(item.id) ? 'Sent' : 'Collaborate'}
+                    Collaborate
                   </Text>
                 </TouchableOpacity>
               )}
@@ -971,7 +978,10 @@ export default function Homepage() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const { unreadCount } = useNotificationCount();
   const [acceptedCollabPostIds, setAcceptedCollabPostIds] = useState<Set<string>>(new Set());
-  const [collabSentPostIds, setCollabSentPostIds] = useState<Set<string>>(new Set());
+  // Maps postId -> collaboration id, not just a Set, so a pending request can
+  // be cancelled (DELETE /collaborations/:id) directly from this card.
+  const [collabSentPostIds, setCollabSentPostIds] = useState<Map<string, string>>(new Map());
+  const [cancellingCollabPostId, setCancellingCollabPostId] = useState<string | null>(null);
   const [completedCollabPostIds, setCompletedCollabPostIds] = useState<Set<string>>(new Set());
   const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
   const [alertConfig, setAlertConfig] = useState({
@@ -1099,7 +1109,7 @@ export default function Homepage() {
     const res = await listCollaborations(token, { direction: 'all' });
     if (res.success && Array.isArray(res.data)) {
       const accepted = new Set<string>();
-      const sent = new Set<string>();
+      const sent = new Map<string, string>();
       const completed = new Set<string>();
       res.data.forEach((r: any) => {
         // Post-scoped — a Creator can have multiple posts, and an accepted
@@ -1109,7 +1119,7 @@ export default function Homepage() {
         if (r.status === 'ACCEPTED' && r.postId) accepted.add(r.postId);
         // Post-scoped, same reasoning — a pending request on one post
         // must not show "Request Sent" on that owner's other posts too.
-        if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.add(r.postId);
+        if (r.status === 'PENDING' && r.senderId === userId && r.postId) sent.set(r.postId, r.id);
         // Also post-scoped — once the Creator marks this specific
         // collaboration complete, this card must show "Collaborated"
         // instead of falling back to the plain Collaborate button (which
@@ -1284,13 +1294,51 @@ export default function Homepage() {
     try {
       const res = await sendCollaboration(token, { receiverId: ownerId, postId, message: 'I would love to collaborate with you!' });
       if (res.success) {
-        if (postId) setCollabSentPostIds(prev => new Set([...prev, postId]));
+        if (postId && (res as any).data?.id) {
+          setCollabSentPostIds(prev => new Map(prev).set(postId, (res as any).data.id));
+        }
       } else {
         showAlert('Collab Error', res.error || 'Could not send collaboration request.');
       }
     } catch {
       showAlert('Error', 'Failed to send collaboration request.');
     }
+  };
+
+  const handleCancelCollab = (postId?: string) => {
+    if (!token || !postId) return;
+    const collabId = collabSentPostIds.get(postId);
+    if (!collabId || cancellingCollabPostId) return;
+    Alert.alert(
+      'Cancel request?',
+      'This will withdraw your collaboration request. You can send a new one later.',
+      [
+        { text: 'Keep it', style: 'cancel' },
+        {
+          text: 'Cancel Request',
+          style: 'destructive',
+          onPress: async () => {
+            setCancellingCollabPostId(postId);
+            try {
+              const res = await cancelCollaboration(token, collabId);
+              if (res.success !== false) {
+                setCollabSentPostIds(prev => {
+                  const next = new Map(prev);
+                  next.delete(postId);
+                  return next;
+                });
+              } else {
+                showAlert('Error', (res as any).error || 'Could not cancel the request.');
+              }
+            } catch {
+              showAlert('Error', 'Could not cancel the request.');
+            } finally {
+              setCancellingCollabPostId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const PREVIEW_POST_LIMIT = 3;
@@ -1705,7 +1753,9 @@ export default function Homepage() {
                   handleCall={handleCall}
                   handleShare={handleShare}
                   handleCollab={handleCollab}
+                  handleCancelCollab={handleCancelCollab}
                   collabSentPostIds={collabSentPostIds}
+                  cancellingCollabPostId={cancellingCollabPostId}
                   acceptedCollabPostIds={acceptedCollabPostIds}
                   completedCollabPostIds={completedCollabPostIds}
                   savedPostIds={savedPostIds}
