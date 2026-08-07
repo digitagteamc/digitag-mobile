@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -149,8 +149,17 @@ export default function NotificationsScreen() {
         setNotifLoading(false);
     }, [token]);
 
-    useEffect(() => { loadRequests(); }, [loadRequests]);
-    useEffect(() => { loadNotifications(); }, [loadNotifications]);
+    // Refetch on every focus, not just first mount — this screen can already
+    // be mounted (e.g. sitting in the nav stack) when a new collab request
+    // notification arrives. Tapping it only switched to the Requests tab
+    // before, without refreshing, so the brand-new request was invisible
+    // until some other action happened to reload the list.
+    useFocusEffect(
+        useCallback(() => {
+            loadRequests();
+            loadNotifications();
+        }, [loadRequests, loadNotifications])
+    );
 
     // Mark unread notifications read once the user actually looks at that tab
     // (not on prefetch — the unread highlight should survive until they do).
