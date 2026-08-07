@@ -36,6 +36,7 @@ import {
     getMyFreelancerProfile,
     getReusableInstagramAccount,
     getSocialVerificationStatus,
+    listInstagramAccounts,
     reuseInstagramAccount,
     startInstagramVerification,
     startSocialVerification,
@@ -636,6 +637,26 @@ export default function FreelancerSignup() {
                         }
                     } catch {}
                     draftRestoredRef.current = true;
+
+                    // No profile yet, but this exact user may have already verified
+                    // an Instagram account on a previous, incomplete signup attempt
+                    // (app killed/backgrounded mid-flow, etc). Without this, the
+                    // screen always starts igVerified=false and re-attempting the
+                    // same handle just bounces off the backend's own duplicate
+                    // check ("You have already connected this Instagram account"),
+                    // permanently blocking Next with no way forward.
+                    try {
+                        const accountsRes = await listInstagramAccounts(token);
+                        if (!cancelled && accountsRes.success && accountsRes.data.length > 0) {
+                            const verified = accountsRes.data[0];
+                            setForm(prev => ({
+                                ...prev,
+                                instagramHandle: prev.instagramHandle || verified.instagramUsername,
+                                instagramFollowers: prev.instagramFollowers || verified.followers?.toString() || '',
+                            }));
+                            setIgVerified(true);
+                        }
+                    } catch {}
                 }
             }
             if (!cancelled) setPrefilling(false);
