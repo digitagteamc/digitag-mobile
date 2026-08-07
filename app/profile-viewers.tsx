@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -38,22 +38,22 @@ export default function ProfileViewersScreen() {
   // client-side.
   const [forbidden, setForbidden] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!token) { router.replace('/role-selection' as any); return; }
-    const load = async () => {
-      try {
-        const res = await getProfileViewers(token);
-        if (res.success) {
-          setViewers(Array.isArray(res.data) ? res.data : []);
-        } else if ((res as any).error?.toLowerCase().includes('premium')) {
-          setForbidden(true);
-        }
-      } finally {
-        setLoading(false);
+    try {
+      const res = await getProfileViewers(token);
+      if (res.success) {
+        setViewers(Array.isArray(res.data) ? res.data : []);
+      } else if ((res as any).error?.toLowerCase().includes('premium')) {
+        setForbidden(true);
       }
-    };
-    load();
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
+
+  // Refetch on every focus, same as the other list screens.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>

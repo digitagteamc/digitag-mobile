@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -23,23 +23,24 @@ export default function FollowersScreen() {
   const [followers, setFollowers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFollowers = async () => {
-      // Both the own-list and other-user endpoints require auth.
-      if (!token) { setLoading(false); return; }
-      try {
-        const res = await getFollowers(token, userId);
-        if (res.success) {
-          setFollowers(Array.isArray(res.data) ? res.data : []);
-        }
-      } catch (e) {
-        console.error('Failed to fetch followers', e);
-      } finally {
-        setLoading(false);
+  const fetchFollowers = useCallback(async () => {
+    // Both the own-list and other-user endpoints require auth.
+    if (!token) { setLoading(false); return; }
+    try {
+      const res = await getFollowers(token, userId);
+      if (res.success) {
+        setFollowers(Array.isArray(res.data) ? res.data : []);
       }
-    };
-    fetchFollowers();
+    } catch (e) {
+      console.error('Failed to fetch followers', e);
+    } finally {
+      setLoading(false);
+    }
   }, [token, userId]);
+
+  // Refetch on every focus — following/unfollowing elsewhere shouldn't
+  // leave this list stale.
+  useFocusEffect(useCallback(() => { fetchFollowers(); }, [fetchFollowers]));
 
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>

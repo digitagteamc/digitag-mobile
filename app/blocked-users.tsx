@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -23,25 +23,26 @@ export default function BlockedUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchBlocked = useCallback(async () => {
     // Blocking is account-only — a guest reaching this screen (e.g. via Settings)
     // has nothing to show here and would otherwise spin forever (setLoading(false)
     // was never reached on the old early return).
     if (!token) { router.replace('/role-selection' as any); return; }
-    const fetchBlocked = async () => {
-      try {
-        const res = await getBlockedUsers(token);
-        if (res.success) {
-          setBlocked(Array.isArray(res.data) ? res.data : []);
-        }
-      } catch (e) {
-        console.error('Failed to fetch blocked users', e);
-      } finally {
-        setLoading(false);
+    try {
+      const res = await getBlockedUsers(token);
+      if (res.success) {
+        setBlocked(Array.isArray(res.data) ? res.data : []);
       }
-    };
-    fetchBlocked();
+    } catch (e) {
+      console.error('Failed to fetch blocked users', e);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
+
+  // Refetch on every focus — unblocking someone elsewhere shouldn't leave
+  // them showing here as still blocked.
+  useFocusEffect(useCallback(() => { fetchBlocked(); }, [fetchBlocked]));
 
   const handleUnblock = async (userId: string) => {
     if (!token || busyId) return;
