@@ -1356,10 +1356,9 @@ export default function Homepage() {
     const roleLabel = owner.role
       ? owner.role.charAt(0) + owner.role.slice(1).toLowerCase()
       : 'User';
-    // description is stored as "title\n\nbody" (see create-post.tsx) — the
-    // card shows only the body, never the title.
-    const [, ...descBodyParts] = String(post.description || '').split('\n\n');
-    const descBody = descBodyParts.join('\n\n');
+    // create-post.tsx no longer has a separate Title field — description is
+    // just the post body now, shown as-is.
+    const descBody = String(post.description || '');
     return {
       id: post.id,
       owner: owner,
