@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -45,7 +45,9 @@ export default function SavedPostsScreen() {
     setLoading(false);
   }, [token, isGuest]);
 
-  useEffect(() => { fetchSaved(); }, [fetchSaved]);
+  // Refetch on every focus — unsaving a post from the feed and coming back
+  // here shouldn't still show it as saved.
+  useFocusEffect(useCallback(() => { fetchSaved(); }, [fetchSaved]));
 
   const onRefresh = async () => {
     setRefreshing(true);

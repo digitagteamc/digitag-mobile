@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -23,23 +23,24 @@ export default function FollowingScreen() {
   const [following, setFollowing] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFollowing = async () => {
-      // Both the own-list and other-user endpoints require auth.
-      if (!token) { setLoading(false); return; }
-      try {
-        const res = await getFollowing(token, userId);
-        if (res.success) {
-          setFollowing(Array.isArray(res.data) ? res.data : []);
-        }
-      } catch (e) {
-        console.error('Failed to fetch following', e);
-      } finally {
-        setLoading(false);
+  const fetchFollowing = useCallback(async () => {
+    // Both the own-list and other-user endpoints require auth.
+    if (!token) { setLoading(false); return; }
+    try {
+      const res = await getFollowing(token, userId);
+      if (res.success) {
+        setFollowing(Array.isArray(res.data) ? res.data : []);
       }
-    };
-    fetchFollowing();
+    } catch (e) {
+      console.error('Failed to fetch following', e);
+    } finally {
+      setLoading(false);
+    }
   }, [token, userId]);
+
+  // Refetch on every focus — following/unfollowing elsewhere shouldn't
+  // leave this list stale.
+  useFocusEffect(useCallback(() => { fetchFollowing(); }, [fetchFollowing]));
 
   return (
     <SafeAreaView className="flex-1 bg-[#060606]" edges={['top', 'bottom']}>

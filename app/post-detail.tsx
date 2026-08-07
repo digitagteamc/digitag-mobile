@@ -1,8 +1,8 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -150,7 +150,10 @@ export default function PostDetail() {
     setLoading(false);
   }, [token, postId, requireProfile]);
 
-  useEffect(() => { load(); }, [load]);
+  // Refetch on every focus, not just first mount — collab status (accepted/
+  // declined/cancelled by the other party) can change while this screen sits
+  // in the nav stack, same class of staleness fixed in notifications.tsx.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {

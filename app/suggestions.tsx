@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -67,7 +67,9 @@ export default function SuggestionsScreen() {
         }
     }, [token]);
 
-    useEffect(() => { load(); }, [load]);
+    // Refetch on every focus — e.g. following someone from here then coming
+    // back shouldn't still show them as a suggestion.
+    useFocusEffect(useCallback(() => { load(); }, [load]));
 
     const onRefresh = async () => {
         setRefreshing(true);

@@ -1,7 +1,7 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -134,7 +134,9 @@ export default function CreatorDetails() {
         }
     }, [token, resolvedUserId, paramPostId]);
 
-    useEffect(() => { load(); }, [load]);
+    // Refetch on every focus — collab/follow status can change elsewhere
+    // while this profile screen sits in the nav stack.
+    useFocusEffect(useCallback(() => { load(); }, [load]));
 
     useEffect(() => {
         if (!token) return;
