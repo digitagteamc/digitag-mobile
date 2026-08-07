@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -48,7 +48,14 @@ export default function MyCollabsScreen() {
       : c.status === 'ACCEPTED' || c.status === 'COMPLETED'
   );
 
-  useEffect(() => { fetchCollabs(); }, [token]);
+  // Refetch on every focus, not just first mount — this screen can already be
+  // mounted when a collab's status changes elsewhere (accepted, completed,
+  // etc), so relying on mount-only data left it showing stale results.
+  useFocusEffect(
+    useCallback(() => {
+      fetchCollabs();
+    }, [token])
+  );
 
   const handleComplete = (collabId: string, otherName: string) => {
     Alert.alert(
