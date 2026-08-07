@@ -603,7 +603,7 @@ export default function FreelancerSignup() {
         portfolioUrl: '',
         skillsInput: '',
         experienceLevel: '',
-        availability: 'AVAILABLE',
+        availability: '',
         location: '',
         profilePicture: null as string | null,
         profilePictureMimeType: 'image/jpeg',
