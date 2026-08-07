@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { startEmailVerification, verifyEmailCode } from '../services/userService';
 
 interface EmailVerifyModalProps {
@@ -76,7 +76,10 @@ export default function EmailVerifyModal({ visible, token, email, accentColor, o
 
     return (
         <Modal visible={visible} transparent animationType="slide">
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' }}
+            >
                 <View style={{ backgroundColor: '#111', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 28, paddingBottom: 40 }}>
                     {verified ? (
                         <>
@@ -153,7 +156,7 @@ export default function EmailVerifyModal({ visible, token, email, accentColor, o
                         </>
                     )}
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }
