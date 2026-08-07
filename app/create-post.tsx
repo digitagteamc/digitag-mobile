@@ -8,6 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
   Alert,
   Image,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -103,7 +104,6 @@ export default function CreatePost() {
     height: 40 + keyboard.height.value,
   }));
 
-  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [location, setLocation] = useState('');
   const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -163,8 +163,9 @@ export default function CreatePost() {
     if (!paramDraftId) return;
     getDraft(paramDraftId).then(draft => {
       if (!draft) return;
-      setTitle(draft.title);
-      setBody(draft.body);
+      // Legacy drafts saved before the Title field was removed may still
+      // carry a title — fold it into the body so that text isn't lost.
+      setBody(draft.title ? [draft.title, draft.body].filter(Boolean).join('\n\n') : draft.body);
       setLocation(draft.location);
       if (draft.collab) setCollab(draft.collab);
       if (draft.category) setSelectedCategory(draft.category);
@@ -172,16 +173,13 @@ export default function CreatePost() {
     });
   }, [paramDraftId]);
 
-  // Edit mode: prefill from the live post. description was stored as
-  // "title\n\nbody" at create time, so split on the first blank line.
+  // Edit mode: prefill from the live post.
   useEffect(() => {
     if (!editPostId) return;
     getPostById(String(editPostId), token).then(res => {
       if (!res.success || !res.data) return;
       const post = res.data;
-      const [firstPart, ...restParts] = String(post.description || '').split('\n\n');
-      setTitle(firstPart || '');
-      setBody(restParts.join('\n\n'));
+      setBody(String(post.description || ''));
       setLocation(post.location || '');
       setCollab(post.collaborationType === 'PAID' ? 'PAID' : 'UNPAID');
       if (post.category) setSelectedCategory(post.category);
@@ -191,14 +189,14 @@ export default function CreatePost() {
 
   const buildDraft = () => ({
     id: draftIdRef.current,
-    title, body, location, collab,
+    title: '', body, location, collab,
     category: selectedCategory,
     budget,
     savedAt: new Date().toISOString(),
   });
 
   const saveDraft = async () => {
-    if (!title.trim() && !body.trim()) {
+    if (!body.trim()) {
       Alert.alert('Nothing to save', 'Add some content before saving a draft.');
       return;
     }
@@ -213,13 +211,13 @@ export default function CreatePost() {
   // would be confusing.
   useEffect(() => {
     if (isEditMode) return;
-    if (!title.trim() && !body.trim()) return;
+    if (!body.trim()) return;
     const t = setTimeout(() => {
       persistDraft(buildDraft()).catch(() => {});
     }, 500);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, body, location, collab, selectedCategory, budget, isEditMode]);
+  }, [body, location, collab, selectedCategory, budget, isEditMode]);
 
   const MAX_POST_IMAGES = 3;
 
@@ -277,10 +275,11 @@ export default function CreatePost() {
 
   const collabLabel = collab === 'PAID' ? 'Paid Collab' : collab === 'UNPAID' ? 'Free Collab' : collabPlaceholder;
 
-  // Required to post: title, category, collab type — and budget, but only for
-  // paid collabs, since the budget field isn't even shown for free ones.
+  // Required to post: post requirement, category, collab type — and budget,
+  // but only for paid collabs, since the budget field isn't even shown for
+  // free ones.
   const requiredFilled = Boolean(
-    title.trim() && selectedCategory && collab && (collab !== 'PAID' || budget.trim())
+    body.trim() && selectedCategory && collab && (collab !== 'PAID' || budget.trim())
   );
   const categoryLabel = selectedCategory ?? 'Select Category';
 
@@ -288,8 +287,8 @@ export default function CreatePost() {
     if (!requireProfile('create a post')) return;
     if (!token) { Alert.alert('Sign In Required', 'Please sign in to post.'); return; }
 
-    const description = [title.trim(), body.trim()].filter(Boolean).join('\n\n');
-    if (!description) { Alert.alert('Missing Content', 'Add a title or body before posting.'); return; }
+    const description = body.trim();
+    if (!description) { Alert.alert('Missing Content', 'Add your post requirement before posting.'); return; }
 
     setSubmitting(true);
     try {
@@ -358,19 +357,12 @@ export default function CreatePost() {
         </View>
 
         {/* ── Text Input Card ── */}
+        <Text style={styles.sectionTitle}>Post Requirement</Text>
         <View style={styles.inputCard}>
           <TextInput
-            style={styles.titleInput}
-            placeholder="Title"
-            placeholderTextColor="#fffafaff"
-            value={title}
-            onChangeText={setTitle}
-            maxLength={120}
-          />
-          <TextInput
             style={styles.bodyInput}
-            placeholder="Body Text (Optional)"
-            placeholderTextColor="#d6d6d6"
+            placeholder="Type here your post requirement"
+            placeholderTextColor="#6E7180"
             value={body}
             onChangeText={setBody}
             multiline
@@ -446,13 +438,14 @@ export default function CreatePost() {
         </View>
 
         {/* ── Category (opposite role) ── */}
+        <Text style={styles.sectionTitle}>Category</Text>
         <View style={styles.dropdownContainer}>
           <TouchableOpacity
             style={[styles.listBtn, isCategoryOpen && { borderColor: theme.primary }]}
             onPress={() => setIsCategoryOpen(v => !v)}
           >
             <View style={styles.listBtnLeft}>
-              <Ionicons name="pricetag-outline" size={20} color="#fff" />
+              {/* <Ionicons name="pricetag-outline" size={20} color="#fff" /> */}
               <Text style={[styles.listBtnText, { marginLeft: 12, color: selectedCategory ? '#fff' : '#A1A1A1' }]}>
                 {categoryLabel}
               </Text>
@@ -721,7 +714,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    // SafeAreaView (react-native) already reserves the iOS status-bar/notch
+    // inset, so stacking the old flat 60 on top of it left a large gap on
+    // iOS. Android's SafeAreaView is a no-op, so it still needs the full
+    // manual value to clear the status bar.
+    paddingTop: Platform.OS === 'ios' ? 20 : 60,
     paddingBottom: 16,
     gap: 16,
   },
@@ -754,11 +751,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E24',
     borderRadius: 16,
     padding: 20,
-    minHeight: 260,
+    minHeight: 180,
     marginBottom: 10,
   },
-  titleInput: { color: '#fff', fontSize: 20, fontWeight: '600',  },
-  bodyInput: {  color: '#E0E0E0', fontSize: 15, minHeight: 100 },
+  bodyInput: {  color: '#E0E0E0', fontSize: 12, minHeight: 140, fontFamily: 'Poppins_400Regular' },
   listBtn: {
     backgroundColor: '#1E1E24',
     borderRadius: 14,
@@ -772,7 +768,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.08)',
   },
   listBtnLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  listBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
+  listBtnText: { color: '#fff', fontSize: Platform.OS === 'android' ? 12 : 14, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
 
   inlineInput: {
     backgroundColor: '#1E1E24',
@@ -811,7 +807,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Poppins_400Regular',
     marginTop: 8,
-    marginBottom: 10,
+    marginBottom: 5,
     opacity: 0.8,
   },
 

@@ -58,6 +58,33 @@ const AVAILABILITY_OPTIONS = [
     { key: 'NOT_AVAILABLE', label: 'Not Available' },
 ];
 
+// Input length limits — frontend-only guardrails so users can't submit
+// absurdly short/long values; kept generous enough not to block real names/bios.
+const NAME_MIN_LENGTH = 2;
+const NAME_MAX_LENGTH = 50;
+const EMAIL_MAX_LENGTH = 254; // RFC 5321 max mailbox length
+const BIO_MIN_LENGTH = 10;
+const BIO_MAX_LENGTH = 1000;
+const SKILLS_MIN_LENGTH = 2;
+const SKILLS_MAX_LENGTH = 150;
+
+// Character-set guardrails — strip disallowed characters as the user types
+// rather than only flagging them on submit.
+// Name: letters (incl. non-Latin scripts) and spaces only, no digits/symbols.
+const sanitizeName = (v: string) => v.replace(/[^\p{L}\s]/gu, '');
+// Bio: letters/digits/spaces plus ordinary prose punctuation — free text
+// still needs periods, commas, apostrophes etc. to be usable.
+const sanitizeBio = (v: string) => v.replace(/[^\p{L}\p{N}\s.,!?'"()\-:;&\n]/gu, '');
+// Email: only characters valid in an email address.
+const sanitizeEmail = (v: string) => v.replace(/[^a-zA-Z0-9@._%+-]/g, '');
+// Skills: comma-separated list — letters/digits/spaces plus the handful of
+// symbols real skill names use (C++, UI/UX, SEO & Marketing).
+const sanitizeSkills = (v: string) => v.replace(/[^\p{L}\p{N}\s,&+/-]/gu, '');
+// Splits/trims/dedupes the raw comma list into the actual skill entries that
+// get submitted — shared by validation and the submit payload so they never
+// disagree about what counts as "at least one skill".
+const parseSkills = (v: string) => Array.from(new Set(v.split(',').map(s => s.trim()).filter(Boolean)));
+
 const ACCENT = '#F26930';
 
 // --- Sub-components ---
@@ -113,33 +140,49 @@ const FormField = ({
     keyboardType = 'default',
     error,
     maxLength,
-}: any) => (
-    <View className="mb-5">
-        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {label} {required && <Text className="text-red-500">*</Text>}
-        </Text>
-        <TextInput
-            placeholder={placeholder}
-            placeholderTextColor="#555"
-            multiline={multiline}
-            numberOfLines={multiline ? 4 : 1}
-            textAlignVertical={multiline ? 'top' : 'auto'}
-            keyboardType={keyboardType}
-            value={value}
-            onChangeText={onChangeText}
-            className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
-                } ${error ? 'border border-red-500' : ''}`}
-        />
-        <View className="flex-row justify-between items-start mt-1.5 ml-1 mr-1">
-            {error ? <Text className="text-red-500 text-[12px] flex-1">{error}</Text> : <View />}
-            {maxLength ? (
-                <Text className={`text-[11px] ${(value?.length || 0) > maxLength ? 'text-red-500' : 'text-[#666]'}`}>
-                    {value?.length || 0}/{maxLength}
-                </Text>
-            ) : null}
+    minLength,
+}: any) => {
+    const len = (value || '').length;
+    const belowMin = !!minLength && len > 0 && len < minLength;
+    // Submit-time error takes priority; otherwise surface a live "too short"
+    // hint as the user types, so they don't have to hit Next to learn a
+    // field is too short. Overflow past maxLength is intentionally NOT
+    // blocked here — the counter below just goes red — so nobody loses text
+    // they already typed; the real cap is enforced on submit instead.
+    const minHint = !error && belowMin ? `Minimum ${minLength} characters required (${len}/${minLength}).` : null;
+
+    return (
+        <View className="mb-5">
+            <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+                {label} {required && <Text className="text-red-500">*</Text>}
+            </Text>
+            <TextInput
+                placeholder={placeholder}
+                placeholderTextColor="#555"
+                multiline={multiline}
+                numberOfLines={multiline ? 4 : 1}
+                textAlignVertical={multiline ? 'top' : 'auto'}
+                keyboardType={keyboardType}
+                value={value}
+                onChangeText={onChangeText}
+                className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
+                    } ${error ? 'border border-red-500' : ''}`}
+            />
+            <View className="flex-row justify-between items-start mt-1.5 ml-1 mr-1">
+                {error ? (
+                    <Text className="text-red-500 text-[12px] flex-1">{error}</Text>
+                ) : minHint ? (
+                    <Text className="text-red-500 text-[12px] flex-1">{minHint}</Text>
+                ) : <View />}
+                {maxLength ? (
+                    <Text className={`text-[11px] ${len > maxLength ? 'text-red-500' : 'text-[#666]'}`}>
+                        {len}/{maxLength}
+                    </Text>
+                ) : null}
+            </View>
         </View>
-    </View>
-);
+    );
+};
 
 const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText, error }: any) => {
     const [focused, setFocused] = useState(false);
@@ -357,7 +400,7 @@ const InstagramVerifyRow = ({
     </View>
 );
 
-const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }: any) => {
+const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error, maxLength }: any) => {
     const validFormat = EMAIL_FORMAT_RE.test(value.trim());
     return (
         <View className="mb-5">
@@ -373,6 +416,7 @@ const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }
                     autoCorrect={false}
                     value={value}
                     onChangeText={onValueChange}
+                    maxLength={maxLength}
                     className="text-white font-poppins-regular"
                 />
             </View>
@@ -398,13 +442,13 @@ const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }
     );
 };
 
-const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
+const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange, error }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
             {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
         <View className="flex-row gap-2">
-            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
+            <View className={`flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center ${error ? 'border border-red-500' : ''}`}>
                 <TextInput
                     placeholder={`${platform} links`}
                     placeholderTextColor="#555"
@@ -425,6 +469,7 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
                 />
             </View>
         </View>
+        {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
     </View>
 );
 
@@ -444,6 +489,7 @@ type SocialVerifyRowProps = {
     linkValue?: string;
     onLinkChange?: (v: string) => void;
     linkPlaceholder?: string;
+    error?: string;
 };
 
 const SocialVerifyRow = ({
@@ -455,6 +501,7 @@ const SocialVerifyRow = ({
     linkValue,
     onLinkChange,
     linkPlaceholder,
+    error,
 }: SocialVerifyRowProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
@@ -467,9 +514,10 @@ const SocialVerifyRow = ({
                 value={linkValue}
                 onChangeText={onLinkChange}
                 autoCapitalize="none"
-                className="bg-[#1A1A1A] h-[48px] px-4 rounded-[12px] text-white font-poppins-regular mb-2.5"
+                className={`bg-[#1A1A1A] h-[48px] px-4 rounded-[12px] text-white font-poppins-regular mb-2.5 ${error ? 'border border-red-500' : ''}`}
             />
         ) : null}
+        {!verified && error ? <Text className="text-red-500 text-[12px] -mt-1.5 mb-2.5 ml-1">{error}</Text> : null}
         {verified ? (
             <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
                 <Text className="text-white font-poppins-regular flex-1" numberOfLines={1}>
@@ -869,11 +917,11 @@ export default function FreelancerSignup() {
 
     const isStep1Valid = useMemo(() => {
         return (
-            form.name.trim() !== '' &&
+            form.name.trim().length >= NAME_MIN_LENGTH &&
             emailOk &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
-            form.bio.trim() !== '' &&
+            form.bio.trim().length >= BIO_MIN_LENGTH &&
             (!isSocialMediaManager || form.workTypes.length > 0)
             // portfolioUrl is intentionally optional — not every freelancer has one.
         );
@@ -883,7 +931,7 @@ export default function FreelancerSignup() {
         return (
             form.profilePicture !== null &&
             form.experienceLevel !== '' &&
-            form.skillsInput.trim() !== '' &&
+            parseSkills(form.skillsInput).length > 0 &&
             form.location.trim() !== '' &&
             form.availability !== ''
         );
@@ -950,11 +998,68 @@ export default function FreelancerSignup() {
         );
     };
 
-    const stripHandle = (v: string) => v.trim().replace(/^@/, '');
+    // Accepts a bare handle, "@handle", or a full profile link (with or
+    // without "https://") and reduces it to the bare handle either way —
+    // the placeholders on these fields explicitly invite "site.com/username"
+    // input, so the protocol can't be required.
+    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '').replace(/[/?#].*$/, '');
+
+    const isValidUrl = (v: string) => {
+        try { new URL(v); return true; } catch { return false; }
+    };
+
+    const isValidHandle = (v: string) => /^[a-zA-Z0-9._\-]{1,50}$/.test(v);
+
+    // A bare handle just needs the right character set (isValidHandle above).
+    // But if what was typed actually looks like a link (has a slash, or a
+    // domain-style ending like ".com"), it must resolve to a URL whose host
+    // is really one of that platform's domains — otherwise a Snapchat link
+    // pasted into the Facebook field (or any random URL) would slip through
+    // just because it happened to contain only "safe" characters.
+    const isValidPlatformInput = (v: string, domains: string[]) => {
+        const trimmed = v.trim().replace(/^@/, '');
+        if (!trimmed) return true;
+        const looksLikeLink = trimmed.includes('/') || /\.[a-z]{2,}$/i.test(trimmed);
+        if (looksLikeLink) {
+            const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+            try {
+                const host = new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
+                return domains.some((d) => host === d || host.endsWith(`.${d}`));
+            } catch {
+                return false;
+            }
+        }
+        return isValidHandle(trimmed);
+    };
+
+    // Stricter than isValidPlatformInput above — only a genuine facebook.com/
+    // fb.com link counts here. Used solely to decide whether the manual entry
+    // field should show the "✓ Verified/connected" state: a bare word like
+    // "asdkjh" passes the plain character-set check (it's a syntactically
+    // fine handle) but was never actually confirmed to belong to Facebook, so
+    // it shouldn't visually look verified — only a real profile link (or the
+    // actual OAuth flow) should.
+    const isKnownPlatformLink = (v: string, domains: string[]) => {
+        const trimmed = v.trim().replace(/^@/, '');
+        if (!trimmed) return false;
+        const looksLikeLink = trimmed.includes('/') || /\.[a-z]{2,}$/i.test(trimmed);
+        if (!looksLikeLink) return false;
+        const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+        try {
+            const host = new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
+            return domains.some((d) => host === d || host.endsWith(`.${d}`));
+        } catch {
+            return false;
+        }
+    };
 
     const handleNext = () => {
         const next: Record<string, string> = {};
-        if (!form.name.trim()) next.name = 'Full name is required.';
+        if (!form.name.trim()) {
+            next.name = 'Full name is required.';
+        } else if (form.name.trim().length < NAME_MIN_LENGTH) {
+            next.name = `Full name must be at least ${NAME_MIN_LENGTH} characters.`;
+        }
         if (!form.email.trim() || !EMAIL_FORMAT_RE.test(form.email.trim())) {
             next.email = 'Please enter a valid email address.';
         } else if (!emailOk) {
@@ -965,10 +1070,45 @@ export default function FreelancerSignup() {
         if (isSocialMediaManager && form.workTypes.length === 0) {
             next.workTypes = 'Please select at least one work type.';
         }
-        if (!form.bio.trim()) next.bio = 'Bio is required.';
-        else if (form.bio.trim().length > 1000) next.bio = 'Bio must be 1000 characters or less.';
-        // portfolioUrl is intentionally optional — not every freelancer has one.
-        if (mode === 'create' && !igVerified) next.instagram = 'Please verify your Instagram account to continue.';
+        if (!form.bio.trim()) {
+            next.bio = 'Bio is required.';
+        } else if (form.bio.trim().length < BIO_MIN_LENGTH) {
+            next.bio = `Bio must be at least ${BIO_MIN_LENGTH} characters.`;
+        } else if (form.bio.trim().length > BIO_MAX_LENGTH) {
+            next.bio = `Bio must be ${BIO_MAX_LENGTH} characters or less.`;
+        }
+        // portfolioUrl is intentionally optional — not every freelancer has one,
+        // but if something was typed it should look like an actual URL.
+        const portfolio = form.portfolioUrl.trim();
+        if (portfolio) {
+            const withProtocol = /^https?:\/\//i.test(portfolio) ? portfolio : `https://${portfolio}`;
+            if (!isValidUrl(withProtocol)) next.portfolioUrl = 'Please enter a valid URL.';
+        }
+        if (mode === 'create') {
+            if (!form.instagramHandle.trim()) {
+                next.instagram = 'Please verify your Instagram account to continue.';
+            } else if (!isValidPlatformInput(form.instagramHandle, ['instagram.com'])) {
+                next.instagram = 'Please enter a valid Instagram username or instagram.com profile link.';
+            } else if (!igVerified) {
+                next.instagram = 'Please verify your Instagram account to continue.';
+            }
+        }
+        // The manual social fields (Facebook/Twitter/Snapchat) also live on
+        // this step — validate them here, not at final submit, or the error
+        // would show on a step the user already left. All are optional, so
+        // only flag a bad format when something was actually typed.
+        // (Instagram's own format is guaranteed by the verify step above; in
+        // update mode the handle is read-only, already-verified. YouTube has
+        // no manual field here — it's OAuth-only.)
+        if (form.facebookHandle.trim() && !isValidPlatformInput(form.facebookHandle, ['facebook.com', 'fb.com'])) {
+            next.facebookHandle = 'Please enter a valid Facebook username or facebook.com profile link.';
+        }
+        if (form.twitterHandle.trim() && !isValidPlatformInput(form.twitterHandle, ['twitter.com', 'x.com'])) {
+            next.twitterHandle = 'Please enter a valid Twitter/X username or twitter.com / x.com profile link.';
+        }
+        if (form.snapchatHandle.trim() && !isValidPlatformInput(form.snapchatHandle, ['snapchat.com'])) {
+            next.snapchatHandle = 'Please enter a valid Snapchat username or snapchat.com profile link.';
+        }
         setErrors(next);
         if (Object.keys(next).length > 0) return;
         setStep(2);
@@ -980,7 +1120,7 @@ export default function FreelancerSignup() {
         const next: Record<string, string> = {};
         if (!form.profilePicture) next.profilePicture = 'Please add a profile photo.';
         if (!form.experienceLevel) next.experienceLevel = 'Please select your experience level.';
-        if (!form.skillsInput.trim()) next.skillsInput = 'Please list at least one skill.';
+        if (parseSkills(form.skillsInput).length === 0) next.skillsInput = 'Please list at least one skill.';
         if (!form.location.trim()) next.location = 'Location is required.';
         if (!form.availability) next.availability = 'Please select your availability.';
         return next;
@@ -1017,7 +1157,7 @@ export default function FreelancerSignup() {
                 }
             }
 
-            const skills = form.skillsInput.split(',').map(s => s.trim()).filter(Boolean);
+            const skills = parseSkills(form.skillsInput);
             const payload: any = {
                 name: form.name.trim(),
                 email: form.email.trim().toLowerCase(),
@@ -1105,6 +1245,23 @@ export default function FreelancerSignup() {
         );
     }
 
+    // Live format errors — recomputed every render off the current form
+    // values, so a bad link/handle shows up immediately as the user types
+    // instead of only after they press Next. Falls back to the submit-time
+    // error (e.g. "required") when nothing invalid is currently typed.
+    const instagramLiveError = form.instagramHandle.trim() && !isValidPlatformInput(form.instagramHandle, ['instagram.com'])
+        ? 'Please enter a valid Instagram username or instagram.com profile link.'
+        : errors.instagram;
+    const facebookLiveError = form.facebookHandle.trim() && !isValidPlatformInput(form.facebookHandle, ['facebook.com', 'fb.com'])
+        ? 'Please enter a valid Facebook username or facebook.com profile link.'
+        : errors.facebookHandle;
+    const twitterLiveError = form.twitterHandle.trim() && !isValidPlatformInput(form.twitterHandle, ['twitter.com', 'x.com'])
+        ? 'Please enter a valid Twitter/X username or twitter.com / x.com profile link.'
+        : errors.twitterHandle;
+    const snapchatLiveError = form.snapchatHandle.trim() && !isValidPlatformInput(form.snapchatHandle, ['snapchat.com'])
+        ? 'Please enter a valid Snapchat username or snapchat.com profile link.'
+        : errors.snapchatHandle;
+
     return (
         <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right', 'bottom']}>
             <LinearGradient colors={['#3B1F13', '#000000']} className="absolute inset-0 h-[33%]" />
@@ -1147,15 +1304,18 @@ export default function FreelancerSignup() {
                                 required
                                 placeholder="Full Name"
                                 value={form.name}
-                                onChangeText={(v: string) => setForm({ ...form, name: v })}
+                                onChangeText={(v: string) => setForm({ ...form, name: sanitizeName(v) })}
                                 error={errors.name}
+                                maxLength={NAME_MAX_LENGTH}
+                                minLength={NAME_MIN_LENGTH}
                             />
                             <EmailVerifyRow
                                 value={form.email}
-                                onValueChange={(v: string) => setForm({ ...form, email: v })}
+                                onValueChange={(v: string) => setForm({ ...form, email: sanitizeEmail(v) })}
                                 verified={emailOk}
                                 onVerifyPress={() => setEmailVerifyModalVisible(true)}
                                 error={errors.email}
+                                maxLength={EMAIL_MAX_LENGTH}
                             />
                             <SelectField
                                 label="Primary Language"
@@ -1225,15 +1385,17 @@ export default function FreelancerSignup() {
                                 placeholder="Tell us about your services..."
                                 multiline
                                 value={form.bio}
-                                onChangeText={(v: string) => setForm({ ...form, bio: v })}
+                                onChangeText={(v: string) => setForm({ ...form, bio: sanitizeBio(v) })}
                                 error={errors.bio}
-                                maxLength={1000}
+                                maxLength={BIO_MAX_LENGTH}
+                                minLength={BIO_MIN_LENGTH}
                             />
                             <FormField
                                 label="Portfolio URL"
                                 placeholder="https://yourportfolio.com (optional)"
                                 value={form.portfolioUrl}
                                 onChangeText={(v: string) => setForm({ ...form, portfolioUrl: v })}
+                                error={errors.portfolioUrl}
                             />
 
                             {/* Social Media Section */}
@@ -1257,7 +1419,7 @@ export default function FreelancerSignup() {
                                             onVerifyPress={handleIgVerify}
                                             verifying={igVerifying}
                                         />
-                                        {errors.instagram ? <Text className="text-red-500 text-[12px] -mt-3 mb-4 ml-1">{errors.instagram}</Text> : null}
+                                        {instagramLiveError ? <Text className="text-red-500 text-[12px] -mt-3 mb-4 ml-1">{instagramLiveError}</Text> : null}
                                     </>
                                 )}
                                 <SocialVerifyRow
@@ -1269,13 +1431,14 @@ export default function FreelancerSignup() {
                                 />
                                 <SocialVerifyRow
                                     platform="Facebook"
-                                    verified={socialVerified.FACEBOOK || !!form.facebookHandle}
+                                    verified={socialVerified.FACEBOOK || isKnownPlatformLink(form.facebookHandle, ['facebook.com', 'fb.com'])}
                                     verifying={socialVerifying.FACEBOOK}
                                     accountLabel={socialAccountNames.FACEBOOK || form.facebookHandle}
                                     onVerifyPress={() => handleSocialVerify('FACEBOOK')}
                                     linkValue={form.facebookHandle}
                                     onLinkChange={(v: string) => setForm({ ...form, facebookHandle: v })}
                                     linkPlaceholder="facebook.com/username or profile link"
+                                    error={facebookLiveError}
                                 />
                                 <SocialRow
                                     platform="Twitter / X"
@@ -1283,6 +1446,7 @@ export default function FreelancerSignup() {
                                     followersValue={form.twitterFollowers}
                                     onLinkChange={(v: string) => setForm({ ...form, twitterHandle: v })}
                                     onFollowersChange={(v: string) => setForm({ ...form, twitterFollowers: v.replace(/[^0-9]/g, '') })}
+                                    error={twitterLiveError}
                                 />
                                 <SocialRow
                                     platform="Snapchat"
@@ -1290,6 +1454,7 @@ export default function FreelancerSignup() {
                                     followersValue={form.snapchatFollowers}
                                     onLinkChange={(v: string) => setForm({ ...form, snapchatHandle: v })}
                                     onFollowersChange={(v: string) => setForm({ ...form, snapchatFollowers: v.replace(/[^0-9]/g, '') })}
+                                    error={snapchatLiveError}
                                 />
                             </View>
 
@@ -1371,8 +1536,10 @@ export default function FreelancerSignup() {
                                 required
                                 placeholder="e.g. Logo Design, Copywriting (comma separated)"
                                 value={form.skillsInput}
-                                onChangeText={(v: string) => setForm({ ...form, skillsInput: v })}
+                                onChangeText={(v: string) => setForm({ ...form, skillsInput: sanitizeSkills(v) })}
                                 error={errors.skillsInput}
+                                maxLength={SKILLS_MAX_LENGTH}
+                                minLength={SKILLS_MIN_LENGTH}
                             />
 
                             <LocationField

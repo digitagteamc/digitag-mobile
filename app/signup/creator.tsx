@@ -49,6 +49,24 @@ const EMAIL_FORMAT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const LANGUAGES = ['English', 'Hindi', 'Telugu', 'Tamil', 'Kannada', 'Marathi', 'Malayalam', 'Bengali'];
 const LEVELS = ['Beginner', 'Intermediate', 'Pro'];
 
+// Input length limits — frontend-only guardrails so users can't submit
+// absurdly short/long values; kept generous enough not to block real names/bios.
+const NAME_MIN_LENGTH = 2;
+const NAME_MAX_LENGTH = 50;
+const EMAIL_MAX_LENGTH = 50; // RFC 5321 max mailbox length
+const BIO_MIN_LENGTH = 10;
+const BIO_MAX_LENGTH = 1000;
+
+// Character-set guardrails — strip disallowed characters as the user types
+// rather than only flagging them on submit.
+// Name: letters (incl. non-Latin scripts) and spaces only, no digits/symbols.
+const sanitizeName = (v: string) => v.replace(/[^\p{L}\s]/gu, '');
+// Bio: letters/digits/spaces plus ordinary prose punctuation — free text
+// still needs periods, commas, apostrophes etc. to be usable.
+const sanitizeBio = (v: string) => v.replace(/[^\p{L}\p{N}\s.,!?'"()\-:;&\n]/gu, '');
+// Email: only characters valid in an email address.
+const sanitizeEmail = (v: string) => v.replace(/[^a-zA-Z0-9@._%+-]/g, '');
+
 // --- Sub-components ---
 
 const CircularProgress = ({ current, total }: { current: number; total: number }) => {
@@ -102,33 +120,49 @@ const FormField = ({
     keyboardType = 'default',
     error,
     maxLength,
-}: any) => (
-    <View className="mb-5">
-        <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
-            {label} {required && <Text className="text-red-500">*</Text>}
-        </Text>
-        <TextInput
-            placeholder={placeholder}
-            placeholderTextColor="#555"
-            multiline={multiline}
-            numberOfLines={multiline ? 4 : 1}
-            textAlignVertical={multiline ? 'top' : 'auto'}
-            keyboardType={keyboardType}
-            value={value}
-            onChangeText={onChangeText}
-            className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
-                } ${error ? 'border border-red-500' : ''}`}
-        />
-        <View className="flex-row justify-between items-start mt-1.5 ml-1 mr-1">
-            {error ? <Text className="text-red-500 text-[12px] flex-1">{error}</Text> : <View />}
-            {maxLength ? (
-                <Text className={`text-[11px] ${(value?.length || 0) > maxLength ? 'text-red-500' : 'text-[#666]'}`}>
-                    {value?.length || 0}/{maxLength}
-                </Text>
-            ) : null}
+    minLength,
+}: any) => {
+    const len = (value || '').length;
+    const belowMin = !!minLength && len > 0 && len < minLength;
+    // Submit-time error takes priority; otherwise surface a live "too short"
+    // hint as the user types, so they don't have to hit Next to learn a
+    // field is too short. Overflow past maxLength is intentionally NOT
+    // blocked here — the counter below just goes red — so nobody loses text
+    // they already typed; the real cap is enforced on submit instead.
+    const minHint = !error && belowMin ? `Minimum ${minLength} characters required (${len}/${minLength}).` : null;
+
+    return (
+        <View className="mb-5">
+            <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
+                {label} {required && <Text className="text-red-500">*</Text>}
+            </Text>
+            <TextInput
+                placeholder={placeholder}
+                placeholderTextColor="#555"
+                multiline={multiline}
+                numberOfLines={multiline ? 4 : 1}
+                textAlignVertical={multiline ? 'top' : 'auto'}
+                keyboardType={keyboardType}
+                value={value}
+                onChangeText={onChangeText}
+                className={`bg-[#1A1A1A] text-white px-4 rounded-[12px] font-poppins-regular ${multiline ? 'py-4 h-32' : 'h-[56px]'
+                    } ${error ? 'border border-red-500' : ''}`}
+            />
+            <View className="flex-row justify-between items-start mt-1.5 ml-1 mr-1">
+                {error ? (
+                    <Text className="text-red-500 text-[12px] flex-1">{error}</Text>
+                ) : minHint ? (
+                    <Text className="text-red-500 text-[12px] flex-1">{minHint}</Text>
+                ) : <View />}
+                {maxLength ? (
+                    <Text className={`text-[11px] ${len > maxLength ? 'text-red-500' : 'text-[#666]'}`}>
+                        {len}/{maxLength}
+                    </Text>
+                ) : null}
+            </View>
         </View>
-    </View>
-);
+    );
+};
 
 const LocationField = ({ label = 'Location', required, placeholder, value, onChangeText, error }: any) => {
     const [focused, setFocused] = useState(false);
@@ -301,13 +335,13 @@ const SelectField = ({ label, required, placeholder, options, selected, onSelect
     );
 };
 
-const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange }: any) => (
+const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollowersChange, error }: any) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
             {platform} <Text className="text-[#666] text-[12px]">(Optional)</Text>
         </Text>
         <View className="flex-row gap-2">
-            <View className="flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center">
+            <View className={`flex-[3] bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] justify-center ${error ? 'border border-red-500' : ''}`}>
                 <TextInput
                     placeholder={`${platform} links`}
                     placeholderTextColor="#555"
@@ -328,6 +362,7 @@ const SocialRow = ({ platform, linkValue, followersValue, onLinkChange, onFollow
                 />
             </View>
         </View>
+        {error ? <Text className="text-red-500 text-[12px] mt-1.5 ml-1">{error}</Text> : null}
     </View>
 );
 
@@ -401,9 +436,10 @@ type EmailVerifyProps = {
     verified: boolean;
     onVerifyPress: () => void;
     error?: string;
+    maxLength?: number;
 };
 
-const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }: EmailVerifyProps) => {
+const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error, maxLength }: EmailVerifyProps) => {
     const validFormat = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
     return (
         <View className="mb-5">
@@ -419,6 +455,7 @@ const EmailVerifyRow = ({ value, onValueChange, verified, onVerifyPress, error }
                     autoCorrect={false}
                     value={value}
                     onChangeText={onValueChange}
+                    maxLength={maxLength}
                     className="text-white font-poppins-regular"
                 />
             </View>
@@ -460,6 +497,7 @@ type SocialVerifyRowProps = {
     linkValue?: string;
     onLinkChange?: (v: string) => void;
     linkPlaceholder?: string;
+    error?: string;
 };
 
 const SocialVerifyRow = ({
@@ -471,6 +509,7 @@ const SocialVerifyRow = ({
     linkValue,
     onLinkChange,
     linkPlaceholder,
+    error,
 }: SocialVerifyRowProps) => (
     <View className="mb-4">
         <Text className="text-white font-poppins-regular text-[13px] mb-2 ml-1">
@@ -483,9 +522,10 @@ const SocialVerifyRow = ({
                 value={linkValue}
                 onChangeText={onLinkChange}
                 autoCapitalize="none"
-                className="bg-[#1A1A1A] h-[48px] px-4 rounded-[12px] text-white font-poppins-regular mb-2.5"
+                className={`bg-[#1A1A1A] h-[48px] px-4 rounded-[12px] text-white font-poppins-regular mb-2.5 ${error ? 'border border-red-500' : ''}`}
             />
         ) : null}
+        {!verified && error ? <Text className="text-red-500 text-[12px] -mt-1.5 mb-2.5 ml-1">{error}</Text> : null}
         {verified ? (
             <View className="bg-[#0f2a0f] h-[56px] px-4 rounded-[12px] flex-row items-center justify-between">
                 <Text className="text-white font-poppins-regular flex-1" numberOfLines={1}>
@@ -924,11 +964,11 @@ export default function CreatorSignup() {
 
     const isStep1Valid = useMemo(() => {
         return (
-            form.name.trim() !== '' &&
+            form.name.trim().length >= NAME_MIN_LENGTH &&
             emailOk &&
             form.primaryLanguage !== '' &&
             form.category !== '' &&
-            form.bio.trim() !== ''
+            form.bio.trim().length >= BIO_MIN_LENGTH
         );
     }, [form, emailOk]);
 
@@ -1001,7 +1041,11 @@ export default function CreatorSignup() {
         );
     };
 
-    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '').replace(/[/?#].*$/, '');
+    // Accepts a bare handle, "@handle", or a full profile link (with or
+    // without "https://") and reduces it to the bare handle either way —
+    // the placeholders on these fields explicitly invite "site.com/username"
+    // input, so the protocol can't be required.
+    const stripHandle = (v: string) => v.trim().replace(/^@/, '').replace(/^(https?:\/\/)?(www\.)?(instagram|youtube|twitter|x|facebook|snapchat)\.com\//i, '').replace(/[/?#].*$/, '');
 
     const isValidUrl = (v: string) => {
         try { new URL(v); return true; } catch { return false; }
@@ -1009,9 +1053,56 @@ export default function CreatorSignup() {
 
     const isValidHandle = (v: string) => /^[a-zA-Z0-9._\-]{1,50}$/.test(v);
 
+    // A bare handle just needs the right character set (isValidHandle above).
+    // But if what was typed actually looks like a link (has a slash, or a
+    // domain-style ending like ".com"), it must resolve to a URL whose host
+    // is really one of that platform's domains — otherwise a Snapchat link
+    // pasted into the Facebook field (or any random URL) would slip through
+    // just because it happened to contain only "safe" characters.
+    const isValidPlatformInput = (v: string, domains: string[]) => {
+        const trimmed = v.trim().replace(/^@/, '');
+        if (!trimmed) return true;
+        const looksLikeLink = trimmed.includes('/') || /\.[a-z]{2,}$/i.test(trimmed);
+        if (looksLikeLink) {
+            const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+            try {
+                const host = new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
+                return domains.some((d) => host === d || host.endsWith(`.${d}`));
+            } catch {
+                return false;
+            }
+        }
+        return isValidHandle(trimmed);
+    };
+
+    // Stricter than isValidPlatformInput above — only a genuine facebook.com/
+    // fb.com link counts here. Used solely to decide whether the manual entry
+    // field should show the "✓ Verified/connected" state: a bare word like
+    // "asdkjh" passes the plain character-set check (it's a syntactically
+    // fine handle) but was never actually confirmed to belong to Facebook, so
+    // it shouldn't visually look verified — only a real profile link (or the
+    // actual OAuth flow) should.
+    const isKnownPlatformLink = (v: string, domains: string[]) => {
+        const trimmed = v.trim().replace(/^@/, '');
+        if (!trimmed) return false;
+        const looksLikeLink = trimmed.includes('/') || /\.[a-z]{2,}$/i.test(trimmed);
+        if (!looksLikeLink) return false;
+        const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+        try {
+            const host = new URL(withProtocol).hostname.replace(/^www\./i, '').toLowerCase();
+            return domains.some((d) => host === d || host.endsWith(`.${d}`));
+        } catch {
+            return false;
+        }
+    };
+
     const handleNext = () => {
         const next: Record<string, string> = {};
-        if (!form.name.trim()) next.name = 'Full name is required.';
+        if (!form.name.trim()) {
+            next.name = 'Full name is required.';
+        } else if (form.name.trim().length < NAME_MIN_LENGTH) {
+            next.name = `Full name must be at least ${NAME_MIN_LENGTH} characters.`;
+        }
         if (!form.email.trim() || !EMAIL_FORMAT_RE.test(form.email.trim())) {
             next.email = 'Please enter a valid email address.';
         } else if (!emailOk) {
@@ -1019,15 +1110,38 @@ export default function CreatorSignup() {
         }
         if (!form.primaryLanguage) next.primaryLanguage = 'Please select a primary language.';
         if (!form.category) next.category = 'Please select a category.';
-        if (!form.bio.trim()) next.bio = 'Bio is required.';
-        else if (form.bio.trim().length > 1000) next.bio = 'Bio must be 1000 characters or less.';
-        if (mode === 'create' && !igVerified) next.instagram = 'Please verify your Instagram account to continue.';
-        // Snapchat also lives on this step — validate it here, not at final
-        // submit, or the error would show on a step the user already left.
+        if (!form.bio.trim()) {
+            next.bio = 'Bio is required.';
+        } else if (form.bio.trim().length < BIO_MIN_LENGTH) {
+            next.bio = `Bio must be at least ${BIO_MIN_LENGTH} characters.`;
+        } else if (form.bio.trim().length > BIO_MAX_LENGTH) {
+            next.bio = `Bio must be ${BIO_MAX_LENGTH} characters or less.`;
+        }
+        if (mode === 'create') {
+            if (!form.instagramHandle.trim()) {
+                next.instagram = 'Please verify your Instagram account to continue.';
+            } else if (!isValidPlatformInput(form.instagramHandle, ['instagram.com'])) {
+                next.instagram = 'Please enter a valid Instagram username or instagram.com profile link.';
+            } else if (!igVerified) {
+                next.instagram = 'Please verify your Instagram account to continue.';
+            }
+        }
+        // The manual social fields (Facebook/Twitter/Snapchat) also live on
+        // this step — validate them here, not at final submit, or the error
+        // would show on a step the user already left. All are optional, so
+        // only flag a bad format when something was actually typed.
         // (Instagram's own format is guaranteed by the verify step above; in
-        // update mode the handle is read-only, already-verified.)
-        const sc = stripHandle(form.snapchatHandle);
-        if (sc && !isValidHandle(sc)) next.snapchatHandle = 'Snapchat username can only contain letters, numbers, hyphens and underscores.';
+        // update mode the handle is read-only, already-verified. YouTube has
+        // no manual field here — it's OAuth-only.)
+        if (form.facebookHandle.trim() && !isValidPlatformInput(form.facebookHandle, ['facebook.com', 'fb.com'])) {
+            next.facebookHandle = 'Please enter a valid Facebook username or facebook.com profile link.';
+        }
+        if (form.twitterHandle.trim() && !isValidPlatformInput(form.twitterHandle, ['twitter.com', 'x.com'])) {
+            next.twitterHandle = 'Please enter a valid Twitter/X username or twitter.com / x.com profile link.';
+        }
+        if (form.snapchatHandle.trim() && !isValidPlatformInput(form.snapchatHandle, ['snapchat.com'])) {
+            next.snapchatHandle = 'Please enter a valid Snapchat username or snapchat.com profile link.';
+        }
         setErrors(next);
         if (Object.keys(next).length > 0) return;
         setStep(2);
@@ -1343,6 +1457,23 @@ export default function CreatorSignup() {
         );
     }
 
+    // Live format errors — recomputed every render off the current form
+    // values, so a bad link/handle shows up immediately as the user types
+    // instead of only after they press Next. Falls back to the submit-time
+    // error (e.g. "required") when nothing invalid is currently typed.
+    const instagramLiveError = form.instagramHandle.trim() && !isValidPlatformInput(form.instagramHandle, ['instagram.com'])
+        ? 'Please enter a valid Instagram username or instagram.com profile link.'
+        : errors.instagram;
+    const facebookLiveError = form.facebookHandle.trim() && !isValidPlatformInput(form.facebookHandle, ['facebook.com', 'fb.com'])
+        ? 'Please enter a valid Facebook username or facebook.com profile link.'
+        : errors.facebookHandle;
+    const twitterLiveError = form.twitterHandle.trim() && !isValidPlatformInput(form.twitterHandle, ['twitter.com', 'x.com'])
+        ? 'Please enter a valid Twitter/X username or twitter.com / x.com profile link.'
+        : errors.twitterHandle;
+    const snapchatLiveError = form.snapchatHandle.trim() && !isValidPlatformInput(form.snapchatHandle, ['snapchat.com'])
+        ? 'Please enter a valid Snapchat username or snapchat.com profile link.'
+        : errors.snapchatHandle;
+
     return (
         <SafeAreaView className="flex-1 bg-black" edges={['top', 'left', 'right', 'bottom']}>
             <LinearGradient colors={['#300A1F', '#000000']} className="absolute inset-0 h-[33%]" />
@@ -1386,15 +1517,18 @@ export default function CreatorSignup() {
                                 required
                                 placeholder="Full Name"
                                 value={form.name}
-                                onChangeText={(v: string) => setForm({ ...form, name: v })}
+                                onChangeText={(v: string) => setForm({ ...form, name: sanitizeName(v) })}
                                 error={errors.name}
+                                maxLength={NAME_MAX_LENGTH}
+                                minLength={NAME_MIN_LENGTH}
                             />
                             <EmailVerifyRow
                                 value={form.email}
-                                onValueChange={(v: string) => setForm({ ...form, email: v })}
+                                onValueChange={(v: string) => setForm({ ...form, email: sanitizeEmail(v) })}
                                 verified={emailOk}
                                 onVerifyPress={() => setEmailVerifyModalVisible(true)}
                                 error={errors.email}
+                                maxLength={EMAIL_MAX_LENGTH}
                             />
                             <SelectField
                                 label="Primary Language"
@@ -1430,9 +1564,10 @@ export default function CreatorSignup() {
                                 placeholder="Tell people about yourself..."
                                 multiline
                                 value={form.bio}
-                                onChangeText={(v: string) => setForm({ ...form, bio: v })}
+                                onChangeText={(v: string) => setForm({ ...form, bio: sanitizeBio(v) })}
                                 error={errors.bio}
-                                maxLength={1000}
+                                maxLength={BIO_MAX_LENGTH}
+                                minLength={BIO_MIN_LENGTH}
                             />
                             {/* Social Media Section */}
                             <View className="mt-4 mb-8">
@@ -1458,7 +1593,7 @@ export default function CreatorSignup() {
                                             onVerifyPress={handleIgVerify}
                                             verifying={igVerifying}
                                         />
-                                        {errors.instagram ? <Text className="text-red-500 text-[12px] -mt-3 mb-4 ml-1">{errors.instagram}</Text> : null}
+                                        {instagramLiveError ? <Text className="text-red-500 text-[12px] -mt-3 mb-4 ml-1">{instagramLiveError}</Text> : null}
                                     </>
                                 )}
                                 <SocialVerifyRow
@@ -1470,13 +1605,14 @@ export default function CreatorSignup() {
                                 />
                                 <SocialVerifyRow
                                     platform="Facebook"
-                                    verified={socialVerified.FACEBOOK || !!form.facebookHandle}
+                                    verified={socialVerified.FACEBOOK || isKnownPlatformLink(form.facebookHandle, ['facebook.com', 'fb.com'])}
                                     verifying={socialVerifying.FACEBOOK}
                                     accountLabel={socialAccountNames.FACEBOOK || form.facebookHandle}
                                     onVerifyPress={() => handleSocialVerify('FACEBOOK')}
                                     linkValue={form.facebookHandle}
                                     onLinkChange={(v: string) => setForm({ ...form, facebookHandle: v })}
                                     linkPlaceholder="facebook.com/username or profile link"
+                                    error={facebookLiveError}
                                 />
                                 <SocialRow
                                     platform="Twitter / X"
@@ -1484,6 +1620,7 @@ export default function CreatorSignup() {
                                     followersValue={form.twitterFollowers}
                                     onLinkChange={(v: string) => setForm({ ...form, twitterHandle: v })}
                                     onFollowersChange={(v: string) => setForm({ ...form, twitterFollowers: v.replace(/[^0-9]/g, '') })}
+                                    error={twitterLiveError}
                                 />
                                 <SocialRow
                                     platform="Snapchat"
@@ -1491,6 +1628,7 @@ export default function CreatorSignup() {
                                     followersValue={form.snapchatFollowers}
                                     onLinkChange={(v: string) => setForm({ ...form, snapchatHandle: v })}
                                     onFollowersChange={(v: string) => setForm({ ...form, snapchatFollowers: v.replace(/[^0-9]/g, '') })}
+                                    error={snapchatLiveError}
                                 />
                             </View>
 
