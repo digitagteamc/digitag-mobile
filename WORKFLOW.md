@@ -7,6 +7,7 @@
 - `feature/<short-name>` — new functionality
 - `fix/<short-name>` — bug fixes
 - `hotfix/<short-name>` — same as `fix`, just signals "urgent, review fast"
+- `incomplete` — work that's finished as code but deliberately not ready to merge yet. Lives here instead of as uncommitted local changes, so it's visible and can't be accidentally lost. Not a PR — nothing to review yet.
 
 No `develop` branch, no release branches — `main` *is* the release line.
 
