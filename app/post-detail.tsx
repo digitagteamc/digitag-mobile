@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Image,
   Linking,
   Modal,
@@ -42,8 +41,6 @@ import {
   updatePostStatus,
 } from '../services/userService';
 import { getRoleTheme, useRoleTheme } from '../theme/useRoleTheme';
-
-const { width: SW } = Dimensions.get('window');
 
 
 function timeAgo(dateStr?: string) {
@@ -452,11 +449,6 @@ export default function PostDetail() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ED2A91" />}
         >
 
-          {/* Post image(s) — up to 3 for portfolio-category posts, swipeable */}
-          {postImages.length > 0 && (
-            <PortfolioImageCarousel images={postImages} style={styles.bannerWrap} />
-          )}
-
           {/* Main profile card */}
           <View style={[styles.card, { borderColor: ownerTheme.border }]}>
             {/* Top ambient glow, colored by the post owner's role (not the
@@ -543,6 +535,11 @@ export default function PostDetail() {
                 <Text style={styles.metaText}>{timeAgo(post.createdAt)}</Text>
               </View>
             </View>
+
+            {/* Post image(s) — up to 3 for portfolio-category posts, swipeable */}
+            {postImages.length > 0 && (
+              <PortfolioImageCarousel images={postImages} style={styles.bannerWrapInCard} />
+            )}
 
             {post.description ? (
               <View style={styles.aboutSection}>
@@ -876,10 +873,12 @@ const styles = StyleSheet.create({
 
   scroll: { paddingBottom: 20 },
 
-  bannerWrap: {
-    width: SW,
-    height: 200,
-    marginBottom: 16,
+  bannerWrapInCard: {
+    width: '100%',
+    height: 190,
+    borderRadius: 16,
+    marginTop: 16,
+    marginBottom: 4,
   },
 
   card: {

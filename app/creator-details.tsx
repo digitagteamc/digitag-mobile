@@ -10,6 +10,7 @@ import {
     Image,
     Linking,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -440,7 +441,7 @@ export default function CreatorDetails() {
                             {languagesText ? (
                                 <View style={styles.infoItem}>
                                     <Ionicons name="language-outline" size={18} color="#A0A0A0" />
-                                    <Text style={styles.infoText}>{languagesText}</Text>
+                                    <Text style={styles.infoText} numberOfLines={1}>{languagesText}</Text>
                                 </View>
                             ) : null}
                         </View>
@@ -744,6 +745,7 @@ const styles = StyleSheet.create({
         fontFamily: fonts.semibold,
         lineHeight: 28,
         letterSpacing: -0.5,
+        marginBottom:2,
     },
     category: {
         color: '#A0A0A0',
@@ -756,7 +758,7 @@ const styles = StyleSheet.create({
         padding: 1,
         alignSelf: 'flex-start',
         marginTop: 6,
-        marginBottom: 4,
+        marginBottom: 20,
     },
     expertBadge: {
         flexDirection: 'row',
@@ -789,7 +791,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 3,
-        maxWidth: '48%',
+        maxWidth: '100%',
     },
     infoText: {
         color: '#E0E0E0',
@@ -857,8 +859,10 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontFamily: fonts.regular,
         lineHeight:20,
-        marginTop: 4,
-        
+        // A flat marginTop:4 reads as basically no gap on iOS (tighter native
+        // line-box rendering than Android for the same lineHeight), so iOS
+        // needs a larger value to actually show visible space here.
+        marginTop: Platform.OS === 'ios' ? 8 : 4,
     },
     statDivider: {
         width: 1,
