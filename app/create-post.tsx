@@ -32,7 +32,7 @@ type CollabChoice = 'UNPAID' | 'PAID';
 
 const CREATOR_CATEGORIES = [
   'Photography',
-  'Editors',
+  'Editor',
   'Videography',
   'Growth Specialist',
   'Script Writers',

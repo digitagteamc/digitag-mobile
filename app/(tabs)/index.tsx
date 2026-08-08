@@ -822,6 +822,24 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
               )}
             </View>
 
+            {/* A Freelancer's post shows their own profile category ("I'm a
+                Videographer"); a Creator's post shows the category of
+                freelancer they want ("I'm Looking for a Videographer") —
+                same rule as Explore/post-detail. */}
+            {(() => {
+              const isFreelancerOwner = item.ownerRole === 'FREELANCER';
+              const displayCategory = isFreelancerOwner ? (item.ownerCategoryNames?.[0] || '') : item.postCategory;
+              if (!displayCategory) return null;
+              return (
+                <View style={styles.lookingForRow}>
+                  <Text style={styles.lookingForLabel}>{isFreelancerOwner ? "I'm a" : "I'm Looking for"}</Text>
+                  <View style={styles.lookingForPill}>
+                    <Text style={styles.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCategory}</Text>
+                  </View>
+                </View>
+              );
+            })()}
+
             {/* Description (body only — the post title is never shown here).
                 Capped at 3 lines. The bottom action row is no longer
                 position:absolute (see the flexible spacer below), so a
@@ -1371,6 +1389,12 @@ export default function Homepage() {
       name,
       role: roleLabel,
       experience: owner.experience || '',
+      // A Freelancer's post shows their own profile category ("I'm a
+      // Videographer"); a Creator's post shows the post's own selected
+      // category — the category of freelancer they want ("I'm Looking for
+      // a Videographer"). Same rule as Explore/post-detail.
+      postCategory: post.category || '',
+      ownerCategoryNames: Array.isArray(owner.categoryNames) ? owner.categoryNames : [],
       desc: descBody,
       price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
       budget: post.budget || null,
@@ -2425,6 +2449,18 @@ const styles = StyleSheet.create({
     marginTop: 6,
     maxWidth: '90%',
   },
+  lookingForRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6, maxWidth: '90%' },
+  lookingForLabel: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_500Medium', flexShrink: 0 },
+  lookingForPill: {
+    backgroundColor: '#FFC10A',
+    borderRadius: 99,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    alignSelf: 'flex-start',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  lookingForPillText: { color: '#000', fontSize: 10, fontFamily: 'Poppins_700Bold', alignSelf: 'center', paddingHorizontal: 4, paddingVertical: 3, marginTop: 2 },
   figmaCardRoleText: {
     color: '#9ca3af',
     fontSize: 12,
