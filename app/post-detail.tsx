@@ -552,11 +552,14 @@ export default function PostDetail() {
               </View>
             </View>
 
-            {/* "I'm Looking for [category]" — same treatment as the Explore
-                post card, for visual consistency between the two. */}
+            {/* A Freelancer's post is them advertising their own category
+                ("I'm a Videographer"); a Creator's post is them naming the
+                category of freelancer they want ("I'm Looking for a
+                Videographer") — same treatment as the Explore post card,
+                for visual consistency between the two. */}
             {!!post.category && (
               <View style={styles.lookingForRow}>
-                <Text style={styles.lookingForLabel}>{"I'm Looking for"}</Text>
+                <Text style={styles.lookingForLabel}>{isOwnerFreelancer ? "I'm a" : "I'm Looking for"}</Text>
                 <View style={styles.lookingForPill}>
                   <Text style={styles.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{post.category}</Text>
                 </View>
