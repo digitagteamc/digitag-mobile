@@ -1010,7 +1010,7 @@ const styles = StyleSheet.create({
   lookingForPill: {
     backgroundColor: '#FFC10A',
     borderRadius: 99,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     alignSelf: 'flex-start',
     flexShrink: 1,
