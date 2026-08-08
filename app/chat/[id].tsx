@@ -34,6 +34,7 @@ import ZoomableImage from '../../Components/ui/ZoomableImage';
 import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
 import { prepareImageForUpload } from '../../services/imageResize';
+import { downloadImageToGallery } from '../../services/mediaDownload';
 import {
     deleteMessage as apiDeleteMessage,
     editMessage as apiEditMessage,
@@ -236,6 +237,7 @@ export default function ChatScreen() {
     const [ctxMsg, setCtxMsg] = useState<ChatMessage | null>(null);
     const [ctxMine, setCtxMine] = useState(false);
     const [viewImageUrl, setViewImageUrl] = useState<string | null>(null);
+    const [savingViewedImage, setSavingViewedImage] = useState(false);
     // Single keyboard-compensation mechanism for BOTH platforms. useAnimatedKeyboard
     // tracks the keyboard's real native animation frame-by-frame on the UI thread, so
     // the composer rises in perfect sync. Do NOT wrap this screen in a
@@ -543,6 +545,34 @@ export default function ChatScreen() {
         if (!ctxMsg) return;
         await Clipboard.setStringAsync(ctxMsg.content || '');
         setCtxMsg(null);
+    };
+
+    const handleSaveViewedImage = async () => {
+        if (!viewImageUrl || savingViewedImage) return;
+        setSavingViewedImage(true);
+        const res = await downloadImageToGallery(viewImageUrl);
+        setSavingViewedImage(false);
+        if (res.success) {
+            Alert.alert('Saved', 'Image saved to your gallery.');
+        } else if (res.error === 'permission_denied') {
+            Alert.alert('Permission Required', 'Photo library access is needed to save images.');
+        } else {
+            Alert.alert('Save Failed', 'Could not save the image. Please try again.');
+        }
+    };
+
+    const handleCtxSaveImage = async () => {
+        const url = ctxMsg?.imageUrl;
+        setCtxMsg(null);
+        if (!url) return;
+        const res = await downloadImageToGallery(url);
+        if (res.success) {
+            Alert.alert('Saved', 'Image saved to your gallery.');
+        } else if (res.error === 'permission_denied') {
+            Alert.alert('Permission Required', 'Photo library access is needed to save images.');
+        } else {
+            Alert.alert('Save Failed', 'Could not save the image. Please try again.');
+        }
     };
 
     const handleCtxDelete = () => {
@@ -859,6 +889,16 @@ export default function ChatScreen() {
                     >
                         <Ionicons name="close" size={24} color="#fff" />
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        style={{ position: 'absolute', top: (insets.top || 0) + 12, right: 64, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                        onPress={handleSaveViewedImage}
+                        disabled={savingViewedImage}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        {savingViewedImage
+                            ? <ActivityIndicator size="small" color="#fff" />
+                            : <Ionicons name="download-outline" size={24} color="#fff" />}
+                    </TouchableOpacity>
                     {viewImageUrl && <ZoomableImage uri={viewImageUrl} />}
                 </GestureHandlerRootView>
             </Modal>
@@ -904,6 +944,14 @@ export default function ChatScreen() {
                             <TouchableOpacity style={styles.ctxAction} onPress={handleCtxEdit}>
                                 <Ionicons name="pencil-outline" size={18} color="#ccc" />
                                 <Text style={styles.ctxActionText}>Edit</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {/* Save Image — only messages carrying an image */}
+                        {!!ctxMsg?.imageUrl && (
+                            <TouchableOpacity style={styles.ctxAction} onPress={handleCtxSaveImage}>
+                                <Ionicons name="download-outline" size={18} color="#ccc" />
+                                <Text style={styles.ctxActionText}>Save Image</Text>
                             </TouchableOpacity>
                         )}
 

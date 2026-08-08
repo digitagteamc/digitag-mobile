@@ -1936,7 +1936,7 @@ export default function Homepage() {
               height={40}
               style={{ marginTop: 6 }}
             />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+            <View style={{ flexDirection:'row', alignItems: 'center', marginTop: 6 }}>
               <Text style={styles.bharatTitleLine}>Network For </Text>
               <HeroGradientText
                 text={userRole === 'FREELANCER' ? 'Freelancers' : 'Creators'}
