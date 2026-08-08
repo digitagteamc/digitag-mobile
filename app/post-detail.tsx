@@ -533,11 +533,35 @@ export default function PostDetail() {
                 ) : null}
 
               </View>
+              {/* Languages pill — same metaPill style as location */}
+              {(() => {
+                const langsArr: string[] = owner.languages && owner.languages.length > 0
+                  ? (Array.isArray(owner.languages) ? owner.languages : [owner.languages])
+                  : owner.language ? [owner.language] : [];
+                const languagesText = langsArr.join(', ');
+                return languagesText ? (
+                  <View style={styles.metaPill}>
+                    <Ionicons name="language-outline" size={15} color="#8A8A99" />
+                    <Text style={styles.metaTextLight} numberOfLines={1}>{languagesText}</Text>
+                  </View>
+                ) : null;
+              })()}
               <View style={styles.metaPill}>
                 <Ionicons name="time-outline" size={14} color="#8A8A99" />
                 <Text style={styles.metaText}>{timeAgo(post.createdAt)}</Text>
               </View>
             </View>
+
+            {/* "I'm Looking for [category]" — same treatment as the Explore
+                post card, for visual consistency between the two. */}
+            {!!post.category && (
+              <View style={styles.lookingForRow}>
+                <Text style={styles.lookingForLabel}>{"I'm Looking for"}</Text>
+                <View style={styles.lookingForPill}>
+                  <Text style={styles.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{post.category}</Text>
+                </View>
+              </View>
+            )}
 
             {/* Post image(s) — up to 3 for portfolio-category posts, swipeable */}
             {postImages.length > 0 && (
@@ -582,6 +606,7 @@ export default function PostDetail() {
                 </View>
               </View>
             </View>
+
           </View>
 
           {/* Owner-only control over this post's lifecycle: Completed keeps it
@@ -967,6 +992,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
   },
+
+  // "I'm Looking for [category]" — stays on one line at any screen width:
+  // the label never shrinks, the pill hugs its text and only shrinks its own
+  // font (never wraps/truncates) when space is tight.
+  lookingForRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+  lookingForLabel: { color: '#fff', fontSize: 14, fontFamily: 'Poppins_500Medium', flexShrink: 0 },
+  lookingForPill: {
+    backgroundColor: '#FFC10A',
+    borderRadius: 99,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  lookingForPillText: { color: '#000', fontSize: 13, fontFamily: 'Poppins_700Bold' },
 
   metaRow: {
     flexDirection: 'row',
