@@ -552,19 +552,25 @@ export default function PostDetail() {
               </View>
             </View>
 
-            {/* A Freelancer's post is them advertising their own category
-                ("I'm a Videographer"); a Creator's post is them naming the
-                category of freelancer they want ("I'm Looking for a
-                Videographer") — same treatment as the Explore post card,
-                for visual consistency between the two. */}
-            {!!post.category && (
-              <View style={styles.lookingForRow}>
-                <Text style={styles.lookingForLabel}>{isOwnerFreelancer ? "I'm a" : "I'm Looking for"}</Text>
-                <View style={styles.lookingForPill}>
-                  <Text style={styles.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{post.category}</Text>
+            {/* A Freelancer's post is them advertising themselves — shows
+                their own profile category ("I'm a Videographer"), not
+                whatever category they picked for this particular post. A
+                Creator's post is them naming the category of freelancer
+                they want — the post's own selected category applies only
+                here ("I'm Looking for a Videographer"). Same treatment as
+                the Explore post card, for visual consistency. */}
+            {(() => {
+              const displayCategory = isOwnerFreelancer ? (owner.categoryNames?.[0] || '') : post.category;
+              if (!displayCategory) return null;
+              return (
+                <View style={styles.lookingForRow}>
+                  <Text style={styles.lookingForLabel}>{isOwnerFreelancer ? "I'm a" : "I'm Looking for"}</Text>
+                  <View style={styles.lookingForPill}>
+                    <Text style={styles.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCategory}</Text>
+                  </View>
                 </View>
-              </View>
-            )}
+              );
+            })()}
 
             {/* Post image(s) — up to 3 for portfolio-category posts, swipeable */}
             {postImages.length > 0 && (
