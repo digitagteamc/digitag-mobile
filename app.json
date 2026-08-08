@@ -144,6 +144,14 @@
         }
       ],
       [
+        "expo-media-library",
+        {
+          "photosPermission": "DigiTag needs access to your photos to save images from chat.",
+          "savePhotosPermission": "DigiTag needs access to save images from chat to your photos.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
         "@sentry/react-native",
         {
           "organization": "teamc-ih",
