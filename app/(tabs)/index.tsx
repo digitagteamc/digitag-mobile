@@ -209,7 +209,7 @@ const CAROUSEL_DATA = [
 
 const CATEGORIES = [
   { id: 'photography', label: 'Photography', image: imgPhotography, icon: 'camera-outline' as const },
-  { id: 'editor', label: 'Editors', image: imgEditor, icon: 'desktop-outline' as const },
+  { id: 'editor', label: 'Editor', image: imgEditor, icon: 'desktop-outline' as const },
   { id: 'videography', label: 'Videography', image: imgVideography, icon: 'videocam-outline' as const },
   { id: 'growth', label: 'Growth\nSpecialist', image: imgGrowth, icon: 'trending-up-outline' as const },
   { id: 'script', label: 'Script Writers', image: imgScriptWriters, icon: 'document-text-outline' as const },
