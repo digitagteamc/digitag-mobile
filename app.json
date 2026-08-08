@@ -40,7 +40,7 @@
           "voip"
         ]
       },
-      "buildNumber": "1",
+      "buildNumber": "2",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
