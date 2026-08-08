@@ -1679,15 +1679,10 @@ export default function Homepage() {
                     outputRange: [0.3, 1, 0.3],
                     extrapolate: 'clamp',
                   });
-                  const scale = activeCatPage.interpolate({
-                    inputRange: [i - 1, i, i + 1],
-                    outputRange: [0.8, 1.2, 0.8],
-                    extrapolate: 'clamp',
-                  });
                   return (
                     <Animated.View
                       key={i}
-                      style={[styles.catDot, { opacity, transform: [{ scale }] }]}
+                      style={[styles.catDot, { opacity }]}
                     />
                   );
                 })}
@@ -2313,7 +2308,8 @@ const styles = StyleSheet.create({
   catDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    aspectRatio: 1,
+    borderRadius: 99,
     backgroundColor: '#fff',
   },
   catGradientBorder: {
