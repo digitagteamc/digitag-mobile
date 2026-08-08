@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import IconButton from '../Components/ui/IconButton';
@@ -9,6 +9,14 @@ import StatusBadge from '../Components/ui/StatusBadge';
 import { Role, useAuth } from '../context/AuthContext';
 import { fonts, palette, rolePalettes, spacing } from '../theme/colors';
 import { switchRole as apiSwitchRole } from '../services/userService';
+
+// Excluded from this store submission — same pattern as
+// PREMIUM_ENABLED_THIS_BUILD in profile.tsx. No UI currently links here, but
+// the route is still reachable directly (file-based routing registers it
+// regardless of the Stack.Screen entry in _layout.tsx), so this bounces
+// anyone who lands on it back to Profile instead. Flip to true to bring the
+// feature back in a future build.
+const SWITCH_ROLE_ENABLED_THIS_BUILD = false;
 
 /**
  * Role switcher / add-role screen. Shown from Profile → Switch Role.
@@ -22,6 +30,14 @@ export default function SwitchRoleScreen() {
     const router = useRouter();
     const { token, userRole, profiles, login, userPhone } = useAuth();
     const [busy, setBusy] = useState<Role | null>(null);
+
+    useEffect(() => {
+        if (!SWITCH_ROLE_ENABLED_THIS_BUILD) {
+            router.replace('/(tabs)/profile');
+        }
+    }, []);
+
+    if (!SWITCH_ROLE_ENABLED_THIS_BUILD) return null;
 
     const choose = async (role: Role) => {
         if (!token) {
