@@ -1072,19 +1072,25 @@ export default function ExploreTab() {
             </TouchableOpacity>
           </View>
 
-          {/* Post's own category, selected on create-post (not the owner's
-              profile category) — e.g. "Videographer". A Freelancer's post is
-              them advertising their own category ("I'm a Videographer"); a
-              Creator's post is them naming the category of freelancer they
-              want ("I'm Looking for a Videographer"). */}
-          {!!item.postCategory && (
-            <View style={s.lookingForRow}>
-              <Text style={s.lookingForLabel}>{item.ownerRole === 'FREELANCER' ? "I'm a" : "I'm Looking for"}</Text>
-              <View style={s.lookingForPill}>
-                <Text style={s.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{item.postCategory}</Text>
+          {/* A Freelancer's post is them advertising themselves — shows their
+              own profile category ("I'm a Videographer"), not whatever
+              category they picked for this particular post. A Creator's
+              post is them naming the category of freelancer they want to
+              collaborate with — the post's own selected category applies
+              only here ("I'm Looking for a Videographer"). */}
+          {(() => {
+            const isFreelancerOwner = item.ownerRole === 'FREELANCER';
+            const displayCategory = isFreelancerOwner ? (item.categoryNames?.[0] || '') : item.postCategory;
+            if (!displayCategory) return null;
+            return (
+              <View style={s.lookingForRow}>
+                <Text style={s.lookingForLabel}>{isFreelancerOwner ? "I'm a" : "I'm Looking for"}</Text>
+                <View style={s.lookingForPill}>
+                  <Text style={s.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCategory}</Text>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
 
           {/* Description — truncated by character count (not numberOfLines) so the
               "See more" link is never silently dropped. numberOfLines' own ellipsis
