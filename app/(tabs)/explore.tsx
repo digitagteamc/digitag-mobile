@@ -789,6 +789,9 @@ export default function ExploreTab() {
       experience: owner.experience || '',
       languages: owner.languages || '',
       location: p.location || owner.location || '',
+      // The post's own category (selected on create-post), not the owner's
+      // profile category below — shown as the "I'm Looking for" pill.
+      postCategory: p.category || '',
       category: owner.category?.slug || '',
       categories: Array.isArray(owner.categories) ? owner.categories : [],
       categorySlugs: Array.isArray(owner.categorySlugs) ? owner.categorySlugs : [],
@@ -1069,6 +1072,17 @@ export default function ExploreTab() {
             </TouchableOpacity>
           </View>
 
+          {/* Post's own category, selected on create-post (not the owner's
+              profile category) — e.g. "Videographer". */}
+          {!!item.postCategory && (
+            <View style={s.lookingForRow}>
+              <Text style={s.lookingForLabel}>{"I'm Looking for"}</Text>
+              <View style={s.lookingForPill}>
+                <Text style={s.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{item.postCategory}</Text>
+              </View>
+            </View>
+          )}
+
           {/* Description — truncated by character count (not numberOfLines) so the
               "See more" link is never silently dropped. numberOfLines' own ellipsis
               clamp cuts the whole Text tree at the line limit, including any nested
@@ -1113,12 +1127,8 @@ export default function ExploreTab() {
               <Ionicons name={item.price === 'Paid Collab' ? 'cash-outline' : 'gift-outline'} size={13} color={item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa'} />
               <Text style={[s.pillText, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]} numberOfLines={1}>{item.price}</Text>
             </View>
-            {!!item.location && (
-              <View style={s.pill}>
-                <Ionicons name="location-outline" size={13} color="#a1a2a4" />
-                <Text style={s.pillText} numberOfLines={1}>{item.location}</Text>
-              </View>
-            )}
+            {/* Location pill hidden per request — item.location still
+                available/mapped above if it needs to come back. */}
             {!!item.budget && (
               <View style={[s.pill, { borderColor: 'rgba(251,191,36,0.4)' }]}>
                 <Ionicons name="wallet-outline" size={13} color="#fbbf24" />
@@ -1128,14 +1138,8 @@ export default function ExploreTab() {
               </View>
             )}
           </View>
-          {!!item.languages && (
-            <View style={s.pillWrapRow}>
-              <View style={s.pill}>
-                <Ionicons name="language-outline" size={13} color="#a1a2a4" />
-                <Text style={s.pillText} numberOfLines={1}>{item.languages}</Text>
-              </View>
-            </View>
-          )}
+          {/* Language pill hidden per request — item.languages still
+              available/mapped above if it needs to come back. */}
 
           {/* Bottom Actions */}
           {completedCollabPostIds.has(item.id) ? (
@@ -1679,6 +1683,23 @@ const s = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 14,
   },
+
+  // "I'm Looking for [category]" — the post's own category, not the owner's.
+  // Stays on one line at any screen width: the label never shrinks, the pill
+  // takes whatever space is left and shrinks its own font to fit rather than
+  // wrapping or truncating the category text.
+  lookingForRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6 },
+  lookingForLabel: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_500Medium', flexShrink: 0 },
+  lookingForPill: {
+    backgroundColor: '#FFC10A',
+    borderRadius: 99,
+    paddingHorizontal: 4,
+    paddingVertical: 0,
+    alignSelf: 'flex-start',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  lookingForPillText: { color: '#000', fontSize: 10, fontFamily: 'Poppins_700Bold', alignSelf: 'center', paddingHorizontal: 4, paddingVertical: 3, marginTop: 2 },
 
   // Info pills
   pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
