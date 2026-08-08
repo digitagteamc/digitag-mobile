@@ -1073,10 +1073,13 @@ export default function ExploreTab() {
           </View>
 
           {/* Post's own category, selected on create-post (not the owner's
-              profile category) — e.g. "Videographer". */}
+              profile category) — e.g. "Videographer". A Freelancer's post is
+              them advertising their own category ("I'm a Videographer"); a
+              Creator's post is them naming the category of freelancer they
+              want ("I'm Looking for a Videographer"). */}
           {!!item.postCategory && (
             <View style={s.lookingForRow}>
-              <Text style={s.lookingForLabel}>{"I'm Looking for"}</Text>
+              <Text style={s.lookingForLabel}>{item.ownerRole === 'FREELANCER' ? "I'm a" : "I'm Looking for"}</Text>
               <View style={s.lookingForPill}>
                 <Text style={s.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{item.postCategory}</Text>
               </View>
