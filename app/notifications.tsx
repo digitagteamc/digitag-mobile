@@ -414,7 +414,7 @@ export default function NotificationsScreen() {
                                         <NotificationItem
                                             key={s.id}
                                             name={s.name || (s.role === 'FREELANCER' ? 'Freelancer' : 'Creator')}
-                                            subtitle="Suggested for you"
+                                            subtitle={s.categoryNames?.[0] || 'Suggested for you'}
                                             avatarUri={s.profilePicture || null}
                                             role={s.role}
                                             variant="suggestion"
