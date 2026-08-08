@@ -2388,7 +2388,11 @@ const styles = StyleSheet.create({
   },
   figmaCard: {
     width: 248,
-    height: 347,
+    // +40 over the original 347 to fit the "I'm a / I'm Looking for
+    // [category]" row added above the description — without this, that
+    // extra row pushed the bottom Collaborate button past the fixed
+    // height and overflow:hidden clipped it off the bottom edge.
+    height: 387,
     backgroundColor: '#121212',
     borderRadius: 23.6,
     alignItems: 'center',
