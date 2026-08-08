@@ -2380,7 +2380,10 @@ const styles = StyleSheet.create({
   },
   figmaCardGradientBorder: {
     width: 251,
-    height: 350,
+    // Must track figmaCard's height (+ 2x this padding) — otherwise the
+    // border/outer shape is shorter than the actual card content and the
+    // bottom row renders past it, disconnected from the visible card.
+    height: 388,
     borderRadius: 24,
     padding: 0.4,
     alignItems: 'center',
