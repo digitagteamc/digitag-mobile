@@ -585,6 +585,71 @@ export const checkBrandStatus = async (token: string) => {
     }
 };
 
+/* ──────────────────── BRAND HOME TAB CONTENT ──────────────────── */
+
+/** GET /youtube-channels */
+export const getYoutubeChannels = async (token: string) => {
+    try {
+        const body = await request('/youtube-channels', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /ad-types */
+export const getAdTypes = async (token: string) => {
+    try {
+        const body = await request('/ad-types', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /celebrities */
+export const getCelebrities = async (token: string) => {
+    try {
+        const body = await request('/celebrities', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /brand-requirements — a Brand's "Who are you looking for?" post */
+export const createBrandRequirement = async (data: {
+    targetType?: 'CREATORS' | 'AGENCIES';
+    category?: string;
+    creatorCountMin?: number;
+    creatorCountMax?: number;
+    genderPreference?: string;
+    deliverables?: string;
+    visibility?: string;
+    message?: string;
+}, token: string) => {
+    try {
+        const body = await request('/brand-requirements', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify(data),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error) };
+    }
+};
+
+/** GET /brand-requirements/mine */
+export const getMyBrandRequirements = async (token: string) => {
+    try {
+        const body = await request('/brand-requirements/mine', { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ───────────────────────── POSTS ──────────────────────────── */
 
 type PostPayload = {
@@ -1321,9 +1386,17 @@ export const getFollowing = async (token: string, userId?: string) => {
 };
 
 /** GET /follows/suggestions?limit=20 */
-export const getFollowSuggestions = async (token: string, limit: number = 20) => {
+export const getFollowSuggestions = async (
+    token: string,
+    limit: number = 20,
+    filters?: { role?: 'CREATOR' | 'FREELANCER'; location?: string; categorySlug?: string },
+) => {
     try {
-        const body = await request(`/follows/suggestions?limit=${limit}`, {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (filters?.role) params.set('role', filters.role);
+        if (filters?.location) params.set('location', filters.location);
+        if (filters?.categorySlug) params.set('categorySlug', filters.categorySlug);
+        const body = await request(`/follows/suggestions?${params.toString()}`, {
             method: 'GET',
             headers: authHeaders(token),
         });
