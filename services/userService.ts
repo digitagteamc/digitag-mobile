@@ -192,7 +192,7 @@ export const verifyOtp = async (
 /** POST /auth/verify-firebase — backend returns profile map + active role using Firebase idToken. */
 export const verifyFirebaseToken = async (
     idToken: string,
-    role: 'CREATOR' | 'FREELANCER' = 'CREATOR',
+    role: 'CREATOR' | 'FREELANCER' | 'BRAND' = 'CREATOR',
 ) => {
     try {
         console.log(`🔐 Verifying Firebase token for role ${role}...`);
@@ -210,9 +210,9 @@ export const verifyFirebaseToken = async (
             refreshToken: data?.tokens?.refreshToken,
             user: data?.user,
             isNewUser: data?.isNewUser,
-            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | undefined,
-            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean } | undefined,
-            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER'>,
+            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | 'BRAND' | undefined,
+            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean; BRAND?: boolean } | undefined,
+            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER' | 'BRAND'>,
             isProfileCompleted: data?.isProfileCompleted,
         };
     } catch (error: any) {
@@ -504,6 +504,78 @@ export const updateFreelancerProfile = async (data: any, token: string) => {
 export const getFreelancerById = async (id: string, token: string) => {
     try {
         const body = await request(`/freelancers/${id}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/* ─────────────────────────── BRANDS ───────────────────────── */
+
+/** GET /brands/profile/me */
+export const getMyBrandProfile = async (token: string) => {
+    try {
+        const body = await request('/brands/profile/me', {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /brands/profile */
+export const createBrandProfile = async (data: any, token: string) => {
+    try {
+        const body = await request('/brands/profile', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify(data),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error) };
+    }
+};
+
+/** PUT /brands/profile */
+export const updateBrandProfile = async (data: any, token: string) => {
+    try {
+        const body = await request('/brands/profile', {
+            method: 'PUT',
+            headers: authHeaders(token),
+            body: JSON.stringify(data),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error) };
+    }
+};
+
+/** GET /brands/:id */
+export const getBrandById = async (id: string, token: string) => {
+    try {
+        const body = await request(`/brands/${id}`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * GET /brands/me/status — the real approvalStatus/rejectionReason, replacing
+ * the isProfileCompleted-derived fake status checkCreatorStatus uses.
+ */
+export const checkBrandStatus = async (token: string) => {
+    try {
+        const body = await request('/brands/me/status', {
             method: 'GET',
             headers: authHeaders(token),
         });

@@ -28,7 +28,7 @@ import GradientButton from '../Components/ui/GradientButton';
 import { useAuth } from '../context/AuthContext';
 import { verifyFirebaseToken } from '../services/userService';
 
-type SignupRole = 'CREATOR' | 'FREELANCER';
+type SignupRole = 'CREATOR' | 'FREELANCER' | 'BRAND';
 
 // Firebase throws raw, technical error text (e.g. "[auth/invalid-verification-code]
 // The sms verification code used to create the phone auth credential is invalid...")
@@ -47,7 +47,8 @@ function friendlyOtpError(error: any): string {
 export default function LoginScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ role?: string }>();
-    const role: SignupRole = (params.role?.toUpperCase() === 'FREELANCER') ? 'FREELANCER' : 'CREATOR';
+    const paramRole = params.role?.toUpperCase();
+    const role: SignupRole = paramRole === 'FREELANCER' ? 'FREELANCER' : paramRole === 'BRAND' ? 'BRAND' : 'CREATOR';
 
     const { login } = useAuth();
 

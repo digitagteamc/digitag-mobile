@@ -17,7 +17,7 @@ export default function RoleSelectionScreen() {
         if (selectedRole === 'CREATOR') {
             router.push('/signup/creator');
         } else {
-            router.push('/brand-coming-soon' as any);
+            router.push('/signup/brand');
         }
     };
 

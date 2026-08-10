@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { checkCreatorStatus } from '../../services/userService';
+import { checkBrandStatus, checkCreatorStatus } from '../../services/userService';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Role = 'CREATOR' | 'BRAND';
@@ -24,6 +24,7 @@ export default function PendingScreen() {
     const role: Role = (params.role?.toUpperCase() as Role) || 'CREATOR';
 
     const [status, setStatus] = useState<Status>('PENDING');
+    const [rejectionReason, setRejectionReason] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -44,13 +45,17 @@ export default function PendingScreen() {
         }
         setLoading(true);
         try {
-            const result = await checkCreatorStatus(token);
+            // Brand has a real approvalStatus to check; Creator's status is
+            // still derived from isProfileCompleted (separate, pre-existing
+            // issue, not part of this scope).
+            const result = role === 'BRAND' ? await checkBrandStatus(token) : await checkCreatorStatus(token);
 
             if (result.success && result.data) {
                 // Backend may return status under various field names
-                const s = result.data.status || result.data.creatorStatus || 'PENDING';
+                const s = result.data.status || result.data.creatorStatus || result.data.approvalStatus || 'PENDING';
                 const normalized = s.toUpperCase() as Status;
                 setStatus(normalized);
+                setRejectionReason(result.data.rejectionReason || null);
 
                 if (normalized === 'APPROVED') {
                     // Auto-navigate to home on approval
@@ -94,7 +99,8 @@ export default function PendingScreen() {
                     <Text style={styles.title}>Application Rejected</Text>
                     <Text style={styles.desc}>
                         Your {roleLabel} application was not approved.
-                        Please update your details and re-apply.
+                        {rejectionReason ? `\n\nReason: ${rejectionReason}` : ''}
+                        {'\n\n'}Please update your details and re-apply.
                     </Text>
                     <TouchableOpacity
                         style={styles.primaryButton}
