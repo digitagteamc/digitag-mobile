@@ -238,6 +238,45 @@ export default function LoginScreen() {
         }
     };
 
+    // TEMPORARY — Brand-testing convenience only, not for production. Skips
+    // the phone/OTP screens entirely by running the exact same real Firebase
+    // phone-auth + verify-firebase call in the background against a known
+    // Firebase-console test number (already used for Apple review, see
+    // PREMIUM_REVIEWER_PHONE_NUMBERS in the backend .env), so it's the real
+    // auth path end-to-end, just automated instead of hand-typed. Remove this
+    // function and its button once Brand no longer needs fast test access.
+    const [skippingBrand, setSkippingBrand] = useState(false);
+    const handleSkipBrandLogin = async () => {
+        setSkippingBrand(true);
+        try {
+            if (auth().currentUser) await auth().signOut();
+            const testPhone = '9991112228';
+            const confirmation = await auth().signInWithPhoneNumber(`+91${testPhone}`);
+            const cred = await confirmation.confirm('123456');
+            const idToken = await (cred?.user ?? auth().currentUser)?.getIdToken();
+            if (!idToken) throw new Error('Test sign-in failed.');
+            const res = await verifyFirebaseToken(idToken, 'BRAND');
+            if (!res.success) {
+                showStatus('Error', res.error || 'Test login failed.');
+                return;
+            }
+            login({
+                phone: testPhone,
+                token: res.token,
+                refreshToken: res.refreshToken,
+                role: (res.user?.role as string) ?? 'BRAND',
+                id: res.user?.id,
+                isProfileCompleted: Boolean(res.isProfileCompleted),
+                profiles: res.profiles as any,
+            });
+            router.replace('/(tabs)');
+        } catch (error: any) {
+            showStatus('Error', error?.message || 'Test login failed.');
+        } finally {
+            setSkippingBrand(false);
+        }
+    };
+
     const handleVerifyOtp = async () => {
         if (!otp.trim()) { setOtpError('Please enter the OTP.'); return; }
         if (!/^\d+$/.test(otp)) { setOtpError('OTP must contain digits only.'); return; }
@@ -437,6 +476,23 @@ export default function LoginScreen() {
                                     className="w-full h-[60px] rounded-full bg-[#1C1C28] border border-white/5 items-center justify-center mb-5"
                                 >
                                     <Text className="text-[#5A5A6D] font-poppins-semibold text-[20px]">Get OTP</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {/* TEMPORARY — Brand-testing only, see handleSkipBrandLogin above. */}
+                            {role === 'BRAND' && (
+                                <TouchableOpacity
+                                    className="items-center mb-4"
+                                    onPress={handleSkipBrandLogin}
+                                    disabled={skippingBrand}
+                                >
+                                    {skippingBrand ? (
+                                        <ActivityIndicator color="#214EE7" />
+                                    ) : (
+                                        <Text className="text-[#214EE7] font-poppins-semibold text-[14px]">
+                                            Skip — Test Mode (Brand)
+                                        </Text>
+                                    )}
                                 </TouchableOpacity>
                             )}
 
