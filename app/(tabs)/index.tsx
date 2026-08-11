@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 import BrandHome from '../../Components/BrandHome';
+import OpportunitiesSection from '../../Components/OpportunitiesSection';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
@@ -1626,6 +1627,8 @@ export default function Homepage() {
             pointerEvents="none"
           /> */}
         </View>
+
+        <OpportunitiesSection />
 
         <View style={{ paddingHorizontal: 10, paddingTop: 32 }}>
           {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}

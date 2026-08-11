@@ -64,9 +64,20 @@ export default function MyRequirementsScreen() {
                                 </View>
                             </View>
                             <Text style={styles.message} numberOfLines={4}>{item.message}</Text>
-                            <Text style={styles.targetType}>
-                                {item.targetType === 'AGENCIES' ? 'Looking for Agencies' : 'Looking for Creators'}
-                            </Text>
+                            <View style={styles.cardBottomRow}>
+                                <Text style={styles.targetType}>
+                                    {item.targetType === 'AGENCIES' ? 'Looking for Agencies' : 'Looking for Creators'}
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.responsesBtn}
+                                    onPress={() => router.push({ pathname: '/requirement-responses', params: { requirementId: item.id } } as any)}
+                                >
+                                    <Ionicons name="mail-outline" size={13} color={BRAND_PRIMARY} />
+                                    <Text style={styles.responsesBtnText}>
+                                        {item.pitchCount ? `${item.pitchCount} pitch${item.pitchCount === 1 ? '' : 'es'}` : 'View Responses'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     )}
                 />
@@ -92,5 +103,8 @@ const styles = StyleSheet.create({
     viewsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     viewsText: { color: palette.textMuted, fontSize: 11, fontFamily: fonts.regular },
     message: { color: '#fff', fontSize: 13, fontFamily: fonts.regular, lineHeight: 19 },
+    cardBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     targetType: { color: BRAND_PRIMARY, fontSize: 12, fontFamily: fonts.medium },
+    responsesBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(79,70,229,0.12)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5 },
+    responsesBtnText: { color: BRAND_PRIMARY, fontSize: 11, fontFamily: fonts.semibold },
 });

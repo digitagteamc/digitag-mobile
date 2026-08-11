@@ -650,6 +650,28 @@ export const getMyBrandRequirements = async (token: string) => {
     }
 };
 
+/** GET /brand-requirements/open — "Opportunities For You" (Creator/Freelancer only) */
+export const getOpenRequirements = async (token: string, filters: { category?: string; targetType?: 'CREATORS' | 'AGENCIES' } = {}) => {
+    try {
+        const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => !!v) as [string, string][]);
+        const path = `/brand-requirements/open${qs.toString() ? `?${qs}` : ''}`;
+        const body = await request(path, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /brand-requirements/:id */
+export const getBrandRequirementById = async (token: string, id: string) => {
+    try {
+        const body = await request(`/brand-requirements/${id}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
 /* ───────────────────────── POSTS ──────────────────────────── */
 
 type PostPayload = {
@@ -879,7 +901,7 @@ export const getPresignedUpload = async (
 /** POST /collaborations — send a collab request */
 export const sendCollaboration = async (
     token: string,
-    payload: { receiverId: string; postId?: string; message?: string },
+    payload: { receiverId: string; postId?: string; requirementId?: string; message?: string },
 ) => {
     try {
         const body = await request('/collaborations', {
@@ -899,6 +921,7 @@ export const listCollaborations = async (
     params: {
         direction?: 'incoming' | 'outgoing' | 'all';
         status?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
+        requirementId?: string;
     } = {},
 ) => {
     try {
