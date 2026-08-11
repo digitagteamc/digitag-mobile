@@ -18,7 +18,7 @@ import { createBrandProfile } from '../../services/userService';
 
 export default function BrandSignup() {
     const router = useRouter();
-    const { userPhone, token } = useAuth();
+    const { userPhone, token, setProfileCompleted, setProfiles } = useAuth();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<'idle' | 'registering_role' | 'submitting'>('idle');
 
@@ -62,6 +62,8 @@ export default function BrandSignup() {
             Alert.alert('Could Not Submit', res.error || 'Please try again.');
             return;
         }
+        setProfileCompleted(true);
+        setProfiles({ BRAND: true });
         router.replace('/signup/pending?role=brand' as any);
     };
 

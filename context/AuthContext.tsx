@@ -5,11 +5,16 @@ import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { refreshToken as apiRefreshToken, resetAccountSuspendedGuard, setAccountSuspendedCallback, setRefreshTokenCallback, unregisterFcmToken } from '../services/userService';
 
+// Role is deliberately CREATOR|FREELANCER only — it's setActiveRole's type,
+// used for switching between a user's dual Creator/Freelancer profiles
+// (switch-role.tsx), which Brand doesn't participate in. ProfileMap below
+// still needs a BRAND key so setProfiles({ BRAND: true }) type-checks.
 export type Role = 'CREATOR' | 'FREELANCER';
 
 export interface ProfileMap {
     CREATOR: boolean;
     FREELANCER: boolean;
+    BRAND: boolean;
 }
 
 interface AuthContextType {
@@ -55,7 +60,7 @@ const STORAGE_KEYS = {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const EMPTY_PROFILES: ProfileMap = { CREATOR: false, FREELANCER: false };
+const EMPTY_PROFILES: ProfileMap = { CREATOR: false, FREELANCER: false, BRAND: false };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userPhone, setUserPhone] = useState<string | null>(null);
