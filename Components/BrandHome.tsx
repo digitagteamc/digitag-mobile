@@ -6,14 +6,17 @@ import {
     ActivityIndicator,
     FlatList,
     Image,
+    ImageBackground,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SvgXml } from 'react-native-svg';
+import { CREATOR_CAT_SVGS } from '../assets/creator-cat';
 import { useAuth } from '../context/AuthContext';
 import {
     createBrandRequirement,
@@ -23,7 +26,7 @@ import {
     getMyBrandProfile,
     getYoutubeChannels,
 } from '../services/userService';
-import { fonts, palette } from '../theme/colors';
+import { palette } from '../theme/colors';
 
 // Brand's own accent — indigo/purple, matching the mock (Complete Profile
 // button, Send Request gradient, bottom nav). Not part of theme/colors.ts's
@@ -33,6 +36,8 @@ import { fonts, palette } from '../theme/colors';
 const BRAND_PRIMARY = '#4F46E5';
 const BRAND_GRADIENT: [string, string] = ['#6D5EF5', '#4F46E5'];
 
+const imgHeroBg = require('../assets/herobrand.png');
+const imgSectionBg = require('../assets/background.png');
 const imgPhotography = require('../assets/tabs-icons-freelancer/Photography.png');
 const imgEditor = require('../assets/tabs-icons-freelancer/editors.png');
 const imgVideography = require('../assets/tabs-icons-freelancer/Videography.png');
@@ -45,6 +50,20 @@ const imgVoiceOver = require('../assets/tabs-icons-freelancer/VoiceOver.png');
 const imgModal = require('../assets/tabs-icons-freelancer/Modals.png');
 const imgSocialMediaManager = require('../assets/tabs-icons-freelancer/SocialMediaManager.png');
 const imgLocation = require('../assets/location.png');
+
+// Per-city landmark photos for "Creators by location" — keyed by the exact
+// city name used in CITIES below. Filename spellings ("Banglore", no "a")
+// come from the asset folder as-is, not a typo introduced here.
+const CITY_IMAGES: Record<string, any> = {
+    Hyderabad: require('../assets/Brands/Locations/Hyderabad.png'),
+    Bangalore: require('../assets/Brands/Locations/Banglore.png'),
+    Delhi: require('../assets/Brands/Locations/Delhi.png'),
+    Gurugaon: require('../assets/Brands/Locations/Gurugaon.png'),
+    Chennai: require('../assets/Brands/Locations/Chennai.png'),
+    Kolkata: require('../assets/Brands/Locations/Kolkata.png'),
+    Mumbai: require('../assets/Brands/Locations/Mumbai.png'),
+    Pune: require('../assets/Brands/Locations/Pune.png'),
+};
 const imgDefaultAvatar = require('../assets/defaultavatar.png');
 
 // Same canonical tile→slug map as explore.tsx/index.tsx's Creator-browsing
@@ -63,6 +82,39 @@ const FREELANCER_CATEGORIES = [
     { id: 'social-media-manager', label: 'Social Media\nManager', image: imgSocialMediaManager, slug: 'social-media-management' },
 ];
 
+// Creator Categories — same full 26-category list and creator-cat SVG icon
+// set as the Creator/Freelancer home page's "Creators by Category" grid
+// (app/(tabs)/index.tsx's FREELANCER_CATEGORIES, which despite the name is
+// the creator content-category list keyed against assets/creator-cat).
+const CREATOR_CATEGORIES = [
+    { id: 'f1', label: 'Lifestyle &\nLiving', svgXml: CREATOR_CAT_SVGS['Lifestyle-Living'] },
+    { id: 'f2', label: 'Tech', svgXml: CREATOR_CAT_SVGS['Tech'] },
+    { id: 'f3', label: 'Education', svgXml: CREATOR_CAT_SVGS['Education'] },
+    { id: 'f4', label: 'Photography', svgXml: CREATOR_CAT_SVGS['Photography'] },
+    { id: 'f5', label: 'Food', svgXml: CREATOR_CAT_SVGS['Food'] },
+    { id: 'f6', label: 'Health', svgXml: CREATOR_CAT_SVGS['Health'] },
+    { id: 'f7', label: 'Automotive', svgXml: CREATOR_CAT_SVGS['Automotive'] },
+    { id: 'f8', label: 'Comedy &\nMemes', svgXml: CREATOR_CAT_SVGS['Comedy-Memes'] },
+    { id: 'f9', label: 'Entertainment', svgXml: CREATOR_CAT_SVGS['Entertainment'] },
+    { id: 'f10', label: 'Gaming &\nAnime', svgXml: CREATOR_CAT_SVGS['Gaming-Anime'] },
+    { id: 'f11', label: 'Learning', svgXml: CREATOR_CAT_SVGS['Learning'] },
+    { id: 'f12', label: 'News, Media\n& Magazins', svgXml: CREATOR_CAT_SVGS['News-Media-Magazins'] },
+    { id: 'f13', label: 'Sports', svgXml: CREATOR_CAT_SVGS['Sports'] },
+    { id: 'f14', label: 'Travel', svgXml: CREATOR_CAT_SVGS['Travel'] },
+    { id: 'f15', label: 'Beauty', svgXml: CREATOR_CAT_SVGS['Beauty'] },
+    { id: 'f16', label: 'Fitness', svgXml: CREATOR_CAT_SVGS['Fitness'] },
+    { id: 'f17', label: 'Fashion', svgXml: CREATOR_CAT_SVGS['Fashion'] },
+    { id: 'f18', label: 'Finance &\nInvestments', svgXml: CREATOR_CAT_SVGS['Finance-Investments'] },
+    { id: 'f19', label: 'Arts', svgXml: CREATOR_CAT_SVGS['Arts'] },
+    { id: 'f20', label: 'Business &\nStartups', svgXml: CREATOR_CAT_SVGS['Business-Startups'] },
+    { id: 'f21', label: 'Community\nPages', svgXml: CREATOR_CAT_SVGS['Community-Pages'] },
+    { id: 'f22', label: 'Family, Kids\n& Pets', svgXml: CREATOR_CAT_SVGS['Family-Kids-Pets'] },
+    { id: 'f23', label: 'Home &\nDecor', svgXml: CREATOR_CAT_SVGS['Home-Decor'] },
+    { id: 'f24', label: 'Law, Rights\n& Activism', svgXml: CREATOR_CAT_SVGS['Law-Rights-Activism'] },
+    { id: 'f25', label: 'Pets &\nAnimals', svgXml: CREATOR_CAT_SVGS['Pets-Animals'] },
+    { id: 'f26', label: 'Politics', svgXml: CREATOR_CAT_SVGS['Politics'] },
+];
+
 // No existing city list/data source anywhere in the app (checked this
 // session) — fixed showcase set, same convention as the app's other fixed
 // category arrays. Filtering matches CreatorProfile/FreelancerProfile's
@@ -70,6 +122,74 @@ const FREELANCER_CATEGORIES = [
 const CITIES = ['Hyderabad', 'Bangalore', 'Delhi', 'Gurugaon', 'Chennai', 'Kolkata', 'Mumbai', 'Pune'];
 
 const YT_FILTER_CHIPS = ['All', 'Podcast', 'Tech', 'Education', 'Others'];
+
+// Same gradient-border palette as the Creator/Freelancer home category grid
+// (app/(tabs)/index.tsx) — cycled by each category's index in its own list.
+const CAT_BORDER_COLORS = [
+    ['rgba(52, 52, 52, 1)', 'rgba(255, 51, 0, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(0, 183, 255, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(255, 238, 1, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(1, 255, 35, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(12, 62, 179, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(143, 12, 229, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(240, 0, 160, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(250, 71, 0, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(255, 51, 0, 0.5)'],
+    ['rgba(52, 52, 52, 1)', 'rgba(0, 183, 255, 0.5)'],
+];
+
+// Same chip shape/border/sizing as the Creator/Freelancer home category grid
+// — gradient-bordered dark card, icon or image, label underneath.
+function CategoryChip({ cat, colorIndex, onPress }: { cat: any; colorIndex: number; onPress?: () => void }) {
+    const borderColors = (CAT_BORDER_COLORS[colorIndex % CAT_BORDER_COLORS.length] || ['#333', '#333']) as [string, string];
+    return (
+        <TouchableOpacity style={{ width: 100, height: 96 }} onPress={onPress} activeOpacity={0.8}>
+            <LinearGradient
+                colors={borderColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ width: 90, height: 86, borderRadius: 24, padding: 1 }}
+            >
+                <View
+                    style={{
+                        backgroundColor: '#050404',
+                        borderRadius: 22.8,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingVertical: 1,
+                        paddingHorizontal: 1,
+                        width: '100%',
+                        height: '100%',
+                    }}
+                >
+                    {cat.svgXml ? (
+                        <SvgXml xml={cat.svgXml} width={25} height={25} style={{ width: 26, height: 24, marginBottom: 4 }} />
+                    ) : cat.image ? (
+                        <Image source={cat.image} style={{ width: 26, height: 20, marginBottom: 8 }} resizeMode="contain" />
+                    ) : (
+                        <Ionicons name={cat.icon} size={28} color="#aaa" />
+                    )}
+                    <Text
+                        style={{
+                            color: '#fff',
+                            fontSize: 10,
+                            fontFamily: 'Poppins_400Regular',
+                            textAlign: 'center',
+                            lineHeight: 14,
+                            width: '100%',
+                            alignSelf: 'stretch',
+                        }}
+                        numberOfLines={/[\n ]/.test(cat.label) ? 2 : 1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.6}
+                    >
+                        {cat.label}
+                    </Text>
+                </View>
+            </LinearGradient>
+        </TouchableOpacity>
+    );
+}
 
 function formatCount(n?: number | null) {
     if (!n) return '0';
@@ -80,29 +200,93 @@ function formatCount(n?: number | null) {
 
 function SectionHeader({ title, onViewAll }: { title: string; subtitle?: string; onViewAll?: () => void }) {
     return (
-        <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>{title}</Text>
+        <View className="flex-row items-center justify-between">
+            <Text className="text-white text-xl font-poppins-semibold" style={{ letterSpacing: -0.5 }}>{title}</Text>
             {onViewAll ? (
-                <TouchableOpacity onPress={onViewAll} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Text style={styles.viewAll}>View all</Text>
+                <TouchableOpacity
+                    onPress={onViewAll}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    className="rounded-full px-4 py-2.5 border"
+                    style={{ backgroundColor: 'rgba(66,62,62,0.1)', borderColor: 'rgba(64,64,64,0.5)' }}
+                >
+                    <Text className="text-white text-xs font-poppins-medium text-center">View all</Text>
                 </TouchableOpacity>
             ) : null}
         </View>
     );
 }
 
+// Pagination dots for the Top Creators carousel
+function PaginationDots({ total, active }: { total: number; active: number }) {
+    if (total <= 1) return null;
+    return (
+        <View className="flex-row justify-center mt-3.5" style={{ gap: 6 }}>
+            {Array.from({ length: total }).map((_, i) => (
+                <View
+                    key={i}
+                    className="h-1.5 rounded"
+                    style={[
+                        { width: i === active ? 14 : 6 },
+                        { backgroundColor: i === active ? '#fff' : 'rgba(255,255,255,0.2)' },
+                    ]}
+                />
+            ))}
+        </View>
+    );
+}
+
+const DUMMY_YOUTUBE_CHANNELS = [
+    { id: 'yt-1', name: 'Suman Tv', subscriberCount: 4200000, category: 'News', logoUrl: null },
+    { id: 'yt-2', name: 'TV 9', subscriberCount: 2200000, category: 'News', logoUrl: null },
+    { id: 'yt-3', name: 'Aha', subscriberCount: 6200000, category: 'Entertainment', logoUrl: null },
+    { id: 'yt-4', name: 'IDream', subscriberCount: 4240000, category: 'Entertainment', logoUrl: null },
+    { id: 'yt-5', name: 'NTV', subscriberCount: 6200000, category: 'News', logoUrl: null },
+];
+
+const DUMMY_AD_TYPES = [
+    { id: 'ad-1', name: 'Strip Ad', accentColor: '#4F46E5' },
+    { id: 'ad-2', name: 'Banner Ad', accentColor: '#4F46E5' },
+    { id: 'ad-3', name: 'Corner Ads', accentColor: '#4F46E5' },
+    { id: 'ad-4', name: 'L - Shape Ads', accentColor: '#4F46E5' },
+];
+
+const DUMMY_TOP_CREATORS = [
+    { id: 'c-1', name: 'Priya Sharma', categoryNames: ['Fashion', 'Beauty'], profilePicture: null },
+    { id: 'c-2', name: 'FreshBrew Co.', categoryNames: ['Entertainment'], profilePicture: null },
+    { id: 'c-3', name: 'Aadhya Sharma', categoryNames: ['Beauty'], profilePicture: null },
+    { id: 'c-4', name: 'Keshav Reddy', categoryNames: ['News'], profilePicture: null },
+    { id: 'c-5', name: 'Rohit Nair', categoryNames: ['Podcast'], profilePicture: null },
+    { id: 'c-6', name: 'Rudrakshika', categoryNames: ['Beauty'], profilePicture: null },
+];
+
+const DUMMY_CELEBRITIES = [
+    { id: 'cel-1', name: 'Aryan Kapoor', role: 'Actor', followerCount: 12400000, isVerified: true, photoUrl: null },
+    { id: 'cel-2', name: 'Meera Iyer', role: 'Singer', followerCount: 8900000, isVerified: true, photoUrl: null },
+    { id: 'cel-3', name: 'Vikram Rao', role: 'Comedian', followerCount: 15200000, isVerified: true, photoUrl: null },
+    { id: 'cel-4', name: 'Simran Kaur', role: 'Dancer', followerCount: 6100000, isVerified: true, photoUrl: null },
+    { id: 'cel-5', name: 'Aditya Malhotra', role: 'Sports Star', followerCount: 20700000, isVerified: true, photoUrl: null },
+    { id: 'cel-6', name: 'Kavya Menon', role: 'Influencer', followerCount: 4300000, isVerified: true, photoUrl: null },
+];
+
 export default function BrandHome() {
     const router = useRouter();
     const { token } = useAuth();
+    // Recomputed on rotation/fold instead of a module-level snapshot, so the
+    // location tiles stay correctly sized across phones, tablets, and
+    // foldables. Design spec is 93x100 — 4 cols with 10px gaps and 16px
+    // padding each side; capped at 93 so it only shrinks (never grows past
+    // spec) on wider screens.
+    const { width: screenWidth } = useWindowDimensions();
+    const CITY_TILE_WIDTH = Math.min(93, (screenWidth - 32 - 30) / 4);
 
     const [brandName, setBrandName] = useState('');
     const [brandAvatar, setBrandAvatar] = useState<string | null>(null);
 
-    const [channels, setChannels] = useState<any[]>([]);
+    const [channels, setChannels] = useState<any[]>(DUMMY_YOUTUBE_CHANNELS);
     const [channelFilter, setChannelFilter] = useState('All');
-    const [adTypes, setAdTypes] = useState<any[]>([]);
-    const [topCreators, setTopCreators] = useState<any[]>([]);
-    const [celebrities, setCelebrities] = useState<any[]>([]);
+    const [adTypes, setAdTypes] = useState<any[]>(DUMMY_AD_TYPES);
+    const [topCreators, setTopCreators] = useState<any[]>(DUMMY_TOP_CREATORS);
+    const [celebrities, setCelebrities] = useState<any[]>(DUMMY_CELEBRITIES);
     const [loading, setLoading] = useState(true);
 
     // "Who are you looking for?" composer
@@ -110,6 +294,9 @@ export default function BrandHome() {
     const [requirementText, setRequirementText] = useState('');
     const [posting, setPosting] = useState(false);
     const [lastPosted, setLastPosted] = useState<{ message: string; targetType: 'CREATORS' | 'AGENCIES' } | null>(null);
+
+    // Top Creators carousel page tracking
+    const [creatorsPage, setCreatorsPage] = useState(0);
 
     const load = useCallback(async () => {
         if (!token) { setLoading(false); return; }
@@ -124,10 +311,26 @@ export default function BrandHome() {
             setBrandName(profileRes.data.name || '');
             setBrandAvatar(profileRes.data.profilePicture || null);
         }
-        if (channelsRes.success) setChannels(channelsRes.data);
-        if (adTypesRes.success) setAdTypes(adTypesRes.data);
-        if (creatorsRes.success) setTopCreators(creatorsRes.data);
-        if (celebsRes.success) setCelebrities(celebsRes.data);
+        if (channelsRes.success && channelsRes.data && channelsRes.data.length > 0) {
+            setChannels(channelsRes.data);
+        } else {
+            setChannels(DUMMY_YOUTUBE_CHANNELS);
+        }
+        if (adTypesRes.success && adTypesRes.data && adTypesRes.data.length > 0) {
+            setAdTypes(adTypesRes.data);
+        } else {
+            setAdTypes(DUMMY_AD_TYPES);
+        }
+        if (creatorsRes.success && creatorsRes.data && creatorsRes.data.length > 0) {
+            setTopCreators(creatorsRes.data);
+        } else {
+            setTopCreators(DUMMY_TOP_CREATORS);
+        }
+        if (celebsRes.success && celebsRes.data && celebsRes.data.length > 0) {
+            setCelebrities(celebsRes.data);
+        } else {
+            setCelebrities(DUMMY_CELEBRITIES);
+        }
         setLoading(false);
     }, [token]);
 
@@ -148,10 +351,22 @@ export default function BrandHome() {
         }
     };
 
+    // chunk topCreators into rows of 3 for the carousel
+    const creatorRows: any[][] = [];
+    for (let i = 0; i < topCreators.length; i += 3) {
+        creatorRows.push(topCreators.slice(i, i + 3));
+    }
+
+    // chunk cities into 2 rows of 4
+    const cityRows: string[][] = [];
+    for (let i = 0; i < CITIES.length; i += 4) {
+        cityRows.push(CITIES.slice(i, i + 4));
+    }
+
     if (loading) {
         return (
-            <SafeAreaView style={styles.safe} edges={['top']}>
-                <View style={styles.centerFill}>
+            <SafeAreaView className="flex-1" style={{ backgroundColor: palette.background }} edges={['top']}>
+                <View className="flex-1 items-center justify-center">
                     <ActivityIndicator color={BRAND_PRIMARY} size="large" />
                 </View>
             </SafeAreaView>
@@ -159,49 +374,98 @@ export default function BrandHome() {
     }
 
     return (
-        <SafeAreaView style={styles.safe} edges={['top']}>
+        <SafeAreaView className="flex-1" style={{ backgroundColor: palette.background }} edges={['top']}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                {/* ── Header ── */}
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.headerLeft} activeOpacity={0.8} onPress={() => router.push('/(tabs)/profile' as any)}>
-                        <Image source={brandAvatar ? { uri: brandAvatar } : imgDefaultAvatar} style={styles.headerAvatar} />
-                        <View>
-                            <Text style={styles.headerHi}>Hi</Text>
-                            <Text style={styles.headerName} numberOfLines={1}>{brandName || 'Welcome To Digitag'}</Text>
+                {/* ── Top Hero Banner with Background Image ── */}
+                <ImageBackground source={imgHeroBg} className="w-full overflow-hidden " style={{ minHeight: 330 }} resizeMode="cover">
+                    <View className="flex-1 ">
+                        {/* ── Header ── */}
+                        <View className="flex-row items-center justify-between px-4 py-3">
+                            <TouchableOpacity
+                                className="flex-row items-center flex-1 gap-2.5"
+                                activeOpacity={0.8}
+                                onPress={() => router.push('/(tabs)/profile' as any)}
+                            >
+                                <Image
+                                    source={brandAvatar ? { uri: brandAvatar } : imgDefaultAvatar}
+                                    className="w-11 h-11 rounded-full"
+                                    style={{ backgroundColor: palette.surface }}
+                                />
+                                <View>
+                                    <Text className="text-white text-sm font-poppins-regular opacity-90">Hi</Text>
+                                    <Text className="text-white text-base font-poppins-semibold max-w-[180px]" numberOfLines={1}>
+                                        {brandName || 'Welcome To Digitag'}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                            <View className="flex-row gap-2.5">
+                                <TouchableOpacity className="items-center justify-center w-[38px] h-[38px] rounded-full bg-white/15">
+                                    <Ionicons name="stats-chart-outline" size={18} color="#fff" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="items-center justify-center w-[38px] h-[38px] rounded-full bg-white/15"
+                                    onPress={() => router.push('/notifications' as any)}
+                                >
+                                    <Ionicons name="notifications-outline" size={18} color="#fff" />
+                                    <View className="absolute top-2 right-2 w-[7px] h-[7px] rounded-full bg-red-500" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </TouchableOpacity>
-                    <View style={styles.headerRight}>
-                        <TouchableOpacity style={styles.headerIconBtn}>
-                            <Ionicons name="stats-chart-outline" size={18} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.headerIconBtn} onPress={() => router.push('/notifications' as any)}>
-                            <Ionicons name="notifications-outline" size={18} color="#fff" />
-                        </TouchableOpacity>
+
+                        {/* ── Hero Center Content ── */}
+                        <View className="items-center justify-center px-5 pt-4 pb-3">
+                            <Text className="text-white text-3xl font-poppins-bold text-center tracking-tight">
+                                Connect with Top
+                            </Text>
+                            <Text className="text-[#FFDE00] text-[42px] text-center font-poppins-bold italic -mt-2.5 tracking-tight">
+                                Influencers
+                            </Text>
+                            <Text className="text-white text-xl font-poppins-semibold text-center mt-2.5">
+                                100K+ Creators
+                            </Text>
+                            <TouchableOpacity
+                                className="self-center rounded-full items-center justify-center bg-[#2743BB] py-3.5 px-8 mt-[18px]"
+                                style={{
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.3,
+                                    shadowRadius: 6,
+                                    elevation: 5,
+                                }}
+                                onPress={() => router.push('/signup/brand' as any)}
+                                activeOpacity={0.85}
+                            >
+                                <Text className="text-white text-base font-poppins-semibold">Complete Profile</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
+                </ImageBackground>
 
-                {/* ── Hero ── */}
-                <LinearGradient colors={['#1a1a2e', '#0A0A10']} style={styles.hero}>
-                    <Text style={styles.heroTitle}>Connect with Top{'\n'}
-                        <Text style={{ color: '#FFC10A', fontStyle: 'italic' }}>Influencers</Text>
-                    </Text>
-                    <Text style={styles.heroSubtitle}>100K+ Creators</Text>
-                    <TouchableOpacity style={styles.heroBtn} onPress={() => router.push('/signup/brand' as any)} activeOpacity={0.85}>
-                        <Text style={styles.heroBtnText}>Complete Profile</Text>
-                    </TouchableOpacity>
-                </LinearGradient>
-
+                {/* ── Top YouTube Channels → Ad Types share one background image ── */}
+                <ImageBackground source={imgSectionBg} resizeMode="cover">
                 {/* ── Top YouTube Channels ── */}
-                <View style={styles.section}>
-                    <SectionHeader title="Top Youtube Channels" onViewAll={() => { }} />
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Top youtube channels" onViewAll={() => { }} />
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginBottom: 4 }}>
                         {YT_FILTER_CHIPS.map((chip) => (
                             <TouchableOpacity
                                 key={chip}
                                 onPress={() => setChannelFilter(chip)}
-                                style={[styles.chip, channelFilter === chip && { backgroundColor: BRAND_PRIMARY, borderColor: BRAND_PRIMARY }]}
+                                className="rounded-2xl mr-1.5 border"
+                                style={[
+                                    { paddingHorizontal: 18, paddingVertical: 8, borderColor: palette.borderStrong },
+                                    channelFilter === chip && { backgroundColor: BRAND_PRIMARY, borderColor: BRAND_PRIMARY },
+                                ]}
                             >
-                                <Text style={[styles.chipText, channelFilter === chip && { color: '#fff' }]}>{chip}</Text>
+                                <Text
+                                    className="text-xs font-poppins-medium"
+                                    style={[
+                                        { color: palette.textSecondary },
+                                        channelFilter === chip && { color: '#fff' },
+                                    ]}
+                                >
+                                    {chip}
+                                </Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
@@ -210,17 +474,52 @@ export default function BrandHome() {
                         showsHorizontalScrollIndicator={false}
                         data={filteredChannels}
                         keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ paddingTop: 12, gap: 12 }}
-                        ListEmptyComponent={<Text style={styles.emptyText}>No channels yet</Text>}
+                        contentContainerStyle={{ paddingTop: 12, gap: 9 }}
+                        ListEmptyComponent={
+                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                                No channels yet
+                            </Text>
+                        }
                         renderItem={({ item }) => (
-                            <View style={styles.channelCard}>
-                                <Image source={item.logoUrl ? { uri: item.logoUrl } : imgDefaultAvatar} style={styles.channelLogo} />
-                                <Text style={styles.channelName} numberOfLines={1}>{item.name}</Text>
-                                <Text style={styles.channelSubs}>{formatCount(item.subscriberCount)} Subs</Text>
+                            <View
+                                className="items-center rounded-3xl p-4 border"
+                                style={{
+                                    width: 130,
+                                    height: 158,
+                                    backgroundColor: '#1a1a1a',
+                                    borderColor: 'rgba(153,153,153,0.3)',
+                                }}
+                            >
+                                <View
+                                    className="overflow-hidden mb-2"
+                                    style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 24,
+                                        borderWidth: 2,
+                                        borderColor: 'rgba(255,255,255,0.15)',
+                                    }}
+                                >
+                                    <Image
+                                        source={item.logoUrl ? { uri: item.logoUrl } : imgDefaultAvatar}
+                                        style={{ width: '100%', height: '100%', borderRadius: 24 }}
+                                    />
+                                </View>
+                                <Text className="text-white text-xs font-poppins-semibold mt-1 text-center" numberOfLines={1}>
+                                    {item.name}
+                                </Text>
+                                <Text className="text-xs font-poppins-regular mt-0.5" style={{ color: palette.textMuted }}>
+                                    {formatCount(item.subscriberCount)} Subs
+                                </Text>
                                 {!!item.category && (
-                                    <View style={styles.channelCatRow}>
-                                        <View style={styles.dot} />
-                                        <Text style={styles.channelCat}>{item.category}</Text>
+                                    <View className="flex-row items-center mt-1" style={{ gap: 4 }}>
+                                        <View
+                                            className="rounded-full"
+                                            style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: palette.success }}
+                                        />
+                                        <Text className="text-xs font-poppins-regular" style={{ fontSize: 10, color: palette.textMuted }}>
+                                            {item.category}
+                                        </Text>
                                     </View>
                                 )}
                             </View>
@@ -229,78 +528,205 @@ export default function BrandHome() {
                 </View>
 
                 {/* ── Ad Types ── */}
-                <View style={styles.section}>
+                <View className="px-4 mt-7">
                     <SectionHeader title="Ad Types" onViewAll={() => { }} />
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         data={adTypes}
                         keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ paddingTop: 12, gap: 12 }}
-                        ListEmptyComponent={<Text style={styles.emptyText}>No ad types yet</Text>}
+                        contentContainerStyle={{ paddingTop: 12, gap: 10 }}
+                        ListEmptyComponent={
+                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                                No ad types yet
+                            </Text>
+                        }
                         renderItem={({ item }) => (
-                            <View style={[styles.adTypeCard, { borderColor: item.accentColor || palette.borderStrong }]}>
-                                <View style={[styles.adTypeIconWrap, { backgroundColor: (item.accentColor || BRAND_PRIMARY) + '33' }]}>
-                                    <Ionicons name="play-circle" size={20} color={item.accentColor || BRAND_PRIMARY} />
+                            <View
+                                className="items-center rounded-2xl border overflow-hidden"
+                                style={{
+                                    width: 110,
+                                    height: 108,
+                                    borderColor: palette.borderStrong,
+                                    backgroundColor: palette.surface,
+                                }}
+                            >
+                                <View
+                                    className="w-full items-center justify-center"
+                                    style={{
+                                        height: 68,
+                                        backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                                        borderTopLeftRadius: 16,
+                                        borderTopRightRadius: 16,
+                                    }}
+                                >
+                                    <View
+                                        className="items-center justify-center"
+                                        style={{
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: 14,
+                                            backgroundColor: (item.accentColor || BRAND_PRIMARY) + '33',
+                                        }}
+                                    >
+                                        <Ionicons name="play-circle" size={20} color={item.accentColor || BRAND_PRIMARY} />
+                                    </View>
                                 </View>
-                                <Text style={styles.adTypeName} numberOfLines={1}>{item.name}</Text>
+                                <Text
+                                    className="text-white font-poppins-medium text-center px-1"
+                                    style={{ fontSize: 12, marginTop: 8 }}
+                                    numberOfLines={1}
+                                >
+                                    {item.name}
+                                </Text>
                             </View>
                         )}
                     />
                 </View>
+                </ImageBackground>
 
                 {/* ── Top Creators ── */}
-                <View style={styles.section}>
+                <View className="px-4 mt-7">
                     <SectionHeader title="Top Creators" onViewAll={() => { }} />
-                    <View style={styles.peopleGrid}>
-                        {topCreators.map((c) => (
-                            <TouchableOpacity
-                                key={c.id}
-                                style={styles.peopleCard}
-                                activeOpacity={0.85}
-                                onPress={() => router.push({ pathname: '/creator-details', params: { userId: c.id } } as any)}
-                            >
-                                <Image source={c.profilePicture ? { uri: c.profilePicture } : imgDefaultAvatar} style={styles.peopleAvatar} />
-                                <Text style={styles.peopleName} numberOfLines={1}>{c.name || 'Creator'}</Text>
-                                <Text style={styles.peopleSub} numberOfLines={1}>{c.categoryNames?.[0] || 'Creator'}</Text>
-                            </TouchableOpacity>
-                        ))}
-                        {topCreators.length === 0 && <Text style={styles.emptyText}>No creators yet</Text>}
-                    </View>
-                </View>
-
-                {/* ── Creators by Location ── */}
-                <View style={styles.section}>
-                    <SectionHeader title="Creators by Location" onViewAll={() => { }} />
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        data={CITIES}
-                        keyExtractor={(c) => c}
-                        contentContainerStyle={{ paddingTop: 12, gap: 12 }}
-                        renderItem={({ item: city }) => (
+                        data={topCreators}
+                        keyExtractor={(c) => c.id}
+                        contentContainerStyle={{ paddingTop: 16, gap: 12 }}
+                        ListEmptyComponent={
+                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                                No creators yet
+                            </Text>
+                        }
+                        renderItem={({ item: c }) => (
                             <TouchableOpacity
-                                style={styles.cityCard}
+                                className="rounded-3xl p-4 border"
+                                style={{
+                                    width: 168,
+                                    height: 162,
+                                    backgroundColor: '#1a1a1a',
+                                    borderColor: 'rgba(153,153,153,0.25)',
+                                }}
                                 activeOpacity={0.85}
-                                onPress={() => router.push({ pathname: '/people-results', params: { title: `Creators in ${city}`, role: 'CREATOR', location: city } } as any)}
+                                onPress={() => router.push({ pathname: '/creator-details', params: { userId: c.id } } as any)}
                             >
-                                <Image source={imgLocation} style={styles.cityImage} resizeMode="cover" />
-                                <View style={styles.cityOverlay} />
-                                <Text style={styles.cityName}>{city}</Text>
+                                <Image
+                                    source={c.profilePicture ? { uri: c.profilePicture } : imgDefaultAvatar}
+                                    className="rounded-full"
+                                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceAlt }}
+                                />
+                                <Text
+                                    className="text-white text-base font-poppins-regular"
+                                    style={{ marginTop: 6, letterSpacing: -0.5 }}
+                                    numberOfLines={1}
+                                >
+                                    {c.name || 'Creator'}
+                                </Text>
+                                {/* Category tags */}
+                                <View className="flex-row mt-1.5" style={{ gap: 6 }}>
+                                    {(c.categoryNames || ['Creator']).slice(0, 2).map((cat: string, i: number) => (
+                                        <View
+                                            key={i}
+                                            className="rounded px-1 py-0.5"
+                                            style={{ backgroundColor: '#333435' }}
+                                        >
+                                            <Text
+                                                className="text-white font-poppins-regular"
+                                                style={{ fontSize: 10, letterSpacing: -0.5 }}
+                                            >
+                                                {cat}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                                {/* Social icons row */}
+                                <View className="flex-row mt-2" style={{ gap: 8 }}>
+                                    <Ionicons name="logo-youtube" size={14} color="#FF0000" />
+                                    <Ionicons name="logo-instagram" size={14} color="#E1306C" />
+                                    <Ionicons name="logo-facebook" size={14} color="#1877F2" />
+                                </View>
                             </TouchableOpacity>
                         )}
                     />
+                    <PaginationDots total={creatorRows.length} active={creatorsPage} />
+                </View>
+
+                {/* ── Creator Categories ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Creator Categories" onViewAll={() => { }} />
+                    {/* Render as a 2-row scrollable grid */}
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+                        <View>
+                            <View className="flex-row" style={{ gap: 16 }}>
+                                {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 0).map((cat) => (
+                                    <CategoryChip key={cat.id} cat={cat} colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)} />
+                                ))}
+                            </View>
+                            <View className="flex-row" style={{ gap: 16, marginTop: 16 }}>
+                                {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 1).map((cat) => (
+                                    <CategoryChip key={cat.id} cat={cat} colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)} />
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
+                </View>
+
+                {/* ── Creators by Location ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Creators by location" onViewAll={() => { }} />
+                    <View className="flex-row flex-wrap mt-3" style={{ gap: 10 }}>
+                        {CITIES.map((city) => (
+                            <TouchableOpacity
+                                key={city}
+                                className="overflow-hidden rounded-2xl"
+                                style={{ width: CITY_TILE_WIDTH, height: 100 }}
+                                
+                                onPress={() => router.push({ pathname: '/people-results', params: { title: `Creators in ${city}`, role: 'CREATOR', location: city } } as any)}
+                            >
+                                <Image
+                                    source={CITY_IMAGES[city] || imgLocation}
+                                    style={{ width: '100%', height: '100%', position: 'absolute', }}
+                                    resizeMode="cover"
+                                />
+                                <View
+                                    className="absolute inset-0"
+
+                                    />
+                                <Text
+                                    className="absolute text-#000 font-poppins-semibold align-items-center x"
+                                    style={{ top: 10, left: 10, right: 6, fontSize: 11 }}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.7}
+                                >
+                                    {city}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
 
                 {/* ── Who are you looking for? ── */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Who are you looking for?</Text>
-                    <Text style={styles.requirementSubtitle}>Post your requirement & receive responses, instantly...</Text>
+                <View className="px-4 mt-7">
+                    <Text className="text-white text-xl font-poppins-semibold" style={{ letterSpacing: -0.5 }}>
+                        Who are you looking for?
+                    </Text>
+                    <Text
+                        className="text-xs font-poppins-regular mt-1"
+                        style={{ color: 'rgba(208,226,255,0.65)' }}
+                    >
+                        Post your requirement & receive responses, Instantly....
+                    </Text>
 
-                    <View style={styles.requirementInputRow}>
+                    <View
+                        className="flex-row items-center rounded-2xl px-3.5 py-2.5 mt-3.5"
+                        style={{ gap: 10, backgroundColor: palette.surface }}
+                    >
                         <Ionicons name="person-circle-outline" size={20} color="#8A8A99" />
                         <TextInput
-                            style={styles.requirementInput}
+                            className="flex-1 text-white text-sm font-poppins-regular"
+                            style={{ maxHeight: 80 }}
                             placeholder="Type your requirement here"
                             placeholderTextColor="#6B6B7A"
                             value={requirementText}
@@ -315,29 +741,69 @@ export default function BrandHome() {
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.requirementTabs}>
-                        <TouchableOpacity onPress={() => setRequirementTab('CREATORS')} style={[styles.requirementTab, requirementTab === 'CREATORS' && styles.requirementTabActive]}>
-                            <Text style={[styles.requirementTabText, requirementTab === 'CREATORS' && styles.requirementTabTextActive]}>Hire Creators</Text>
+                    <View
+                        className="flex-row mt-3.5 border-b"
+                        style={{ borderBottomColor: palette.borderSoft }}
+                    >
+                        <TouchableOpacity
+                            onPress={() => setRequirementTab('CREATORS')}
+                            className="py-2.5 mr-6 border-b-2"
+                            style={{ borderBottomColor: requirementTab === 'CREATORS' ? BRAND_PRIMARY : 'transparent' }}
+                        >
+                            <Text
+                                className="text-sm font-poppins-medium"
+                                style={{ color: requirementTab === 'CREATORS' ? '#fff' : palette.textMuted }}
+                            >
+                                Hire Creators
+                            </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setRequirementTab('AGENCIES')} style={[styles.requirementTab, requirementTab === 'AGENCIES' && styles.requirementTabActive]}>
-                            <Text style={[styles.requirementTabText, requirementTab === 'AGENCIES' && styles.requirementTabTextActive]}>Hire Agencies</Text>
+                        <TouchableOpacity
+                            onPress={() => setRequirementTab('AGENCIES')}
+                            className="py-2.5 mr-6 border-b-2"
+                            style={{ borderBottomColor: requirementTab === 'AGENCIES' ? BRAND_PRIMARY : 'transparent' }}
+                        >
+                            <Text
+                                className="text-sm font-poppins-medium"
+                                style={{ color: requirementTab === 'AGENCIES' ? '#fff' : palette.textMuted }}
+                            >
+                                Hire Agencies
+                            </Text>
                         </TouchableOpacity>
                     </View>
 
                     {lastPosted && (
-                        <View style={styles.requirementPreview}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                <Image source={brandAvatar ? { uri: brandAvatar } : imgDefaultAvatar} style={{ width: 40, height: 40, borderRadius: 20 }} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.previewName} numberOfLines={1}>{brandName || 'Your Brand'}</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                        <View style={[styles.dot, { backgroundColor: palette.success }]} />
-                                        <Text style={styles.previewStatus}>Actively Reviewing</Text>
+                        <View
+                            className="rounded-2xl p-3.5 mt-4"
+                            style={{ backgroundColor: palette.surface, gap: 10 }}
+                        >
+                            <View className="flex-row items-center" style={{ gap: 10 }}>
+                                <Image
+                                    source={brandAvatar ? { uri: brandAvatar } : imgDefaultAvatar}
+                                    style={{ width: 40, height: 40, borderRadius: 20 }}
+                                />
+                                <View className="flex-1">
+                                    <Text className="text-white text-sm font-poppins-semibold" numberOfLines={1}>
+                                        {brandName || 'Your Brand'}
+                                    </Text>
+                                    <View className="flex-row items-center" style={{ gap: 6 }}>
+                                        <View
+                                            className="rounded-full"
+                                            style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: palette.success }}
+                                        />
+                                        <Text className="font-poppins-medium" style={{ color: palette.success, fontSize: 11 }}>
+                                            Actively Reviewing
+                                        </Text>
                                     </View>
                                 </View>
                             </View>
-                            <Text style={styles.previewMessage} numberOfLines={4}>{lastPosted.message}</Text>
-                            <Text style={styles.previewTargetType}>
+                            <Text
+                                className="font-poppins-regular"
+                                style={{ color: palette.textSecondary, fontSize: 12, lineHeight: 18 }}
+                                numberOfLines={4}
+                            >
+                                {lastPosted.message}
+                            </Text>
+                            <Text className="text-xs font-poppins-medium" style={{ color: BRAND_PRIMARY }}>
                                 {lastPosted.targetType === 'CREATORS' ? 'Looking for Creators' : 'Looking for Agencies'}
                             </Text>
                         </View>
@@ -345,132 +811,162 @@ export default function BrandHome() {
                 </View>
 
                 {/* ── Freelancers by Category ── */}
-                <View style={styles.section}>
+                <View className="px-4 mt-7">
                     <SectionHeader title="Freelancers by Category" />
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={FREELANCER_CATEGORIES}
-                        keyExtractor={(c) => c.id}
-                        contentContainerStyle={{ paddingTop: 12, gap: 10 }}
-                        renderItem={({ item: cat }) => (
-                            <TouchableOpacity
-                                style={styles.catTile}
-                                activeOpacity={0.85}
-                                onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
-                            >
-                                <Image source={cat.image} style={styles.catImage} resizeMode="contain" />
-                                <Text style={styles.catLabel} numberOfLines={2}>{cat.label}</Text>
-                            </TouchableOpacity>
-                        )}
-                    />
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
+                        <View>
+                            <View className="flex-row" style={{ gap: 16 }}>
+                                {FREELANCER_CATEGORIES.filter((_, i) => i < 6).map((cat) => (
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
+                                    />
+                                ))}
+                            </View>
+                            <View className="flex-row" style={{ gap: 16, marginTop: 16 }}>
+                                {FREELANCER_CATEGORIES.filter((_, i) => i >= 6).map((cat) => (
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
                 </View>
 
                 {/* ── Celebrities ── */}
-                <View style={styles.section}>
+                <View className="px-4 mt-7">
                     <SectionHeader title="Celebrities" onViewAll={() => { }} />
-                    <Text style={styles.requirementSubtitle}>Handpicked icons trending this week</Text>
-                    <View style={styles.peopleGrid}>
+                    <Text
+                        className="font-poppins-regular mt-1"
+                        style={{ color: 'rgba(208,226,255,0.65)', fontSize: 10 }}
+                    >
+                        Handpicked icons trending this week
+                    </Text>
+                    <View className="flex-row flex-wrap mt-6" style={{ gap: 12 }}>
                         {celebrities.map((c) => (
-                            <View key={c.id} style={styles.celebCard}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Image source={c.photoUrl ? { uri: c.photoUrl } : imgDefaultAvatar} style={styles.celebAvatar} />
-                                    <View style={{ flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                            <Text style={styles.peopleName} numberOfLines={1}>{c.name}</Text>
-                                            {c.isVerified && <Ionicons name="checkmark-circle" size={14} color={BRAND_PRIMARY} />}
+                            <View
+                                key={c.id}
+                                className="items-center"
+                                style={{ width: 128, marginTop: 30 }}
+                            >
+                                {/* Avatar protruding above the card */}
+                                <View
+                                    className="absolute"
+                                    style={{ top: 0, zIndex: 2, width: 60, height: 60, borderRadius: 30 }}
+                                >
+                                    <Image
+                                        source={c.photoUrl ? { uri: c.photoUrl } : imgDefaultAvatar}
+                                        style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: palette.surfaceAlt }}
+                                    />
+                                    {c.isVerified && (
+                                        <View
+                                            className="absolute items-center justify-center"
+                                            style={{
+                                                right: -2,
+                                                bottom: 10,
+                                                width: 15,
+                                                height: 15,
+                                                borderRadius: 8,
+                                                backgroundColor: '#1a8cff',
+                                            }}
+                                        >
+                                            <Ionicons name="checkmark" size={8} color="#fff" />
                                         </View>
-                                        <Text style={styles.peopleSub} numberOfLines={1}>{c.role || ''}</Text>
-                                    </View>
+                                    )}
                                 </View>
-                                <Text style={styles.celebFollowers}>{formatCount(c.followerCount)} Followers</Text>
-                                {!!c.profileUrl && (
-                                    <TouchableOpacity style={styles.viewProfileBtn}>
-                                        <Text style={styles.viewProfileText}>View Profile</Text>
-                                    </TouchableOpacity>
-                                )}
+                                <LinearGradient
+                                    colors={['#0b1020', '#111827']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={{
+                                        width: 128,
+                                        height: 172,
+                                        borderRadius: 20,
+                                        borderWidth: 1,
+                                        borderColor: 'rgba(92,173,255,0.8)',
+                                        alignItems: 'center',
+                                        paddingTop: 32,
+                                        paddingHorizontal: 12,
+                                        paddingBottom: 12,
+                                        overflow: 'hidden',
+                                    }}
+                                >
+                                    {/* Name */}
+                                    <Text
+                                        className="text-white font-poppins-semibold text-center"
+                                        style={{ fontSize: 12, marginTop: 4 }}
+                                        numberOfLines={1}
+                                    >
+                                        {c.name}
+                                    </Text>
+                                    {/* Role chip */}
+                                    {!!c.role && (
+                                        <View
+                                            className="rounded-full px-2"
+                                            style={{
+                                                backgroundColor: 'rgba(26,140,255,0.16)',
+                                                paddingVertical: 1,
+                                                marginTop: 4,
+                                            }}
+                                        >
+                                            <Text
+                                                className="font-poppins-medium capitalize"
+                                                style={{ color: '#1a8cff', fontSize: 11 }}
+                                            >
+                                                {c.role}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    {/* Followers */}
+                                    <Text
+                                        className="font-poppins-semibold"
+                                        style={{ color: '#d0e2ff', fontSize: 11, marginTop: 8 }}
+                                    >
+                                        {formatCount(c.followerCount)} Followers
+                                    </Text>
+                                    {/* View Profile button */}
+                                    <LinearGradient
+                                        colors={['#1a8cff', '#6c47ff']}
+                                        start={{ x: 0.5, y: 0 }}
+                                        end={{ x: 0.5, y: 1 }}
+                                        style={{
+                                            width: 104,
+                                            height: 36,
+                                            borderRadius: 99,
+                                            borderWidth: 1,
+                                            borderColor: 'rgba(255,255,255,0.18)',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            marginTop: 10,
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        <TouchableOpacity
+                                            className="w-full h-full items-center justify-center"
+                                            activeOpacity={0.85}
+                                        >
+                                            <Text className="text-white font-poppins-semibold" style={{ fontSize: 11 }}>
+                                                View Profile
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </LinearGradient>
+                                </LinearGradient>
                             </View>
                         ))}
-                        {celebrities.length === 0 && <Text style={styles.emptyText}>No celebrities yet</Text>}
+                        {celebrities.length === 0 && (
+                            <Text className="font-poppins-regular py-2" style={{ color: palette.textMuted, fontSize: 13 }}>
+                                No celebrities yet
+                            </Text>
+                        )}
                     </View>
                 </View>
             </ScrollView>
         </SafeAreaView>
     );
 }
-
-const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: palette.background },
-    centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
-    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-    headerAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: palette.surface },
-    headerHi: { color: palette.textMuted, fontSize: 12, fontFamily: fonts.regular },
-    headerName: { color: '#fff', fontSize: 15, fontFamily: fonts.semibold, maxWidth: 180 },
-    headerRight: { flexDirection: 'row', gap: 10 },
-    headerIconBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
-
-    hero: { marginHorizontal: 16, borderRadius: 20, padding: 20, marginTop: 4, overflow: 'hidden' },
-    heroTitle: { color: '#fff', fontSize: 26, fontFamily: fonts.bold, lineHeight: 32 },
-    heroSubtitle: { color: palette.textSecondary, fontSize: 14, fontFamily: fonts.regular, marginTop: 6 },
-    heroBtn: { backgroundColor: BRAND_PRIMARY, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 20, alignSelf: 'flex-start', marginTop: 16 },
-    heroBtnText: { color: '#fff', fontFamily: fonts.semibold, fontSize: 14 },
-
-    section: { paddingHorizontal: 16, marginTop: 26 },
-    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    sectionTitle: { color: '#fff', fontSize: 17, fontFamily: fonts.semibold },
-    viewAll: { color: BRAND_PRIMARY, fontSize: 13, fontFamily: fonts.medium },
-    emptyText: { color: palette.textMuted, fontSize: 13, fontFamily: fonts.regular, paddingVertical: 8 },
-
-    chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, borderWidth: 1, borderColor: palette.borderStrong, marginRight: 8 },
-    chipText: { color: palette.textSecondary, fontSize: 12, fontFamily: fonts.medium },
-
-    channelCard: { width: 100, alignItems: 'center', backgroundColor: palette.surface, borderRadius: 16, padding: 12 },
-    channelLogo: { width: 48, height: 48, borderRadius: 24, backgroundColor: palette.surfaceAlt },
-    channelName: { color: '#fff', fontSize: 12, fontFamily: fonts.semibold, marginTop: 8, textAlign: 'center' },
-    channelSubs: { color: palette.textMuted, fontSize: 10, fontFamily: fonts.regular, marginTop: 2 },
-    channelCatRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-    channelCat: { color: palette.textMuted, fontSize: 10, fontFamily: fonts.regular },
-    dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: palette.success },
-
-    adTypeCard: { width: 92, height: 92, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surface, gap: 8 },
-    adTypeIconWrap: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-    adTypeName: { color: '#fff', fontSize: 11, fontFamily: fonts.medium, textAlign: 'center', paddingHorizontal: 4 },
-
-    peopleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
-    peopleCard: { width: '31%', backgroundColor: palette.surface, borderRadius: 14, padding: 10, alignItems: 'center' },
-    peopleAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: palette.surfaceAlt },
-    peopleName: { color: '#fff', fontSize: 12, fontFamily: fonts.semibold, marginTop: 6 },
-    peopleSub: { color: palette.textMuted, fontSize: 10, fontFamily: fonts.regular, marginTop: 1 },
-
-    cityCard: { width: 100, height: 90, borderRadius: 16, overflow: 'hidden' },
-    cityImage: { width: '100%', height: '100%', position: 'absolute' },
-    cityOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-    cityName: { position: 'absolute', bottom: 8, left: 8, right: 8, color: '#fff', fontSize: 12, fontFamily: fonts.semibold },
-
-    requirementSubtitle: { color: palette.textMuted, fontSize: 12, fontFamily: fonts.regular, marginTop: 4 },
-    requirementInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: palette.surface, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginTop: 14 },
-    requirementInput: { flex: 1, color: '#fff', fontSize: 13, fontFamily: fonts.regular, maxHeight: 80 },
-    requirementTabs: { flexDirection: 'row', marginTop: 14, borderBottomWidth: 1, borderBottomColor: palette.borderSoft },
-    requirementTab: { paddingVertical: 10, marginRight: 24, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-    requirementTabActive: { borderBottomColor: BRAND_PRIMARY },
-    requirementTabText: { color: palette.textMuted, fontSize: 13, fontFamily: fonts.medium },
-    requirementTabTextActive: { color: '#fff' },
-
-    requirementPreview: { backgroundColor: palette.surface, borderRadius: 16, padding: 14, marginTop: 16, gap: 10 },
-    previewName: { color: '#fff', fontSize: 14, fontFamily: fonts.semibold },
-    previewStatus: { color: palette.success, fontSize: 11, fontFamily: fonts.medium },
-    previewMessage: { color: palette.textSecondary, fontSize: 12, fontFamily: fonts.regular, lineHeight: 18 },
-    previewTargetType: { color: BRAND_PRIMARY, fontSize: 12, fontFamily: fonts.medium },
-
-    catTile: { width: 90, alignItems: 'center', backgroundColor: palette.surface, borderRadius: 16, padding: 12, gap: 8 },
-    catImage: { width: 32, height: 32 },
-    catLabel: { color: '#fff', fontSize: 11, fontFamily: fonts.medium, textAlign: 'center' },
-
-    celebCard: { width: '48%', backgroundColor: palette.surface, borderRadius: 16, padding: 12, gap: 8 },
-    celebAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: palette.surfaceAlt },
-    celebFollowers: { color: palette.textMuted, fontSize: 11, fontFamily: fonts.regular },
-    viewProfileBtn: { backgroundColor: BRAND_PRIMARY, borderRadius: 18, paddingVertical: 8, alignItems: 'center' },
-    viewProfileText: { color: '#fff', fontSize: 11, fontFamily: fonts.semibold },
-});

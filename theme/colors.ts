@@ -75,6 +75,7 @@ export const fonts = {
     medium: 'Poppins_600SemiBold',
     semibold: 'Poppins_600SemiBold',
     bold: 'Poppins_700Bold',
+    ExtraBold: 'Poppins_800ExtraBold',
 };
 
 /** Spacing scale — use these instead of magic numbers. */
