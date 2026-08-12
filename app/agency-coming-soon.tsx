@@ -22,7 +22,7 @@ const { width, height } = Dimensions.get('window');
 
 // Assets
 const logoImg = require('../assets/Brands/Asset 11.png');
-const agencyMockupImg = require('../assets/Brands/angencycommingsoon.png');
+const agencyMockupImg = require('../assets/Brands/angencycommingsoon.webp');
 
 export default function AgencyComingSoonScreen() {
     const router = useRouter();

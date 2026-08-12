@@ -8,6 +8,7 @@ import { cancelCollaboration, getFeed, getSavedPostIds, getUserById, initiateCal
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -41,14 +42,18 @@ import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
 const { width } = Dimensions.get('window');
 const FALLBACK_BANNER = null;
 
-const imgPhotography = require('../../assets/tabs-gifs/tab1.gif');
-const imgEditor = require('../../assets/tabs-gifs/editorgif.gif');
-const imgVideography = require('../../assets/tabs-gifs/videographygif.gif');
-const imgGrowth = require('../../assets/tabs-gifs/growthspecilistgif.gif');
-const imgScriptWriters = require('../../assets/tabs-gifs/scriptgif.gif');
-const imgStyling = require('../../assets/tabs-gifs/stylinggif.gif');
-const imgFashion = require('../../assets/tabs-gifs/fashiongif.gif');
-const imgProperty = require('../../assets/tabs-gifs/propertygif.gif');
+// Re-encoded from the original tabs-gifs/*.gif (each 1-7MB) to small looped
+// MP4s (tens of KB each) — same visual, ~99% smaller, since GIF is a very
+// inefficient format for this kind of flat-illustration animation. Played
+// via expo-video in HeroAnimatedImage below instead of Image.
+const imgPhotography = require('../../assets/tabs-videos/tab1.mp4');
+const imgEditor = require('../../assets/tabs-videos/editorgif.mp4');
+const imgVideography = require('../../assets/tabs-videos/videographygif.mp4');
+const imgGrowth = require('../../assets/tabs-videos/growthspecilistgif.mp4');
+const imgScriptWriters = require('../../assets/tabs-videos/scriptgif.mp4');
+const imgStyling = require('../../assets/tabs-videos/stylinggif.mp4');
+const imgFashion = require('../../assets/tabs-videos/fashiongif.mp4');
+const imgProperty = require('../../assets/tabs-videos/propertygif.mp4');
 const imgPhotographyicon = require('../../assets/tabs_icons/Photographyicon.webp');
 const imgEditoricon = require('../../assets/tabs_icons/editoricon.webp');
 const imgVideographyicon = require('../../assets/tabs_icons/Videographyicon.webp');
@@ -527,7 +532,7 @@ const formatBudgetK = (value: string | number) => {
 };
 
 
-const AnimatedImage = Animated.createAnimatedComponent(Image);
+const AnimatedVideoView = Animated.createAnimatedComponent(VideoView);
 
 // Filter drawer (Collab Type / Experience / Language / Location) slides in
 // from the right and covers the full screen: a left-side list of filter
@@ -540,6 +545,23 @@ const FILTER_CATEGORY_LIST_WIDTH = Math.min(130, Math.round(FILTER_DRAWER_WIDTH 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
   const opacity = useSharedValue(isFreelancer ? 0 : 1);
+
+  // Looped, muted, autoplaying — same visual behavior the GIF had, now
+  // backed by a tiny MP4 instead. Player is created once; source is swapped
+  // via replace() as the active category (and therefore `source`) changes,
+  // rather than remounting a new player per tab.
+  const player = useVideoPlayer(source, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  useEffect(() => {
+    player.replace(source);
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  }, [source]);
 
   useEffect(() => {
     if (isFreelancer) {
@@ -559,7 +581,13 @@ const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer
   }));
 
   return (
-    <AnimatedImage source={source} style={[style, animStyle]} resizeMode="contain" />
+    <AnimatedVideoView
+      player={player}
+      style={[style, animStyle]}
+      contentFit="contain"
+      nativeControls={false}
+      pointerEvents="none"
+    />
   );
 });
 

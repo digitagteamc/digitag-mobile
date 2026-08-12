@@ -332,7 +332,7 @@ export default function LoginScreen() {
                                         resizeMode="contain"
                                     />
                                     <Image
-                                        source={require('../assets/login.png')}
+                                        source={require('../assets/login.webp')}
                                         style={{ width: 410, height: 280 }}
                                         resizeMode="contain"
                                     />
