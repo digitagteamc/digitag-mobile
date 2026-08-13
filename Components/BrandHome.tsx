@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
+    Animated,
+    Dimensions,
     FlatList,
     Image,
     ImageBackground,
+    Modal,
+    Platform,
+    ActivityIndicator,
     ScrollView,
     Text,
     TextInput,
@@ -191,6 +195,321 @@ function CategoryChip({ cat, colorIndex, onPress }: { cat: any; colorIndex: numb
     );
 }
 
+// ─── Ad Preview Bottom Sheet ─────────────────────────────────────────────────
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.88;
+
+const LOCATION_OPTIONS = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Gurugaon'];
+const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Bengali', 'Marathi'];
+
+// Colorful vertical-stripe banner colours per ad type
+const AD_BANNER_STRIPES: Record<string, string[]> = {
+    'ad-1': ['#C9A84C', '#3A7D44', '#F4F4F4', '#3A7D44', '#E05A1B', '#F4F4F4', '#3A7D44', '#7EC8E3'],
+    'ad-2': ['#7EC8E3', '#F4F4F4', '#3A7D44', '#E05A1B', '#C9A84C', '#F4F4F4', '#3A7D44', '#7EC8E3'],
+    'ad-3': ['#E05A1B', '#F4F4F4', '#7EC8E3', '#3A7D44', '#C9A84C', '#F4F4F4', '#E05A1B', '#3A7D44'],
+    'ad-4': ['#3A7D44', '#7EC8E3', '#C9A84C', '#F4F4F4', '#E05A1B', '#3A7D44', '#F4F4F4', '#7EC8E3'],
+};
+
+function AdPreviewSheet({
+    visible,
+    adItem,
+    onClose,
+}: {
+    visible: boolean;
+    adItem: any | null;
+    onClose: () => void;
+}) {
+    const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+
+    // Date picker state
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
+    const [locationOpen, setLocationOpen] = useState(false);
+    const [selectedLocation, setSelectedLocation] = useState('');
+    const [languageOpen, setLanguageOpen] = useState(false);
+    const [selectedLanguage, setSelectedLanguage] = useState('');
+
+    useEffect(() => {
+        if (visible) {
+            setFromDate('');
+            setToDate('');
+            setSelectedLocation('');
+            setSelectedLanguage('');
+            setLocationOpen(false);
+            setLanguageOpen(false);
+            Animated.spring(slideAnim, {
+                toValue: 0,
+                useNativeDriver: true,
+                damping: 20,
+                stiffness: 120,
+            }).start();
+        } else {
+            Animated.timing(slideAnim, {
+                toValue: SHEET_HEIGHT,
+                duration: 260,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [visible]);
+
+    const stripes = adItem ? (AD_BANNER_STRIPES[adItem.id] || AD_BANNER_STRIPES['ad-1']) : AD_BANNER_STRIPES['ad-1'];
+
+    const DateField = ({ label, value, onChangeText }: { label: string; value: string; onChangeText: (v: string) => void }) => (
+        <View style={{ flex: 1 }}>
+            <Text style={{ color: '#aaa', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>{label}</Text>
+            <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#1A1A2E',
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: '#2A2A3E',
+                paddingHorizontal: 10,
+                paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+                gap: 8,
+            }}>
+                <Ionicons name="calendar-outline" size={16} color="#666" />
+                <TextInput
+                    value={value}
+                    onChangeText={onChangeText}
+                    placeholder="Choose date"
+                    placeholderTextColor="#555"
+                    style={{ flex: 1, color: '#fff', fontFamily: 'Poppins_400Regular', fontSize: 13 }}
+                />
+                {value !== '' && (
+                    <TouchableOpacity onPress={() => onChangeText('')}>
+                        <Ionicons name="close-circle" size={16} color="#555" />
+                    </TouchableOpacity>
+                )}
+            </View>
+        </View>
+    );
+
+    const DropdownField = ({
+        label, placeholder, open, onToggle, value, options, onSelect,
+    }: {
+        label: string; placeholder: string; open: boolean;
+        onToggle: () => void; value: string;
+        options: string[]; onSelect: (v: string) => void;
+    }) => (
+        <View style={{ marginTop: 16 }}>
+            <Text style={{ color: '#aaa', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>{label}</Text>
+            <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={onToggle}
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: '#1A1A2E',
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: '#2A2A3E',
+                    paddingHorizontal: 14,
+                    paddingVertical: 13,
+                }}
+            >
+                <Text style={{ color: value ? '#fff' : '#555', fontFamily: 'Poppins_400Regular', fontSize: 13 }}>
+                    {value || placeholder}
+                </Text>
+                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+            </TouchableOpacity>
+            {open && (
+                <View style={{
+                    backgroundColor: '#1A1A2E',
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: '#2A2A3E',
+                    marginTop: 4,
+                    overflow: 'hidden',
+                    maxHeight: 160,
+                }}>
+                    <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                        {options.map((opt) => (
+                            <TouchableOpacity
+                                key={opt}
+                                onPress={() => { onSelect(opt); onToggle(); }}
+                                style={{
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 11,
+                                    borderBottomWidth: 1,
+                                    borderBottomColor: '#2A2A3E',
+                                }}
+                            >
+                                <Text style={{ color: opt === value ? '#6C47FF' : '#fff', fontFamily: 'Poppins_400Regular', fontSize: 13 }}>
+                                    {opt}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
+        </View>
+    );
+
+    return (
+        <Modal
+            visible={visible}
+            transparent
+            animationType="none"
+            onRequestClose={onClose}
+            statusBarTranslucent
+        >
+            {/* Backdrop */}
+            <TouchableOpacity
+                activeOpacity={1}
+                onPress={onClose}
+                style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' }}
+            >
+                {/* Sheet — inner touch blocks backdrop dismiss */}
+                <Animated.View
+                    style={[
+                        {
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            height: SHEET_HEIGHT,
+                            backgroundColor: '#111118',
+                            borderTopLeftRadius: 24,
+                            borderTopRightRadius: 24,
+                            overflow: 'hidden',
+                        },
+                        { transform: [{ translateY: slideAnim }] },
+                    ]}
+                >
+                    <TouchableOpacity activeOpacity={1} style={{ flex: 1 }}>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 32 }}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            {/* ── Header ── */}
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                paddingHorizontal: 20,
+                                paddingTop: 22,
+                                paddingBottom: 14,
+                            }}>
+                                <Text style={{
+                                    color: '#fff',
+                                    fontSize: 20,
+                                    fontFamily: 'Poppins_600SemiBold',
+                                    letterSpacing: -0.3,
+                                }}>
+                                    Preview Add
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={onClose}
+                                    style={{
+                                        width: 34,
+                                        height: 34,
+                                        borderRadius: 17,
+                                        backgroundColor: '#2A2A3E',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <Ionicons name="close" size={18} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* ── Ad Preview Banner (vertical colour stripes) ── */}
+                            <View style={{
+                                marginHorizontal: 20,
+                                height: 160,
+                                borderRadius: 14,
+                                overflow: 'hidden',
+                                flexDirection: 'row',
+                            }}>
+                                {stripes.map((color, i) => (
+                                    <View key={i} style={{ flex: 1, backgroundColor: color }} />
+                                ))}
+                            </View>
+
+                            {/* ── Form Content ── */}
+                            <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+                                {/* Select Your Ad Duration */}
+                                <Text style={{
+                                    color: '#fff',
+                                    fontSize: 17,
+                                    fontFamily: 'Poppins_600SemiBold',
+                                    marginBottom: 14,
+                                }}>
+                                    Select Your Ad Duration
+                                </Text>
+
+                                {/* From / To */}
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <DateField label="From" value={fromDate} onChangeText={setFromDate} />
+                                    <DateField label="To" value={toDate} onChangeText={setToDate} />
+                                </View>
+
+                                {/* Location */}
+                                <DropdownField
+                                    label="Location"
+                                    placeholder="Select Location"
+                                    open={locationOpen}
+                                    onToggle={() => { setLocationOpen(!locationOpen); setLanguageOpen(false); }}
+                                    value={selectedLocation}
+                                    options={LOCATION_OPTIONS}
+                                    onSelect={setSelectedLocation}
+                                />
+
+                                {/* Language */}
+                                <DropdownField
+                                    label="Select Language"
+                                    placeholder="Select a language"
+                                    open={languageOpen}
+                                    onToggle={() => { setLanguageOpen(!languageOpen); setLocationOpen(false); }}
+                                    value={selectedLanguage}
+                                    options={LANGUAGE_OPTIONS}
+                                    onSelect={setSelectedLanguage}
+                                />
+                            </View>
+                        </ScrollView>
+
+                        {/* ── Continue Button (pinned to bottom) ── */}
+                        <View style={{
+                            paddingHorizontal: 20,
+                            paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+                            paddingTop: 10,
+                            backgroundColor: '#111118',
+                        }}>
+                            <LinearGradient
+                                colors={['#6C47FF', '#3B82F6']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{ borderRadius: 99, overflow: 'hidden' }}
+                            >
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    style={{
+                                        paddingVertical: 16,
+                                        alignItems: 'center',
+                                    }}
+                                    onPress={onClose}
+                                >
+                                    <Text style={{
+                                        color: '#fff',
+                                        fontSize: 15,
+                                        fontFamily: 'Poppins_600SemiBold',
+                                    }}>
+                                        Continue
+                                    </Text>
+                                </TouchableOpacity>
+                            </LinearGradient>
+                        </View>
+                    </TouchableOpacity>
+                </Animated.View>
+            </TouchableOpacity>
+        </Modal>
+    );
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function formatCount(n?: number | null) {
     if (!n) return '0';
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -244,10 +563,10 @@ const DUMMY_YOUTUBE_CHANNELS = [
 ];
 
 const DUMMY_AD_TYPES = [
-    { id: 'ad-1', name: 'Strip Ad', accentColor: '#4F46E5' },
-    { id: 'ad-2', name: 'Banner Ad', accentColor: '#4F46E5' },
-    { id: 'ad-3', name: 'Corner Ads', accentColor: '#4F46E5' },
-    { id: 'ad-4', name: 'L - Shape Ads', accentColor: '#4F46E5' },
+    { id: 'ad-1', name: 'Strip Ad', accentColor: '#15112E' },
+    { id: 'ad-2', name: 'Banner Ad', accentColor: '#DADAFF' },
+    { id: 'ad-3', name: 'Corner Ads', accentColor: '#F1CEFF' },
+    { id: 'ad-4', name: 'L - Shape Ads', accentColor: '#F5C344' },
 ];
 
 const DUMMY_TOP_CREATORS = [
@@ -260,12 +579,12 @@ const DUMMY_TOP_CREATORS = [
 ];
 
 const DUMMY_CELEBRITIES = [
-    { id: 'cel-1', name: 'Aryan Kapoor', role: 'Actor', followerCount: 12400000, isVerified: true, photoUrl: null },
-    { id: 'cel-2', name: 'Meera Iyer', role: 'Singer', followerCount: 8900000, isVerified: true, photoUrl: null },
-    { id: 'cel-3', name: 'Vikram Rao', role: 'Comedian', followerCount: 15200000, isVerified: true, photoUrl: null },
-    { id: 'cel-4', name: 'Simran Kaur', role: 'Dancer', followerCount: 6100000, isVerified: true, photoUrl: null },
-    { id: 'cel-5', name: 'Aditya Malhotra', role: 'Sports Star', followerCount: 20700000, isVerified: true, photoUrl: null },
-    { id: 'cel-6', name: 'Kavya Menon', role: 'Influencer', followerCount: 4300000, isVerified: true, photoUrl: null },
+    { id: 'cel-1', name: 'Meera Iyer', role: 'Actor', followerCount: 12400000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80' },
+    { id: 'cel-2', name: 'Aryan Kapoor', role: 'Singer', followerCount: 8900000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80' },
+    { id: 'cel-3', name: 'Simran Kaur', role: 'Comedian', followerCount: 15200000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80' },
+    { id: 'cel-4', name: 'Vikram Rao', role: 'Dancer', followerCount: 6100000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80' },
+    { id: 'cel-5', name: 'Aditya Malhotra', role: 'Sports Star', followerCount: 20700000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80' },
+    { id: 'cel-6', name: 'Kavya Menon', role: 'Influencer', followerCount: 4300000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80' },
 ];
 
 export default function BrandHome() {
@@ -285,6 +604,9 @@ export default function BrandHome() {
     const [channels, setChannels] = useState<any[]>(DUMMY_YOUTUBE_CHANNELS);
     const [channelFilter, setChannelFilter] = useState('All');
     const [adTypes, setAdTypes] = useState<any[]>(DUMMY_AD_TYPES);
+    const [selectedAdType, setSelectedAdType] = useState<string>(DUMMY_AD_TYPES[0].id);
+    const [adSheetVisible, setAdSheetVisible] = useState(false);
+    const [adSheetItem, setAdSheetItem] = useState<any | null>(null);
     const [topCreators, setTopCreators] = useState<any[]>(DUMMY_TOP_CREATORS);
     const [celebrities, setCelebrities] = useState<any[]>(DUMMY_CELEBRITIES);
     const [loading, setLoading] = useState(true);
@@ -414,17 +736,17 @@ export default function BrandHome() {
 
                         {/* ── Hero Center Content ── */}
                         <View className="items-center justify-center px-5 pt-4 pb-3">
-                            <Text className="text-white text-3xl font-poppins-bold text-center tracking-tight">
+                            <Text className="text-white text-[32px] font-poppins-semibold text-center tracking-tight">
                                 Connect with Top
                             </Text>
-                            <Text className="text-[#FFDE00] text-[42px] text-center font-poppins-bold italic -mt-2.5 tracking-tight">
+                            <Text className="text-[#FFDF20] text-[46px] text-center font-bold italic -mt-2.5 tracking-tight">
                                 Influencers
                             </Text>
-                            <Text className="text-white text-xl font-poppins-semibold text-center mt-2.5">
+                            <Text className="text-white text-[14px] font-poppins-semibold text-center  ">
                                 100K+ Creators
                             </Text>
                             <TouchableOpacity
-                                className="self-center rounded-full items-center justify-center bg-[#2743BB] py-3.5 px-8 mt-[18px]"
+                                className="self-center rounded-full items-center justify-center bg-[#253E93] py-2 px-4 mt-[18px]"
                                 style={{
                                     shadowColor: '#000',
                                     shadowOffset: { width: 0, height: 4 },
@@ -435,17 +757,26 @@ export default function BrandHome() {
                                 onPress={() => router.push('/signup/brand' as any)}
                                 activeOpacity={0.85}
                             >
-                                <Text className="text-white text-base font-poppins-semibold">Complete Profile</Text>
+                                <Text className="text-white text-[13px] font-poppins-medium">Complete Profile</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </ImageBackground>
 
-                {/* ── Top YouTube Channels → Ad Types share one background image ── */}
-                <ImageBackground source={imgSectionBg} resizeMode="cover">
+                {/* ── Top YouTube Channels → Ad Types share one background image ──
+                    imageStyle (not style) holds the top/left/right/bottom
+                    offsets — style is the outer container that also lays out
+                    the content, so putting offsets there dragged the content
+                    along with the image; imageStyle only affects the
+                    rendered background image itself. */}
+                <ImageBackground
+                    source={imgSectionBg}
+                    resizeMode="cover"
+                    imageStyle={{ top: 0, left: 0, right: -220, bottom: -40 }}
+                >
                 {/* ── Top YouTube Channels ── */}
                 <View className="px-4 mt-7">
-                    <SectionHeader title="Top youtube channels" onViewAll={() => { }} />
+                    <SectionHeader title="Top youtube channels" onViewAll={() => router.push('/youtube-channels' as any)} />
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12, marginBottom: 4 }}>
                         {YT_FILTER_CHIPS.map((chip) => (
                             <TouchableOpacity
@@ -541,46 +872,79 @@ export default function BrandHome() {
                                 No ad types yet
                             </Text>
                         }
-                        renderItem={({ item }) => (
-                            <View
-                                className="items-center rounded-2xl border overflow-hidden"
-                                style={{
-                                    width: 110,
-                                    height: 108,
-                                    borderColor: palette.borderStrong,
-                                    backgroundColor: palette.surface,
-                                }}
-                            >
-                                <View
-                                    className="w-full items-center justify-center"
-                                    style={{
-                                        height: 68,
-                                        backgroundColor: 'rgba(79, 70, 229, 0.08)',
-                                        borderTopLeftRadius: 16,
-                                        borderTopRightRadius: 16,
+                        renderItem={({ item }) => {
+                            const accent = item.accentColor || BRAND_PRIMARY;
+                            const isActive = selectedAdType === item.id;
+                            return (
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    onPress={() => {
+                                        setSelectedAdType(item.id);
+                                        setAdSheetItem(item);
+                                        setAdSheetVisible(true);
                                     }}
+                                    style={[
+                                        {
+                                            width: 118,
+                                            borderRadius: 18,
+                                            overflow: 'hidden',
+                                            backgroundColor: accent + '',
+                                            borderWidth: 1.5,
+                                            borderColor: isActive ? '#6C47FF' : accent + '44',
+                                        },
+                                        isActive && {
+                                            shadowColor: '#3B82F6',
+                                            shadowOffset: { width: 0, height: 0 },
+                                            shadowOpacity: 0.7,
+                                            shadowRadius: 8,
+                                            elevation: 6,
+                                        },
+                                    ]}
                                 >
+                                    {/* Thumbnail area */}
                                     <View
-                                        className="items-center justify-center"
                                         style={{
-                                            width: 28,
-                                            height: 28,
+                                            marginHorizontal: 10,
+                                            marginTop: 10,
+                                            height: 68,
                                             borderRadius: 14,
-                                            backgroundColor: (item.accentColor || BRAND_PRIMARY) + '33',
+                                            backgroundColor: '#08080F',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
                                         }}
                                     >
-                                        <Ionicons name="play-circle" size={20} color={item.accentColor || BRAND_PRIMARY} />
+                                        {/* Play button */}
+                                        <View
+                                            style={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: 16,
+                                                backgroundColor: isActive ? '#3B82F6' : '#1E1E2E',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <Ionicons name="play" size={13} color="#fff" style={{ marginLeft: 2 }} />
+                                        </View>
                                     </View>
-                                </View>
-                                <Text
-                                    className="text-white font-poppins-medium text-center px-1"
-                                    style={{ fontSize: 12, marginTop: 8 }}
-                                    numberOfLines={1}
-                                >
-                                    {item.name}
-                                </Text>
-                            </View>
-                        )}
+                                    {/* Label */}
+                                    <Text
+                                        style={{
+                                            fontSize: 11,
+                                            fontFamily: 'Poppins_600SemiBold',
+                                            color: isActive ? '#6C47FF' : '#000',
+                                            textAlign: 'center',
+                                            marginTop: 6,
+                                            marginBottom: 8,
+                                            paddingHorizontal: 4,
+                                        }}
+                                        numberOfLines={1}
+                                    >
+                                        {item.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        }}
                     />
                 </View>
                 </ImageBackground>
@@ -658,12 +1022,12 @@ export default function BrandHome() {
                     {/* Render as a 2-row scrollable grid */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                         <View>
-                            <View className="flex-row" style={{ gap: 16 }}>
+                            <View className="flex-row" style={{ gap: 2 }}>
                                 {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 0).map((cat) => (
                                     <CategoryChip key={cat.id} cat={cat} colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)} />
                                 ))}
                             </View>
-                            <View className="flex-row" style={{ gap: 16, marginTop: 16 }}>
+                            <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
                                 {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 1).map((cat) => (
                                     <CategoryChip key={cat.id} cat={cat} colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)} />
                                 ))}
@@ -674,7 +1038,7 @@ export default function BrandHome() {
 
                 {/* ── Creators by Location ── */}
                 <View className="px-4 mt-7">
-                    <SectionHeader title="Creators by location" onViewAll={() => { }} />
+                    <SectionHeader title="Creators by location" onViewAll={() => router.push('/choose-location' as any)} />
                     <View className="flex-row flex-wrap mt-3" style={{ gap: 10 }}>
                         {CITIES.map((city) => (
                             <TouchableOpacity
@@ -815,7 +1179,7 @@ export default function BrandHome() {
                     <SectionHeader title="Freelancers by Category" />
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                         <View>
-                            <View className="flex-row" style={{ gap: 16 }}>
+                            <View className="flex-row" style={{ gap: 2 }}>
                                 {FREELANCER_CATEGORIES.filter((_, i) => i < 6).map((cat) => (
                                     <CategoryChip
                                         key={cat.id}
@@ -825,7 +1189,7 @@ export default function BrandHome() {
                                     />
                                 ))}
                             </View>
-                            <View className="flex-row" style={{ gap: 16, marginTop: 16 }}>
+                            <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
                                 {FREELANCER_CATEGORIES.filter((_, i) => i >= 6).map((cat) => (
                                     <CategoryChip
                                         key={cat.id}
@@ -840,123 +1204,139 @@ export default function BrandHome() {
                 </View>
 
                 {/* ── Celebrities ── */}
-                <View className="px-4 mt-7">
+                <View className="px-4 mt-7 mb-10">
                     <SectionHeader title="Celebrities" onViewAll={() => { }} />
                     <Text
-                        className="font-poppins-regular mt-1"
-                        style={{ color: 'rgba(208,226,255,0.65)', fontSize: 10 }}
+                        className="font-poppins-regular mt-0.5"
+                        style={{ color: '#94A3B8', fontSize: 11 }}
                     >
                         Handpicked icons trending this week
                     </Text>
-                    <View className="flex-row flex-wrap mt-6" style={{ gap: 12 }}>
+                    <View className="flex-row flex-wrap mt-2" style={{ gap: 8, marginBottom: 30 }}>
                         {celebrities.map((c) => (
                             <View
                                 key={c.id}
                                 className="items-center"
-                                style={{ width: 128, marginTop: 30 }}
+                                style={{ width: Math.floor((screenWidth - 32 - 16) / 3), marginTop: 28 }}
                             >
-                                {/* Avatar protruding above the card */}
+                                {/* Glowing Avatar protruding above card */}
                                 <View
-                                    className="absolute"
-                                    style={{ top: 0, zIndex: 2, width: 60, height: 60, borderRadius: 30 }}
+                                    style={{
+                                        position: 'absolute',
+                                        top: -24,
+                                        zIndex: 10,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
                                 >
-                                    <Image
-                                        source={c.photoUrl ? { uri: c.photoUrl } : imgDefaultAvatar}
-                                        style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: palette.surfaceAlt }}
-                                    />
-                                    {c.isVerified && (
+                                    <View
+                                        style={{
+                                            width: 58,
+                                            height: 58,
+                                            borderRadius: 29,
+                                            borderWidth: 2,
+                                            borderColor: '#1A8CFF',
+                                            backgroundColor: '#0B0F19',
+                                            padding: 1.5,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            shadowColor: '#84CC16',
+                                            shadowOffset: { width: 0, height: 0 },
+                                            shadowOpacity: 0.8,
+                                            shadowRadius: 6,
+                                            elevation: 5,
+                                        }}
+                                    >
+                                        <Image
+                                            source={c.photoUrl ? { uri: c.photoUrl } : imgDefaultAvatar}
+                                            style={{ width: '100%', height: '100%', borderRadius: 27, backgroundColor: palette.surfaceAlt }}
+                                        />
+                                    </View>
+                                    {c.isVerified !== false && (
                                         <View
-                                            className="absolute items-center justify-center"
                                             style={{
-                                                right: -2,
-                                                bottom: 10,
-                                                width: 15,
-                                                height: 15,
+                                                position: 'absolute',
+                                                right: 0,
+                                                bottom: 0,
+                                                width: 16,
+                                                height: 16,
                                                 borderRadius: 8,
-                                                backgroundColor: '#1a8cff',
+                                                backgroundColor: '#84CC16',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                borderWidth: 1.5,
+                                                borderColor: '#0B0F19',
                                             }}
                                         >
-                                            <Ionicons name="checkmark" size={8} color="#fff" />
+                                            <Ionicons name="checkmark-sharp" size={9} color="#000" />
                                         </View>
                                     )}
                                 </View>
-                                <LinearGradient
-                                    colors={['#0b1020', '#111827']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
+
+                                {/* Dark Card Box */}
+                                <View
                                     style={{
-                                        width: 128,
-                                        height: 172,
+                                        width: '100%',
+                                        backgroundColor: '#0F1626',
                                         borderRadius: 20,
                                         borderWidth: 1,
-                                        borderColor: 'rgba(92,173,255,0.8)',
+                                        borderColor: 'rgba(59, 130, 246, 0.3)',
                                         alignItems: 'center',
-                                        paddingTop: 32,
-                                        paddingHorizontal: 12,
+                                        paddingTop: 38,
                                         paddingBottom: 12,
-                                        overflow: 'hidden',
+                                        paddingHorizontal: 4,
                                     }}
                                 >
-                                    {/* Name */}
                                     <Text
                                         className="text-white font-poppins-semibold text-center"
-                                        style={{ fontSize: 12, marginTop: 4 }}
+                                        style={{ fontSize: 12 }}
                                         numberOfLines={1}
                                     >
                                         {c.name}
                                     </Text>
-                                    {/* Role chip */}
                                     {!!c.role && (
                                         <View
-                                            className="rounded-full px-2"
                                             style={{
-                                                backgroundColor: 'rgba(26,140,255,0.16)',
-                                                paddingVertical: 1,
+                                                backgroundColor: 'rgba(30, 58, 138, 0.45)',
+                                                paddingHorizontal: 8,
+                                                paddingVertical: 2,
+                                                borderRadius: 10,
                                                 marginTop: 4,
                                             }}
                                         >
                                             <Text
-                                                className="font-poppins-medium capitalize"
-                                                style={{ color: '#1a8cff', fontSize: 11 }}
+                                                style={{ color: '#38BDF8', fontSize: 10, fontFamily: 'Poppins_500Medium' }}
                                             >
                                                 {c.role}
                                             </Text>
                                         </View>
                                     )}
-                                    {/* Followers */}
                                     <Text
-                                        className="font-poppins-semibold"
-                                        style={{ color: '#d0e2ff', fontSize: 11, marginTop: 8 }}
+                                        style={{ color: '#94A3B8', fontSize: 10, fontFamily: 'Poppins_500Medium', marginTop: 6, marginBottom: 10 }}
                                     >
                                         {formatCount(c.followerCount)} Followers
                                     </Text>
-                                    {/* View Profile button */}
                                     <LinearGradient
-                                        colors={['#1a8cff', '#6c47ff']}
-                                        start={{ x: 0.5, y: 0 }}
-                                        end={{ x: 0.5, y: 1 }}
+                                        colors={['rgba(26, 140, 255, 1)', 'rgba(108, 71, 255, 1)']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
                                         style={{
-                                            width: 104,
-                                            height: 36,
+                                            width: '90%',
                                             borderRadius: 99,
-                                            borderWidth: 1,
-                                            borderColor: 'rgba(255,255,255,0.18)',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            marginTop: 10,
                                             overflow: 'hidden',
                                         }}
                                     >
                                         <TouchableOpacity
-                                            className="w-full h-full items-center justify-center"
-                                            activeOpacity={0.85}
+                                            style={{ paddingVertical: 7, alignItems: 'center', justifyContent: 'center' }}
+                                            activeOpacity={0.8}
+                                            onPress={() => router.push({ pathname: '/creator-details', params: { userId: c.id } } as any)}
                                         >
-                                            <Text className="text-white font-poppins-semibold" style={{ fontSize: 11 }}>
+                                            <Text className="text-white font-poppins-semibold" style={{ fontSize: 10 }}>
                                                 View Profile
                                             </Text>
                                         </TouchableOpacity>
                                     </LinearGradient>
-                                </LinearGradient>
+                                </View>
                             </View>
                         ))}
                         {celebrities.length === 0 && (
@@ -967,6 +1347,13 @@ export default function BrandHome() {
                     </View>
                 </View>
             </ScrollView>
+
+            {/* ── Ad Preview Bottom Sheet ── */}
+            <AdPreviewSheet
+                visible={adSheetVisible}
+                adItem={adSheetItem}
+                onClose={() => setAdSheetVisible(false)}
+            />
         </SafeAreaView>
     );
 }
