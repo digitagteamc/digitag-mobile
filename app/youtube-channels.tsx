@@ -203,7 +203,20 @@ export default function YoutubeChannelsScreen() {
                     )
                 }
                 renderItem={({ item }) => (
-                    <View
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() =>
+                            router.push({
+                                pathname: '/youtube-channel-detail',
+                                params: {
+                                    channelId: item.id,
+                                    name: item.name,
+                                    subscriberCount: item.subscriberCount,
+                                    category: item.category,
+                                    logoUrl: item.logoUrl,
+                                },
+                            } as any)
+                        }
                         style={{
                             flex: 1,
                             alignItems: 'center',
@@ -247,7 +260,7 @@ export default function YoutubeChannelsScreen() {
                                 </Text>
                             </View>
                         )}
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
         </SafeAreaView>

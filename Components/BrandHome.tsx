@@ -721,7 +721,10 @@ export default function BrandHome() {
                                 </View>
                             </TouchableOpacity>
                             <View className="flex-row gap-2.5">
-                                <TouchableOpacity className="items-center justify-center w-[38px] h-[38px] rounded-full bg-white/15">
+                                <TouchableOpacity
+                                    className="items-center justify-center w-[38px] h-[38px] rounded-full bg-white/15"
+                                    onPress={() => router.push('/analytics-brand' as any)}
+                                >
                                     <Ionicons name="stats-chart-outline" size={18} color="#fff" />
                                 </TouchableOpacity>
                                 <TouchableOpacity
@@ -812,7 +815,20 @@ export default function BrandHome() {
                             </Text>
                         }
                         renderItem={({ item }) => (
-                            <View
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={() =>
+                                    router.push({
+                                        pathname: '/youtube-channel-detail',
+                                        params: {
+                                            channelId: item.id,
+                                            name: item.name,
+                                            subscriberCount: item.subscriberCount,
+                                            category: item.category,
+                                            logoUrl: item.logoUrl,
+                                        },
+                                    } as any)
+                                }
                                 className="items-center rounded-3xl p-4 border"
                                 style={{
                                     width: 130,
@@ -853,7 +869,7 @@ export default function BrandHome() {
                                         </Text>
                                     </View>
                                 )}
-                            </View>
+                            </TouchableOpacity>
                         )}
                     />
                 </View>
@@ -973,7 +989,7 @@ export default function BrandHome() {
                                     borderColor: 'rgba(153,153,153,0.25)',
                                 }}
                                 activeOpacity={0.85}
-                                onPress={() => router.push({ pathname: '/creator-details', params: { userId: c.id } } as any)}
+                                onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)}
                             >
                                 <Image
                                     source={c.profilePicture ? { uri: c.profilePicture } : imgDefaultAvatar}
@@ -1329,7 +1345,7 @@ export default function BrandHome() {
                                         <TouchableOpacity
                                             style={{ paddingVertical: 7, alignItems: 'center', justifyContent: 'center' }}
                                             activeOpacity={0.8}
-                                            onPress={() => router.push({ pathname: '/creator-details', params: { userId: c.id } } as any)}
+                                            onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)}
                                         >
                                             <Text className="text-white font-poppins-semibold" style={{ fontSize: 10 }}>
                                                 View Profile
