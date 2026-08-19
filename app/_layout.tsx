@@ -264,6 +264,7 @@ function RootLayout() {
                             <Stack.Screen name="profile/[tagId]" options={{ animation: 'fade', animationDuration: 200 }} />
                             <Stack.Screen name="post/[postId]" options={{ animation: 'fade', animationDuration: 200 }} />
                             <Stack.Screen name="brands-creator" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="celebrity-profile" options={{ animation: 'slide_from_right' }} />
                         </Stack>
                     </CallProvider>
                     </ProfileGateProvider>

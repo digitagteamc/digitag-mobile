@@ -1345,7 +1345,16 @@ export default function BrandHome() {
                                         <TouchableOpacity
                                             style={{ paddingVertical: 7, alignItems: 'center', justifyContent: 'center' }}
                                             activeOpacity={0.8}
-                                            onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)}
+                                            onPress={() => router.push({
+                                                pathname: '/celebrity-profile',
+                                                params: {
+                                                    name: c.name,
+                                                    role: c.role,
+                                                    followerCount: String(c.followerCount ?? 0),
+                                                    photoUrl: c.photoUrl ?? '',
+                                                    isVerified: c.isVerified !== false ? 'true' : 'false',
+                                                },
+                                            } as any)}
                                         >
                                             <Text className="text-white font-poppins-semibold" style={{ fontSize: 10 }}>
                                                 View Profile
