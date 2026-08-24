@@ -885,7 +885,7 @@ export default function ProfileScreen() {
             />
 
             <TouchableOpacity
-              onPress={() => router.push((userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
+              onPress={() => router.push((userRole?.toUpperCase() === 'BRAND' ? '/Brands-completeprofile' : userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
               activeOpacity={0.85}
               style={{ width: '100%', borderRadius: 99, shadowColor: theme.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }}
             >

@@ -757,7 +757,7 @@ export default function BrandHome() {
                                     shadowRadius: 6,
                                     elevation: 5,
                                 }}
-                                onPress={() => router.push('/signup/brand' as any)}
+                                onPress={() => router.push('/Brands-completeprofile' as any)}
                                 activeOpacity={0.85}
                             >
                                 <Text className="text-white text-[13px] font-poppins-medium">Complete Profile</Text>
@@ -1034,7 +1034,7 @@ export default function BrandHome() {
 
                 {/* ── Creator Categories ── */}
                 <View className="px-4 mt-7">
-                    <SectionHeader title="Creator Categories" onViewAll={() => { }} />
+                    <SectionHeader title="Creator Categories" onViewAll={() => router.push('/All-creators' as any)} />
                     {/* Render as a 2-row scrollable grid */}
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
                         <View>

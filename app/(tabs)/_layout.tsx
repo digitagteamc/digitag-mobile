@@ -43,8 +43,7 @@ export default function TabsLayout() {
                     activeKey={activeKey}
                     onTabPress={(key) => {
                         if (key === 'create') {
-                            if (!requireProfile('post a requirement')) return;
-                            router.push('/create-post' as any);
+                            router.push('/Brand-Create-Campaign' as any);
                             return;
                         }
                         if (key === 'requirements') {
