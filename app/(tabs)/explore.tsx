@@ -8,6 +8,7 @@ import { cancelCollaboration, getFeed, getSavedPostIds, getUserById, initiateCal
 import { getRoleTheme } from '@/theme/useRoleTheme';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -59,6 +60,8 @@ const imgPropertyicon = require('../../assets/tabs_icons/Propertyicon.webp');
 const imgVoiceicon = require('../../assets/tabs_icons/VoiceOvericon.webp');
 const imgAllCreator = require('../../assets/all-freelancer.png');
 const imgAllFreelancer = require('../../assets/all-creator.png');
+const imgAllExploreFreelancer = require('../../assets/All-explorefreelancer.png');
+const imgAllExploreHero = require('../../assets/All-explorehero.png');
 
 const tf_photography = require('../../assets/tabs-icons-freelancer/Photography.png');
 const tf_editor = require('../../assets/tabs-icons-freelancer/editors.png');
@@ -101,16 +104,29 @@ const fh_pets = require('../../assets/categories-freelancers/Pets-Animals1.webp'
 const fh_politics = require('../../assets/categories-freelancers/Politics1.webp');
 
 
+// Hero videos — CATEGORIES only (Creator viewer browsing Freelancers). Not
+// used for FREELANCER_CATEGORIES, which keeps its existing gradient+image hero.
+const EXPLORE_BANNERS = 'https://digitag-media.s3.ap-south-1.amazonaws.com/explore-banners/';
+const heroVid = {
+  photography: EXPLORE_BANNERS + 'photography-1.mp4',
+  editor: EXPLORE_BANNERS + 'editor.mp4',
+  videography: EXPLORE_BANNERS + 'videography.mp4',
+  growth: EXPLORE_BANNERS + 'growth-specialist.mp4',
+  script: EXPLORE_BANNERS + 'script-writer.mp4',
+  styling: EXPLORE_BANNERS + 'styling-mackup.mp4',
+  fashion: EXPLORE_BANNERS + 'fashion-designer.mp4',
+  voice: EXPLORE_BANNERS + 'voice-over.mp4',
+  models: EXPLORE_BANNERS + 'models.mp4',
+  property: EXPLORE_BANNERS + 'property-rental.mp4',
+  socialMedia: EXPLORE_BANNERS + 'Socail-media-manager.mp4',
+};
+
 const CATEGORIES = [
   {
     id: 'all',
     label: 'All',
     icon: imgAllCreator,
-    image: imgPhotography,
-    heroLine1: 'Explore Our Creators', heroLine2: ' ', heroLine3: '',
-    heroDesc: 'Discover top talents and connect with the right people for any project.',
-    gradient: ['#3b82f6', '#2563eb'] as [string, string],
-    charStyle: { right: -40, bottom: -40, width: 111, height: 104, }
+    heroStaticImage: imgAllExploreFreelancer
   },
   {
     id: 'photography',
@@ -120,7 +136,9 @@ const CATEGORIES = [
     heroLine1: 'Capture Every Moment', heroLine2: 'Beautifully', heroLine3: '',
     heroDesc: 'Turning moments into timeless visual stories with creativity and emotion.',
     gradient: ['#6366f1', '#4f46e5'] as [string, string],
-    charStyle: { right: -40, bottom: -40, width: 230, height: 230, }
+    charStyle: { right: -40, bottom: -40, width: 230, height: 230, },
+    heroVideo: heroVid.photography,
+    heroTag: 'Photography', heroTagline: 'Freeze The Vibe.'
   },
   {
     id: 'editor',
@@ -130,7 +148,9 @@ const CATEGORIES = [
     heroLine1: 'Editing That Brings', heroLine2: 'Stories to Life', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
     gradient: ['#9D174D', '#831843'] as [string, string],
-    charStyle: { right: -30, bottom: -40, width: 220, height: 220 }
+    charStyle: { right: -30, bottom: -40, width: 220, height: 220 },
+    heroVideo: heroVid.editor,
+    heroTag: 'Editors', heroTagline: 'Cut. Create. Go Viral.'
   },
   {
     id: 'videography',
@@ -140,7 +160,9 @@ const CATEGORIES = [
     heroLine1: 'Bringing Ideas to Life', heroLine2: 'on Screen', heroLine3: '',
     heroDesc: 'High-quality edits designed to make your content stand out across every platform.',
     gradient: ['#0284C7', '#075985'] as [string, string],
-    charStyle: { right: -35, bottom: -50, width: 230, height: 230 }
+    charStyle: { right: -35, bottom: -50, width: 230, height: 230 },
+    heroVideo: heroVid.videography,
+    heroTag: 'Videography', heroTagline: 'Turn Your Vision Into Visuals'
   },
   {
     id: 'growth',
@@ -150,7 +172,9 @@ const CATEGORIES = [
     heroLine1: 'Accelerate Your', heroLine2: 'Brand Growth', heroLine3: '',
     heroDesc: 'Growth-focused solutions tailored for modern creators, brands, and agencies.',
     gradient: ['#4338CA', '#3730A3'] as [string, string],
-    charStyle: { right: -30, bottom: -40, width: 240, height: 240 }
+    charStyle: { right: -30, bottom: -40, width: 240, height: 240 },
+    heroVideo: heroVid.growth,
+    heroTag: 'Growth Specialist', heroTagline: 'Make Numbers Go Up.'
   },
   {
     id: 'script',
@@ -160,7 +184,9 @@ const CATEGORIES = [
     heroLine1: 'Turning Ideas into ', heroLine2: 'Powerful Scripts', heroLine3: '',
     heroDesc: 'Creative scripts crafted for films, ads, reels, podcasts, and digital content.',
     gradient: ['#1E3A8A', '#1E40AF'] as [string, string],
-    charStyle: { right: -30, bottom: -45, width: 220, height: 220 }
+    charStyle: { right: -30, bottom: -45, width: 220, height: 220 },
+    heroVideo: heroVid.script,
+    heroTag: 'Script Writer', heroTagline: 'Turn Ideas Into Viral Stories'
   },
   {
     id: 'styling',
@@ -170,7 +196,9 @@ const CATEGORIES = [
     heroLine1: 'Beauty Styled to ', heroLine2: 'Perfection', heroLine3: '',
     heroDesc: 'Expert makeup and styling designed to elevate every look with elegance and precision.',
     gradient: ['#7E22CE', '#6B21A8'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 230, height: 230 }
+    charStyle: { right: -25, bottom: -45, width: 230, height: 230 },
+    heroVideo: heroVid.styling,
+    heroTag: 'Styling & Makeup', heroTagline: 'Create Your Own Glam'
   },
   {
     id: 'fashion',
@@ -180,7 +208,9 @@ const CATEGORIES = [
     heroLine1: 'Where Style Meets ', heroLine2: 'Creativity', heroLine3: '',
     heroDesc: 'From modern trends to timeless looks, discover fashion designs made to stand out.',
     gradient: ['#BE185D', '#9D174D'] as [string, string],
-    charStyle: { right: -35, bottom: -55, width: 170, height: 165 }
+    charStyle: { right: -35, bottom: -55, width: 170, height: 165 },
+    heroVideo: heroVid.fashion,
+    heroTag: 'Fashion Designer', heroTagline: 'Create Your Own Statement Piece.'
   },
   {
     id: 'voice',
@@ -190,7 +220,9 @@ const CATEGORIES = [
     heroLine1: 'The Perfect Voice for', heroLine2: '  Your Content', heroLine3: '',
     heroDesc: 'From reels to commercials, discover voice artists who make every script unforgettable.',
     gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
-    charStyle: { right: -40, bottom: -63, width: 200, height: 200 }
+    charStyle: { right: -40, bottom: -63, width: 200, height: 200 },
+    heroVideo: heroVid.voice,
+    heroTag: 'Voice-over', heroTagline: 'Make Your Voice Stand Out'
   },
   {
     id: 'models',
@@ -200,7 +232,9 @@ const CATEGORIES = [
     heroLine1: 'Strike the Perfect', heroLine2: 'Pose', heroLine3: '',
     heroDesc: 'Connect with professional models for your shoots, campaigns, and creative projects.',
     gradient: ['#DB2777', '#9D174D'] as [string, string],
-    charStyle: { right: -30, bottom: -45, width: 170, height: 165 }
+    charStyle: { right: -30, bottom: -45, width: 170, height: 165 },
+    heroVideo: heroVid.models,
+    heroTag: 'Models', heroTagline: 'Create Your Own Spotlight'
   },
   {
     id: 'property',
@@ -210,7 +244,9 @@ const CATEGORIES = [
     heroLine1: 'Spaces Designed for   ', heroLine2: ' Better Living', heroLine3: '',
     heroDesc: 'Explore premium rental homes, apartments, and workspaces tailored to your needs.',
     gradient: ['#B45309', '#92400E'] as [string, string],
-    charStyle: { right: -40, bottom: -63, width: 225, height: 225 }
+    charStyle: { right: -40, bottom: -63, width: 225, height: 225 },
+    heroVideo: heroVid.property,
+    heroTag: 'Property Rental', heroTagline: 'Find Your Perfect Space'
   },
   {
     id: 'social-media-manager',
@@ -221,9 +257,41 @@ const CATEGORIES = [
     heroLine1: 'Grow Your Brand on  ', heroLine2: ' Every Platform', heroLine3: '',
     heroDesc: 'Skilled social media managers to plan, post, and grow your presence across platforms.',
     gradient: ['#0A3EFA', '#062B9E'] as [string, string],
-    charStyle: { right: -40, bottom: -60, width: 240, height: 240 }
+    charStyle: { right: -40, bottom: -60, width: 240, height: 240 },
+    heroVideo: heroVid.socialMedia,
+    heroTag: 'Social Media Manager', heroTagline: 'Make The Internet Notice.'
   },
 ];
+
+// Hero videos — FREELANCER_CATEGORIES (Freelancer viewer browsing Creators).
+const heroVidF = {
+  lifestyle: EXPLORE_BANNERS + 'lifestyle.mp4',
+  tech: EXPLORE_BANNERS + 'tech.mp4',
+  education: EXPLORE_BANNERS + 'education.mp4',
+  photography: EXPLORE_BANNERS + 'photography-1.mp4',
+  food: EXPLORE_BANNERS + 'food.mp4',
+  health: EXPLORE_BANNERS + 'health.mp4',
+  automotive: EXPLORE_BANNERS + 'automotive.mp4',
+  comedyMemes: EXPLORE_BANNERS + 'comedy-memes.mp4',
+  entertainment: EXPLORE_BANNERS + 'entertainment.mp4',
+  gamingAnime: EXPLORE_BANNERS + 'gaming-anime.mp4',
+  learning: EXPLORE_BANNERS + 'learning.mp4',
+  news: EXPLORE_BANNERS + 'news.mp4',
+  sports: EXPLORE_BANNERS + 'sports.mp4',
+  travel: EXPLORE_BANNERS + 'travel.mp4',
+  beauty: EXPLORE_BANNERS + 'beauty.mp4',
+  fitness: EXPLORE_BANNERS + 'fitness.mp4',
+  fashion: EXPLORE_BANNERS + 'fashion.mp4',
+  finance: EXPLORE_BANNERS + 'finance-investment.mp4',
+  arts: EXPLORE_BANNERS + 'art.mp4',
+  business: EXPLORE_BANNERS + 'business.mp4',
+  community: EXPLORE_BANNERS + 'Community-pages.mp4',
+  familyKids: EXPLORE_BANNERS + 'family-kids.mp4',
+  homeDecor: EXPLORE_BANNERS + 'home-decore.mp4',
+  lawRights: EXPLORE_BANNERS + 'law-rights+(1).mp4',
+  pets: EXPLORE_BANNERS + 'pets-animals.mp4',
+  politics: EXPLORE_BANNERS + 'politics.mp4',
+};
 
 const FREELANCER_CATEGORIES = [
   {
@@ -234,7 +302,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Elevate Your Everyday  ', heroLine2: 'Lifestyle ', heroLine3: '',
     heroDesc: 'Modern lifestyle inspiration for fashion, wellness, travel, home, and everyday living.',
     gradient: ['rgba(136, 21, 250, 1)', 'rgba(136, 21, 250, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.lifestyle,
+    heroTag: 'Lifestyle & Living', heroTagline: 'Inspire your everyday living experiences.'
   },
   {
     id: 'f2',
@@ -244,7 +314,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Technology That Powers  ', heroLine2: ' the Future ', heroLine3: '',
     heroDesc: 'Modern technology experiences crafted for speed, creativity, and growth.',
     gradient: ['rgba(170, 7, 121, 1)', 'rgba(68, 3, 48, 1))'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.tech,
+    heroTag: 'Tech', heroTagline: 'Explore technology shaping our everyday lives.'
   },
   {
     id: 'f3',
@@ -254,7 +326,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Unlock Your Learning ', heroLine2: ' Potential ', heroLine3: '',
     heroDesc: 'Modern education experiences designed for ambitious learners and future creators.',
     gradient: ['rgba(11, 145, 212, 1) ', 'rgba(4, 97, 144, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.education,
+    heroTag: 'Education', heroTagline: 'Share knowledge and help people learn.'
   },
   {
     id: 'f4',
@@ -264,7 +338,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Where Creativity ', heroLine2: ' Meets Photography', heroLine3: '',
     heroDesc: 'From portraits to brand shoots, every frame is crafted to stand out beautifully.',
     gradient: ['#D97706', '#B45309'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.photography,
+    heroTag: 'Photography', heroTagline: 'Where Creativity Meets Photography'
   },
   {
     id: 'f5',
@@ -274,7 +350,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Eat Fresh. Feel Happy.', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Tasty food experiences crafted for every foodie and every occasion.',
     gradient: ['rgba(68, 7, 201, 1)', 'rgba(68, 7, 201, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.food,
+    heroTag: 'Food', heroTagline: 'Share delicious food and cooking experiences.'
   },
   {
     id: 'f6',
@@ -284,7 +362,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Your Health, Your  ', heroLine2: '  Priority', heroLine3: '',
     heroDesc: 'Smart wellness solutions designed for modern lifestyles and everyday care.',
     gradient: ['#0D9488', '#0F766E'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.health,
+    heroTag: 'Health', heroTagline: 'Share tips for healthier living.'
   },
   {
     id: 'f7',
@@ -294,7 +374,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Performance Meets ', heroLine2: '  Innovation', heroLine3: '',
     heroDesc: 'Automotive experiences crafted for passionate drivers and modern lifestyles.',
     gradient: ['rgba(244, 102, 13, 1)', 'rgba(99, 40, 4, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.automotive,
+    heroTag: 'Automotive', heroTagline: 'Everything About Car Culture'
   },
   {
     id: 'f8',
@@ -304,7 +386,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Scroll Less, Laugh More', heroLine2: ' ', heroLine3: '',
     heroDesc: 'Your daily dose of humor, memes, and endless entertainment.',
     gradient: ['rgba(4, 63, 96, 1)', 'rgba(8, 130, 198, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.comedyMemes,
+    heroTag: 'comedy & meme', heroTagline: 'Create content that makes people laugh.'
   },
   {
     id: 'f9',
@@ -314,7 +398,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Endless Entertainment', heroLine2: ' Starts Here', heroLine3: '',
     heroDesc: 'Trending content, creators, music, and media all in one exciting experience.',
     gradient: ['rgba(13, 121, 244, 1)', 'rgba(8, 71, 142, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.entertainment,
+    heroTag: 'Entertainment', heroTagline: 'Create content that keeps people entertained.'
   },
   {
     id: 'f10',
@@ -324,7 +410,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Game. Stream. Anime.', heroLine2: ' Repeat.', heroLine3: '',
     heroDesc: 'Everything you love about gaming and anime in one exciting experience.',
     gradient: ['rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.gamingAnime,
+    heroTag: 'Gaming & Anime', heroTagline: 'Explore exciting gaming and anime worlds.'
   },
   {
     id: 'f11',
@@ -334,7 +422,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Keep Learning, Keep  ', heroLine2: ' Growing', heroLine3: '',
     heroDesc: 'Modern learning experiences for ambitious minds and future creators.',
     gradient: ['rgba(170, 7, 121, 1)', 'rgba(170, 7, 121, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.learning,
+    heroTag: 'Learning', heroTagline: 'Learn Something New Every Day'
   },
   {
     id: 'f12',
@@ -344,7 +434,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Delivering Powerful', heroLine2: ' Headlines & Stories', heroLine3: '',
     heroDesc: 'Collaborate with experienced journalists, editors, and digital publishers.',
     gradient: ['rgba(11, 145, 212, 1)', 'rgba(4, 97, 144, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.news,
+    heroTag: 'News, Media & Magazins', heroTagline: "know What's Happening and What's Trending"
   },
   {
     id: 'f13',
@@ -354,7 +446,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Unleash Peak Athletic', heroLine2: ' Performance', heroLine3: '',
     heroDesc: 'Connect with sports analysts, personal trainers, athletes, and fitness influencers.',
     gradient: ['rgba(68, 7, 201, 1)', 'rgba(68, 7, 201, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.sports,
+    heroTag: 'Sports', heroTagline: 'Celebrate sports, athletes and competitive action.'
   },
   {
     id: 'f14',
@@ -364,7 +458,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Explore Breathtaking', heroLine2: ' Destinations Across Earth', heroLine3: '',
     heroDesc: 'Partner with travel vloggers, itinerary planners, and adventure storytellers.',
     gradient: ['rgba(244, 102, 13, 1)', 'rgba(244, 102, 13, 1)'] as [string, string],
-    charStyle: { right: -20, bottom: -30, width: 170, height: 170, opacity: 1 }
+    charStyle: { right: -20, bottom: -30, width: 170, height: 170, opacity: 1 },
+    heroVideo: heroVidF.travel,
+    heroTag: 'Travel', heroTagline: 'Discover places and unforgettable travel experiences.'
   },
   {
     id: 'f15',
@@ -374,7 +470,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Redefining Aesthetics and', heroLine2: ' Modern Glamour', heroLine3: '',
     heroDesc: 'Work with makeup artists, skincare experts, beauty influencers, and stylists.',
     gradient: ['rgba(13, 121, 244, 1)', 'rgba(13, 121, 244, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.beauty,
+    heroTag: 'Beauty', heroTagline: 'Explore beauty, skincare and personal styling.'
   },
   {
     id: 'f16',
@@ -384,7 +482,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Transform Your Body and', heroLine2: ' Push Your Limits', heroLine3: '',
     heroDesc: 'Discover elite coaches, workout programmers, and physique transformation experts.',
     gradient: ['rgba(156, 13, 244, 1)', 'rgba(91, 8, 142, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.fitness,
+    heroTag: 'Fitness', heroTagline: 'Inspire people to stay active.'
   },
   {
     id: 'f17',
@@ -394,7 +494,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Setting the Trend with', heroLine2: ' Impeccable Style', heroLine3: '',
     heroDesc: 'Hire wardrobe stylists, fashion designers, models, and trendsetters for your campaign.',
     gradient: ['rgba(4, 63, 96, 1)', 'rgba(8, 130, 198, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -45, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.fashion,
+    heroTag: 'Fashion', heroTagline: 'Your Daily Fashion Style Inspiration'
   },
   {
     id: 'f18',
@@ -404,7 +506,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Securing Wealth and', heroLine2: ' Financial Freedom', heroLine3: '',
     heroDesc: 'Connect with certified financial planners, market analysts, and investment advisors.',
     gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.finance,
+    heroTag: 'Finance & Investments', heroTagline: 'Help people understand money and investing.'
   },
   {
     id: 'f19',
@@ -414,7 +518,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Expressive Masterpieces', heroLine2: ' Crafted with Soul', heroLine3: '',
     heroDesc: 'Discover traditional painters, digital illustrators, sculptors, and creative visionaries.',
     gradient: ['rgba(136, 21, 250, 1)', 'rgba(53, 10, 97, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -35, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.arts,
+    heroTag: 'Arts', heroTagline: 'Express Yourself Through Art'
   },
   {
     id: 'f20',
@@ -424,7 +530,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Scaling Enterprises to', heroLine2: ' Unprecedented Heights', heroLine3: '',
     heroDesc: 'Collaborate with startup consultants, business strategists, and visionary entrepreneurs.',
     gradient: ['rgba(170, 7, 121, 1)', 'rgba(68, 3, 48, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.business,
+    heroTag: 'Business & Startups', heroTagline: 'Building Ideas into Businesses'
   },
   {
     id: 'f21',
@@ -434,7 +542,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Building Meaningful', heroLine2: ' Connections Together', heroLine3: '',
     heroDesc: 'Engage with community managers, moderators, and active group organizers.',
     gradient: ['#D946EF', '#A21CAF'] as [string, string],
-    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.community,
+    heroTag: 'Community Pages', heroTagline: 'Your People. Your Community.'
   },
   {
     id: 'f22',
@@ -444,7 +554,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Heartwarming Content', heroLine2: ' for the Whole Family', heroLine3: '',
     heroDesc: 'Partner with parenting bloggers, family lifestyle creators, and child development experts.',
     gradient: ['rgba(11, 145, 212, 1)', 'rgba(4, 97, 144, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -40, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.familyKids,
+    heroTag: 'Family, Kids & Pets', heroTagline: 'Share joyful moments from everyday life.'
   },
   {
     id: 'f23',
@@ -454,7 +566,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Transforming Spaces into', heroLine2: ' Beautiful Sanctuaries', heroLine3: '',
     heroDesc: 'Work with interior designers, DIY experts, home organizers, and decor specialists.',
     gradient: ['rgba(68, 7, 201, 1)', 'rgba(34, 4, 99, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.homeDecor,
+    heroTag: 'Home & Decor', heroTagline: 'Making Spaces Feel Like Home'
   },
   {
     id: 'f24',
@@ -464,7 +578,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Standing for Justice and', heroLine2: ' Powerful Advocacy', heroLine3: '',
     heroDesc: 'Connect with legal consultants, human rights advocates, and policy commentators.',
     gradient: ['rgba(244, 102, 13, 1)', 'rgba(99, 40, 4, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.lawRights,
+    heroTag: 'Law, Rights & Activism', heroTagline: 'Know Your Rights. Speak Up.'
   },
   {
     id: 'f25',
@@ -474,7 +590,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Celebrating Our Beloved', heroLine2: ' Animal Companions', heroLine3: '',
     heroDesc: 'Discover expert pet trainers, veterinarians, animal photographers, and pet influencers.',
     gradient: ['rgba(13, 121, 244, 1)', 'rgba(8, 71, 142, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.pets,
+    heroTag: 'Pets & Animals', heroTagline: 'Share lovable moments with animals.'
   },
   {
     id: 'f26',
@@ -484,7 +602,9 @@ const FREELANCER_CATEGORIES = [
     heroLine1: 'Informed Perspectives and', heroLine2: ' Civic Discourse', heroLine3: '',
     heroDesc: 'Engage with political analysts, commentators, debate hosts, and campaign strategists.',
     gradient: ['rgba(7, 184, 201, 1)', 'rgba(4, 91, 99, 1)'] as [string, string],
-    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+    charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 },
+    heroVideo: heroVidF.politics,
+    heroTag: 'Politics', heroTagline: 'Discuss political news and public issues.'
   },
 ];
 
@@ -560,6 +680,26 @@ const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer
 
   return (
     <AnimatedImage source={source} style={[style, animStyle]} resizeMode="contain" />
+  );
+});
+
+// CATEGORIES hero — plays the category's banner video full-bleed in place of
+// the old gradient+text+character hero. Keyed by category id in the parent so
+// switching categories remounts this (fresh useVideoPlayer instance per clip).
+const HeroVideo = React.memo(({ uri, style }: { uri: string; style: any }) => {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+  return (
+    <VideoView
+      player={player}
+      style={style}
+      contentFit="cover"
+      nativeControls={false}
+      pointerEvents="none"
+    />
   );
 });
 
@@ -750,11 +890,7 @@ export default function ExploreTab() {
           id: 'all',
           label: 'All',
           icon: imgAllFreelancer,
-          image: imgPhotography,
-          heroLine1: 'Explore Our Freelancers', heroLine2: ' ', heroLine3: '',
-          heroDesc: 'Discover top talents and connect with the right people for any project.',
-          gradient: ['#f26930', '#c2410c'] as [string, string],
-          charStyle: { right: -25, bottom: -30, width: 180, height: 180, opacity: 1 }
+          heroStaticImage: imgAllExploreHero
         },
         ...FREELANCER_CATEGORIES
       ];
@@ -1236,25 +1372,64 @@ export default function ExploreTab() {
   };
 
   // Sidebar now owns category selection; the FlatList's header is just the per-category hero card.
-  const listHeader = useMemo(() => (
-    <View style={s.heroCard}>
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: activeCat.gradient[1], borderRadius: 24 }]} />
-      <View style={[StyleSheet.absoluteFill, { opacity: 0.6, backgroundColor: activeCat.gradient[0], borderRadius: 24 }]} />
-      <View style={s.heroContent}>
-        <View style={s.heroTextArea}>
-          <Text style={[s.heroTitle, s.heroTitleBold]}>{activeCat.heroLine1}</Text>
-          {!!activeCat.heroLine2 && activeCat.heroLine2.trim().length > 0 && (
-            <Text style={[s.heroTitle, s.heroTitleFaded]}>{activeCat.heroLine2}</Text>
-          )}
-          {!!activeCat.heroLine3 && activeCat.heroLine3.trim().length > 0 && (
-            <Text style={[s.heroTitle, s.heroTitleFaded]}>{activeCat.heroLine3}</Text>
-          )}
-          <Text style={s.heroDesc}>{activeCat.heroDesc}</Text>
+  const listHeader = useMemo(() => {
+    const heroStaticImage = (activeCat as any).heroStaticImage;
+    if (heroStaticImage) {
+      return (
+        <View style={s.heroImageCard} >
+          <Image source={heroStaticImage} style={s.heroImageCardImg} resizeMode="cover" />
         </View>
-        <HeroAnimatedImage source={activeCat.image} style={[s.heroCharacter, activeCat.charStyle, { width: 111, height: 104 }]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
+      );
+    }
+    const heroVideoUri = (activeCat as any).heroVideo as string | undefined;
+    if (heroVideoUri) {
+      const tag = (activeCat as any).heroTag as string | undefined;
+      const tagline = (activeCat as any).heroTagline as string | undefined;
+      // Orange pill for CATEGORIES (Creator viewer browsing Freelancers),
+      // pink for FREELANCER_CATEGORIES (Freelancer viewer browsing Creators).
+      const tagBg = userRole === 'FREELANCER' ? '#ED2A91' : '#F26930';
+      return (
+        <View style={s.heroCard}>
+          <HeroVideo key={activeCat.id} uri={heroVideoUri} style={[StyleSheet.absoluteFill, { borderRadius: 24 }]} />
+          <View style={s.heroVideoOverlay} pointerEvents="none">
+            {!!tag && (
+              <View style={[s.heroVideoTag, { backgroundColor: tagBg }]}>
+                {/* <Image source={(activeCat as any).icon} style={s.heroVideoTagIcon} resizeMode="contain" /> */}
+                <Text style={s.heroVideoTagText} numberOfLines={1}>{tag}</Text>
+              </View>
+            )}
+            {!!tagline && (
+              <Text style={[s.heroVideoHeadline, userRole === 'FREELANCER' && s.heroVideoHeadlineFreelancer]}>{tagline}</Text>
+            )}
+          </View>
+        </View>
+      );
+    }
+    // Legacy gradient+text hero — kept as a fallback for any category missing
+    // both heroVideo and heroStaticImage; every current entry has one or the
+    // other, so this branch is effectively unreached. Cast to any since the
+    // trimmed-down "all" entries no longer carry these fields at all.
+    const legacyCat = activeCat as any;
+    return (
+      <View style={s.heroCard}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: legacyCat.gradient?.[1], borderRadius: 24 }]} />
+        <View style={[StyleSheet.absoluteFill, { opacity: 0.6, backgroundColor: legacyCat.gradient?.[0], borderRadius: 24 }]} />
+        <View style={s.heroContent}>
+          <View style={s.heroTextArea}>
+            <Text style={[s.heroTitle, s.heroTitleBold]}>{legacyCat.heroLine1}</Text>
+            {!!legacyCat.heroLine2 && legacyCat.heroLine2.trim().length > 0 && (
+              <Text style={[s.heroTitle, s.heroTitleFaded]}>{legacyCat.heroLine2}</Text>
+            )}
+            {!!legacyCat.heroLine3 && legacyCat.heroLine3.trim().length > 0 && (
+              <Text style={[s.heroTitle, s.heroTitleFaded]}>{legacyCat.heroLine3}</Text>
+            )}
+            <Text style={s.heroDesc}>{legacyCat.heroDesc}</Text>
+          </View>
+          <HeroAnimatedImage source={legacyCat.image} style={[s.heroCharacter, legacyCat.charStyle, { width: 111, height: 104 }]} activeCatId={activeCat.id} isFreelancer={userRole === 'FREELANCER'} />
+        </View>
       </View>
-    </View>
-  ), [activeCat, userRole]);
+    );
+  }, [activeCat, userRole]);
 
   if (!isReady) {
     return (
@@ -1603,6 +1778,17 @@ const s = StyleSheet.create({
     padding: 20,
   },
 
+  // "All" category hero — plain image, no padding (so it isn't inset/misaligned
+  // like heroCard's text-hero padding would do to a full-bleed image).
+  heroImageCard: {
+    aspectRatio: 333 / 140,
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginHorizontal: 2,
+    marginBottom: 4,
+  },
+  heroImageCardImg: { width: '100%', height: '100%' },
+
   // Sparkle dots
   sparkleDot: { position: 'absolute', borderRadius: 99, backgroundColor: '#fff' },
 
@@ -1621,6 +1807,24 @@ const s = StyleSheet.create({
     width: 210,
     height: 210,
   },
+
+  // Hero video overlay — pill label + bold tagline drawn on top of the
+  // category's banner video, replacing the old gradient hero's text.
+  heroVideoOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 24, padding: 16,  gap: 10 },
+  heroVideoTag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderRadius: 28, paddingVertical: 4, paddingHorizontal: 8, gap: 6 },
+  heroVideoTagIcon: { width: 16, height: 16 },
+  heroVideoTagText: { color: '#fff', fontSize: 11, lineHeight: 18, fontFamily: 'Poppins_600SemiBold' },
+  heroVideoHeadline: {
+    color: '#fff',
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: 'Poppins_500Medium',
+    maxWidth: '50%',
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  heroVideoHeadlineFreelancer: { maxWidth: '75%' },
 
   // Filters
   // Filter drawer (slides in from the right)
