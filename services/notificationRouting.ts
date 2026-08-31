@@ -7,7 +7,7 @@ import { clearIncomingCallNotification } from './callNotification';
  * the intro screen (app/index.tsx) for cold-start taps, so killed-app opens
  * land on the same screens as backgrounded ones.
  */
-export function routeNotificationData(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined, currentPath?: string) {
+export function routeNotificationData(router: ReturnType<typeof useRouter>, data: Record<string, string> | undefined, currentPath?: string, userRole?: string | null) {
     if (!data?.type) return;
     switch (data.type) {
         case 'INCOMING_CALL':
@@ -61,6 +61,26 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
         case 'NEW_FOLLOWER':
             if (data.followerId) {
                 router.push({ pathname: '/creator-details', params: { userId: data.followerId } } as any);
+            }
+            break;
+        case 'ANNOUNCEMENT':
+            // Admin Broadcast messages can carry an optional destination so a tap
+            // actually goes somewhere useful instead of just opening the app.
+            switch (data.action) {
+                case 'EXPLORE':
+                    router.push('/(tabs)/explore' as any);
+                    break;
+                case 'SEARCH':
+                    router.push('/searchbar' as any);
+                    break;
+                case 'COMPLETE_PROFILE':
+                    router.push((userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any);
+                    break;
+                case 'PRIVACY_SETTINGS':
+                    router.push('/privacysettings' as any);
+                    break;
+                default:
+                    break; // 'NONE' or unset — no destination, matches prior behavior
             }
             break;
         default:
