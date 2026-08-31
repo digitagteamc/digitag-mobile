@@ -214,23 +214,26 @@ export default function PrivacySettingsScreen() {
                                 />
                             </View>
 
-                            {/* Category Post Notifications — freelancers only, since this
-                                is the direction Creator posts notify matching Freelancers */}
-                            {userRole === 'FREELANCER' && (
-                                <View className="flex-row items-center py-3.5 px-3">
-                                    <View className="w-10 h-10 items-center justify-center mr-4">
-                                        <Ionicons name="notifications-outline" size={22} color="#E0E0E0" />
-                                    </View>
-                                    <View className="flex-1">
-                                        <Text className="text-[#fff] text-[16px] font-poppins-regular">Category Post Alerts</Text>
-                                        <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">Notify me when Creators post in my categories</Text>
-                                    </View>
-                                    <CustomSwitch
-                                        value={categoryPostNotifs}
-                                        onValueChange={(v) => { setCategoryPostNotifs(v); savePrivacy({ notifyCategoryPosts: v }); }}
-                                    />
+                            {/* Category Post Notifications — Freelancers get notified when a
+                                Creator posts in their category, and Creators get notified when
+                                a Freelancer posts in theirs (see post.service.js createPost). */}
+                            <View className="flex-row items-center py-3.5 px-3">
+                                <View className="w-10 h-10 items-center justify-center mr-4">
+                                    <Ionicons name="notifications-outline" size={22} color="#E0E0E0" />
                                 </View>
-                            )}
+                                <View className="flex-1">
+                                    <Text className="text-[#fff] text-[16px] font-poppins-regular">Category Post Alerts</Text>
+                                    <Text className="text-[#D6D6D6] text-[12px] font-poppins-regular">
+                                        {userRole === 'FREELANCER'
+                                            ? 'Notify me when Creators post in my categories'
+                                            : 'Notify me when Freelancers post a new listing'}
+                                    </Text>
+                                </View>
+                                <CustomSwitch
+                                    value={categoryPostNotifs}
+                                    onValueChange={(v) => { setCategoryPostNotifs(v); savePrivacy({ notifyCategoryPosts: v }); }}
+                                />
+                            </View>
                         </View>
                     </View>
 
