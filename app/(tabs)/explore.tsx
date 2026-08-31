@@ -655,7 +655,7 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 const FILTER_DRAWER_WIDTH = Dimensions.get('window').width;
 // 130px on typical/larger phones; compacts down on narrow devices so the
 // options pane never gets crammed into a sliver.
-const FILTER_CATEGORY_LIST_WIDTH = Math.min(130, Math.round(FILTER_DRAWER_WIDTH * 0.35));
+const FILTER_CATEGORY_LIST_WIDTH = Math.min(10, Math.round(FILTER_DRAWER_WIDTH * 0.35));
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
@@ -1774,7 +1774,7 @@ const s = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginHorizontal: 8,
-    marginBottom: 8,
+    marginBottom: 12,
     padding: 20,
   },
 
@@ -1785,7 +1785,7 @@ const s = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginHorizontal: 2,
-    marginBottom: 4,
+    marginBottom: 12,
   },
   heroImageCardImg: { width: '100%', height: '100%' },
 
@@ -1920,7 +1920,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: 'rgba(255,255,255,0.05)',  
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
-  },
+  }, 
   pillText: { color: '#a1a1aa', fontSize: 12, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
 
   // Bottom
@@ -1973,3 +1973,4 @@ const s = StyleSheet.create({
   },
   filterOptionText: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_400Regular' },
 });
+ 
