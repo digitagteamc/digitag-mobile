@@ -26,7 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../Components/ui/CustomAlert';
 import GradientButton from '../Components/ui/GradientButton';
 import { useAuth } from '../context/AuthContext';
-import { verifyFirebaseToken } from '../services/userService';
+import { verifyFirebaseToken, requestOtp, verifyOtp } from '../services/userService';
 
 type SignupRole = 'CREATOR' | 'FREELANCER' | 'BRAND';
 
@@ -239,23 +239,27 @@ export default function LoginScreen() {
     };
 
     // TEMPORARY — Brand-testing convenience only, not for production. Skips
-    // the phone/OTP screens entirely by running the exact same real Firebase
-    // phone-auth + verify-firebase call in the background against a known
-    // Firebase-console test number (already used for Apple review, see
-    // PREMIUM_REVIEWER_PHONE_NUMBERS in the backend .env), so it's the real
-    // auth path end-to-end, just automated instead of hand-typed. Remove this
-    // function and its button once Brand no longer needs fast test access.
+    // the phone/OTP screens entirely and logs straight in against the
+    // backend's own TEST_PHONE_NUMBERS bypass (see otp.service.js), which is
+    // a fixed mobileNumber/code pair the backend accepts with zero real SMS
+    // and zero Firebase involvement. This used to round-trip through real
+    // Firebase phone-auth against the same test number, but Firebase applies
+    // its own rate limiting on top regardless of the number being a fixed
+    // test one, which was blocking fast repeated demo access — going
+    // straight to the backend's own test-number path avoids Firebase (and
+    // its rate limit) entirely. Remove this function and its button once
+    // Brand no longer needs fast test access.
     const [skippingBrand, setSkippingBrand] = useState(false);
     const handleSkipBrandLogin = async () => {
         setSkippingBrand(true);
         try {
-            if (auth().currentUser) await auth().signOut();
             const testPhone = '9991112228';
-            const confirmation = await auth().signInWithPhoneNumber(`+91${testPhone}`);
-            const cred = await confirmation.confirm('123456');
-            const idToken = await (cred?.user ?? auth().currentUser)?.getIdToken();
-            if (!idToken) throw new Error('Test sign-in failed.');
-            const res = await verifyFirebaseToken(idToken, 'BRAND');
+            const sendRes = await requestOtp(testPhone, 'BRAND' as any);
+            if (!sendRes.success) {
+                showStatus('Error', sendRes.error || 'Test login failed.');
+                return;
+            }
+            const res = await verifyOtp(testPhone, '123456', 'BRAND' as any);
             if (!res.success) {
                 showStatus('Error', res.error || 'Test login failed.');
                 return;
