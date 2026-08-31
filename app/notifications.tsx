@@ -88,7 +88,7 @@ type Tab = 'requests' | 'notifications';
 
 export default function NotificationsScreen() {
     const router = useRouter();
-    const { token } = useAuth();
+    const { token, userRole } = useAuth();
     const theme = useRoleTheme(); // viewer's role theme
     const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
 
@@ -252,7 +252,7 @@ export default function NotificationsScreen() {
             setTab('requests');
             return;
         }
-        routeNotificationData(router, (n.data || undefined) as Record<string, string> | undefined);
+        routeNotificationData(router, (n.data || undefined) as Record<string, string> | undefined, undefined, userRole ?? undefined);
     };
 
     const pending = requests.filter((r) => r.status === 'PENDING');

@@ -54,13 +54,16 @@ Sentry.init({
 
 function NotificationHandler() {
     const router = useRouter();
-    const { token } = useAuth();
+    const { token, userRole } = useAuth();
     const { refreshUnreadCount } = useNotificationCount();
     // Ref, not the value: the FCM listeners below live across renders, and a
     // captured pathname would go stale inside their closures.
     const pathname = usePathname();
     const pathnameRef = useRef(pathname);
     pathnameRef.current = pathname;
+    // Same staleness concern as pathnameRef — these listeners live across renders.
+    const userRoleRef = useRef(userRole);
+    userRoleRef.current = userRole;
 
     // Single navigation entry point. Guard prevents double-navigation when
     // AppState and onForegroundEvent both fire for the same user tap.
@@ -106,7 +109,7 @@ function NotificationHandler() {
             const data = remoteMessage.data as Record<string, string> | undefined;
             if (!data) return;
             if (data.type === 'INCOMING_CALL' || data.type === 'CALL_ENDED' || data.type === 'CALL_DECLINED') {
-                routeNotificationData(router, data, pathnameRef.current);
+                routeNotificationData(router, data, pathnameRef.current, userRoleRef.current);
                 return;
             }
             // Everything else (new message, collab request/accept/decline, new post):
@@ -129,7 +132,7 @@ function NotificationHandler() {
     // ── 2. Background FCM tap (app was backgrounded, not killed — non-call types)
     useEffect(() => {
         const unsubFcm = messaging().onNotificationOpenedApp(remoteMessage => {
-            routeNotificationData(router, remoteMessage.data as Record<string, string> | undefined, pathnameRef.current);
+            routeNotificationData(router, remoteMessage.data as Record<string, string> | undefined, pathnameRef.current, userRoleRef.current);
         });
         return () => unsubFcm();
     }, []);
@@ -148,7 +151,7 @@ function NotificationHandler() {
             if (!callId) {
                 // Non-call notification tapped while app is foregrounded — same
                 // routing table used for backgrounded/killed taps.
-                routeNotificationData(router, data, pathnameRef.current);
+                routeNotificationData(router, data, pathnameRef.current, userRoleRef.current);
                 return;
             }
             if (actionId === 'decline') {

@@ -148,7 +148,7 @@ const PerfectLiquidWave = ({
 // Main Intro Screen
 // ─────────────────────────────────────────────────────────────────
 export default function Index() {
-    const { isLoading, token, isGuest, hasOnboarded } = useAuth();
+    const { isLoading, token, isGuest, hasOnboarded, userRole } = useAuth();
     const router = useRouter();
     const [introDone, setIntroDone] = useState(false);
     // A non-call notification tap that cold-started the app — routed after the intro.
@@ -268,7 +268,7 @@ export default function Index() {
             router.replace('/(tabs)');
             // Deep-link into the tapped notification's screen, on top of tabs so
             // back behaves normally.
-            if (pendingNotif) routeNotificationData(router, pendingNotif);
+            if (pendingNotif) routeNotificationData(router, pendingNotif, undefined, userRole ?? undefined);
         } else if (hasOnboarded) {
             router.replace('/role-selection');
         } else {
