@@ -655,7 +655,7 @@ const AnimatedImage = Animated.createAnimatedComponent(Image);
 const FILTER_DRAWER_WIDTH = Dimensions.get('window').width;
 // 130px on typical/larger phones; compacts down on narrow devices so the
 // options pane never gets crammed into a sliver.
-const FILTER_CATEGORY_LIST_WIDTH = Math.min(130, Math.round(FILTER_DRAWER_WIDTH * 0.35));
+const FILTER_CATEGORY_LIST_WIDTH = Math.min(50, Math.round(FILTER_DRAWER_WIDTH * 0.35));
 
 const HeroAnimatedImage = React.memo(({ source, style, activeCatId, isFreelancer }: { source: any; style: any; activeCatId: string; isFreelancer: boolean }) => {
   const translateX = useSharedValue(isFreelancer ? 300 : 0);
@@ -1774,7 +1774,7 @@ const s = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     marginHorizontal: 8,
-    marginBottom: 8,
+    marginBottom: 4,
     padding: 20,
   },
 
@@ -1871,8 +1871,9 @@ const s = StyleSheet.create({
     backgroundColor: '#1a1a1a', borderRadius: 24, padding: 16,
     borderWidth: 1,
     alignSelf: 'center',
+    marginTop: 12
   },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14, },
   cardAvatarWrap: { marginRight: 14 },
   cardAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#333', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
   cardInitials: { fontSize: 20, fontWeight: '700' },
