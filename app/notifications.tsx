@@ -450,8 +450,8 @@ const styles = StyleSheet.create({
     tabRow: {
         flexDirection: 'row',
         paddingHorizontal: spacing.xl,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: palette.borderStrong,
+        // borderBottomWidth: StyleSheet.hairlineWidth,
+        // borderBottomColor: palette.borderStrong,
         marginBottom: 4,
     },
     tabBtn: { paddingVertical: 12, marginRight: 28 },
