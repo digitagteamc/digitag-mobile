@@ -21,6 +21,9 @@ import { clearIncomingCallNotification } from '../services/callNotification';
 import { routeNotificationData } from '../services/notificationRouting';
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
+// Fallback for non-call notification types — see index.js for why this exists
+// alongside messaging().getInitialNotification() below.
+const PENDING_NOTIF_KEY = '@pending_notification';
 // Was 4000ms — the choreographed animation below now finishes around 2200ms
 // (scaled down proportionally with FILL_DONE_TIME), so this only needs a
 // short hold after that, not a fixed 4s wait on every single app open.
@@ -233,11 +236,21 @@ export default function Index() {
             // 3. FCM notification tap that launched the app (iOS killed-state calls
             //    arrive here — the OS shows the APNs alert itself, no JS runs first)
             const remote = await messaging().getInitialNotification().catch(() => null);
-            const fData = remote?.data as Record<string, string> | undefined;
+            let fData = remote?.data as Record<string, string> | undefined;
             if (fData?.type === 'INCOMING_CALL' && fData.callId) {
                 goToCall(fData.callId, fData.callerName);
                 return;
             }
+            // getInitialNotification() is unreliable from a fully killed state (the
+            // same reason PENDING_CALL_KEY exists for calls above) — fall back to
+            // whatever the background handler last stashed if it came up empty.
+            if (!fData?.type) {
+                try {
+                    const storedNotif = await AsyncStorage.getItem(PENDING_NOTIF_KEY);
+                    if (storedNotif) fData = JSON.parse(storedNotif);
+                } catch {}
+            }
+            await AsyncStorage.removeItem(PENDING_NOTIF_KEY).catch(() => {});
             if (fData?.type && !cancelled) setPendingNotif(fData);
         };
         checkColdStartNotification();
