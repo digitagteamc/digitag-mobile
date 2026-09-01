@@ -37,9 +37,15 @@ export function usePullToRefresh(onRefresh: () => void, refreshing: boolean) {
 
   const contentStyle = {
     transform: [{
+      // Content sits inside the ScrollView, so it inherits the native
+      // overscroll shift (content renders `-scrollY` lower on screen once
+      // scrollY goes negative). Countering that means moving this child by
+      // `scrollY` (i.e. the same negative amount), not `-scrollY` — the
+      // previous outputRange had this backwards and doubled the shift
+      // instead of canceling it.
       translateY: scrollY.interpolate({
         inputRange: [-2000, 0],
-        outputRange: [2000, 0],
+        outputRange: [-2000, 0],
         extrapolate: 'clamp' as const,
       }),
     }],
