@@ -1420,7 +1420,7 @@ export default function Homepage() {
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.primary }]}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
       <Animated.ScrollView
