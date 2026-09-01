@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    FlatList,
     Image,
     SafeAreaView,
     ScrollView,
@@ -11,7 +12,15 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import PreviewAdSheet from './brands/PreviewAdSheet';
 import { fonts } from '../theme/colors';
+
+const DUMMY_AD_TYPES = [
+    { id: 'ad-1', name: 'Strip Ad', accentColor: '#15112E' },
+    { id: 'ad-2', name: 'Banner Ad', accentColor: '#DADAFF' },
+    { id: 'ad-3', name: 'Corner Ads', accentColor: '#F1CEFF' },
+    { id: 'ad-4', name: 'L - Shape Ads', accentColor: '#F5C344' },
+];
 
 function formatNumber(val: any): string {
     if (!val) return '0';
@@ -51,6 +60,9 @@ export default function YoutubeChannelDetailScreen() {
 
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isNotified, setIsNotified] = useState(false);
+    const [selectedAdType, setSelectedAdType] = useState<string>(DUMMY_AD_TYPES[0].id);
+    const [adSheetVisible, setAdSheetVisible] = useState(false);
+    const [adSheetItem, setAdSheetItem] = useState<any | null>(null);
 
     // Initial letters fallback avatar
     const initials = channelName
@@ -416,6 +428,94 @@ export default function YoutubeChannelDetailScreen() {
                             </Text>
                         </View>
                     </View>
+                </View>
+
+                {/* Ad Types Section */}
+                <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.semibold }}>
+                        Ad Types
+                    </Text>
+
+                    <FlatList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={DUMMY_AD_TYPES}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{ paddingTop: 12, gap: 10 }}
+                        renderItem={({ item }) => {
+                            const accent = item.accentColor || '#4F46E5';
+                            const isActive = selectedAdType === item.id;
+                            return (
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    onPress={() => {
+                                        setSelectedAdType(item.id);
+                                        setAdSheetItem(item);
+                                        setAdSheetVisible(true);
+                                    }}
+                                    style={[
+                                        {
+                                            width: 118,
+                                            borderRadius: 18,
+                                            overflow: 'hidden',
+                                            backgroundColor: accent,
+                                            borderWidth: 1.5,
+                                            borderColor: isActive ? '#6C47FF' : accent + '44',
+                                        },
+                                        isActive && {
+                                            shadowColor: '#3B82F6',
+                                            shadowOffset: { width: 0, height: 0 },
+                                            shadowOpacity: 0.7,
+                                            shadowRadius: 8,
+                                            elevation: 6,
+                                        },
+                                    ]}
+                                >
+                                    {/* Thumbnail area */}
+                                    <View
+                                        style={{
+                                            marginHorizontal: 10,
+                                            marginTop: 10,
+                                            height: 68,
+                                            borderRadius: 14,
+                                            backgroundColor: '#08080F',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                        }}
+                                    >
+                                        {/* Play button */}
+                                        <View
+                                            style={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: 16,
+                                                backgroundColor: isActive ? '#3B82F6' : '#1E1E2E',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <Ionicons name="play" size={13} color="#fff" style={{ marginLeft: 2 }} />
+                                        </View>
+                                    </View>
+                                    {/* Label */}
+                                    <Text
+                                        style={{
+                                            fontSize: 11,
+                                            fontFamily: fonts.semibold,
+                                            color: isActive ? '#6C47FF' : '#000',
+                                            textAlign: 'center',
+                                            marginTop: 6,
+                                            marginBottom: 8,
+                                            paddingHorizontal: 4,
+                                        }}
+                                        numberOfLines={1}
+                                    >
+                                        {item.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
                 </View>
 
                 {/* Recent Videos Section */}
@@ -1192,6 +1292,12 @@ export default function YoutubeChannelDetailScreen() {
                     </View>
                 </View>
             </ScrollView>
+
+            <PreviewAdSheet
+                visible={adSheetVisible}
+                adItem={adSheetItem}
+                onClose={() => setAdSheetVisible(false)}
+            />
         </SafeAreaView>
     );
 }
