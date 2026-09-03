@@ -79,6 +79,18 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
                 case 'PRIVACY_SETTINGS':
                     router.push('/privacysettings' as any);
                     break;
+                case 'POST':
+                    if (data.postId) {
+                        router.push({ pathname: '/post-detail', params: { postId: data.postId } } as any);
+                    }
+                    break;
+                case 'USER_PROFILE':
+                    // Role-agnostic despite the file name — already the shared
+                    // destination for NEW_FOLLOWER above.
+                    if (data.profileUserId) {
+                        router.push({ pathname: '/creator-details', params: { userId: data.profileUserId } } as any);
+                    }
+                    break;
                 default:
                     break; // 'NONE' or unset — no destination, matches prior behavior
             }
