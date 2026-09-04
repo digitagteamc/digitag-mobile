@@ -26,6 +26,7 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, RadialGradient, Stop, Svg } from 'react-native-svg';
 import IgVerifyModal from '../../Components/IgVerifyModal';
+import BrandProfileScreen from '../brands/BrandProfileScreen';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -790,6 +791,11 @@ export default function ProfileScreen() {
     if (h < 24) return `${h}h ago`;
     return `${Math.round(h / 24)}d ago`;
   };
+
+  // ── Brand users get their own dedicated profile view ──
+  if (userRole?.toUpperCase() === 'BRAND') {
+    return <BrandProfileScreen />;
+  }
 
   if (loading) {
     return (

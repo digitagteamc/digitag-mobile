@@ -1,7 +1,7 @@
 /**
  * BrandBottomNav — Brand role's custom bottom nav matching the design spec:
  * A purple notched top bar with rounded corners, a central dark FAB with a mint '+' icon,
- * and 4 tab icons (home, messages, profile, requirements) with an active underline indicator.
+ * and 4 tab icons (home, messages, profile, campaign) with an active underline indicator.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -136,7 +136,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                 {/* Center Notch Spacer */}
                 <View style={{ width: notchW }} />
 
-                {/* Right Tabs (Profile, Requirements) */}
+                {/* Right Tabs (Profile, Campaign) */}
                 <View style={styles.tabGroup}>
                     {/* Profile */}
                     <TouchableOpacity
@@ -158,22 +158,22 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                         />
                     </TouchableOpacity>
 
-                    {/* Requirements */}
+                    {/* Campaign */}
                     <TouchableOpacity
                         activeOpacity={0.8}
-                        onPress={() => onTabPress('requirements')}
+                        onPress={() => onTabPress('campaign')}
                         style={styles.tabTouch}
                     >
                         <Ionicons
-                            name="document-text"
+                            name="megaphone"
                             size={21}
                             color="#FFFFFF"
-                            style={{ opacity: activeKey === 'requirements' ? 1.0 : 0.8 }}
+                            style={{ opacity: activeKey === 'campaign' ? 1.0 : 0.8 }}
                         />
                         <View
                             style={[
                                 styles.activeLine,
-                                { opacity: activeKey === 'requirements' ? 1 : 0 },
+                                { opacity: activeKey === 'campaign' ? 1 : 0 },
                             ]}
                         />
                     </TouchableOpacity>
