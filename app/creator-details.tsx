@@ -8,10 +8,12 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    ImageBackground,
     Linking,
     Modal,
     Platform,
     ScrollView,
+    Share,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -24,26 +26,33 @@ import { useCall } from '../context/CallContext';
 import { useProfileGate } from '../context/ProfileGateContext';
 import {
     blockUser,
+    cancelCollaboration,
     followUser,
     getBlockStatus,
     getCollaborationWith,
     getFollowStatus,
     getPostById,
     getReportStatus,
+    getSavedPostIds,
     getUserById,
+    getUserPosts,
     getUserStats,
     initiateCall,
     openConversationWith,
+    sendCollaboration,
+    toggleSavePost,
     unblockUser,
     unfollowUser,
 } from '../services/userService';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../services/socialLinks';
 import { fonts } from '../theme/colors';
-import { useRoleTheme } from '../theme/useRoleTheme';
+import { getRoleTheme, useRoleTheme } from '../theme/useRoleTheme';
+import { matchesPortfolioCategory } from '../constants/portfolioCategories';
 import CustomAlert from '../Components/ui/CustomAlert';
 import ConfirmActionModal from '../Components/ui/ConfirmActionModal';
 import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import ReportModal from '../Components/ui/ReportModal';
+import PortfolioImageCarousel from '../Components/PortfolioImageCarousel';
 
 export default function CreatorDetails() {
     const router = useRouter();
@@ -59,6 +68,14 @@ export default function CreatorDetails() {
 
     const [profile, setProfile] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
+    const [posts, setPosts] = useState<any[]>([]);
+    // Posts section state — mirrors app/(tabs)/explore.tsx's card behavior
+    // (bookmark, expand/collapse description, per-post collaboration),
+    // scoped locally to this screen's own post list instead of that feed's
+    // page-wide Maps/Sets, since explore.tsx itself isn't being touched.
+    const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+    const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+    const [postCollab, setPostCollab] = useState<Record<string, { status: string; collabId: string | null; busy: boolean }>>({});
     const [isFollowing, setIsFollowing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
@@ -100,6 +117,34 @@ export default function CreatorDetails() {
 
             if (!uid) { setLoading(false); return; }
             setResolvedUserId(uid);
+
+            // Independent of the token/guest branches below (which stay
+            // exactly as they were) — works for both since getUserPosts
+            // accepts a null token.
+            getUserPosts(uid, token).then(async (postsRes) => {
+                if (!(postsRes.success && Array.isArray(postsRes.data))) return;
+                const fetchedPosts: any[] = postsRes.data;
+                setPosts(fetchedPosts);
+                if (!token) return;
+                const [savedRes, collabResults] = await Promise.all([
+                    getSavedPostIds(token),
+                    Promise.all(fetchedPosts.map((post) => getCollaborationWith(token, uid, post.id))),
+                ]);
+                if (savedRes.success && Array.isArray(savedRes.data)) {
+                    setSavedPostIds(new Set(savedRes.data));
+                }
+                const collabMap: Record<string, { status: string; collabId: string | null; busy: boolean }> = {};
+                collabResults.forEach((res, idx) => {
+                    if (res.success) {
+                        collabMap[fetchedPosts[idx].id] = {
+                            status: (res as any).data?.status ?? 'NONE',
+                            collabId: (res as any).data?.id ?? null,
+                            busy: false,
+                        };
+                    }
+                });
+                setPostCollab(collabMap);
+            });
 
             if (token) {
                 const [userRes, followRes, statsRes, collabRes, blockRes, reportRes] = await Promise.all([
@@ -230,6 +275,80 @@ export default function CreatorDetails() {
         }
     };
 
+    const toggleExpandPost = (postId: string) => {
+        setExpandedPosts((prev) => {
+            const next = new Set(prev);
+            if (next.has(postId)) next.delete(postId); else next.add(postId);
+            return next;
+        });
+    };
+
+    const handleSharePost = async (postId: string) => {
+        try {
+            await Share.share({ message: `Check out this post on digitag! https://thedigitag.ai/post/${postId}`, title: 'digitag Post' });
+        } catch (e: any) {
+            showAlert('Error', e.message);
+        }
+    };
+
+    const handleBookmarkPost = async (postId: string) => {
+        if (!requireProfile('save this post') || !token) return;
+        const isSaved = savedPostIds.has(postId);
+        setSavedPostIds((prev) => {
+            const next = new Set(prev);
+            if (isSaved) next.delete(postId); else next.add(postId);
+            return next;
+        });
+        const res = await toggleSavePost(postId, token, isSaved);
+        if (!res.success) {
+            setSavedPostIds((prev) => {
+                const next = new Set(prev);
+                if (isSaved) next.add(postId); else next.delete(postId);
+                return next;
+            });
+        }
+    };
+
+    const handlePostCollab = async (postId: string, receiverId: string) => {
+        if (!requireProfile('send a collab request')) return;
+        if (!token || postCollab[postId]?.busy) return;
+        setPostCollab((prev) => ({ ...prev, [postId]: { ...(prev[postId] || { status: 'NONE', collabId: null }), busy: true } }));
+        const res = await sendCollaboration(token, { receiverId, postId, message: 'I would love to collaborate with you!' });
+        if (res.success !== false) {
+            setPostCollab((prev) => ({ ...prev, [postId]: { status: 'PENDING', collabId: (res as any).data?.id ?? null, busy: false } }));
+            showAlert('Collab Sent!', 'Your collaboration request has been sent.');
+        } else {
+            setPostCollab((prev) => ({ ...prev, [postId]: { ...(prev[postId] || { status: 'NONE', collabId: null }), busy: false } }));
+            showAlert('Collab Failed', (res as any).error || 'Could not send collab request.');
+        }
+    };
+
+    const handlePostCancelCollab = (postId: string) => {
+        const entry = postCollab[postId];
+        if (!token || !entry?.collabId || entry.busy) return;
+        Alert.alert(
+            'Cancel request?',
+            'This will withdraw your collaboration request. You can send a new one later.',
+            [
+                { text: 'Keep it', style: 'cancel' },
+                {
+                    text: 'Cancel Request',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setPostCollab((prev) => ({ ...prev, [postId]: { ...entry, busy: true } }));
+                        const res = await cancelCollaboration(token, entry.collabId!);
+                        if (res.success !== false) {
+                            setPostCollab((prev) => ({ ...prev, [postId]: { status: 'NONE', collabId: null, busy: false } }));
+                        } else {
+                            setPostCollab((prev) => ({ ...prev, [postId]: { ...entry, busy: false } }));
+                            showAlert('Cancel Failed', (res as any).error || 'Could not cancel the request.');
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
     if (loading) {
         return (
             <View style={styles.loadingWrap}>
@@ -340,6 +459,47 @@ export default function CreatorDetails() {
         label,
         ...CHIP_COLORS[idx % CHIP_COLORS.length],
     }));
+
+    // Posts Section — same card design as app/(tabs)/explore.tsx's feed
+    // (explore.tsx itself untouched; this is a self-contained equivalent
+    // using this screen's own state instead of that feed's page-wide Maps).
+    const getPostTimeAgo = (dateStr: string) => {
+        const diffMs = Date.now() - new Date(dateStr).getTime();
+        const diffMins = Math.round(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        const diffHrs = Math.round(diffMins / 60);
+        if (diffHrs < 24) return `${diffHrs}h ago`;
+        return `${Math.round(diffHrs / 24)}d ago`;
+    };
+    const profileCategoryNames: string[] = p.categoryNames || [];
+    const postCards = posts.map((post) => {
+        const owner = post.owner || { id: resolvedUserId, role: profile.role, name, profilePicture: p.profilePicture };
+        return {
+            id: post.id,
+            owner,
+            ownerId: owner.id as string | undefined,
+            ownerRole: owner.role as string | undefined,
+            bannerUri: post.imageUrl || null,
+            isInitials: !owner.profilePicture,
+            initials: name.slice(0, 2).toUpperCase(),
+            avatarUri: owner.profilePicture || null,
+            name,
+            desc: post.description || '',
+            imageUrls: Array.isArray(post.imageUrls) && post.imageUrls.length ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : []),
+            price: post.collaborationType === 'PAID' ? 'Paid Collab' : 'Free Collab',
+            budget: post.budget || null,
+            time: getPostTimeAgo(post.createdAt),
+            experience: experienceText || '',
+            // A Freelancer's post shows their own profile category ("I'm a
+            // Videographer"); a Creator's post shows the post's own selected
+            // category ("I'm Looking for a Videographer") — same distinction
+            // explore.tsx's card makes.
+            postCategory: post.category || '',
+            categoryNames: profileCategoryNames,
+            isPremium: profile?.isPremium,
+        };
+    });
 
     return (
         <View style={styles.root}>
@@ -518,6 +678,172 @@ export default function CreatorDetails() {
                         </View>
                     </View>
 
+                    {/* Posts Section — same card design as app/(tabs)/explore.tsx's
+                        feed (that screen itself is untouched; this is a
+                        self-contained equivalent for this profile's own posts). */}
+                    {postCards.length > 0 && (
+                        <View style={{ width: cardMaxWidth, marginTop: 16, marginLeft: 20 }}>
+                            <Text style={[styles.specialTitle, { marginBottom: 4, marginLeft: 10 }]}>Posts</Text>
+                            {postCards.map((item) => {
+                                const postAccent = getRoleTheme(item.ownerRole).primary;
+                                const isExpanded = expandedPosts.has(item.id);
+                                const fullDesc = item.desc || '';
+                                const needsTruncation = fullDesc.length > 100;
+                                const shownDesc = isExpanded || !needsTruncation ? fullDesc : fullDesc.slice(0, 100).trimEnd();
+                                const isFreelancerOwner = item.ownerRole === 'FREELANCER';
+                                const displayCategory = isFreelancerOwner ? (item.categoryNames?.[0] || '') : item.postCategory;
+                                const collab = postCollab[item.id] || { status: 'NONE', collabId: null, busy: false };
+                                // explore.tsx's own card never gates this on role — it always
+                                // renders Collaborate/Sent/Accepted/Completed and lets
+                                // requireProfile + the backend enforce who's actually allowed
+                                // to collaborate. Only "not your own profile" is checked here,
+                                // since every post on this page belongs to the same owner.
+                                const canCollabOnPost = resolvedUserId !== myId;
+                                return (
+                                    <View key={item.id} style={{ paddingBottom: 16 }}>
+                                        <TouchableOpacity
+                                            style={[postStyles.card, { borderColor: postAccent + '5D', borderTopColor: postAccent, borderTopWidth: 0, borderLeftWidth: 0.5, borderRightWidth: 0.5 }]}
+                                            activeOpacity={1}
+                                            onPress={() => router.push({ pathname: '/post-detail', params: { postId: item.id } } as any)}
+                                        >
+                                            {/* Avatar + Name */}
+                                            <View style={postStyles.cardTop}>
+                                                <View style={postStyles.cardAvatarWrap}>
+                                                    <Image
+                                                        source={item.isInitials ? require('../assets/images/icon.png') : { uri: item.avatarUri }}
+                                                        style={postStyles.cardAvatar}
+                                                        resizeMode="cover"
+                                                    />
+                                                </View>
+                                                <View style={postStyles.cardNameArea}>
+                                                    <View style={postStyles.cardNameRow}>
+                                                        <Text style={postStyles.cardName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                                                        {!!item.isPremium && (
+                                                            <Ionicons name="shield-checkmark" size={14} color={postAccent} style={{ marginLeft: 6, flexShrink: 0 }} />
+                                                        )}
+                                                    </View>
+                                                    <View style={postStyles.cardMetaRow}>
+                                                        <View style={postStyles.timeRow}>
+                                                            <Ionicons name="time-outline" size={12} color="#a1a2a4" />
+                                                            <Text style={postStyles.timeText}>{item.time || '4h ago'}</Text>
+                                                        </View>
+                                                    </View>
+                                                </View>
+                                                {/* Bookmark */}
+                                                <TouchableOpacity style={postStyles.bookmarkBtn} onPress={() => handleBookmarkPost(item.id)}>
+                                                    <Ionicons
+                                                        name={savedPostIds.has(item.id) ? 'bookmark' : 'bookmark-outline'}
+                                                        size={22}
+                                                        color={savedPostIds.has(item.id) ? postAccent : '#a1a2a4'}
+                                                    />
+                                                </TouchableOpacity>
+                                            </View>
+
+                                            {!!displayCategory && (
+                                                <View style={postStyles.lookingForRow}>
+                                                    <Text style={postStyles.lookingForLabel}>{isFreelancerOwner ? "I'm a" : "I'm Looking for"}</Text>
+                                                    <View style={postStyles.lookingForPill}>
+                                                        <Text style={postStyles.lookingForPillText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{displayCategory}</Text>
+                                                    </View>
+                                                </View>
+                                            )}
+
+                                            {/* Description */}
+                                            {!!fullDesc && (
+                                                <TouchableOpacity onPress={() => toggleExpandPost(item.id)} activeOpacity={0.7} disabled={!needsTruncation}>
+                                                    <Text style={postStyles.cardDesc}>
+                                                        {shownDesc}
+                                                        {needsTruncation && (isExpanded ? ' ' : '... ')}
+                                                        {needsTruncation && (
+                                                            <Text style={{ color: postAccent }}>{isExpanded ? 'See less' : 'See more'}</Text>
+                                                        )}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
+
+                                            {/* Portfolio images (up to 3, swipeable) */}
+                                            {item.imageUrls.length > 0 && isFreelancerOwner && matchesPortfolioCategory(item.categoryNames) && (
+                                                <PortfolioImageCarousel images={item.imageUrls} style={postStyles.cardImageWrap} />
+                                            )}
+
+                                            {/* Info pills */}
+                                            <View style={postStyles.pillWrapRow}>
+                                                {!!item.experience && (
+                                                    <View style={postStyles.pill}>
+                                                        <Ionicons name="briefcase-outline" size={13} color="#a1a2a4" />
+                                                        <Text style={postStyles.pillText} numberOfLines={1}>{item.experience}</Text>
+                                                    </View>
+                                                )}
+                                                <View style={[postStyles.pill, { borderColor: item.price === 'Paid Collab' ? 'rgba(34,197,94,0.4)' : 'rgba(167,139,250,0.4)' }]}>
+                                                    <Ionicons name={item.price === 'Paid Collab' ? 'cash-outline' : 'gift-outline'} size={13} color={item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa'} />
+                                                    <Text style={[postStyles.pillText, { color: item.price === 'Paid Collab' ? '#22c55e' : '#a78bfa' }]} numberOfLines={1}>{item.price}</Text>
+                                                </View>
+                                                {!!item.budget && (
+                                                    <View style={[postStyles.pill, { borderColor: 'rgba(251,191,36,0.4)' }]}>
+                                                        <Ionicons name="wallet-outline" size={13} color="#fbbf24" />
+                                                        <Text style={postStyles.pillText} numberOfLines={1}>
+                                                            Starting from <Text style={{ color: '#fbbf24' }}>{item.budget}</Text>
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                            </View>
+
+                                            {/* Bottom action — real per-post collaboration status */}
+                                            {canCollabOnPost && (
+                                                collab.status === 'COMPLETED' ? (
+                                                    <View style={[postStyles.bigCollabBtn, { backgroundColor: '#246307' }]}>
+                                                        <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+                                                        <Text style={postStyles.bigCollabBtnText}>Collaborated</Text>
+                                                    </View>
+                                                ) : collab.status === 'ACCEPTED' ? (
+                                                    <View style={postStyles.cardBottom}>
+                                                        <View style={postStyles.cardActions}>
+                                                            <TouchableOpacity onPress={openChat} activeOpacity={0.75}>
+                                                                <ImageBackground source={require('../assets/bg-icons.png')} style={postStyles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                                                                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#fff" />
+                                                                </ImageBackground>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity onPress={handleCall} activeOpacity={0.75}>
+                                                                <ImageBackground source={require('../assets/bg-icons.png')} style={postStyles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                                                                    <Ionicons name="call-outline" size={18} color="#fff" />
+                                                                </ImageBackground>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity onPress={() => handleSharePost(item.id)} activeOpacity={0.75}>
+                                                                <ImageBackground source={require('../assets/bg-icons.png')} style={postStyles.iconCircleDark} imageStyle={{ borderRadius: 19 }}>
+                                                                    <Ionicons name="share-social-outline" size={18} color="#fff" />
+                                                                </ImageBackground>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    </View>
+                                                ) : collab.status === 'PENDING' ? (
+                                                    <TouchableOpacity
+                                                        style={[postStyles.bigCollabBtn, { backgroundColor: postAccent, opacity: collab.busy ? 0.6 : 1 }]}
+                                                        onPress={() => handlePostCancelCollab(item.id)}
+                                                        activeOpacity={0.8}
+                                                        disabled={collab.busy}
+                                                    >
+                                                        <Ionicons name="close-circle-outline" size={16} color="#fff" />
+                                                        <Text style={postStyles.bigCollabBtnText}>Sent · Tap to Cancel</Text>
+                                                    </TouchableOpacity>
+                                                ) : (
+                                                    <TouchableOpacity
+                                                        style={[postStyles.bigCollabBtn, { backgroundColor: postAccent, opacity: collab.busy ? 0.6 : 1 }]}
+                                                        onPress={() => item.ownerId && handlePostCollab(item.id, item.ownerId)}
+                                                        activeOpacity={0.8}
+                                                        disabled={collab.busy}
+                                                    >
+                                                        <Ionicons name="people-outline" size={16} color="#fff" />
+                                                        <Text style={postStyles.bigCollabBtnText}>Collaborate</Text>
+                                                    </TouchableOpacity>
+                                                )
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    )}
+
                     <View style={{ height: 100 }} />
                 </ScrollView>
             </SafeAreaView>
@@ -585,6 +911,66 @@ export default function CreatorDetails() {
         </View>
     );
 }
+
+// Copied verbatim from app/(tabs)/explore.tsx's own card styles (`s.*`) so
+// this profile page's Posts section renders pixel-identical cards, without
+// importing/touching anything in explore.tsx itself.
+const postStyles = StyleSheet.create({
+    card: {
+        width: '100%', maxWidth: 333, minHeight: 287,
+        backgroundColor: '#1a1a1a', borderRadius: 24, padding: 16,
+        borderWidth: 1,
+        alignSelf: 'center',
+        marginTop: 12,
+    },
+    cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+    cardAvatarWrap: { marginRight: 14 },
+    cardAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#333', overflow: 'hidden', justifyContent: 'center', alignItems: 'center' },
+    cardNameArea: { flex: 1, paddingTop: 4, minWidth: 0 },
+    cardNameRow: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+    cardName: { color: '#fff', fontSize: 16, fontFamily: 'Poppins_500Medium', maxWidth: '80%', flexShrink: 1 },
+    cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+    timeRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    timeText: { color: '#a1a2a4', fontSize: 10, fontFamily: 'Poppins_500Medium' },
+    bookmarkBtn: { width: 34, height: 34, justifyContent: 'center', alignItems: 'center' },
+    lookingForRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 6 },
+    lookingForLabel: { color: '#fff', fontSize: 12, fontFamily: 'Poppins_500Medium', flexShrink: 0 },
+    lookingForPill: {
+        backgroundColor: '#FFC10A',
+        borderRadius: 99,
+        paddingHorizontal: 4,
+        paddingVertical: 0,
+        alignSelf: 'flex-start',
+        flexShrink: 1,
+        minWidth: 0,
+    },
+    lookingForPillText: { color: '#000', fontSize: 10, fontFamily: 'Poppins_700Bold', alignSelf: 'center', paddingHorizontal: 4, paddingVertical: 3, marginTop: 2 },
+    cardDesc: { color: '#d1d2d4', fontSize: 12, fontFamily: 'Poppins_300Light', lineHeight: 18, marginBottom: 14 },
+    cardImageWrap: { width: '100%', height: 180, borderRadius: 16, marginBottom: 14 },
+    pillWrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
+    pill: {
+        flexDirection: 'row', alignItems: 'center', gap: 6,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
+    },
+    pillText: { color: '#a1a1aa', fontSize: 12, fontFamily: 'Poppins_400Regular', flexShrink: 1 },
+    bigCollabBtn: {
+        width: '100%',
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 6, borderRadius: 99, paddingVertical: 12, marginTop: 6,
+    },
+    bigCollabBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Poppins_600SemiBold' },
+    cardBottom: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+    cardActions: { flexDirection: 'row', gap: 12 },
+    iconCircleDark: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+});
 
 const styles = StyleSheet.create({
     root: {
@@ -882,8 +1268,8 @@ const styles = StyleSheet.create({
     },
     specialTitle: {
         color: '#fff',
-        fontSize: 20,
-        fontFamily: fonts.regular,
+        fontSize: 22,
+        fontFamily: fonts.medium,
         marginBottom: 16,
     },
     chipsContainer: {
