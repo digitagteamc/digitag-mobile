@@ -100,6 +100,15 @@
     },
     "plugins": [
       [
+        "expo-notification-service-extension-plugin",
+        {
+          "mode": "development",
+          "iosNSEFilePath": "./ios-nse/NotificationService.m",
+          "devTeam": "3Z6MMTXLV4",
+          "iPhoneDeploymentTarget": "15.1"
+        }
+      ],
+      [
         "expo-router",
         {
           "origin": "https://thedigitag.ai"
