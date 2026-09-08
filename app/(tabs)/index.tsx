@@ -1420,7 +1420,7 @@ export default function Homepage() {
   );
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.primary }]}>
+    <View style={[styles.root ]}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
 
       <Animated.ScrollView
@@ -1651,7 +1651,7 @@ export default function Homepage() {
                       const borderColors = CAT_BORDER_COLORS[globalIdx % CAT_BORDER_COLORS.length] || ['#333', '#333'];
 
                       return (
-                        <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.id } } as any)} activeOpacity={0.8}>
+                        <TouchableOpacity key={cat.id} style={styles.catGridItem} onPress={() => router.push({ pathname: '/category-results', params: { category: cat.id, label: cat.label.replace(/\n/g, ' ') } } as any)} activeOpacity={0.8}>
                           <LinearGradient
                             colors={borderColors as [string, string]}
                             start={{ x: 0, y: 0 }}
