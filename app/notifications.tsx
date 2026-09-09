@@ -319,6 +319,7 @@ export default function NotificationsScreen() {
                                         key={r.id}
                                         name={getSenderName(r.sender)}
                                         subtitle="Sent a Collab Request"
+                                        time={formatRelative(r.createdAt)}
                                         avatarUri={getSenderPic(r.sender)}
                                         role={r.sender?.role}
                                         variant="request"
@@ -335,6 +336,7 @@ export default function NotificationsScreen() {
                                         key={r.id}
                                         name={getSenderName(r.sender)}
                                         subtitle="Sent a Collab Request"
+                                        time={formatRelative(r.createdAt)}
                                         avatarUri={getSenderPic(r.sender)}
                                         role={r.sender?.role}
                                         variant="request"
@@ -351,6 +353,7 @@ export default function NotificationsScreen() {
                                         key={r.id}
                                         name={getSenderName(r.sender)}
                                         subtitle="Sent a Collab Request"
+                                        time={formatRelative(r.createdAt)}
                                         avatarUri={getSenderPic(r.sender)}
                                         role={r.sender?.role}
                                         variant="request"
@@ -386,7 +389,8 @@ export default function NotificationsScreen() {
                     renderItem={({ item }) => (
                         <NotificationItem
                             name={item.title}
-                            subtitle={`${item.body} · ${formatRelative(item.createdAt)}`}
+                            subtitle={item.body}
+                            time={formatRelative(item.createdAt)}
                             icon={iconForType(item.type)}
                             avatarUri={item.data?.imageUrl || undefined}
                             variant="info"
