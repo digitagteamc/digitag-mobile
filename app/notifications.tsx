@@ -252,7 +252,14 @@ export default function NotificationsScreen() {
             setTab('requests');
             return;
         }
-        routeNotificationData(router, (n.data || undefined) as Record<string, string> | undefined, undefined, userRole ?? undefined);
+        // routeNotificationData keys off data.type, but the persisted `data`
+        // blob isn't guaranteed to carry it — admin broadcasts stored only
+        // { action }, so tapping one from this list did nothing while every
+        // other type (which does persist type inside data) worked. The row's
+        // own `type` column is always correct, so merge it in here: that
+        // fixes notifications already sitting in the list, not just ones
+        // created after the backend started persisting it too.
+        routeNotificationData(router, { type: n.type, ...(n.data || {}) }, undefined, userRole ?? undefined);
     };
 
     const pending = requests.filter((r) => r.status === 'PENDING');
@@ -381,6 +388,7 @@ export default function NotificationsScreen() {
                             name={item.title}
                             subtitle={`${item.body} · ${formatRelative(item.createdAt)}`}
                             icon={iconForType(item.type)}
+                            avatarUri={item.data?.imageUrl || undefined}
                             variant="info"
                             unread={!item.isRead}
                             onPress={() => handleNotificationPress(item)}
