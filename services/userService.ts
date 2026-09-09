@@ -80,6 +80,18 @@ async function request(path: string, options: RequestInit = {}, _retry = true) {
         }
     }
 
+    // 429s used to surface as a generic failure, so every screen just rendered
+    // its empty state — the app looked like all the data had vanished (and a
+    // profile that loaded fine a second ago read "Profile not found") with no
+    // hint that the server was throttling. Give it a message the UI can show.
+    if (res.status === 429) {
+        throw new ApiRequestError(
+            'Too many requests — please wait a moment and try again.',
+            429,
+            json?.details ?? null,
+        );
+    }
+
     if (res.status === 403 && json?.details?.code === 'ACCOUNT_SUSPENDED' && _accountSuspendedFn && !_suspendedHandledOnce) {
         _suspendedHandledOnce = true;
         _accountSuspendedFn();
@@ -777,6 +789,22 @@ export const listCollaborations = async (
 /** GET /collaborations/with/:userId — collab between me and other user (or null).
  *  Pass postId when the caller cares about one specific post's collaboration
  *  state (e.g. post-detail) rather than the most recent collab overall. */
+/** Collaboration state for every one of a user's posts, keyed by postId.
+ *  Replaces calling getCollaborationWith once per post — that fanned out to
+ *  one request per post on every profile open and was a major contributor to
+ *  hitting the API rate limit while browsing. */
+export const getCollaborationsWithByPost = async (token: string, userId: string) => {
+    try {
+        const body = await request(`/collaborations/with/${userId}/by-post`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: (body?.data ?? {}) as Record<string, any> };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: {} as Record<string, any> };
+    }
+};
+
 export const getCollaborationWith = async (token: string, userId: string, postId?: string) => {
     try {
         const qs = postId ? `?postId=${encodeURIComponent(postId)}` : '';

@@ -30,6 +30,7 @@ import {
     followUser,
     getBlockStatus,
     getCollaborationWith,
+    getCollaborationsWithByPost,
     getFollowStatus,
     getPostById,
     getReportStatus,
@@ -126,23 +127,30 @@ export default function CreatorDetails() {
                 const fetchedPosts: any[] = postsRes.data;
                 setPosts(fetchedPosts);
                 if (!token) return;
-                const [savedRes, collabResults] = await Promise.all([
+                // One request for every post's collaboration state instead of
+                // one per post — a profile with 30 posts used to fire 30
+                // requests here, which is what pushed browsing into the API
+                // rate limit and made later screens come back empty.
+                const [savedRes, collabRes] = await Promise.all([
                     getSavedPostIds(token),
-                    Promise.all(fetchedPosts.map((post) => getCollaborationWith(token, uid, post.id))),
+                    getCollaborationsWithByPost(token, uid),
                 ]);
                 if (savedRes.success && Array.isArray(savedRes.data)) {
                     setSavedPostIds(new Set(savedRes.data));
                 }
                 const collabMap: Record<string, { status: string; collabId: string | null; busy: boolean }> = {};
-                collabResults.forEach((res, idx) => {
-                    if (res.success) {
-                        collabMap[fetchedPosts[idx].id] = {
-                            status: (res as any).data?.status ?? 'NONE',
-                            collabId: (res as any).data?.id ?? null,
-                            busy: false,
-                        };
+                if (collabRes.success) {
+                    for (const post of fetchedPosts) {
+                        const c = collabRes.data[post.id];
+                        if (c) {
+                            collabMap[post.id] = {
+                                status: c.status ?? 'NONE',
+                                collabId: c.id ?? null,
+                                busy: false,
+                            };
+                        }
                     }
-                });
+                }
                 setPostCollab(collabMap);
             });
 
