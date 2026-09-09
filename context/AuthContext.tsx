@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { logoutSession, refreshToken as apiRefreshToken, resetAccountSuspendedGuard, setAccountSuspendedCallback, setRefreshTokenCallback } from '../services/userService';
 
 export type Role = 'CREATOR' | 'FREELANCER';
@@ -73,26 +73,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         restoreSession();
     }, []);
 
-    // Wire up auto-refresh so userService can call it on 401
+    // Wire up auto-refresh so userService can call it on 401.
+    //
+    // Every caller shares one in-flight refresh. The backend rotates refresh
+    // tokens — rotateRefreshToken revokes the old one as it issues the new —
+    // so two refreshes racing with the same stored token means the first wins
+    // and the rest get "Refresh token invalid" back. That's what made a whole
+    // screen's worth of parallel requests fail at once (profile + posts +
+    // follow status + suggestions all 401 together when the access token
+    // expires): one would recover, the others returned null and their screens
+    // rendered as empty/"not found". Worse, two concurrent multiSet calls
+    // could interleave and leave an access token paired with an already-
+    // revoked refresh token, which then failed session restore on next
+    // launch and forced a fresh OTP login.
+    const refreshInFlight = useRef<Promise<string | null> | null>(null);
     useEffect(() => {
         setRefreshTokenCallback(async () => {
-            const stored = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-            if (!stored) return null;
+            if (refreshInFlight.current) return refreshInFlight.current;
+
+            refreshInFlight.current = (async () => {
+                const stored = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+                if (!stored) return null;
+                try {
+                    const res = await apiRefreshToken(stored);
+                    if (res.success && res.data?.tokens) {
+                        const newAccess = res.data.tokens.accessToken;
+                        const newRefresh = res.data.tokens.refreshToken;
+                        await AsyncStorage.multiSet([
+                            [STORAGE_KEYS.TOKEN, newAccess],
+                            [STORAGE_KEYS.REFRESH_TOKEN, newRefresh],
+                        ]);
+                        setToken(newAccess);
+                        setRefreshTokenState(newRefresh);
+                        return newAccess;
+                    }
+                } catch { }
+                return null;
+            })();
+
             try {
-                const res = await apiRefreshToken(stored);
-                if (res.success && res.data?.tokens) {
-                    const newAccess = res.data.tokens.accessToken;
-                    const newRefresh = res.data.tokens.refreshToken;
-                    await AsyncStorage.multiSet([
-                        [STORAGE_KEYS.TOKEN, newAccess],
-                        [STORAGE_KEYS.REFRESH_TOKEN, newRefresh],
-                    ]);
-                    setToken(newAccess);
-                    setRefreshTokenState(newRefresh);
-                    return newAccess;
-                }
-            } catch { }
-            return null;
+                return await refreshInFlight.current;
+            } finally {
+                refreshInFlight.current = null;
+            }
         });
     }, []);
 
