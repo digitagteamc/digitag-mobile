@@ -19,7 +19,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getFeed, getFollowSuggestions, getUserById } from '../services/userService';
+import { getFeed, getFollowSuggestions } from '../services/userService';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../services/socialLinks';
 import { fonts } from '../theme/colors';
 
@@ -358,22 +358,24 @@ export default function CategoryResultsScreen() {
         setPosts(feedPosts);
         setSuggestionUsers(suggested);
 
-        // Collect unique owner IDs across both sources and fetch their full
-        // profiles in parallel — same endpoint creator-details.tsx uses.
-        const ownerIds = [...new Set<string>([
-            ...feedPosts.map((p: any) => p.owner?.id).filter(Boolean),
-            ...suggested.map((u: any) => u.id).filter(Boolean),
-        ])];
-        if (ownerIds.length > 0) {
-            const results = await Promise.all(
-                ownerIds.map((uid) => getUserById(uid, token))
-            );
-            const map: Record<string, any> = {};
-            results.forEach((r, i) => {
-                if (r.success && r.data) map[ownerIds[i]] = r.data;
-            });
-            setFullProfiles(map);
+        // Skills and social handles now come back on the feed/suggestion
+        // payloads themselves. This used to fetch every unique owner's full
+        // profile just to read them — one request per creator in the feed, on
+        // top of everything else the screen loads, which is what tipped
+        // browsing over the API rate limit.
+        const map: Record<string, any> = {};
+        for (const { owner } of [
+            ...feedPosts.map((p: any) => ({ owner: p.owner })),
+            ...suggested.map((u: any) => ({ owner: u })),
+        ]) {
+            if (owner?.id && !map[owner.id]) {
+                // Mirrors getUserById's nesting so the reader below is unchanged.
+                map[owner.id] = owner.role === 'FREELANCER'
+                    ? { role: owner.role, freelancerProfile: owner }
+                    : { role: owner.role, creatorProfile: owner };
+            }
         }
+        setFullProfiles(map);
         setLoading(false);
     }, [token]);
 

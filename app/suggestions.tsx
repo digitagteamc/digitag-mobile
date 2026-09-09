@@ -18,7 +18,6 @@ import { fonts, palette, spacing } from '../theme/colors';
 import { useRoleTheme } from '../theme/useRoleTheme';
 import {
     followUser,
-    getFollowStatus,
     getFollowSuggestions,
     unfollowUser,
 } from '../services/userService';
@@ -46,16 +45,13 @@ export default function SuggestionsScreen() {
             const sugRes = await getFollowSuggestions(token, 50); // Load more for this screen
             const sugs = sugRes.success ? (sugRes.data || []) : [];
             setSuggestions(sugs);
-
-            if (sugs.length > 0) {
-                const followChecks = await Promise.all(
-                    sugs.map((s: any) => getFollowStatus(token, s.id).then((r) => ({
-                        id: s.id,
-                        following: r.success ? Boolean(r.data?.isFollowing) : false,
-                    }))),
-                );
-                setFollowingIds(new Set(followChecks.filter((f) => f.following).map((f) => f.id)));
-            }
+            // No follow-status lookup needed: listSuggestions already excludes
+            // everyone you follow (`id: { notIn: [...following] }`), so every
+            // suggestion is un-followed by construction. This used to fire one
+            // request per suggestion — 50 on this screen, on every focus — which
+            // burned through the 300 req/min IP rate limit within a few
+            // navigations and made the whole app start returning 429s.
+            setFollowingIds(new Set());
 
             if (!sugRes.success) {
                 setErrorMsg('Could not load suggestions. Pull to try again.');
