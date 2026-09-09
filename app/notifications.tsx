@@ -381,6 +381,7 @@ export default function NotificationsScreen() {
                             name={item.title}
                             subtitle={`${item.body} · ${formatRelative(item.createdAt)}`}
                             icon={iconForType(item.type)}
+                            avatarUri={item.data?.imageUrl || undefined}
                             variant="info"
                             unread={!item.isRead}
                             onPress={() => handleNotificationPress(item)}
