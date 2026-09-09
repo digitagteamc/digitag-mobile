@@ -80,6 +80,18 @@ async function request(path: string, options: RequestInit = {}, _retry = true) {
         }
     }
 
+    // 429s used to surface as a generic failure, so every screen just rendered
+    // its empty state — the app looked like all the data had vanished (and a
+    // profile that loaded fine a second ago read "Profile not found") with no
+    // hint that the server was throttling. Give it a message the UI can show.
+    if (res.status === 429) {
+        throw new ApiRequestError(
+            'Too many requests — please wait a moment and try again.',
+            429,
+            json?.details ?? null,
+        );
+    }
+
     if (res.status === 403 && json?.details?.code === 'ACCOUNT_SUSPENDED' && _accountSuspendedFn && !_suspendedHandledOnce) {
         _suspendedHandledOnce = true;
         _accountSuspendedFn();

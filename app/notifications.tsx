@@ -22,7 +22,6 @@ import { routeNotificationData } from '../services/notificationRouting';
 import {
     AppNotification,
     followUser,
-    getFollowStatus,
     getFollowSuggestions,
     getNotifications,
     listCollaborations,
@@ -137,15 +136,11 @@ export default function NotificationsScreen() {
 
         const sugs = sugRes.success ? (sugRes.data || []) : [];
         setSuggestions(sugs);
-        if (sugs.length > 0) {
-            const followChecks = await Promise.all(
-                sugs.map((s: any) => getFollowStatus(token, s.id).then((r) => ({
-                    id: s.id,
-                    following: r.success ? Boolean(r.data?.isFollowing) : false,
-                }))),
-            );
-            setFollowingIds(new Set(followChecks.filter((f) => f.following).map((f) => f.id)));
-        }
+        // See suggestions.tsx — listSuggestions already excludes everyone you
+        // follow, so these are all un-followed and the per-suggestion status
+        // lookup (20 requests, on every focus) was asking a question the
+        // backend had already answered.
+        setFollowingIds(new Set());
         setNotifLoading(false);
     }, [token]);
 
