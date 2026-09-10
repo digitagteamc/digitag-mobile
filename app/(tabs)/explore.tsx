@@ -812,8 +812,15 @@ export default function ExploreTab() {
 
   const fetchPosts = useCallback(async () => {
     // Browsing the feed doesn't require an account — token is optional here.
+    // limit: '100' is the server's own max per request (parsePagination in
+    // feed.service.js) — without it this defaults to 20, and the category
+    // sidebar below filters that same small, category-unaware page down to
+    // whichever category is active client-side, so most of a category's
+    // profiles never had a chance to show (same bug fixed in
+    // category-results.tsx, same reasoning for not filtering by categoryId
+    // server-side instead — see that fix for why).
     try {
-      const res = await getFeed(token);
+      const res = await getFeed(token, { limit: '100' });
       setPosts(Array.isArray(res.data) ? res.data : []);
     } catch { setPosts([]); } finally { setLoading(false); }
   }, [token]);
