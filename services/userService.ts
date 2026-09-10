@@ -76,7 +76,24 @@ async function request(path: string, options: RequestInit = {}, _retry = true) {
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let res: Response;
     try {
-        res = await fetch(`${API_BASE_URL}${path}`, { ...options, signal: controller.signal });
+        // React Native's fetch doesn't reliably honor AbortController.abort()
+        // on every RN/Hermes version/platform combo — abort() sometimes fires
+        // with nothing downstream ever checking the signal, silently doing
+        // nothing while the original hang (the whole reason this exists)
+        // continues (confirmed live: this exact stalled state, on a build
+        // that already had the AbortController code, sat stuck for over a
+        // minute). Racing a plain timer promise guarantees this await settles
+        // on schedule regardless of whether abort() actually cancels anything
+        // at the native layer — the in-flight request may keep running in the
+        // background, but the caller is never stuck waiting on it again.
+        res = await Promise.race([
+            fetch(`${API_BASE_URL}${path}`, { ...options, signal: controller.signal }),
+            new Promise<never>((_, reject) => {
+                // Fires after the same deadline as the abort() call above —
+                // this is the backstop, not a second, shorter timeout.
+                setTimeout(() => reject(Object.assign(new Error('timeout'), { name: 'AbortError' })), REQUEST_TIMEOUT_MS);
+            }),
+        ]);
     } catch (err: any) {
         if (err?.name === 'AbortError') {
             throw new ApiRequestError('Request timed out — check your connection and try again.', 0, null);
