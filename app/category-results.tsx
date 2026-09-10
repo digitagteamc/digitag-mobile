@@ -340,6 +340,9 @@ export default function CategoryResultsScreen() {
     // always display the real skills/categoryNames the user set in their profile.
     const [fullProfiles, setFullProfiles] = useState<Record<string, any>>({});
     const [loading, setLoading] = useState(true);
+    const [categoryPage, setCategoryPage] = useState(1);
+    const [categoryHasMore, setCategoryHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [query, setQuery] = useState('');
     const [sort, setSort] = useState(SORT_OPTIONS[0]);
     const [sortOpen, setSortOpen] = useState(false);
@@ -358,24 +361,24 @@ export default function CategoryResultsScreen() {
 
     const load = useCallback(async () => {
         setLoading(true);
-        const [feedRes, suggestionsRes] = await Promise.all([
-            // getFeed defaults to the backend's generic page size (20) when no
-            // limit is given, unfiltered by category — this screen filters
-            // that pool down to the tapped category client-side (see
-            // `profiles` below) purely to attach a matching post's own
-            // location/budget onto a profile card where one exists. '100' is
-            // the server's own max per request (parsePagination in
-            // feed.service.js). The actual "did we find everyone in this
-            // category" job belongs to getUsersByCategory below, not this call.
+        const [feedRes, categoryRes] = await Promise.all([
+            // getFeed here is single-shot enrichment, not the paginated list —
+            // it only exists so a profile that's also posted can show that
+            // post's own location/budget on its card. '100' is the server's
+            // own max per request (parsePagination in feed.service.js). The
+            // actual navigable "everyone in this category" list, including
+            // its pagination, is getUsersByCategory below.
             getFeed(token, { limit: '100' }),
             categorySlug
-                ? getUsersByCategory(token, categorySlug, { limit: 100 })
-                : Promise.resolve({ success: false, data: [] as any[] }),
+                ? getUsersByCategory(token, categorySlug, { page: 1, limit: 30 })
+                : Promise.resolve({ success: false, data: [] as any[], meta: undefined }),
         ]);
         const feedPosts: any[] = (feedRes.success && Array.isArray(feedRes.data)) ? feedRes.data : [];
-        const suggested: any[] = (suggestionsRes.success && Array.isArray(suggestionsRes.data)) ? suggestionsRes.data : [];
+        const suggested: any[] = (categoryRes.success && Array.isArray(categoryRes.data)) ? categoryRes.data : [];
         setPosts(feedPosts);
         setSuggestionUsers(suggested);
+        setCategoryPage(1);
+        setCategoryHasMore(Boolean(categoryRes.meta?.hasNextPage));
 
         // Skills and social handles now come back on the feed/suggestion
         // payloads themselves. This used to fetch every unique owner's full
@@ -397,6 +400,38 @@ export default function CategoryResultsScreen() {
         setFullProfiles(map);
         setLoading(false);
     }, [token, categorySlug]);
+
+    const loadMoreProfiles = useCallback(async () => {
+        if (!categorySlug || loadingMore || !categoryHasMore) return;
+        setLoadingMore(true);
+        const nextPage = categoryPage + 1;
+        const res = await getUsersByCategory(token, categorySlug, { page: nextPage, limit: 30 });
+        if (res.success) {
+            let freshUsers: any[] = [];
+            setSuggestionUsers((prev) => {
+                const seen = new Set(prev.map((u: any) => u.id));
+                freshUsers = (res.data || []).filter((u: any) => !seen.has(u.id));
+                return [...prev, ...freshUsers];
+            });
+            // Same nesting as load()'s map, otherwise a card that scrolled in
+            // via "load more" renders with blank skills/categoryNames — its
+            // owner id would simply be missing from fullProfiles.
+            setFullProfiles((prev) => {
+                const next = { ...prev };
+                for (const owner of freshUsers) {
+                    if (owner?.id && !next[owner.id]) {
+                        next[owner.id] = owner.role === 'FREELANCER'
+                            ? { role: owner.role, freelancerProfile: owner }
+                            : { role: owner.role, creatorProfile: owner };
+                    }
+                }
+                return next;
+            });
+            setCategoryPage(nextPage);
+            setCategoryHasMore(Boolean(res.meta?.hasNextPage));
+        }
+        setLoadingMore(false);
+    }, [token, categorySlug, categoryPage, loadingMore, categoryHasMore]);
 
     useEffect(() => { load(); }, [load]);
 
@@ -591,6 +626,13 @@ export default function CategoryResultsScreen() {
                 columnWrapperStyle={{ gap: 12, paddingHorizontal: 16 }}
                 contentContainerStyle={{ paddingBottom: 32, gap: 12 }}
                 showsVerticalScrollIndicator={false}
+                onEndReachedThreshold={0.5}
+                onEndReached={loadMoreProfiles}
+                ListFooterComponent={loadingMore ? (
+                    <View style={{ paddingVertical: 24 }}>
+                        <ActivityIndicator color="#fff" />
+                    </View>
+                ) : null}
                 ListHeaderComponent={
                     <View style={{ paddingHorizontal: 16, marginBottom: 18 }}>
                         {/* Search + Filters */}

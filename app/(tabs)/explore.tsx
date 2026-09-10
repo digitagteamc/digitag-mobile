@@ -712,6 +712,9 @@ export default function ExploreTab() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [feedPage, setFeedPage] = useState(1);
+  const [feedHasMore, setFeedHasMore] = useState(false);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
   const { category: paramCategory } = useLocalSearchParams<{ category?: string }>();
   // The category tile tapped on Home comes from whichever list matches the viewer's own
   // role (CATEGORIES for a Creator browsing Freelancers, FREELANCER_CATEGORIES for a
@@ -812,20 +815,32 @@ export default function ExploreTab() {
 
   const fetchPosts = useCallback(async () => {
     // Browsing the feed doesn't require an account — token is optional here.
-    // limit: '100' is the server's own max per request (parsePagination in
-    // feed.service.js) — without it this defaults to 20, and the category
-    // sidebar below filters that same small, category-unaware page down to
-    // whichever category is active client-side, so most of a category's
-    // profiles never had a chance to show (same bug fixed in
-    // category-results.tsx, same reasoning for not filtering by categoryId
-    // server-side instead — see that fix for why).
     try {
-      const res = await getFeed(token, { limit: '100' });
+      const res = await getFeed(token, { page: '1', limit: '30' });
       setPosts(Array.isArray(res.data) ? res.data : []);
-    } catch { setPosts([]); } finally { setLoading(false); }
+      setFeedPage(1);
+      setFeedHasMore(Boolean(res.meta?.hasNextPage));
+    } catch { setPosts([]); setFeedHasMore(false); } finally { setLoading(false); }
   }, [token]);
 
   useFocusEffect(useCallback(() => { fetchPosts(); }, [fetchPosts]));
+
+  const loadMorePosts = useCallback(async () => {
+    if (loadingMorePosts || !feedHasMore) return;
+    setLoadingMorePosts(true);
+    const nextPage = feedPage + 1;
+    try {
+      const res = await getFeed(token, { page: String(nextPage), limit: '30' });
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p: any) => p.id));
+        const fresh = (res.data || []).filter((p: any) => !seen.has(p.id));
+        return [...prev, ...fresh];
+      });
+      setFeedPage(nextPage);
+      setFeedHasMore(Boolean(res.meta?.hasNextPage));
+    } catch { /* keep whatever's already showing */ }
+    setLoadingMorePosts(false);
+  }, [token, feedPage, loadingMorePosts, feedHasMore]);
 
   useFocusEffect(useCallback(() => {
     if (!token || isGuest) return;
@@ -1524,6 +1539,11 @@ export default function ExploreTab() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
+        onEndReachedThreshold={0.5}
+        // The "complete your profile" gate limits how many *already-fetched*
+        // cards an incomplete profile gets to see — fetching more from the
+        // server wouldn't surface anything new to them, so don't bother.
+        onEndReached={hasMoreHiddenCards ? undefined : loadMorePosts}
         ListFooterComponent={
           hasMoreHiddenCards ? (
             <TouchableOpacity
@@ -1549,6 +1569,10 @@ export default function ExploreTab() {
               </Text>
               <Ionicons name="chevron-forward" size={18} color={userRole === 'FREELANCER' ? '#f26930' : '#ed2a91'} />
             </TouchableOpacity>
+          ) : loadingMorePosts ? (
+            <View style={{ paddingVertical: 24 }}>
+              <ActivityIndicator color="#ED2A91" />
+            </View>
           ) : null
         }
         ListEmptyComponent={

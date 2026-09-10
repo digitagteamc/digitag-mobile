@@ -33,6 +33,9 @@ export default function SuggestionsScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
 
     const load = useCallback(async () => {
         if (!token) {
@@ -42,9 +45,11 @@ export default function SuggestionsScreen() {
         }
         setErrorMsg(null);
         try {
-            const sugRes = await getFollowSuggestions(token, 50); // Load more for this screen
+            const sugRes = await getFollowSuggestions(token, { page: 1, limit: 50 });
             const sugs = sugRes.success ? (sugRes.data || []) : [];
             setSuggestions(sugs);
+            setPage(1);
+            setHasMore(Boolean(sugRes.meta?.hasNextPage));
             // No follow-status lookup needed: listSuggestions already excludes
             // everyone you follow (`id: { notIn: [...following] }`), so every
             // suggestion is un-followed by construction. This used to fire one
@@ -72,6 +77,26 @@ export default function SuggestionsScreen() {
         await load();
         setRefreshing(false);
     };
+
+    const loadMore = useCallback(async () => {
+        if (!token || loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        const nextPage = page + 1;
+        const res = await getFollowSuggestions(token, { page: nextPage, limit: 50 });
+        if (res.success) {
+            // Same de-dupe guard as elsewhere in the app — page-based
+            // pagination can hand back an item twice if the underlying list
+            // shifted between fetches (e.g. someone new signed up).
+            setSuggestions((prev) => {
+                const seen = new Set(prev.map((s) => s.id));
+                const fresh = (res.data || []).filter((s: any) => !seen.has(s.id));
+                return [...prev, ...fresh];
+            });
+            setPage(nextPage);
+            setHasMore(Boolean(res.meta?.hasNextPage));
+        }
+        setLoadingMore(false);
+    }, [token, page, loadingMore, hasMore]);
 
     const handleToggleFollow = async (userId: string) => {
         if (!token) return;
@@ -118,6 +143,13 @@ export default function SuggestionsScreen() {
                     keyExtractor={(item) => item.id}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
                     contentContainerStyle={{ paddingBottom: 40 }}
+                    onEndReachedThreshold={0.5}
+                    onEndReached={loadMore}
+                    ListFooterComponent={loadingMore ? (
+                        <View style={{ paddingVertical: 20 }}>
+                            <ActivityIndicator color={theme.primary} />
+                        </View>
+                    ) : null}
                     ListEmptyComponent={
                         !errorMsg ? (
                             <View style={styles.emptyBox}>
