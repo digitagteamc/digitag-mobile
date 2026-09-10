@@ -19,7 +19,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { getFeed, getFollowSuggestions } from '../services/userService';
+import { getFeed, getUsersByCategory } from '../services/userService';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../services/socialLinks';
 import { fonts } from '../theme/colors';
 
@@ -318,14 +318,23 @@ export default function CategoryResultsScreen() {
     const { width: screenWidth } = useWindowDimensions();
     const CARD_WIDTH = (screenWidth - 32 - 12) / 2;
 
+    // Backend slug for the tapped category — resolved once here so both
+    // load() (server-side filtering) and the `profiles` memo below (the
+    // feed side still isn't filtered server-side, see load()) use the same
+    // value.
+    const categorySlug = userRole === 'FREELANCER'
+        ? FREELANCER_CATEGORY_SLUG_MAP[categoryId]
+        : CATEGORY_SLUG_MAP[categoryId];
+
     const [posts, setPosts] = useState<any[]>([]);
-    // Every user in the app who might match this category, not just people
-    // who happen to have posted — getFeed alone only surfaces post authors.
-    // getFollowSuggestions returns real profile objects directly, so it's
-    // the closest thing this app has to "browse everyone"; merged in below
-    // rather than replacing the feed-based list, so nothing that showed
-    // before stops showing. Guest-only (no token) keeps the old feed-only
-    // behavior since that endpoint requires auth.
+    // Every user actually assigned to this category, not just people who
+    // happen to have posted — getFeed alone only surfaces post authors.
+    // getUsersByCategory queries the category assignment directly (not
+    // capped at an unrelated recent-signups sample the way
+    // getFollowSuggestions is), so this is genuinely close to "everyone in
+    // this category", merged in below rather than replacing the feed-based
+    // list so a post's own location/budget still shows where available.
+    // Guest-browsable, same as getFeed — no token gate needed here.
     const [suggestionUsers, setSuggestionUsers] = useState<any[]>([]);
     // Full profile data keyed by userId — fetched after the feed loads so we
     // always display the real skills/categoryNames the user set in their profile.
@@ -351,20 +360,17 @@ export default function CategoryResultsScreen() {
         setLoading(true);
         const [feedRes, suggestionsRes] = await Promise.all([
             // getFeed defaults to the backend's generic page size (20) when no
-            // limit is given — fine for a normal home feed, but this screen
-            // then filters that same small, category-unaware page down to
-            // just the tapped category client-side (see `profiles` below), so
-            // almost everything outside that first page never had a chance to
-            // match. '100' is the server's own max per request (see
-            // parsePagination in feed.service.js) — not true pagination, but
-            // a 5x larger pool to filter from without changing what "matches
-            // this category" means (the backend's categoryId filter only
-            // checks a Freelancer's single primary category, not their
-            // categories[] array, so filtering server-side would silently
-            // drop profiles the existing client-side categorySlugs[] check
-            // correctly includes today).
+            // limit is given, unfiltered by category — this screen filters
+            // that pool down to the tapped category client-side (see
+            // `profiles` below) purely to attach a matching post's own
+            // location/budget onto a profile card where one exists. '100' is
+            // the server's own max per request (parsePagination in
+            // feed.service.js). The actual "did we find everyone in this
+            // category" job belongs to getUsersByCategory below, not this call.
             getFeed(token, { limit: '100' }),
-            token ? getFollowSuggestions(token, 200) : Promise.resolve({ success: false, data: [] as any[] }),
+            categorySlug
+                ? getUsersByCategory(token, categorySlug, { limit: 100 })
+                : Promise.resolve({ success: false, data: [] as any[] }),
         ]);
         const feedPosts: any[] = (feedRes.success && Array.isArray(feedRes.data)) ? feedRes.data : [];
         const suggested: any[] = (suggestionsRes.success && Array.isArray(suggestionsRes.data)) ? suggestionsRes.data : [];
@@ -390,40 +396,43 @@ export default function CategoryResultsScreen() {
         }
         setFullProfiles(map);
         setLoading(false);
-    }, [token]);
+    }, [token, categorySlug]);
 
     useEffect(() => { load(); }, [load]);
 
     // One card per unique profile (not one per post), filtered to this
     // category — sourced from both post authors (existing behavior) and
-    // getFollowSuggestions (every other matching profile in the app that
+    // getUsersByCategory (every other matching profile in the app that
     // hasn't necessarily posted). Feed entries come first so a profile that
     // exists in both keeps its real post data (location/budget/etc).
     const ownerSources = useMemo(() => [
-        ...posts.map((post) => ({ owner: post.owner || {}, post })),
-        ...suggestionUsers.map((user) => ({ owner: user, post: {} as any })),
+        ...posts.map((post) => ({ owner: post.owner || {}, post, trusted: false })),
+        // getUsersByCategory already filtered these server-side (checking both
+        // categoryId and categories[]) — they carry categoryNames, not the
+        // categorySlugs/category.slug shape a feed owner has, so re-running
+        // the slug check below would just find nothing and drop every one.
+        ...suggestionUsers.map((user) => ({ owner: user, post: {} as any, trusted: true })),
     ], [posts, suggestionUsers]);
 
     const profiles = useMemo(() => {
-        const slug = userRole === 'FREELANCER'
-            ? FREELANCER_CATEGORY_SLUG_MAP[categoryId]
-            : CATEGORY_SLUG_MAP[categoryId];
         const seen = new Set<string>();
         const list: any[] = [];
-        for (const { owner, post: p } of ownerSources) {
+        for (const { owner, post: p, trusted } of ownerSources) {
             if (!owner.id || seen.has(owner.id)) continue;
-            // Freelancer owners can carry several service categories, so the
-            // feed's lightweight owner summary exposes those as the plural
-            // categorySlugs[] array (same field explore.tsx's sidebar checks).
-            // Creator owners have a single primary content category instead,
-            // which only shows up as the singular owner.category.slug — not
-            // in categorySlugs — so checking categorySlugs alone silently
-            // matched zero Creator profiles whenever a Freelancer browsed by
-            // category. Check both so either shape of owner matches.
-            const slugs: string[] = Array.isArray(owner.categorySlugs) ? owner.categorySlugs : [];
-            const singleSlug: string | undefined = owner.category?.slug;
-            const ownerSlugs = singleSlug ? [...slugs, singleSlug] : slugs;
-            if (slug && !ownerSlugs.some((s) => (s || '').toLowerCase() === slug)) continue;
+            if (!trusted) {
+                // Freelancer owners can carry several service categories, so the
+                // feed's lightweight owner summary exposes those as the plural
+                // categorySlugs[] array (same field explore.tsx's sidebar checks).
+                // Creator owners have a single primary content category instead,
+                // which only shows up as the singular owner.category.slug — not
+                // in categorySlugs — so checking categorySlugs alone silently
+                // matched zero Creator profiles whenever a Freelancer browsed by
+                // category. Check both so either shape of owner matches.
+                const slugs: string[] = Array.isArray(owner.categorySlugs) ? owner.categorySlugs : [];
+                const singleSlug: string | undefined = owner.category?.slug;
+                const ownerSlugs = singleSlug ? [...slugs, singleSlug] : slugs;
+                if (categorySlug && !ownerSlugs.some((s) => (s || '').toLowerCase() === categorySlug)) continue;
+            }
             seen.add(owner.id);
             const categoryNames: string[] = Array.isArray(owner.categoryNames) ? owner.categoryNames : [];
             const fullP = fullProfiles[owner.id];

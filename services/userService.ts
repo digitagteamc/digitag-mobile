@@ -1329,6 +1329,28 @@ export const getFollowSuggestions = async (token: string, limit: number = 20) =>
     }
 };
 
+/** GET /follows/by-category — every ACTIVE, profile-completed user assigned
+ *  to categorySlug (checks both a profile's primary category and its
+ *  categories[] multi-select), not just whoever happens to be recent enough
+ *  to land in getFollowSuggestions' unrelated 50-user cap. Guest-browsable,
+ *  same as getFeed. */
+export const getUsersByCategory = async (
+    token: string | null,
+    categorySlug: string,
+    opts: { page?: number; limit?: number } = {},
+) => {
+    try {
+        const qs = new URLSearchParams({ categorySlug, ...(opts.page ? { page: String(opts.page) } : {}), ...(opts.limit ? { limit: String(opts.limit) } : {}) });
+        const body = await request(`/follows/by-category?${qs}`, {
+            method: 'GET',
+            headers: optionalAuthHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [], meta: body?.meta };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] as any[] };
+    }
+};
+
 /* ───────────────────────── SEARCH ─────────────────────────── */
 
 /** GET /search?q=<query>&limit=20 */
