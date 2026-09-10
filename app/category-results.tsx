@@ -350,7 +350,20 @@ export default function CategoryResultsScreen() {
     const load = useCallback(async () => {
         setLoading(true);
         const [feedRes, suggestionsRes] = await Promise.all([
-            getFeed(token),
+            // getFeed defaults to the backend's generic page size (20) when no
+            // limit is given — fine for a normal home feed, but this screen
+            // then filters that same small, category-unaware page down to
+            // just the tapped category client-side (see `profiles` below), so
+            // almost everything outside that first page never had a chance to
+            // match. '100' is the server's own max per request (see
+            // parsePagination in feed.service.js) — not true pagination, but
+            // a 5x larger pool to filter from without changing what "matches
+            // this category" means (the backend's categoryId filter only
+            // checks a Freelancer's single primary category, not their
+            // categories[] array, so filtering server-side would silently
+            // drop profiles the existing client-side categorySlugs[] check
+            // correctly includes today).
+            getFeed(token, { limit: '100' }),
             token ? getFollowSuggestions(token, 200) : Promise.resolve({ success: false, data: [] as any[] }),
         ]);
         const feedPosts: any[] = (feedRes.success && Array.isArray(feedRes.data)) ? feedRes.data : [];
