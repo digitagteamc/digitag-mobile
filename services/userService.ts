@@ -1316,16 +1316,44 @@ export const getFollowing = async (token: string, userId?: string) => {
     }
 };
 
-/** GET /follows/suggestions?limit=20 */
-export const getFollowSuggestions = async (token: string, limit: number = 20) => {
+/** GET /follows/suggestions?page=&limit= — page defaults to 1, so any
+ *  existing caller that only ever passed a limit keeps getting exactly the
+ *  same first-page behavior as before this had real pagination. */
+export const getFollowSuggestions = async (token: string, opts: { page?: number; limit?: number } = {}) => {
     try {
-        const body = await request(`/follows/suggestions?limit=${limit}`, {
+        const qs = new URLSearchParams({
+            ...(opts.page ? { page: String(opts.page) } : {}),
+            limit: String(opts.limit ?? 20),
+        });
+        const body = await request(`/follows/suggestions?${qs}`, {
             method: 'GET',
             headers: authHeaders(token),
         });
-        return { success: true, data: body?.data ?? [] };
+        return { success: true, data: body?.data ?? [], meta: body?.meta };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        return { success: false, error: error.message, data: [] as any[] };
+    }
+};
+
+/** GET /follows/by-category — every ACTIVE, profile-completed user assigned
+ *  to categorySlug (checks both a profile's primary category and its
+ *  categories[] multi-select), not just whoever happens to be recent enough
+ *  to land in getFollowSuggestions' unrelated 50-user cap. Guest-browsable,
+ *  same as getFeed. */
+export const getUsersByCategory = async (
+    token: string | null,
+    categorySlug: string,
+    opts: { page?: number; limit?: number } = {},
+) => {
+    try {
+        const qs = new URLSearchParams({ categorySlug, ...(opts.page ? { page: String(opts.page) } : {}), ...(opts.limit ? { limit: String(opts.limit) } : {}) });
+        const body = await request(`/follows/by-category?${qs}`, {
+            method: 'GET',
+            headers: optionalAuthHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [], meta: body?.meta };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] as any[] };
     }
 };
 

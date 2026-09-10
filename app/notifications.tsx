@@ -129,7 +129,7 @@ export default function NotificationsScreen() {
         if (!token) { setNotifLoading(false); return; }
         const [notifRes, sugRes] = await Promise.all([
             getNotifications(token, { limit: 30 }),
-            getFollowSuggestions(token, 20),
+            getFollowSuggestions(token, { limit: 20 }),
         ]);
         setNotifications(notifRes.success ? notifRes.data : []);
         setNotifNextCursor(notifRes.success ? notifRes.nextCursor : null);
