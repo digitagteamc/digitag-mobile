@@ -70,7 +70,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Restore session from AsyncStorage on app start
     useEffect(() => {
-        restoreSession();
+        let settled = false;
+        restoreSession().finally(() => { settled = true; });
+        // Last-resort backstop. isLoading gates app/index.tsx's logo screen
+        // off the rest of the app — if anything inside restoreSession hangs
+        // (a fetch whose abort signal the native layer silently ignores, a
+        // stalled AsyncStorage call, anything not yet accounted for) with no
+        // timeout of its own, the app is stuck on the logo forever with no
+        // way out short of force-quitting. This doesn't know or care what's
+        // actually stuck; it just guarantees isLoading can't stay true past
+        // this ceiling. Longer than request()'s own 20s timeout so that one
+        // gets first chance to resolve things the normal way.
+        const safetyTimer = setTimeout(() => {
+            if (!settled) setIsLoading(false);
+        }, 25000);
+        return () => clearTimeout(safetyTimer);
     }, []);
 
     // Wire up auto-refresh so userService can call it on 401.
