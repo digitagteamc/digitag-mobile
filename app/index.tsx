@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Animated, {
     Easing,
     useAnimatedStyle,
@@ -151,6 +151,18 @@ export default function Index() {
     const { isLoading, token, isGuest, hasOnboarded, userRole } = useAuth();
     const router = useRouter();
     const [introDone, setIntroDone] = useState(false);
+    // The choreographed animation above always finishes in ~2.4s, but this
+    // screen can't navigate away until isLoading clears too — and on a slow
+    // or lossy connection that restore can legitimately take up to its own
+    // ~20-25s timeout (see AuthContext/userService) before landing the user
+    // logged in normally. A silent, static logo sitting there that whole
+    // time is indistinguishable from "frozen" — this just says otherwise.
+    const [showSlowHint, setShowSlowHint] = useState(false);
+    useEffect(() => {
+        if (!isLoading) { setShowSlowHint(false); return; }
+        const timer = setTimeout(() => setShowSlowHint(true), 4000);
+        return () => clearTimeout(timer);
+    }, [isLoading]);
     // A non-call notification tap that cold-started the app — routed after the intro.
     const [pendingNotif, setPendingNotif] = useState<Record<string, string> | null>(null);
 
@@ -340,6 +352,9 @@ export default function Index() {
                 />
 
             </Animated.View>
+            {showSlowHint && (
+                <Text style={styles.slowHint}>Checking your connection…</Text>
+            )}
         </View>
     );
 }
@@ -374,5 +389,12 @@ const styles = StyleSheet.create({
         height: 68,
         marginTop: 70,
         position: 'absolute',
+    },
+    slowHint: {
+        position: 'absolute',
+        bottom: 60,
+        alignSelf: 'center',
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 13,
     },
 });
