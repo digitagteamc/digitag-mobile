@@ -10,6 +10,17 @@ if (!RAW_BASE) {
     console.warn('EXPO_PUBLIC_API_BASE_URL is not defined in .env');
 }
 
+// A stalled connection (flaky mobile data, a DNS hiccup, a backend that
+// accepts the connection but never responds) leaves a plain fetch() pending
+// forever — it never resolves and never rejects. That's fatal at startup
+// specifically: AuthContext's bootstrap awaits refreshToken() inside a
+// try/finally whose finally { setIsLoading(false) } never runs if the await
+// never settles, so app/index.tsx's logo screen (gated on isLoading) sits
+// there permanently with no error, no crash, nothing to recover from short
+// of force-quitting. Aborting after a timeout turns that hang into a normal
+// rejection every existing catch block already handles.
+const REQUEST_TIMEOUT_MS = 20000;
+
 type Headers = Record<string, string>;
 
 /** Thrown from `request()` so callers can inspect structured error details
@@ -61,7 +72,19 @@ export function resetAccountSuspendedGuard() {
 }
 
 async function request(path: string, options: RequestInit = {}, _retry = true) {
-    const res = await fetch(`${API_BASE_URL}${path}`, options);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res: Response;
+    try {
+        res = await fetch(`${API_BASE_URL}${path}`, { ...options, signal: controller.signal });
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            throw new ApiRequestError('Request timed out — check your connection and try again.', 0, null);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
+    }
     let json: any = null;
     try { json = await res.json(); } catch { /* empty body */ }
 
