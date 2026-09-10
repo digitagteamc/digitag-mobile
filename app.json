@@ -40,12 +40,12 @@
           "voip"
         ]
       },
-      "buildNumber": "5",
+      "buildNumber": "6",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 56,
+      "versionCode": 57,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
