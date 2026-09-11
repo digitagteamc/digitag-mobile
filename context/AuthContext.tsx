@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -42,8 +43,6 @@ interface AuthContextType {
 }
 
 const STORAGE_KEYS = {
-    TOKEN: '@auth_token',
-    REFRESH_TOKEN: '@auth_refresh_token',
     USER_PHONE: '@auth_phone',
     USER_ID: '@auth_user_id',
     USER_ROLE: '@auth_role',
@@ -51,6 +50,50 @@ const STORAGE_KEYS = {
     PROFILES: '@auth_profiles',
     HAS_ONBOARDED: '@has_onboarded',
 };
+
+// Access and refresh tokens used to live in these two plain AsyncStorage
+// keys — AsyncStorage is unencrypted on both platforms (a readable SQLite
+// file/plist), so a rooted/jailbroken device, malware, or an unencrypted
+// backup extraction could lift a long-lived refresh token straight off
+// disk. Kept here only as migration source keys, never written to again.
+const LEGACY_TOKEN_KEY = '@auth_token';
+const LEGACY_REFRESH_TOKEN_KEY = '@auth_refresh_token';
+
+// expo-secure-store keys can't contain '@' (alphanumeric/./-/_ only) —
+// distinct names anyway to make "this one's encrypted" obvious at a glance.
+const SECURE_KEYS = {
+    TOKEN: 'authAccessToken',
+    REFRESH_TOKEN: 'authRefreshToken',
+};
+
+/** Reads a token from SecureStore (iOS Keychain / Android Keystore). Falls
+ *  back to the old plain-AsyncStorage location exactly once — an existing
+ *  session written there before this migration shipped is moved into
+ *  SecureStore and the plaintext copy is deleted, rather than silently
+ *  logging everyone out the moment this update installs. */
+async function getSecureToken(key: string, legacyKey: string): Promise<string | null> {
+    try {
+        const fromSecure = await SecureStore.getItemAsync(key);
+        if (fromSecure) return fromSecure;
+    } catch { /* SecureStore unavailable on this device — fall through */ }
+    try {
+        const legacy = await AsyncStorage.getItem(legacyKey);
+        if (legacy) {
+            await SecureStore.setItemAsync(key, legacy).catch(() => { });
+            await AsyncStorage.removeItem(legacyKey).catch(() => { });
+            return legacy;
+        }
+    } catch { }
+    return null;
+}
+
+async function setSecureToken(key: string, value: string) {
+    try { await SecureStore.setItemAsync(key, value); } catch { }
+}
+
+async function removeSecureToken(key: string) {
+    try { await SecureStore.deleteItemAsync(key); } catch { }
+}
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -106,16 +149,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (refreshInFlight.current) return refreshInFlight.current;
 
             refreshInFlight.current = (async () => {
-                const stored = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+                const stored = await getSecureToken(SECURE_KEYS.REFRESH_TOKEN, LEGACY_REFRESH_TOKEN_KEY);
                 if (!stored) return null;
                 try {
                     const res = await apiRefreshToken(stored);
                     if (res.success && res.data?.tokens) {
                         const newAccess = res.data.tokens.accessToken;
                         const newRefresh = res.data.tokens.refreshToken;
-                        await AsyncStorage.multiSet([
-                            [STORAGE_KEYS.TOKEN, newAccess],
-                            [STORAGE_KEYS.REFRESH_TOKEN, newRefresh],
+                        await Promise.all([
+                            setSecureToken(SECURE_KEYS.TOKEN, newAccess),
+                            setSecureToken(SECURE_KEYS.REFRESH_TOKEN, newRefresh),
                         ]);
                         setToken(newAccess);
                         setRefreshTokenState(newRefresh);
@@ -161,8 +204,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function restoreSession() {
         try {
             const [
-                storedToken,
-                storedRefresh,
                 storedPhone,
                 storedId,
                 storedRole,
@@ -170,8 +211,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 storedProfiles,
                 storedOnboarded,
             ] = await AsyncStorage.multiGet([
-                STORAGE_KEYS.TOKEN,
-                STORAGE_KEYS.REFRESH_TOKEN,
                 STORAGE_KEYS.USER_PHONE,
                 STORAGE_KEYS.USER_ID,
                 STORAGE_KEYS.USER_ROLE,
@@ -179,8 +218,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 STORAGE_KEYS.PROFILES,
                 STORAGE_KEYS.HAS_ONBOARDED,
             ]);
+            const rToken = await getSecureToken(SECURE_KEYS.REFRESH_TOKEN, LEGACY_REFRESH_TOKEN_KEY);
 
-            const rToken = storedRefresh[1];
             const hasOnboardedFlag = storedOnboarded[1] === 'true';
             setHasOnboarded(hasOnboardedFlag);
 
@@ -192,8 +231,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         const newToken = res.data.tokens.accessToken;
                         const newRefresh = res.data.tokens.refreshToken;
 
-                        await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
-                        await AsyncStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, newRefresh);
+                        await Promise.all([
+                            setSecureToken(SECURE_KEYS.TOKEN, newToken),
+                            setSecureToken(SECURE_KEYS.REFRESH_TOKEN, newRefresh),
+                        ]);
 
                         setToken(newToken);
                         setRefreshTokenState(newRefresh);
@@ -233,14 +274,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function clearStorage() {
-        await AsyncStorage.multiRemove([
-            STORAGE_KEYS.TOKEN,
-            STORAGE_KEYS.REFRESH_TOKEN,
-            STORAGE_KEYS.USER_PHONE,
-            STORAGE_KEYS.USER_ID,
-            STORAGE_KEYS.USER_ROLE,
-            STORAGE_KEYS.IS_PROFILE_COMPLETED,
-            STORAGE_KEYS.PROFILES,
+        await Promise.all([
+            removeSecureToken(SECURE_KEYS.TOKEN),
+            removeSecureToken(SECURE_KEYS.REFRESH_TOKEN),
+            // In case a legacy AsyncStorage copy never got migrated (e.g. this
+            // ran before restoreSession ever had a chance to move it over).
+            AsyncStorage.removeItem(LEGACY_TOKEN_KEY),
+            AsyncStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY),
+            AsyncStorage.multiRemove([
+                STORAGE_KEYS.USER_PHONE,
+                STORAGE_KEYS.USER_ID,
+                STORAGE_KEYS.USER_ROLE,
+                STORAGE_KEYS.IS_PROFILE_COMPLETED,
+                STORAGE_KEYS.PROFILES,
+            ]),
         ]);
     }
 
@@ -256,20 +303,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const mergedProfiles = { ...EMPTY_PROFILES, ...incomingProfiles };
         if (incomingProfiles) setProfilesState(mergedProfiles);
 
-        // Persist to AsyncStorage
+        // Persist to AsyncStorage — tokens go to SecureStore instead, see above.
         const pairs: [string, string][] = [
             [STORAGE_KEYS.USER_PHONE, phone],
             [STORAGE_KEYS.IS_PROFILE_COMPLETED, String(Boolean(ipc))],
             [STORAGE_KEYS.PROFILES, JSON.stringify(mergedProfiles)],
             [STORAGE_KEYS.HAS_ONBOARDED, 'true'],
         ];
-        if (tk) pairs.push([STORAGE_KEYS.TOKEN, tk]);
-        if (rTk) pairs.push([STORAGE_KEYS.REFRESH_TOKEN, rTk]);
         if (role) pairs.push([STORAGE_KEYS.USER_ROLE, role]);
         if (id) pairs.push([STORAGE_KEYS.USER_ID, id]);
 
         setHasOnboarded(true);
-        await AsyncStorage.multiSet(pairs);
+        await Promise.all([
+            AsyncStorage.multiSet(pairs),
+            ...(tk ? [setSecureToken(SECURE_KEYS.TOKEN, tk)] : []),
+            ...(rTk ? [setSecureToken(SECURE_KEYS.REFRESH_TOKEN, rTk)] : []),
+        ]);
     };
 
     const setProfileCompletedPersist = (v: boolean) => {
