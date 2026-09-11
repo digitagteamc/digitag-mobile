@@ -457,13 +457,13 @@ const styles = StyleSheet.create({
     tabRow: {
         flexDirection: 'row',
         paddingHorizontal: spacing.xl,
-        // borderBottomWidth: StyleSheet.hairlineWidth,
-        // borderBottomColor: palette.borderStrong,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: palette.borderStrong,
         marginBottom: 4,
     },
     tabBtn: { paddingVertical: 12, marginRight: 28 },
-    tabLabel: { color: palette.textMuted, fontFamily: fonts.semibold, fontSize: 14 },
-    tabIndicator: { height: 2, borderRadius: 1, marginTop: 8 },
+    tabLabel: { color: palette.textMuted, fontFamily: fonts.semibold, fontSize: 14,  },
+    tabIndicator: { height: 2, borderRadius: 1, marginTop: 8, marginBottom: -10 },
 
     centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

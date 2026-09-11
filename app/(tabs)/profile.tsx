@@ -1140,7 +1140,7 @@ export default function ProfileScreen() {
               {!isGuest && (
               <>
               <View
-                className="mx-5 mt-4 rounded-[28px] px-5 py-4"
+                className="mx-5 mt-4 rounded-[28px]  py-4"
                  
               >
                 <Text className="text-white text-[18px] mb-1" style={{ fontFamily: 'Poppins_600SemiBold' }}>Add Social Media Links</Text>
