@@ -40,12 +40,12 @@
           "voip"
         ]
       },
-      "buildNumber": "6",
+      "buildNumber": "7",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 57,
+      "versionCode": 58,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -102,7 +102,7 @@
       [
         "expo-notification-service-extension-plugin",
         {
-          "mode": "development",
+          "mode": "production",
           "iosNSEFilePath": "./ios-nse/NotificationService.m",
           "devTeam": "3Z6MMTXLV4",
           "iPhoneDeploymentTarget": "15.1"
