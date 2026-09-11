@@ -9,6 +9,7 @@ import {
     Linking,
     Modal,
     PanResponder,
+    Platform,
     SafeAreaView,
     ScrollView,
     StatusBar,
@@ -606,7 +607,7 @@ export default function CategoryResultsScreen() {
             <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
 
             {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 40, paddingBottom: 16, gap: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: Platform.OS === 'ios' ? 20 : 40, paddingBottom: 16, gap: 14 }}>
                 <TouchableOpacity
                     onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
                     style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
@@ -784,7 +785,7 @@ export default function CategoryResultsScreen() {
                         </View>
 
                         {/* Name */}
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center', marginTop: 10, fontFamily: fonts.bold }} numberOfLines={1}>
+                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '500', textAlign: 'center', marginTop: 10, fontFamily: fonts.medium }} numberOfLines={1}>
                             {item.name}
                         </Text>
 
@@ -804,7 +805,7 @@ export default function CategoryResultsScreen() {
                         </View>
 
                         {/* Price */}
-                        <Text style={{ color: '#FF7A18', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 2, fontFamily: fonts.semibold }} numberOfLines={1}>
+                        <Text style={{ color: '#FF7A18', fontSize: 12, fontWeight: '500', textAlign: 'center', marginTop: 2, fontFamily: fonts.medium }} numberOfLines={1}>
                             {item.priceLabel}
                         </Text>
 
@@ -836,7 +837,7 @@ export default function CategoryResultsScreen() {
 
                         {/* Location */}
                         {Boolean(item.location) && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 10, marginHorizontal: 20 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 14, marginHorizontal: 20 , marginBottom: 6 }}>
                                 <Ionicons name="location-outline" size={12} color="#8A8A99" />
                                 <Text style={{ color: '#8A8A99', fontSize: 11, fontFamily: fonts.regular }} numberOfLines={1}>{item.location}</Text>
                             </View>

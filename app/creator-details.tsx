@@ -691,7 +691,7 @@ export default function CreatorDetails() {
                         self-contained equivalent for this profile's own posts). */}
                     {postCards.length > 0 && (
                         <View style={{ width: cardMaxWidth, marginTop: 16, marginLeft: 20 }}>
-                            <Text style={[styles.specialTitle, { marginBottom: 4, marginLeft: 10 }]}>Posts</Text>
+                            <Text style={[styles.specialTitle, { marginBottom: 1, marginLeft: 10 }]}>Posts</Text>
                             {postCards.map((item) => {
                                 const postAccent = getRoleTheme(item.ownerRole).primary;
                                 const isExpanded = expandedPosts.has(item.id);
@@ -1258,7 +1258,7 @@ const styles = StyleSheet.create({
         // A flat marginTop:4 reads as basically no gap on iOS (tighter native
         // line-box rendering than Android for the same lineHeight), so iOS
         // needs a larger value to actually show visible space here.
-        marginTop: Platform.OS === 'ios' ? 8 : 4,
+        marginTop: Platform.OS === 'ios' ? 8 : 8,
     },
     statDivider: {
         width: 1,
