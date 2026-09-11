@@ -2,6 +2,7 @@
 // context when the app is killed — this is what makes incoming calls ring
 // even when DigiTag isn't open.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import messaging from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
 import { clearIncomingCallNotification, displayIncomingCallNotification } from './services/callNotification';
@@ -19,9 +20,24 @@ const PENDING_CALL_KEY = '@pending_incoming_call';
 // relevant screen.
 const PENDING_NOTIF_KEY = '@pending_notification';
 
+// Access token now lives in SecureStore (see context/AuthContext.tsx for
+// why) — '@auth_token' is only checked as a one-time fallback for a session
+// that logged in before that migration shipped.
+async function getAuthTokenHeadless() {
+    try {
+        const fromSecure = await SecureStore.getItemAsync('authAccessToken');
+        if (fromSecure) return fromSecure;
+    } catch { }
+    try {
+        return await AsyncStorage.getItem('@auth_token');
+    } catch {
+        return null;
+    }
+}
+
 async function declineCallHeadless(callId) {
     try {
-        const token = await AsyncStorage.getItem('@auth_token');
+        const token = await getAuthTokenHeadless();
         if (!token || !callId) return;
         await fetch(`${API_BASE_URL}/calls/${callId}/decline`, {
             method: 'POST',

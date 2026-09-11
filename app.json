@@ -170,7 +170,8 @@
       "expo-iap",
       "./plugins/withSentryAuthToken",
       "./plugins/withRecaptchaEnterprise",
-      "./plugins/withPushKit"
+      "./plugins/withPushKit",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
