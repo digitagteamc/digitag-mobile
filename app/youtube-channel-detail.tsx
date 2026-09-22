@@ -12,7 +12,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import PreviewAdSheet from './brands/PreviewAdSheet';
 import { fonts } from '../theme/colors';
 
 const DUMMY_AD_TYPES = [
@@ -61,8 +60,6 @@ export default function YoutubeChannelDetailScreen() {
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isNotified, setIsNotified] = useState(false);
     const [selectedAdType, setSelectedAdType] = useState<string>(DUMMY_AD_TYPES[0].id);
-    const [adSheetVisible, setAdSheetVisible] = useState(false);
-    const [adSheetItem, setAdSheetItem] = useState<any | null>(null);
 
     // Initial letters fallback avatar
     const initials = channelName
@@ -83,9 +80,10 @@ export default function YoutubeChannelDetailScreen() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     paddingHorizontal: 16,
-                    paddingVertical: 12,
+                    paddingVertical: 6,
                     backgroundColor: '#060606',
                     zIndex: 10,
+                    marginTop: 25,
                 }}
             >
                 <TouchableOpacity
@@ -450,8 +448,7 @@ export default function YoutubeChannelDetailScreen() {
                                     activeOpacity={0.8}
                                     onPress={() => {
                                         setSelectedAdType(item.id);
-                                        setAdSheetItem(item);
-                                        setAdSheetVisible(true);
+                                        router.push({ pathname: '/brands/PreviewAdSheet', params: { adItemId: item.id } } as any);
                                     }}
                                     style={[
                                         {
@@ -1292,12 +1289,6 @@ export default function YoutubeChannelDetailScreen() {
                     </View>
                 </View>
             </ScrollView>
-
-            <PreviewAdSheet
-                visible={adSheetVisible}
-                adItem={adSheetItem}
-                onClose={() => setAdSheetVisible(false)}
-            />
         </SafeAreaView>
     );
 }

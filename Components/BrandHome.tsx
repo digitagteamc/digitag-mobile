@@ -85,33 +85,36 @@ const FREELANCER_CATEGORIES = [
 // set as the Creator/Freelancer home page's "Creators by Category" grid
 // (app/(tabs)/index.tsx's FREELANCER_CATEGORIES, which despite the name is
 // the creator content-category list keyed against assets/creator-cat).
+// slug — real backend Category slug for each (same f1-f26 → slug mapping as
+// app/category-results.tsx's FREELANCER_CATEGORY_SLUG_MAP), so tapping a
+// chip can filter people-results.tsx's getFollowSuggestions(categorySlug).
 const CREATOR_CATEGORIES = [
-    { id: 'f1', label: 'Lifestyle &\nLiving', svgXml: CREATOR_CAT_SVGS['Lifestyle-Living'] },
-    { id: 'f2', label: 'Tech', svgXml: CREATOR_CAT_SVGS['Tech'] },
-    { id: 'f3', label: 'Education', svgXml: CREATOR_CAT_SVGS['Education'] },
-    { id: 'f4', label: 'Photography', svgXml: CREATOR_CAT_SVGS['Photography'] },
-    { id: 'f5', label: 'Food', svgXml: CREATOR_CAT_SVGS['Food'] },
-    { id: 'f6', label: 'Health', svgXml: CREATOR_CAT_SVGS['Health'] },
-    { id: 'f7', label: 'Automotive', svgXml: CREATOR_CAT_SVGS['Automotive'] },
-    { id: 'f8', label: 'Comedy &\nMemes', svgXml: CREATOR_CAT_SVGS['Comedy-Memes'] },
-    { id: 'f9', label: 'Entertainment', svgXml: CREATOR_CAT_SVGS['Entertainment'] },
-    { id: 'f10', label: 'Gaming &\nAnime', svgXml: CREATOR_CAT_SVGS['Gaming-Anime'] },
-    { id: 'f11', label: 'Learning', svgXml: CREATOR_CAT_SVGS['Learning'] },
-    { id: 'f12', label: 'News, Media\n& Magazins', svgXml: CREATOR_CAT_SVGS['News-Media-Magazins'] },
-    { id: 'f13', label: 'Sports', svgXml: CREATOR_CAT_SVGS['Sports'] },
-    { id: 'f14', label: 'Travel', svgXml: CREATOR_CAT_SVGS['Travel'] },
-    { id: 'f15', label: 'Beauty', svgXml: CREATOR_CAT_SVGS['Beauty'] },
-    { id: 'f16', label: 'Fitness', svgXml: CREATOR_CAT_SVGS['Fitness'] },
-    { id: 'f17', label: 'Fashion', svgXml: CREATOR_CAT_SVGS['Fashion'] },
-    { id: 'f18', label: 'Finance &\nInvestments', svgXml: CREATOR_CAT_SVGS['Finance-Investments'] },
-    { id: 'f19', label: 'Arts', svgXml: CREATOR_CAT_SVGS['Arts'] },
-    { id: 'f20', label: 'Business &\nStartups', svgXml: CREATOR_CAT_SVGS['Business-Startups'] },
-    { id: 'f21', label: 'Community\nPages', svgXml: CREATOR_CAT_SVGS['Community-Pages'] },
-    { id: 'f22', label: 'Family, Kids\n& Pets', svgXml: CREATOR_CAT_SVGS['Family-Kids-Pets'] },
-    { id: 'f23', label: 'Home &\nDecor', svgXml: CREATOR_CAT_SVGS['Home-Decor'] },
-    { id: 'f24', label: 'Law, Rights\n& Activism', svgXml: CREATOR_CAT_SVGS['Law-Rights-Activism'] },
-    { id: 'f25', label: 'Pets &\nAnimals', svgXml: CREATOR_CAT_SVGS['Pets-Animals'] },
-    { id: 'f26', label: 'Politics', svgXml: CREATOR_CAT_SVGS['Politics'] },
+    { id: 'f1', label: 'Lifestyle &\nLiving', svgXml: CREATOR_CAT_SVGS['Lifestyle-Living'], slug: 'lifestyle-living' },
+    { id: 'f2', label: 'Tech', svgXml: CREATOR_CAT_SVGS['Tech'], slug: 'tech' },
+    { id: 'f3', label: 'Education', svgXml: CREATOR_CAT_SVGS['Education'], slug: 'education' },
+    { id: 'f4', label: 'Photography', svgXml: CREATOR_CAT_SVGS['Photography'], slug: 'photography' },
+    { id: 'f5', label: 'Food', svgXml: CREATOR_CAT_SVGS['Food'], slug: 'food' },
+    { id: 'f6', label: 'Health', svgXml: CREATOR_CAT_SVGS['Health'], slug: 'health' },
+    { id: 'f7', label: 'Automotive', svgXml: CREATOR_CAT_SVGS['Automotive'], slug: 'automotive' },
+    { id: 'f8', label: 'Comedy &\nMemes', svgXml: CREATOR_CAT_SVGS['Comedy-Memes'], slug: 'comedy-and-memes' },
+    { id: 'f9', label: 'Entertainment', svgXml: CREATOR_CAT_SVGS['Entertainment'], slug: 'entertainment' },
+    { id: 'f10', label: 'Gaming &\nAnime', svgXml: CREATOR_CAT_SVGS['Gaming-Anime'], slug: 'gaming-and-anime' },
+    { id: 'f11', label: 'Learning', svgXml: CREATOR_CAT_SVGS['Learning'], slug: 'learning' },
+    { id: 'f12', label: 'News, Media\n& Magazins', svgXml: CREATOR_CAT_SVGS['News-Media-Magazins'], slug: 'news-media-and-magazines' },
+    { id: 'f13', label: 'Sports', svgXml: CREATOR_CAT_SVGS['Sports'], slug: 'sports' },
+    { id: 'f14', label: 'Travel', svgXml: CREATOR_CAT_SVGS['Travel'], slug: 'travel' },
+    { id: 'f15', label: 'Beauty', svgXml: CREATOR_CAT_SVGS['Beauty'], slug: 'beauty' },
+    { id: 'f16', label: 'Fitness', svgXml: CREATOR_CAT_SVGS['Fitness'], slug: 'fitness' },
+    { id: 'f17', label: 'Fashion', svgXml: CREATOR_CAT_SVGS['Fashion'], slug: 'fashion' },
+    { id: 'f18', label: 'Finance &\nInvestments', svgXml: CREATOR_CAT_SVGS['Finance-Investments'], slug: 'finance-and-investments' },
+    { id: 'f19', label: 'Arts', svgXml: CREATOR_CAT_SVGS['Arts'], slug: 'arts' },
+    { id: 'f20', label: 'Business &\nStartups', svgXml: CREATOR_CAT_SVGS['Business-Startups'], slug: 'business-and-startups' },
+    { id: 'f21', label: 'Community\nPages', svgXml: CREATOR_CAT_SVGS['Community-Pages'], slug: 'community-pages' },
+    { id: 'f22', label: 'Family, Kids\n& Pets', svgXml: CREATOR_CAT_SVGS['Family-Kids-Pets'], slug: 'family-kids-and-pets' },
+    { id: 'f23', label: 'Home &\nDecor', svgXml: CREATOR_CAT_SVGS['Home-Decor'], slug: 'home-and-decor' },
+    { id: 'f24', label: 'Law, Rights\n& Activism', svgXml: CREATOR_CAT_SVGS['Law-Rights-Activism'], slug: 'law-rights-and-activism' },
+    { id: 'f25', label: 'Pets &\nAnimals', svgXml: CREATOR_CAT_SVGS['Pets-Animals'], slug: 'pets-and-animals' },
+    { id: 'f26', label: 'Politics', svgXml: CREATOR_CAT_SVGS['Politics'], slug: 'politics' },
 ];
 
 // No existing city list/data source anywhere in the app (checked this
@@ -190,6 +193,80 @@ function CategoryChip({ cat, colorIndex, onPress }: { cat: any; colorIndex: numb
     );
 }
 
+// Same card content as before, just extracted so the 2-row grid below can
+// reuse it instead of duplicating the JSX per row.
+function TopCreatorCard({ creator: c, onPress }: { creator: any; onPress: () => void }) {
+    return (
+        <TouchableOpacity
+            className="rounded-3xl p-4 border"
+            style={{
+                width: 155,
+                height: 158,
+                borderRadius: 24,
+                backgroundColor: '#1A1A1A',
+                borderWidth: 1,
+                // Figma's `0 0 0 1px #999 inset` ring — the one layer of that
+                // box-shadow stack RN can represent directly as a real border.
+                borderColor: 'rgba(153,153,153,0.6)',
+                overflow: 'hidden',
+            }}
+            activeOpacity={0.85}
+            onPress={onPress}
+        >
+            {/* Approximates the inset white/gray corner-glint shadows from the
+                Figma spec as a soft diagonal sheen. RN's style API has no
+                inset/multi-layer box-shadow and no background-blend-mode, so
+                those two can't be reproduced exactly — this is the closest
+                visual equivalent. backdrop-filter: blur() is skipped: it
+                blurs whatever sits *behind* the card, but the card's own
+                background here is fully opaque (#1A1A1A), so a backdrop blur
+                would have no visible effect. */}
+            <LinearGradient
+                colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.6, y: 0.6 }}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                pointerEvents="none"
+            />
+            <Image
+                source={c.profilePicture ? { uri: c.profilePicture } : imgDefaultAvatar}
+                className="rounded-full"
+                style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceAlt }}
+            />
+            <Text
+                className="text-white text-[15px] font-poppins-regular"
+                style={{ marginTop: 6, letterSpacing: -0.5 }}
+                numberOfLines={1}
+            >
+                {c.name || 'Creator'}
+            </Text>
+            {/* Category tags */}
+            <View className="flex-row mt-1.5" style={{ gap: 6 }}>
+                {(c.categoryNames || ['Creator']).slice(0, 2).map((cat: string, i: number) => (
+                    <View
+                        key={i}
+                        className="rounded px-1 py-0.5"
+                        style={{ backgroundColor: '#333435' }}
+                    >
+                        <Text
+                            className="text-white font-poppins-regular"
+                            style={{ fontSize: 10, letterSpacing: -0.5 }}
+                        >
+                            {cat}
+                        </Text>
+                    </View>
+                ))}
+            </View>
+            {/* Social icons row */}
+            <View className="flex-row mt-2" style={{ gap: 8 }}>
+                <Ionicons name="logo-youtube" size={14} color="rgba(185, 180, 180, 1)" />
+                <Ionicons name="logo-instagram" size={14} color="rgba(185, 180, 180, 1)" />
+                <Ionicons name="logo-facebook" size={14} color="rgba(185, 180, 180, 1)" />
+            </View>
+        </TouchableOpacity>
+    );
+}
+
 function formatCount(n?: number | null) {
     if (!n) return '0';
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -200,7 +277,19 @@ function formatCount(n?: number | null) {
 function SectionHeader({ title, onViewAll }: { title: string; subtitle?: string; onViewAll?: () => void }) {
     return (
         <View className="flex-row items-center justify-between">
-            <Text className="text-white text-xl font-poppins-semibold" style={{ letterSpacing: -0.5 }}>{title}</Text>
+            <Text
+                style={{
+                    color: '#FFF',
+                    fontFamily: 'Poppins_600SemiBold',
+                    fontSize: 20,
+                    fontStyle: 'normal',
+                    fontWeight: '600',
+                    letterSpacing: -0.5,
+                    textTransform: 'capitalize',
+                }}
+            >
+                {title}
+            </Text>
             {onViewAll ? (
                 <TouchableOpacity
                     onPress={onViewAll}
@@ -294,7 +383,7 @@ export default function BrandHome() {
         const [profileRes, channelsRes, creatorsRes, celebsRes] = await Promise.all([
             getMyBrandProfile(token),
             getYoutubeChannels(token),
-            getFollowSuggestions(token, 6, { role: 'CREATOR' }),
+            getFollowSuggestions(token, 12, { role: 'CREATOR' }),
             getCelebrities(token),
         ]);
         if (profileRes.success && profileRes.data) {
@@ -450,14 +539,14 @@ export default function BrandHome() {
                                 onPress={() => setChannelFilter(chip)}
                                 className="rounded-2xl mr-1.5 border"
                                 style={[
-                                    { paddingHorizontal: 18, paddingVertical: 8, borderColor: palette.borderStrong },
+                                    { paddingHorizontal: 18, paddingVertical: 6, borderColor: '#6C47FF' },
                                     channelFilter === chip && { backgroundColor: BRAND_PRIMARY, borderColor: BRAND_PRIMARY },
                                 ]}
                             >
                                 <Text
-                                    className="text-xs font-poppins-medium"
+                                    className="text-sm font-poppins-semibold"
                                     style={[
-                                        { color: palette.textSecondary },
+                                        { color: '#6C47FF' },
                                         channelFilter === chip && { color: '#fff' },
                                     ]}
                                 >
@@ -515,10 +604,10 @@ export default function BrandHome() {
                                         style={{ width: '100%', height: '100%', borderRadius: 24 }}
                                     />
                                 </View>
-                                <Text className="text-white text-xs font-poppins-semibold mt-1 text-center" numberOfLines={1}>
+                                <Text className="text-white text-[16px] font-poppins-semibold mt-1 text-center" numberOfLines={1}>
                                     {item.name}
                                 </Text>
-                                <Text className="text-xs font-poppins-regular mt-0.5" style={{ color: palette.textMuted }}>
+                                <Text className="text-[12px] font-poppins-regular mt-0.5" style={{ color: palette.textMuted }}>
                                     {formatCount(item.subscriberCount)} Subs
                                 </Text>
                                 {!!item.category && (
@@ -527,7 +616,7 @@ export default function BrandHome() {
                                             className="rounded-full"
                                             style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: palette.success }}
                                         />
-                                        <Text className="text-xs font-poppins-regular" style={{ fontSize: 10, color: palette.textMuted }}>
+                                        <Text className="text-[12px] font-poppins-regular" style={{ fontSize: 10, color: palette.textMuted }}>
                                             {item.category}
                                         </Text>
                                     </View>
@@ -541,68 +630,27 @@ export default function BrandHome() {
 
                 {/* ── Top Creators ── */}
                 <View className="px-4 mt-7">
-                    <SectionHeader title="Top Creators" onViewAll={() => { }} />
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={topCreators}
-                        keyExtractor={(c) => c.id}
-                        contentContainerStyle={{ paddingTop: 16, gap: 12 }}
-                        ListEmptyComponent={
-                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
-                                No creators yet
-                            </Text>
-                        }
-                        renderItem={({ item: c }) => (
-                            <TouchableOpacity
-                                className="rounded-3xl p-4 border"
-                                style={{
-                                    width: 168,
-                                    height: 162,
-                                    backgroundColor: '#1a1a1a',
-                                    borderColor: 'rgba(153,153,153,0.25)',
-                                }}
-                                activeOpacity={0.85}
-                                onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)}
-                            >
-                                <Image
-                                    source={c.profilePicture ? { uri: c.profilePicture } : imgDefaultAvatar}
-                                    className="rounded-full"
-                                    style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: palette.surfaceAlt }}
-                                />
-                                <Text
-                                    className="text-white text-base font-poppins-regular"
-                                    style={{ marginTop: 6, letterSpacing: -0.5 }}
-                                    numberOfLines={1}
-                                >
-                                    {c.name || 'Creator'}
-                                </Text>
-                                {/* Category tags */}
-                                <View className="flex-row mt-1.5" style={{ gap: 6 }}>
-                                    {(c.categoryNames || ['Creator']).slice(0, 2).map((cat: string, i: number) => (
-                                        <View
-                                            key={i}
-                                            className="rounded px-1 py-0.5"
-                                            style={{ backgroundColor: '#333435' }}
-                                        >
-                                            <Text
-                                                className="text-white font-poppins-regular"
-                                                style={{ fontSize: 10, letterSpacing: -0.5 }}
-                                            >
-                                                {cat}
-                                            </Text>
-                                        </View>
+                    <SectionHeader title="Top Creators" onViewAll={() => router.push({ pathname: '/people-results', params: { title: 'Top Creators', role: 'CREATOR' } } as any)} />
+                    {topCreators.length === 0 ? (
+                        <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                            No creators yet
+                        </Text>
+                    ) : (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 16 }}>
+                            <View>
+                                <View className="flex-row" style={{ gap: 12 }}>
+                                    {topCreators.filter((_, i) => i % 2 === 0).map((c) => (
+                                        <TopCreatorCard key={c.id} creator={c} onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)} />
                                     ))}
                                 </View>
-                                {/* Social icons row */}
-                                <View className="flex-row mt-2" style={{ gap: 8 }}>
-                                    <Ionicons name="logo-youtube" size={14} color="#FF0000" />
-                                    <Ionicons name="logo-instagram" size={14} color="#E1306C" />
-                                    <Ionicons name="logo-facebook" size={14} color="#1877F2" />
+                                <View className="flex-row" style={{ gap: 12, marginTop: 12 }}>
+                                    {topCreators.filter((_, i) => i % 2 === 1).map((c) => (
+                                        <TopCreatorCard key={c.id} creator={c} onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)} />
+                                    ))}
                                 </View>
-                            </TouchableOpacity>
-                        )}
-                    />
+                            </View>
+                        </ScrollView>
+                    )}
                     <PaginationDots total={creatorRows.length} active={creatorsPage} />
                 </View>
 
@@ -614,12 +662,22 @@ export default function BrandHome() {
                         <View>
                             <View className="flex-row" style={{ gap: 2 }}>
                                 {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 0).map((cat) => (
-                                    <CategoryChip key={cat.id} cat={cat} colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)} />
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'CREATOR', categorySlug: cat.slug } } as any)}
+                                    />
                                 ))}
                             </View>
                             <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
                                 {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 1).map((cat) => (
-                                    <CategoryChip key={cat.id} cat={cat} colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)} />
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'CREATOR', categorySlug: cat.slug } } as any)}
+                                    />
                                 ))}
                             </View>
                         </View>

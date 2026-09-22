@@ -18,13 +18,20 @@ export interface BrandBottomNavProps {
 
 const BAR_HEIGHT = 64;
 const FAB_SIZE = 60;
-const CORNER_RADIUS = 24;
+const CORNER_RADIUS = 0;
 
 export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNavProps) {
     const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
 
-    const bottomPad = Platform.OS === 'ios' ? Math.max(insets.bottom, 12) : 8;
+    // Android devices with an on-screen system nav bar (3-button or gesture
+    // pill) report that height via insets.bottom — this was hardcoded to a
+    // flat 8px before, so the bar sat under that system bar instead of above
+    // it. Falls back to the original flat 8 only when there's no inset to
+    // respect (fully gesture-nav-hidden devices), so nothing shifts there.
+    const bottomPad = Platform.OS === 'ios'
+        ? Math.max(insets.bottom, 12)
+        : (insets.bottom > 0 ? insets.bottom : 8);
     const totalHeight = BAR_HEIGHT + bottomPad;
     const cx = screenWidth / 2;
 

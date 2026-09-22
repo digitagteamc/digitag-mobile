@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Modal,
     Platform,
     ScrollView,
     Text,
@@ -13,12 +11,47 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SHEET_HEIGHT = SCREEN_HEIGHT * 0.88;
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const LOCATION_OPTIONS = ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune', 'Gurugaon'];
 const LANGUAGE_OPTIONS = ['Hindi', 'English', 'Telugu', 'Tamil', 'Kannada', 'Malayalam', 'Bengali', 'Marathi'];
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+function isSameDay(a: Date | null, b: Date | null) {
+    if (!a || !b) return false;
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function formatShortDate(d: Date) {
+    return `${d.getDate()} ${MONTH_SHORT[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// 6 full weeks (42 cells) so the grid height never changes month to month —
+// leading/trailing cells spill into the adjacent month, shown dimmed.
+function getCalendarDays(monthDate: Date): { date: Date; inMonth: boolean }[] {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstOfMonth = new Date(year, month, 1);
+    const startWeekday = firstOfMonth.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const cells: { date: Date; inMonth: boolean }[] = [];
+    for (let i = startWeekday - 1; i >= 0; i--) {
+        cells.push({ date: new Date(year, month - 1, daysInPrevMonth - i), inMonth: false });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+        cells.push({ date: new Date(year, month, d), inMonth: true });
+    }
+    while (cells.length < 42) {
+        const last = cells[cells.length - 1].date;
+        cells.push({ date: new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1), inMonth: false });
+    }
+    return cells;
+}
 
 const AD_BANNER_STRIPES: Record<string, string[]> = {
     'ad-1': ['#C9A84C', '#3A7D44', '#F4F4F4', '#3A7D44', '#E05A1B', '#F4F4F4', '#3A7D44', '#7EC8E3'],
@@ -62,16 +95,10 @@ const SLOTS_DATA = [
     { id: '5', name: 'Tech Review', price: 12000 },
 ];
 
-export default function PreviewAdSheet({
-    visible,
-    adItem,
-    onClose,
-}: {
-    visible: boolean;
-    adItem: any | null;
-    onClose: () => void;
-}) {
-    const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+export default function PreviewAdSheet() {
+    const router = useRouter();
+    const { adItemId } = useLocalSearchParams<{ adItemId?: string }>();
+    const onClose = () => router.back();
 
     // Step state
     const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -111,6 +138,13 @@ export default function PreviewAdSheet({
     // Form state
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    // Real Date objects backing the calendar's range selection — fromDate/
+    // toDate above stay the formatted display strings the rest of the form
+    // already reads.
+    const [fromDateObj, setFromDateObj] = useState<Date | null>(null);
+    const [toDateObj, setToDateObj] = useState<Date | null>(null);
+    const [calendarMonth, setCalendarMonth] = useState(new Date());
+    const [calendarOpen, setCalendarOpen] = useState(false);
     const [locationOpen, setLocationOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] = useState('');
     const [languageOpen, setLanguageOpen] = useState(false);
@@ -120,35 +154,7 @@ export default function PreviewAdSheet({
     const [selectedCreatorId, setSelectedCreatorId] = useState('1');
     const [selectedSlots, setSelectedSlots] = useState<string[]>(['4']);
 
-    useEffect(() => {
-        if (visible) {
-            setStep(1);
-            setFromDate('');
-            setToDate('');
-            setSelectedLocation('');
-            setSelectedLanguage('');
-            setLocationOpen(false);
-            setLanguageOpen(false);
-            setSelectedCreatorId('1');
-            setSelectedSlots(['4']);
-            setHasDesign(true);
-            setCountdown(23 * 3600 + 47 * 60 + 12);
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                useNativeDriver: true,
-                damping: 20,
-                stiffness: 120,
-            }).start();
-        } else {
-            Animated.timing(slideAnim, {
-                toValue: SHEET_HEIGHT,
-                duration: 260,
-                useNativeDriver: true,
-            }).start();
-        }
-    }, [visible]);
-
-    const stripes = adItem ? (AD_BANNER_STRIPES[adItem.id] || AD_BANNER_STRIPES['ad-1']) : AD_BANNER_STRIPES['ad-1'];
+    const stripes = adItemId ? (AD_BANNER_STRIPES[adItemId] || AD_BANNER_STRIPES['ad-1']) : AD_BANNER_STRIPES['ad-1'];
     const creator = CREATORS_LIST.find(c => c.id === selectedCreatorId);
 
     const toggleSlot = (id: string) => {
@@ -164,38 +170,151 @@ export default function PreviewAdSheet({
         return sum + (slot ? slot.price : 0);
     }, 0);
 
+    // Range selection: first tap sets "from" (clearing any complete range),
+    // second tap sets "to" — swapping the two if the second tap lands before
+    // the first, so "from" is always the earlier date.
+    const handleSelectDay = (date: Date) => {
+        if (!fromDateObj || (fromDateObj && toDateObj)) {
+            setFromDateObj(date);
+            setToDateObj(null);
+            setFromDate(formatShortDate(date));
+            setToDate('');
+            return;
+        }
+        if (date < fromDateObj) {
+            setToDateObj(fromDateObj);
+            setToDate(formatShortDate(fromDateObj));
+            setFromDateObj(date);
+            setFromDate(formatShortDate(date));
+        } else {
+            setToDateObj(date);
+            setToDate(formatShortDate(date));
+        }
+        // Range is now complete (from + to both set) — close, matching how
+        // DropdownField closes itself once a selection is made.
+        setCalendarOpen(false);
+    };
+
+    const clearFromDate = () => { setFromDate(''); setFromDateObj(null); setToDate(''); setToDateObj(null); };
+    const clearToDate = () => { setToDate(''); setToDateObj(null); };
+
     const formatPrice = (price: number) => `₹ ${price / 1000}K`;
 
-    const DateField = ({ label, value, onChangeText }: { label: string; value: string; onChangeText: (v: string) => void }) => (
+    // Read-only now — tapping the field opens the calendar below, which is
+    // the only way to pick a date (typing would just fight with what's
+    // tapped there).
+    const DateField = ({ label, value, onClear }: { label: string; value: string; onClear: () => void }) => (
         <View style={{ flex: 1 }}>
             <Text style={{ color: '#aaa', fontSize: 12, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>{label}</Text>
-            <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#1A1A2E',
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: '#2A2A3E',
-                paddingHorizontal: 10,
-                paddingVertical: Platform.OS === 'ios' ? 10 : 8,
-                gap: 8,
-            }}>
+            <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setCalendarOpen((o) => !o)}
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#1A1A2E',
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: calendarOpen ? '#6C47FF' : '#2A2A3E',
+                    paddingHorizontal: 10,
+                    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+                    gap: 8,
+                }}
+            >
                 <Ionicons name="calendar-outline" size={16} color="#666" />
                 <TextInput
                     value={value}
-                    onChangeText={onChangeText}
+                    editable={false}
+                    pointerEvents="none"
                     placeholder="Choose date"
                     placeholderTextColor="#555"
                     style={{ flex: 1, color: '#fff', fontFamily: 'Poppins_400Regular', fontSize: 13 }}
                 />
                 {value !== '' && (
-                    <TouchableOpacity onPress={() => onChangeText('')}>
+                    <TouchableOpacity onPress={onClear} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                         <Ionicons name="close-circle" size={16} color="#555" />
                     </TouchableOpacity>
                 )}
-            </View>
+            </TouchableOpacity>
         </View>
     );
+
+    const AdCalendar = () => {
+        const days = getCalendarDays(calendarMonth);
+        return (
+            <View style={{
+                backgroundColor: '#15151E',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#2A2A3E',
+                padding: 14,
+                marginTop: 14,
+            }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <TouchableOpacity
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}
+                    >
+                        <Ionicons name="chevron-back" size={16} color="#888" />
+                    </TouchableOpacity>
+                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Poppins_600SemiBold' }}>
+                        {MONTH_NAMES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                    </Text>
+                    <TouchableOpacity
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}
+                    >
+                        <Ionicons name="chevron-forward" size={16} color="#888" />
+                    </TouchableOpacity>
+                </View>
+
+                <View style={{ flexDirection: 'row' }}>
+                    {WEEKDAY_LABELS.map((w) => (
+                        <View key={w} style={{ width: `${100 / 7}%`, alignItems: 'center', marginBottom: 6 }}>
+                            <Text style={{ color: '#777', fontSize: 11, fontFamily: 'Poppins_500Medium' }}>{w}</Text>
+                        </View>
+                    ))}
+                </View>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                    {days.map(({ date, inMonth }, idx) => {
+                        const isStart = isSameDay(date, fromDateObj);
+                        const isEnd = isSameDay(date, toDateObj);
+                        const inRange = !!(fromDateObj && toDateObj && date > fromDateObj && date < toDateObj);
+                        return (
+                            <TouchableOpacity
+                                key={idx}
+                                activeOpacity={0.7}
+                                onPress={() => handleSelectDay(date)}
+                                style={{ width: `${100 / 7}%`, alignItems: 'center', justifyContent: 'center', paddingVertical: 3 }}
+                            >
+                                <View
+                                    style={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: isStart || isEnd ? 15 : 8,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        backgroundColor: isStart || isEnd ? '#1A8CFF' : inRange ? 'rgba(26,140,255,0.25)' : 'transparent',
+                                    }}
+                                >
+                                    <Text
+                                        style={{
+                                            color: isStart || isEnd ? '#fff' : !inMonth ? '#444' : '#ddd',
+                                            fontSize: 13,
+                                            fontFamily: 'Poppins_500Medium',
+                                        }}
+                                    >
+                                        {date.getDate()}
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+            </View>
+        );
+    };
 
     const DropdownField = ({
         label, placeholder, open, onToggle, value, options, onSelect,
@@ -260,37 +379,7 @@ export default function PreviewAdSheet({
     );
 
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="none"
-            onRequestClose={onClose}
-            statusBarTranslucent
-        >
-            {/* Backdrop */}
-            <TouchableOpacity
-                activeOpacity={1}
-                onPress={onClose}
-                style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' }}
-            >
-                {/* Sheet */}
-                <Animated.View
-                    style={[
-                        {
-                            position: 'absolute',
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            height: SHEET_HEIGHT,
-                            backgroundColor: '#111118',
-                            borderTopLeftRadius: 24,
-                            borderTopRightRadius: 24,
-                            overflow: 'hidden',
-                        },
-                        { transform: [{ translateY: slideAnim }] },
-                    ]}
-                >
-                    <TouchableOpacity activeOpacity={1} style={{ flex: 1 }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#111118' }} edges={['top']}>
                         <ScrollView
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={{ paddingBottom: 32 }}
@@ -358,9 +447,10 @@ export default function PreviewAdSheet({
                                             Select Your Ad Duration
                                         </Text>
                                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                                            <DateField label="From" value={fromDate} onChangeText={setFromDate} />
-                                            <DateField label="To" value={toDate} onChangeText={setToDate} />
+                                            <DateField label="From" value={fromDate} onClear={clearFromDate} />
+                                            <DateField label="To" value={toDate} onClear={clearToDate} />
                                         </View>
+                                        {calendarOpen && <AdCalendar />}
                                         <DropdownField
                                             label="Location"
                                             placeholder="Select Location"
@@ -389,18 +479,30 @@ export default function PreviewAdSheet({
                                     <View style={{ backgroundColor: '#111118', borderRadius: 14, padding: 16, marginHorizontal: 20, marginTop: 10, borderWidth: 1, borderColor: '#4A2A8E' }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                             <Text style={{ color: '#6A6A8B', fontSize: 13, fontFamily: 'Poppins_400Regular' }}>Campaign Duration</Text>
-                                            <View style={{ backgroundColor: '#352166', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                                                <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Poppins_500Medium' }}>6 Days</Text>
-                                            </View>
+                                            {!!(fromDateObj && toDateObj) && (
+                                                <View style={{ backgroundColor: '#352166', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                                                    <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Poppins_500Medium' }}>
+                                                        {Math.round((toDateObj.getTime() - fromDateObj.getTime()) / 86400000) + 1} Days
+                                                    </Text>
+                                                </View>
+                                            )}
                                         </View>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>16 Apr 2026</Text>
+                                            <Text style={{ color: fromDate ? '#fff' : '#555', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>
+                                                {fromDate || 'Start date'}
+                                            </Text>
                                             <Ionicons name="arrow-forward" size={16} color="#6C47FF" />
-                                            <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>21 Apr 2026</Text>
-                                            <TouchableOpacity style={{ backgroundColor: '#352166', width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+                                            <Text style={{ color: toDate ? '#fff' : '#555', fontSize: 16, fontFamily: 'Poppins_600SemiBold' }}>
+                                                {toDate || 'End date'}
+                                            </Text>
+                                            <TouchableOpacity
+                                                onPress={() => setCalendarOpen((o) => !o)}
+                                                style={{ backgroundColor: calendarOpen ? '#6C47FF' : '#352166', width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+                                            >
                                                 <Ionicons name="calendar-outline" size={18} color="#fff" />
                                             </TouchableOpacity>
                                         </View>
+                                        {calendarOpen && <AdCalendar />}
                                     </View>
 
                                     <View style={{ backgroundColor: '#112211', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, marginHorizontal: 20, marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#2D452B' }}>
@@ -1010,9 +1112,6 @@ export default function PreviewAdSheet({
                                 </View>
                             ) : null}
                         </View>
-                    </TouchableOpacity>
-                </Animated.View>
-            </TouchableOpacity>
-        </Modal>
+        </SafeAreaView>
     );
 }
