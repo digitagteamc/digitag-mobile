@@ -46,8 +46,8 @@ export default function TabsLayout() {
                             router.push('/Brand-Create-Campaign' as any);
                             return;
                         }
-                        if (key === 'requirements') {
-                            router.push('/my-requirements' as any);
+                        if (key === 'campaign') {
+                            router.push('/brands/campaign' as any);
                             return;
                         }
                         navigateTab(props, brandTabKeyToRoute(key));
@@ -113,7 +113,7 @@ function tabKeyToRoute(key: string): string {
 }
 
 // Brand's nav bar only has Home/Messages/Profile as real tabs (Explore
-// doesn't apply to Brand's home layout; "create" and "requirements" are
+// doesn't apply to Brand's home layout; "create" and "campaign" are
 // router.push destinations, not tab switches — handled above).
 function routeToBrandTabKey(routeName: string): string {
     switch (routeName) {

@@ -1,7 +1,7 @@
 /**
  * BrandBottomNav — Brand role's custom bottom nav matching the design spec:
  * A purple notched top bar with rounded corners, a central dark FAB with a mint '+' icon,
- * and 4 tab icons (home, messages, profile, requirements) with an active underline indicator.
+ * and 4 tab icons (home, messages, profile, campaign) with an active underline indicator.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -18,13 +18,20 @@ export interface BrandBottomNavProps {
 
 const BAR_HEIGHT = 64;
 const FAB_SIZE = 60;
-const CORNER_RADIUS = 24;
+const CORNER_RADIUS = 0;
 
 export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNavProps) {
     const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
 
-    const bottomPad = Platform.OS === 'ios' ? Math.max(insets.bottom, 12) : 8;
+    // Android devices with an on-screen system nav bar (3-button or gesture
+    // pill) report that height via insets.bottom — this was hardcoded to a
+    // flat 8px before, so the bar sat under that system bar instead of above
+    // it. Falls back to the original flat 8 only when there's no inset to
+    // respect (fully gesture-nav-hidden devices), so nothing shifts there.
+    const bottomPad = Platform.OS === 'ios'
+        ? Math.max(insets.bottom, 12)
+        : (insets.bottom > 0 ? insets.bottom : 8);
     const totalHeight = BAR_HEIGHT + bottomPad;
     const cx = screenWidth / 2;
 
@@ -136,7 +143,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                 {/* Center Notch Spacer */}
                 <View style={{ width: notchW }} />
 
-                {/* Right Tabs (Profile, Requirements) */}
+                {/* Right Tabs (Profile, Campaign) */}
                 <View style={styles.tabGroup}>
                     {/* Profile */}
                     <TouchableOpacity
@@ -158,22 +165,22 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                         />
                     </TouchableOpacity>
 
-                    {/* Requirements */}
+                    {/* Campaign */}
                     <TouchableOpacity
                         activeOpacity={0.8}
-                        onPress={() => onTabPress('requirements')}
+                        onPress={() => onTabPress('campaign')}
                         style={styles.tabTouch}
                     >
                         <Ionicons
-                            name="document-text"
+                            name="megaphone"
                             size={21}
                             color="#FFFFFF"
-                            style={{ opacity: activeKey === 'requirements' ? 1.0 : 0.8 }}
+                            style={{ opacity: activeKey === 'campaign' ? 1.0 : 0.8 }}
                         />
                         <View
                             style={[
                                 styles.activeLine,
-                                { opacity: activeKey === 'requirements' ? 1 : 0 },
+                                { opacity: activeKey === 'campaign' ? 1 : 0 },
                             ]}
                         />
                     </TouchableOpacity>
