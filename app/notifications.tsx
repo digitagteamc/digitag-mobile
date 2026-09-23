@@ -22,7 +22,6 @@ import { routeNotificationData } from '../services/notificationRouting';
 import {
     AppNotification,
     followUser,
-    getFollowStatus,
     getFollowSuggestions,
     getNotifications,
     listCollaborations,
@@ -88,7 +87,7 @@ type Tab = 'requests' | 'notifications';
 
 export default function NotificationsScreen() {
     const router = useRouter();
-    const { token } = useAuth();
+    const { token, userRole } = useAuth();
     const theme = useRoleTheme(); // viewer's role theme
     const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
 
@@ -130,22 +129,18 @@ export default function NotificationsScreen() {
         if (!token) { setNotifLoading(false); return; }
         const [notifRes, sugRes] = await Promise.all([
             getNotifications(token, { limit: 30 }),
-            getFollowSuggestions(token, 20),
+            getFollowSuggestions(token, { limit: 20 }),
         ]);
         setNotifications(notifRes.success ? notifRes.data : []);
         setNotifNextCursor(notifRes.success ? notifRes.nextCursor : null);
 
         const sugs = sugRes.success ? (sugRes.data || []) : [];
         setSuggestions(sugs);
-        if (sugs.length > 0) {
-            const followChecks = await Promise.all(
-                sugs.map((s: any) => getFollowStatus(token, s.id).then((r) => ({
-                    id: s.id,
-                    following: r.success ? Boolean(r.data?.isFollowing) : false,
-                }))),
-            );
-            setFollowingIds(new Set(followChecks.filter((f) => f.following).map((f) => f.id)));
-        }
+        // See suggestions.tsx — listSuggestions already excludes everyone you
+        // follow, so these are all un-followed and the per-suggestion status
+        // lookup (20 requests, on every focus) was asking a question the
+        // backend had already answered.
+        setFollowingIds(new Set());
         setNotifLoading(false);
     }, [token]);
 
@@ -252,7 +247,14 @@ export default function NotificationsScreen() {
             setTab('requests');
             return;
         }
-        routeNotificationData(router, (n.data || undefined) as Record<string, string> | undefined);
+        // routeNotificationData keys off data.type, but the persisted `data`
+        // blob isn't guaranteed to carry it — admin broadcasts stored only
+        // { action }, so tapping one from this list did nothing while every
+        // other type (which does persist type inside data) worked. The row's
+        // own `type` column is always correct, so merge it in here: that
+        // fixes notifications already sitting in the list, not just ones
+        // created after the backend started persisting it too.
+        routeNotificationData(router, { type: n.type, ...(n.data || {}) }, undefined, userRole ?? undefined);
     };
 
     const pending = requests.filter((r) => r.status === 'PENDING');
@@ -312,6 +314,7 @@ export default function NotificationsScreen() {
                                         key={r.id}
                                         name={getSenderName(r.sender)}
                                         subtitle="Sent a Collab Request"
+                                        time={formatRelative(r.createdAt)}
                                         avatarUri={getSenderPic(r.sender)}
                                         role={r.sender?.role}
                                         variant="request"
@@ -328,6 +331,7 @@ export default function NotificationsScreen() {
                                         key={r.id}
                                         name={getSenderName(r.sender)}
                                         subtitle="Sent a Collab Request"
+                                        time={formatRelative(r.createdAt)}
                                         avatarUri={getSenderPic(r.sender)}
                                         role={r.sender?.role}
                                         variant="request"
@@ -344,6 +348,7 @@ export default function NotificationsScreen() {
                                         key={r.id}
                                         name={getSenderName(r.sender)}
                                         subtitle="Sent a Collab Request"
+                                        time={formatRelative(r.createdAt)}
                                         avatarUri={getSenderPic(r.sender)}
                                         role={r.sender?.role}
                                         variant="request"
@@ -379,8 +384,10 @@ export default function NotificationsScreen() {
                     renderItem={({ item }) => (
                         <NotificationItem
                             name={item.title}
-                            subtitle={`${item.body} · ${formatRelative(item.createdAt)}`}
+                            subtitle={item.body}
+                            time={formatRelative(item.createdAt)}
                             icon={iconForType(item.type)}
+                            avatarUri={item.data?.imageUrl || undefined}
                             variant="info"
                             unread={!item.isRead}
                             onPress={() => handleNotificationPress(item)}
@@ -455,8 +462,8 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     tabBtn: { paddingVertical: 12, marginRight: 28 },
-    tabLabel: { color: palette.textMuted, fontFamily: fonts.semibold, fontSize: 14 },
-    tabIndicator: { height: 2, borderRadius: 1, marginTop: 8 },
+    tabLabel: { color: palette.textMuted, fontFamily: fonts.semibold, fontSize: 14,  },
+    tabIndicator: { height: 2, borderRadius: 1, marginTop: 8, marginBottom: -10 },
 
     centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

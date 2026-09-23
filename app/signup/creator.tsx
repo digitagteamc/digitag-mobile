@@ -1442,11 +1442,9 @@ export default function CreatorSignup() {
 
     const handleSuccessClose = () => {
         setShowSuccessModal(false);
-        if (mode === 'update') {
-            router.replace('/(tabs)');
-        } else {
-            router.replace('/signup/pending');
-        }
+        // Creators don't go through admin approval (unlike Brands) — go
+        // straight to the app, same as the update-profile path already did.
+        router.replace('/(tabs)');
     };
 
     if (prefilling) {

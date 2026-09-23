@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import messaging, { getToken as getFcmToken } from '@react-native-firebase/messaging';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { refreshToken as apiRefreshToken, resetAccountSuspendedGuard, setAccountSuspendedCallback, setRefreshTokenCallback, unregisterFcmToken } from '../services/userService';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { logoutSession, refreshToken as apiRefreshToken, resetAccountSuspendedGuard, setAccountSuspendedCallback, setRefreshTokenCallback } from '../services/userService';
 
 // Role is deliberately CREATOR|FREELANCER only — it's setActiveRole's type,
 // used for switching between a user's dual Creator/Freelancer profiles
@@ -76,29 +75,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Restore session from AsyncStorage on app start
     useEffect(() => {
-        restoreSession();
+        let settled = false;
+        restoreSession().finally(() => { settled = true; });
+        // Last-resort backstop. isLoading gates app/index.tsx's logo screen
+        // off the rest of the app — if anything inside restoreSession hangs
+        // (a fetch whose abort signal the native layer silently ignores, a
+        // stalled AsyncStorage call, anything not yet accounted for) with no
+        // timeout of its own, the app is stuck on the logo forever with no
+        // way out short of force-quitting. This doesn't know or care what's
+        // actually stuck; it just guarantees isLoading can't stay true past
+        // this ceiling. Longer than request()'s own 20s timeout so that one
+        // gets first chance to resolve things the normal way.
+        const safetyTimer = setTimeout(() => {
+            if (!settled) setIsLoading(false);
+        }, 25000);
+        return () => clearTimeout(safetyTimer);
     }, []);
 
-    // Wire up auto-refresh so userService can call it on 401
+    // Wire up auto-refresh so userService can call it on 401.
+    //
+    // Every caller shares one in-flight refresh. The backend rotates refresh
+    // tokens — rotateRefreshToken revokes the old one as it issues the new —
+    // so two refreshes racing with the same stored token means the first wins
+    // and the rest get "Refresh token invalid" back. That's what made a whole
+    // screen's worth of parallel requests fail at once (profile + posts +
+    // follow status + suggestions all 401 together when the access token
+    // expires): one would recover, the others returned null and their screens
+    // rendered as empty/"not found". Worse, two concurrent multiSet calls
+    // could interleave and leave an access token paired with an already-
+    // revoked refresh token, which then failed session restore on next
+    // launch and forced a fresh OTP login.
+    const refreshInFlight = useRef<Promise<string | null> | null>(null);
     useEffect(() => {
         setRefreshTokenCallback(async () => {
-            const stored = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
-            if (!stored) return null;
+            if (refreshInFlight.current) return refreshInFlight.current;
+
+            refreshInFlight.current = (async () => {
+                const stored = await AsyncStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+                if (!stored) return null;
+                try {
+                    const res = await apiRefreshToken(stored);
+                    if (res.success && res.data?.tokens) {
+                        const newAccess = res.data.tokens.accessToken;
+                        const newRefresh = res.data.tokens.refreshToken;
+                        await AsyncStorage.multiSet([
+                            [STORAGE_KEYS.TOKEN, newAccess],
+                            [STORAGE_KEYS.REFRESH_TOKEN, newRefresh],
+                        ]);
+                        setToken(newAccess);
+                        setRefreshTokenState(newRefresh);
+                        return newAccess;
+                    }
+                } catch { }
+                return null;
+            })();
+
             try {
-                const res = await apiRefreshToken(stored);
-                if (res.success && res.data?.tokens) {
-                    const newAccess = res.data.tokens.accessToken;
-                    const newRefresh = res.data.tokens.refreshToken;
-                    await AsyncStorage.multiSet([
-                        [STORAGE_KEYS.TOKEN, newAccess],
-                        [STORAGE_KEYS.REFRESH_TOKEN, newRefresh],
-                    ]);
-                    setToken(newAccess);
-                    setRefreshTokenState(newRefresh);
-                    return newAccess;
-                }
-            } catch { }
-            return null;
+                return await refreshInFlight.current;
+            } finally {
+                refreshInFlight.current = null;
+            }
         });
     }, []);
 
@@ -272,19 +308,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
-        // Tell the backend to stop pushing to THIS device before dropping auth —
-        // otherwise calls/messages keep ringing on logged-out phones. Best-effort:
-        // logout must never hang on a network failure.
-        const authToken = token;
-        if (authToken) {
-            try {
-                const fcmToken = await getFcmToken(messaging());
-                if (fcmToken) await Promise.race([
-                    unregisterFcmToken(authToken, fcmToken),
-                    new Promise((resolve) => setTimeout(resolve, 3000)),
-                ]);
-            } catch { /* best-effort */ }
-        }
+        // Revoke the refresh token server-side before dropping auth locally — it
+        // previously stayed valid for its full ~30-day life since nothing ever
+        // called /auth/logout, this only ever cleared local state.
+        //
+        // Deliberately NOT unregistering this device's FCM token here — Admin
+        // Broadcast's "Everyone" target (and any other device-wide push) needs
+        // to keep reaching this device even after the person using it logs out,
+        // since it's still-installed-app reach, not a personal notification
+        // stream. (Calls/collab/chat pushes are addressed by userId, and this
+        // device's userId association only changes on the next login, via
+        // registerDevice's upsert-by-token — a stale "someone posted"-style
+        // notification arriving right after logout is an accepted tradeoff.)
+        // Best-effort: logout must never hang on a network failure.
+        const rToken = refreshTokenState;
+        await Promise.race([
+            rToken ? logoutSession(rToken) : Promise.resolve(),
+            new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
         setIsGuest(false);
         setUserPhone(null);
         setUserId(null);

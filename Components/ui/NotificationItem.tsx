@@ -16,6 +16,10 @@ export interface NotificationItemProps {
     icon?: keyof typeof Ionicons.glyphMap;
     /** Role of the other party — drives theme accents. */
     role?: Role | string | null;
+    /** When the notification arrived, e.g. "5m ago". Rendered on its own line
+     *  rather than appended to subtitle — subtitle is capped to one line, so a
+     *  long body would otherwise truncate the timestamp away entirely. */
+    time?: string;
     /** Variant picks which actions render. */
     variant: 'request' | 'suggestion' | 'info';
     busy?: boolean;
@@ -39,6 +43,7 @@ export default function NotificationItem({
     avatarUri,
     icon,
     role,
+    time,
     variant,
     busy,
     unread,
@@ -71,6 +76,7 @@ export default function NotificationItem({
                     <Text style={styles.name} numberOfLines={1}>{name}</Text>
                 )}
                 <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+                {time ? <Text style={styles.time}>{time}</Text> : null}
             </View>
 
             {unread ? <View style={[styles.unreadDot, { backgroundColor: theme.primary }]} /> : null}
@@ -130,6 +136,7 @@ const styles = StyleSheet.create({
     body: { flex: 1 },
     name: { color: palette.textPrimary, fontFamily: fonts.semibold, fontSize: 14 },
     subtitle: { color: palette.textMuted, fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
+    time: { color: palette.textMuted, fontFamily: fonts.regular, fontSize: 10, marginTop: 3, opacity: 0.8 },
 
     actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     btn: { minHeight: 34, paddingHorizontal: 14 },

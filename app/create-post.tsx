@@ -521,7 +521,14 @@ export default function CreatePost() {
                 placeholderTextColor="#555"
                 value={budget}
                 onChangeText={setBudget}
-                keyboardType="numeric"
+                // Was "numeric" — iOS's number-pad keyboard (UIKeyboardTypeNumberPad)
+                // has no hyphen key at all, so a range like "4000-5000" was
+                // physically impossible to type on iOS. Android's on-screen
+                // numeric keyboard is more permissive depending on the device's
+                // IME, which is why this only ever showed up on iOS. This field
+                // needs a hyphen by design (it's a range), so the plain keyboard
+                // is the correct choice here regardless of platform.
+                keyboardType="default"
               />
             </View>
           </>

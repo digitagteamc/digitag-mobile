@@ -10,6 +10,14 @@ const API_BASE_URL = (process.env.EXPO_PUBLIC_API_BASE_URL || '').trim().replace
 
 // Key used to pass call data from background handler → app on open
 const PENDING_CALL_KEY = '@pending_incoming_call';
+// Same idea, generalized to any other notification type (NEW_POST, etc.) —
+// messaging().getInitialNotification() (checked in app/index.tsx) is the
+// primary source for "which notification was tapped to launch the app", but
+// it's unreliable from a fully killed state (the exact failure PENDING_CALL_KEY
+// above already works around for calls). This is the same fallback for
+// everything else, so a tap doesn't silently land on Home instead of the
+// relevant screen.
+const PENDING_NOTIF_KEY = '@pending_notification';
 
 async function declineCallHeadless(callId) {
     try {
@@ -40,6 +48,8 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
             await clearIncomingCallNotification(String(data.callId));
             await AsyncStorage.removeItem(PENDING_CALL_KEY);
         }
+    } else if (data?.type) {
+        await AsyncStorage.setItem(PENDING_NOTIF_KEY, JSON.stringify(data));
     }
 });
 

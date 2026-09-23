@@ -184,7 +184,7 @@ export default function AllCreatorsScreen() {
             return;
         }
         try {
-            const res = await getFollowSuggestions(token, 50, { role: 'CREATOR' });
+            const res = await getFollowSuggestions(token, { limit: 50, role: 'CREATOR' });
             if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                 const mapped = res.data.map((item: any, idx: number) => ({
                     id: item.id || `fetched-${idx}`,

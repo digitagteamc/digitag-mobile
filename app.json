@@ -2,7 +2,7 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.16",
+    "version": "1.0.18",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitag",
@@ -40,12 +40,12 @@
           "voip"
         ]
       },
-      "buildNumber": "2",
+      "buildNumber": "7",
       "icon": "./assets/images/icon-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 54,
+      "versionCode": 58,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -99,6 +99,15 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-notification-service-extension-plugin",
+        {
+          "mode": "production",
+          "iosNSEFilePath": "./ios-nse/NotificationService.m",
+          "devTeam": "3Z6MMTXLV4",
+          "iPhoneDeploymentTarget": "15.1"
+        }
+      ],
       [
         "expo-router",
         {

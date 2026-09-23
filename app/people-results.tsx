@@ -26,7 +26,8 @@ export default function PeopleResultsScreen() {
 
     const load = useCallback(async () => {
         if (!token) { setLoading(false); return; }
-        const res = await getFollowSuggestions(token, 50, {
+        const res = await getFollowSuggestions(token, {
+            limit: 50,
             role: params.role,
             location: params.location,
             categorySlug: params.categorySlug,

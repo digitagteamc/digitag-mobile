@@ -1,7 +1,7 @@
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import Animated, {
     Easing,
     useAnimatedStyle,
@@ -21,6 +21,9 @@ import { clearIncomingCallNotification } from '../services/callNotification';
 import { routeNotificationData } from '../services/notificationRouting';
 
 const PENDING_CALL_KEY = '@pending_incoming_call';
+// Fallback for non-call notification types — see index.js for why this exists
+// alongside messaging().getInitialNotification() below.
+const PENDING_NOTIF_KEY = '@pending_notification';
 // Was 4000ms — the choreographed animation below now finishes around 2200ms
 // (scaled down proportionally with FILL_DONE_TIME), so this only needs a
 // short hold after that, not a fixed 4s wait on every single app open.
@@ -145,9 +148,21 @@ const PerfectLiquidWave = ({
 // Main Intro Screen
 // ─────────────────────────────────────────────────────────────────
 export default function Index() {
-    const { isLoading, token, isGuest, hasOnboarded } = useAuth();
+    const { isLoading, token, isGuest, hasOnboarded, userRole } = useAuth();
     const router = useRouter();
     const [introDone, setIntroDone] = useState(false);
+    // The choreographed animation above always finishes in ~2.4s, but this
+    // screen can't navigate away until isLoading clears too — and on a slow
+    // or lossy connection that restore can legitimately take up to its own
+    // ~20-25s timeout (see AuthContext/userService) before landing the user
+    // logged in normally. A silent, static logo sitting there that whole
+    // time is indistinguishable from "frozen" — this just says otherwise.
+    const [showSlowHint, setShowSlowHint] = useState(false);
+    useEffect(() => {
+        if (!isLoading) { setShowSlowHint(false); return; }
+        const timer = setTimeout(() => setShowSlowHint(true), 4000);
+        return () => clearTimeout(timer);
+    }, [isLoading]);
     // A non-call notification tap that cold-started the app — routed after the intro.
     const [pendingNotif, setPendingNotif] = useState<Record<string, string> | null>(null);
 
@@ -233,11 +248,21 @@ export default function Index() {
             // 3. FCM notification tap that launched the app (iOS killed-state calls
             //    arrive here — the OS shows the APNs alert itself, no JS runs first)
             const remote = await messaging().getInitialNotification().catch(() => null);
-            const fData = remote?.data as Record<string, string> | undefined;
+            let fData = remote?.data as Record<string, string> | undefined;
             if (fData?.type === 'INCOMING_CALL' && fData.callId) {
                 goToCall(fData.callId, fData.callerName);
                 return;
             }
+            // getInitialNotification() is unreliable from a fully killed state (the
+            // same reason PENDING_CALL_KEY exists for calls above) — fall back to
+            // whatever the background handler last stashed if it came up empty.
+            if (!fData?.type) {
+                try {
+                    const storedNotif = await AsyncStorage.getItem(PENDING_NOTIF_KEY);
+                    if (storedNotif) fData = JSON.parse(storedNotif);
+                } catch {}
+            }
+            await AsyncStorage.removeItem(PENDING_NOTIF_KEY).catch(() => {});
             if (fData?.type && !cancelled) setPendingNotif(fData);
         };
         checkColdStartNotification();
@@ -255,7 +280,7 @@ export default function Index() {
             router.replace('/(tabs)');
             // Deep-link into the tapped notification's screen, on top of tabs so
             // back behaves normally.
-            if (pendingNotif) routeNotificationData(router, pendingNotif);
+            if (pendingNotif) routeNotificationData(router, pendingNotif, undefined, userRole ?? undefined);
         } else if (hasOnboarded) {
             router.replace('/role-selection');
         } else {
@@ -327,6 +352,9 @@ export default function Index() {
                 />
 
             </Animated.View>
+            {showSlowHint && (
+                <Text style={styles.slowHint}>Checking your connection…</Text>
+            )}
         </View>
     );
 }
@@ -361,5 +389,12 @@ const styles = StyleSheet.create({
         height: 68,
         marginTop: 70,
         position: 'absolute',
+    },
+    slowHint: {
+        position: 'absolute',
+        bottom: 60,
+        alignSelf: 'center',
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 13,
     },
 });

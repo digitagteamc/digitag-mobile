@@ -10,6 +10,17 @@ if (!RAW_BASE) {
     console.warn('EXPO_PUBLIC_API_BASE_URL is not defined in .env');
 }
 
+// A stalled connection (flaky mobile data, a DNS hiccup, a backend that
+// accepts the connection but never responds) leaves a plain fetch() pending
+// forever — it never resolves and never rejects. That's fatal at startup
+// specifically: AuthContext's bootstrap awaits refreshToken() inside a
+// try/finally whose finally { setIsLoading(false) } never runs if the await
+// never settles, so app/index.tsx's logo screen (gated on isLoading) sits
+// there permanently with no error, no crash, nothing to recover from short
+// of force-quitting. Aborting after a timeout turns that hang into a normal
+// rejection every existing catch block already handles.
+const REQUEST_TIMEOUT_MS = 20000;
+
 type Headers = Record<string, string>;
 
 /** Thrown from `request()` so callers can inspect structured error details
@@ -61,7 +72,36 @@ export function resetAccountSuspendedGuard() {
 }
 
 async function request(path: string, options: RequestInit = {}, _retry = true) {
-    const res = await fetch(`${API_BASE_URL}${path}`, options);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let res: Response;
+    try {
+        // React Native's fetch doesn't reliably honor AbortController.abort()
+        // on every RN/Hermes version/platform combo — abort() sometimes fires
+        // with nothing downstream ever checking the signal, silently doing
+        // nothing while the original hang (the whole reason this exists)
+        // continues (confirmed live: this exact stalled state, on a build
+        // that already had the AbortController code, sat stuck for over a
+        // minute). Racing a plain timer promise guarantees this await settles
+        // on schedule regardless of whether abort() actually cancels anything
+        // at the native layer — the in-flight request may keep running in the
+        // background, but the caller is never stuck waiting on it again.
+        res = await Promise.race([
+            fetch(`${API_BASE_URL}${path}`, { ...options, signal: controller.signal }),
+            new Promise<never>((_, reject) => {
+                // Fires after the same deadline as the abort() call above —
+                // this is the backstop, not a second, shorter timeout.
+                setTimeout(() => reject(Object.assign(new Error('timeout'), { name: 'AbortError' })), REQUEST_TIMEOUT_MS);
+            }),
+        ]);
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            throw new ApiRequestError('Request timed out — check your connection and try again.', 0, null);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
+    }
     let json: any = null;
     try { json = await res.json(); } catch { /* empty body */ }
 
@@ -78,6 +118,18 @@ async function request(path: string, options: RequestInit = {}, _retry = true) {
             };
             return request(path, newOptions, false);
         }
+    }
+
+    // 429s used to surface as a generic failure, so every screen just rendered
+    // its empty state — the app looked like all the data had vanished (and a
+    // profile that loaded fine a second ago read "Profile not found") with no
+    // hint that the server was throttling. Give it a message the UI can show.
+    if (res.status === 429) {
+        throw new ApiRequestError(
+            'Too many requests — please wait a moment and try again.',
+            429,
+            json?.details ?? null,
+        );
     }
 
     if (res.status === 403 && json?.details?.code === 'ACCOUNT_SUSPENDED' && _accountSuspendedFn && !_suspendedHandledOnce) {
@@ -937,6 +989,22 @@ export const listCollaborations = async (
 /** GET /collaborations/with/:userId — collab between me and other user (or null).
  *  Pass postId when the caller cares about one specific post's collaboration
  *  state (e.g. post-detail) rather than the most recent collab overall. */
+/** Collaboration state for every one of a user's posts, keyed by postId.
+ *  Replaces calling getCollaborationWith once per post — that fanned out to
+ *  one request per post on every profile open and was a major contributor to
+ *  hitting the API rate limit while browsing. */
+export const getCollaborationsWithByPost = async (token: string, userId: string) => {
+    try {
+        const body = await request(`/collaborations/with/${userId}/by-post`, {
+            method: 'GET',
+            headers: authHeaders(token),
+        });
+        return { success: true, data: (body?.data ?? {}) as Record<string, any> };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: {} as Record<string, any> };
+    }
+};
+
 export const getCollaborationWith = async (token: string, userId: string, postId?: string) => {
     try {
         const qs = postId ? `?postId=${encodeURIComponent(postId)}` : '';
@@ -1408,24 +1476,53 @@ export const getFollowing = async (token: string, userId?: string) => {
     }
 };
 
-/** GET /follows/suggestions?limit=20 */
+/** GET /follows/suggestions?page=&limit=&role=&location=&categorySlug= —
+ *  page defaults to 1, so any existing caller that only ever passed a limit
+ *  keeps getting exactly the same first-page behavior as before this had
+ *  real pagination. role/location/categorySlug narrow the candidate pool
+ *  server-side (e.g. Brand's Home tab wanting Creators-only vs
+ *  Freelancers-only sections). */
 export const getFollowSuggestions = async (
     token: string,
-    limit: number = 20,
-    filters?: { role?: 'CREATOR' | 'FREELANCER'; location?: string; categorySlug?: string },
+    opts: { page?: number; limit?: number; role?: 'CREATOR' | 'FREELANCER'; location?: string; categorySlug?: string } = {},
 ) => {
     try {
-        const params = new URLSearchParams({ limit: String(limit) });
-        if (filters?.role) params.set('role', filters.role);
-        if (filters?.location) params.set('location', filters.location);
-        if (filters?.categorySlug) params.set('categorySlug', filters.categorySlug);
-        const body = await request(`/follows/suggestions?${params.toString()}`, {
+        const qs = new URLSearchParams({
+            ...(opts.page ? { page: String(opts.page) } : {}),
+            limit: String(opts.limit ?? 20),
+        });
+        if (opts.role) qs.set('role', opts.role);
+        if (opts.location) qs.set('location', opts.location);
+        if (opts.categorySlug) qs.set('categorySlug', opts.categorySlug);
+        const body = await request(`/follows/suggestions?${qs}`, {
             method: 'GET',
             headers: authHeaders(token),
         });
-        return { success: true, data: body?.data ?? [] };
+        return { success: true, data: body?.data ?? [], meta: body?.meta };
     } catch (error: any) {
-        return { success: false, error: error.message };
+        return { success: false, error: error.message, data: [] as any[] };
+    }
+};
+
+/** GET /follows/by-category — every ACTIVE, profile-completed user assigned
+ *  to categorySlug (checks both a profile's primary category and its
+ *  categories[] multi-select), not just whoever happens to be recent enough
+ *  to land in getFollowSuggestions' unrelated 50-user cap. Guest-browsable,
+ *  same as getFeed. */
+export const getUsersByCategory = async (
+    token: string | null,
+    categorySlug: string,
+    opts: { page?: number; limit?: number } = {},
+) => {
+    try {
+        const qs = new URLSearchParams({ categorySlug, ...(opts.page ? { page: String(opts.page) } : {}), ...(opts.limit ? { limit: String(opts.limit) } : {}) });
+        const body = await request(`/follows/by-category?${qs}`, {
+            method: 'GET',
+            headers: optionalAuthHeaders(token),
+        });
+        return { success: true, data: body?.data ?? [], meta: body?.meta };
+    } catch (error: any) {
+        return { success: false, error: error.message, data: [] as any[] };
     }
 };
 
