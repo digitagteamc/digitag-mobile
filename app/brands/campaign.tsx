@@ -132,19 +132,15 @@ const tbStyles = StyleSheet.create({
     },
 });
 
-/* ── Grid Cell ── */
-function GridCell({ title, value, borderCorner }: { title: string; value: string; borderCorner: 'tl' | 'tr' | 'bl' | 'br' }) {
-    const cornerStyle =
-        borderCorner === 'tl'
-            ? { borderTopLeftRadius: 16, borderBottomRightRadius: 16 }
-            : borderCorner === 'tr'
-            ? { borderTopRightRadius: 16, borderBottomLeftRadius: 16 }
-            : borderCorner === 'bl'
-            ? { borderBottomLeftRadius: 16, borderTopRightRadius: 16 }
-            : { borderBottomRightRadius: 16, borderTopLeftRadius: 16 };
-
+/* ── Grid Cell ──
+   Content only — no background or corner radius of its own. The divider
+   lines between cells live on the wrapping grid (see cardStyles.grid /
+   gridRow), so the 2x2 layout reads as one card split by a cross rather
+   than 4 separately-boxed tiles with gaps between them. `last` drops the
+   right-hand border for the second cell in each row. */
+function GridCell({ title, value, last }: { title: string; value: string; last?: boolean }) {
     return (
-        <View style={[gcStyles.cell, cornerStyle]}>
+        <View style={[gcStyles.cell, !last && gcStyles.cellDivider]}>
             <Text style={gcStyles.title} numberOfLines={1}>{title}</Text>
             <Text style={gcStyles.value} numberOfLines={2}>{value}</Text>
         </View>
@@ -154,12 +150,15 @@ function GridCell({ title, value, borderCorner }: { title: string; value: string
 const gcStyles = StyleSheet.create({
     cell: {
         flex: 1,
-        backgroundColor: GRID_CELL_BG,
         paddingHorizontal: 14,
         paddingVertical: 12,
         gap: 4,
         minHeight: 84,
         justifyContent: 'center',
+    },
+    cellDivider: {
+        borderRightWidth: 1,
+        borderRightColor: 'rgba(255,255,255,0.08)',
     },
     title: {
         fontSize: 11,
@@ -223,13 +222,13 @@ function CampaignCard({ item, onSendRequest }: { item: Campaign; onSendRequest: 
 
             {/* ── 2×2 Info grid ── */}
             <View style={cardStyles.grid}>
-                <View style={cardStyles.gridRow}>
-                    <GridCell title="Brand Collab with" value={item.brandCollabWith ?? 'Visible Only to creators'} borderCorner="tl" />
-                    <GridCell title="Category" value={item.category ?? 'Beauty, lifestyle & living'} borderCorner="tr" />
+                <View style={[cardStyles.gridRow, cardStyles.gridRowDivider]}>
+                    <GridCell title="Brand Collab with" value={item.brandCollabWith ?? 'Visible Only to creators'} />
+                    <GridCell title="Category" value={item.category ?? 'Beauty, lifestyle & living'} last />
                 </View>
                 <View style={cardStyles.gridRow}>
-                    <GridCell title="No.of Creators" value={item.noOfCreators ?? '15 - 25 Female Creators'} borderCorner="bl" />
-                    <GridCell title="Deliverables" value={item.deliverables ?? '1 Non Collab reel + Story'} borderCorner="br" />
+                    <GridCell title="No.of Creators" value={item.noOfCreators ?? '15 - 25 Female Creators'} />
+                    <GridCell title="Deliverables" value={item.deliverables ?? '1 Non Collab reel + Story'} last />
                 </View>
             </View>
 
@@ -370,12 +369,17 @@ const cardStyles = StyleSheet.create({
         flex: 1,
     },
     grid: {
-        gap: 8,
+        backgroundColor: GRID_CELL_BG,
+        borderRadius: 16,
         marginTop: 4,
+        overflow: 'hidden',
     },
     gridRow: {
         flexDirection: 'row',
-        gap: 8,
+    },
+    gridRowDivider: {
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
     descBox: {
         backgroundColor: '#363636',

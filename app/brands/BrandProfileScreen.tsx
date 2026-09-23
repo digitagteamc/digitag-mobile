@@ -7,6 +7,7 @@
  * changes are made here.
  */
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -43,10 +44,10 @@ const TEXT_MUTED = '#55556A';
 
 /* ─── static placeholder data (replaced by real API data when available) ─── */
 const PLACEHOLDER_STATS = [
-  { value: '—', label: 'Campaigns Run' },
-  { value: '—', label: 'Creators Partnered' },
-  { value: '—', label: 'Total Reach' },
-  { value: '—', label: 'Avg Rating' },
+  { value: '128', label: 'Campaigns Run' },
+  { value: '340', label: 'Creators Partnered' },
+  { value: '42M', label: 'Total Reach' },
+  { value: '4.8★', label: 'Avg Rating' },
 ];
 
 interface SocialCard {
@@ -231,24 +232,38 @@ export default function BrandProfileScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PURPLE} />
         }
       >
+        {/* Top purple glow fading seamlessly into screen background */}
+        <View style={styles.topGlow} pointerEvents="none">
+          <LinearGradient
+            colors={[
+              'rgba(108, 71, 255, 0.40)',
+              'rgba(81, 41, 255, 0.22)',
+              'rgba(15, 15, 28, 0.08)',
+              '#08080F',
+            ]}
+            locations={[0, 0.35, 0.75, 1.0]}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.4, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+
         {/* ── TOP NAV BAR ── */}
-        <View style={[styles.topNav, { paddingTop: topPad + 12 }]}>
+        <View style={[styles.topNav, { paddingTop: topPad + 8 }]}>
           <TouchableOpacity
             onPress={() => router.back()}
             style={styles.iconBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="arrow-back" size={22} color={TEXT_PRIMARY} />
+            <Ionicons name="chevron-back" size={20} color={TEXT_PRIMARY} />
           </TouchableOpacity>
-
-          <Text style={styles.navTitle}>My Profile</Text>
 
           <TouchableOpacity
             onPress={() => setShowDropdown(v => !v)}
             style={styles.iconBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="ellipsis-horizontal" size={22} color={TEXT_PRIMARY} />
+            <Ionicons name="ellipsis-vertical" size={20} color={TEXT_PRIMARY} />
           </TouchableOpacity>
         </View>
 
@@ -300,74 +315,73 @@ export default function BrandProfileScreen() {
 
         {/* ── HEADER CARD ── */}
         <View style={styles.headerCard}>
-          {/* Purple gradient top accent */}
-          <LinearGradient
-            colors={[PURPLE, 'rgba(108,71,255,0)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerGradientBar}
-          />
+          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
 
-          {/* Logo + Info Row */}
+          {/* Logo + Name & Industry */}
           <View style={styles.headerTopRow}>
-            {/* Brand Logo */}
-            <View style={styles.brandLogoWrap}>
-              {brandProfile?.profilePicture ? (
-                <Image
-                  source={{ uri: brandProfile.profilePicture }}
-                  style={styles.brandLogoImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <LinearGradient
-                  colors={[PURPLE, '#5129FF']}
-                  style={styles.brandLogoFallback}
-                >
-                  <Text style={styles.brandLogoInitials}>{initials}</Text>
-                </LinearGradient>
-              )}
+            {/* Avatar & Verified Badge */}
+            <View style={styles.avatarContainer}>
+              <View style={styles.brandLogoWrap}>
+                {brandProfile?.profilePicture ? (
+                  <Image
+                    source={{ uri: brandProfile.profilePicture }}
+                    style={styles.brandLogoImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <LinearGradient
+                    colors={['#2A7BFF', '#6C47FF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.brandLogoFallback}
+                  >
+                    <Text style={styles.brandLogoInitials}>{initials}</Text>
+                  </LinearGradient>
+                )}
+              </View>
+              {/* Verified Check Badge */}
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={18} color="#2A7BFF" />
+              </View>
             </View>
 
-            {/* Name, Industry, Location, Partner Since */}
-            <View style={{ flex: 1, marginLeft: 14 }}>
+            {/* Name & Industry Tag */}
+            <View style={{ flex: 1, marginLeft: 16 }}>
               <Text style={styles.brandName} numberOfLines={1}>{displayName}</Text>
-
-              {/* Industry Tag */}
               <View style={styles.industryTag}>
                 <Text style={styles.industryTagText}>{industry}</Text>
               </View>
-
-              <View style={styles.metaRow}>
-                {location ? (
-                  <View style={styles.metaItem}>
-                    <Ionicons name="location-outline" size={12} color={TEXT_SECONDARY} />
-                    <Text style={styles.metaText}>{location}</Text>
-                  </View>
-                ) : null}
-                {partnerSince ? (
-                  <View style={styles.metaItem}>
-                    <Ionicons name="calendar-outline" size={12} color={TEXT_SECONDARY} />
-                    <Text style={styles.metaText}>{partnerSince}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {website ? (
-                <TouchableOpacity
-                  style={styles.websiteRow}
-                  activeOpacity={0.7}
-                  onPress={() => Linking.openURL(website.startsWith('http') ? website : `https://${website}`).catch(() => {})}
-                >
-                  <Ionicons name="link-outline" size={13} color={PURPLE} />
-                  <Text style={styles.websiteText} numberOfLines={1}>
-                    {website.replace(/^https?:\/\//, '')}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
           </View>
 
-          {/* About */}
+          {/* Meta Information Rows */}
+          <View style={styles.metaContainer}>
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Ionicons name="location-outline" size={16} color={TEXT_SECONDARY} />
+                <Text style={styles.metaText}>{location}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="calendar-outline" size={16} color={TEXT_SECONDARY} />
+                <Text style={styles.metaText}>{partnerSince}</Text>
+              </View>
+            </View>
+
+            {website ? (
+              <TouchableOpacity
+                style={styles.websiteRow}
+                activeOpacity={0.7}
+                onPress={() => Linking.openURL(website.startsWith('http') ? website : `https://${website}`).catch(() => {})}
+              >
+                <Ionicons name="link-outline" size={16} color="#9B82FF" />
+                <Text style={styles.websiteText} numberOfLines={1}>
+                  {website.replace(/^https?:\/\//, '')}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* About Section */}
           <View style={styles.aboutSection}>
             <Text style={styles.sectionLabel}>About</Text>
             <Text style={styles.aboutText}>{bio}</Text>
@@ -376,63 +390,134 @@ export default function BrandProfileScreen() {
           {/* Action Buttons */}
           <View style={styles.actionRow}>
             <TouchableOpacity
-              style={styles.actionBtnOutline}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
               onPress={() => router.push('/(tabs)/messages' as any)}
+              style={styles.actionBtnFillWrap}
             >
-              <Ionicons name="chatbubble-outline" size={15} color={TEXT_PRIMARY} />
-              <Text style={styles.actionBtnOutlineText}>Message</Text>
+              <LinearGradient
+                colors={['#2A7BFF', '#6C47FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.actionBtnFillGradient}
+              >
+                <Text style={styles.actionBtnFillText}>Message</Text>
+              </LinearGradient>
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={styles.actionBtnFilled}
+              style={styles.actionBtnOutline}
               activeOpacity={0.8}
               onPress={() => router.push('/Brands-completeprofile' as any)}
             >
-              <Ionicons name="create-outline" size={15} color={TEXT_PRIMARY} />
-              <Text style={styles.actionBtnFilledText}>Edit Profile</Text>
+              <Text style={styles.actionBtnOutlineText}>Follow</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── BRAND STATS ── */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Brand Stats</Text>
-          <View style={styles.statsGrid}>
-            {PLACEHOLDER_STATS.map((stat, i) => (
-              <View key={i} style={styles.statCard}>
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-            ))}
+        {/* ── BRAND STATS & SOCIAL LINKS WRAPPER WITH RIGHT SIDE GRADIENT ── */}
+        <View style={styles.statsAndSocialWrapper}>
+          {/* Right side cyan/mint background gradient scoped ONLY to Stats & Social links */}
+          <View style={styles.rightSideGradient} pointerEvents="none">
+            {/* Horizontal cyan glow layer */}
+            <LinearGradient
+              colors={[
+                'rgba(0, 229, 195, 0.22)',
+                'rgba(0, 229, 195, 0.12)',
+                'rgba(0, 229, 195, 0.04)',
+                'transparent',
+              ]}
+              locations={[0, 0.35, 0.7, 1.0]}
+              start={{ x: 1, y: 0.5 }}
+              end={{ x: 0, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
+            {/* Vertical top & bottom mask layer merging seamlessly with #08080F */}
+            <LinearGradient
+              colors={[
+                '#08080F',
+                'transparent',
+                'transparent',
+                '#08080F',
+              ]}
+              locations={[0, 0.18, 0.82, 1.0]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+
+          {/* ── BRAND STATS ── */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Brand Stats</Text>
+            <View style={styles.statsGrid}>
+              {PLACEHOLDER_STATS.map((stat, i) => (
+                <View key={i} style={styles.statCard}>
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* ── SOCIAL LINKS ── */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Social links</Text>
+            <View style={styles.socialRow}>
+              {/* Instagram */}
+              <TouchableOpacity
+                style={styles.socialCard}
+                activeOpacity={0.8}
+                onPress={() => brandProfile?.instagramHandle && Linking.openURL(`https://instagram.com/${brandProfile.instagramHandle}`).catch(() => {})}
+              >
+                <LinearGradient
+                  colors={['#F58529', '#DD2A7B', '#833AB4']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.socialIconBox}
+                >
+                  <Ionicons name="logo-instagram" size={18} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.socialValue} numberOfLines={1}>
+                  {brandProfile?.instagramFollowers ? `${(brandProfile.instagramFollowers / 1000).toFixed(0)}K` : '215K'}
+                </Text>
+                <Text style={styles.socialSubLabel}>Followers</Text>
+              </TouchableOpacity>
+
+              {/* Website / Link */}
+              <TouchableOpacity
+                style={styles.socialCard}
+                activeOpacity={0.8}
+                onPress={() => website && Linking.openURL(website.startsWith('http') ? website : `https://${website}`).catch(() => {})}
+              >
+                <LinearGradient
+                  colors={['#2A7BFF', '#6C47FF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.socialIconBox}
+                >
+                  <Ionicons name="link" size={18} color="#FFFFFF" />
+                </LinearGradient>
+                <Text style={styles.socialValue} numberOfLines={1}>
+                  {website ? website.replace(/^https?:\/\//, '') : 'novaapparel'}
+                </Text>
+                <Text style={styles.socialSubLabel}>Visit site</Text>
+              </TouchableOpacity>
+
+              {/* LinkedIn */}
+              <TouchableOpacity
+                style={styles.socialCard}
+                activeOpacity={0.8}
+                onPress={() => Linking.openURL('https://linkedin.com').catch(() => {})}
+              >
+                <View style={[styles.socialIconBox, { backgroundColor: '#0077B5' }]}>
+                  <Ionicons name="logo-linkedin" size={18} color="#FFFFFF" />
+                </View>
+                <Text style={styles.socialValue} numberOfLines={1}>18K</Text>
+                <Text style={styles.socialSubLabel}>Followers</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-
-        {/* ── SOCIAL LINKS ── */}
-        {socialCards.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Social Links</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
-              {socialCards.map((card, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.socialCard}
-                  activeOpacity={0.8}
-                  onPress={() => card.url && Linking.openURL(card.url).catch(() => {})}
-                >
-                  <View style={[styles.socialIconWrap, { backgroundColor: card.iconColor + '22' }]}>
-                    <Ionicons name={card.icon} size={16} color={card.iconColor} />
-                  </View>
-                  {card.followers && (
-                    <Text style={styles.socialFollowers}>{card.followers}</Text>
-                  )}
-                  <Text style={styles.socialSubLabel} numberOfLines={1}>
-                    {card.followers ? 'Followers' : (card.handle || card.platform)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
         {/* ── CAMPAIGNS ── */}
         <View style={styles.sectionContainer}>
@@ -554,7 +639,7 @@ export default function BrandProfileScreen() {
 /* ─── styles ────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
+     flex: 1,
     backgroundColor: '#08080F',
   },
   loadingCenter: {
@@ -564,13 +649,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  topGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 410,
+    zIndex: 0,
+  },
+
+  statsAndSocialWrapper: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  rightSideGradient: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: '55%',
+    zIndex: 0,
+  },
+
   /* top nav */
   topNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 10,
+    zIndex: 10,
   },
   navTitle: {
     color: TEXT_PRIMARY,
@@ -578,12 +686,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins_600SemiBold',
   },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
 
   /* dropdown */
@@ -626,10 +736,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: CARD_BG,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 20,
     overflow: 'hidden',
-    padding: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 12,
+    zIndex: 1,
   },
   headerGradientBar: {
     position: 'absolute',
@@ -640,16 +756,16 @@ const styles = StyleSheet.create({
   },
   headerTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 4,
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    position: 'relative',
   },
   brandLogoWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
+    width: 68,
+    height: 68,
+    borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: PURPLE + '55',
   },
   brandLogoImage: {
     width: '100%',
@@ -663,121 +779,133 @@ const styles = StyleSheet.create({
   },
   brandLogoInitials: {
     color: '#fff',
-    fontSize: 26,
+    fontSize: 20,
     fontFamily: 'Poppins_700Bold',
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   brandName: {
     color: TEXT_PRIMARY,
-    fontSize: 18,
-    fontFamily: 'Poppins_700Bold',
-    marginBottom: 4,
+    fontSize: 20,
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 2,
   },
   industryTag: {
     alignSelf: 'flex-start',
-    backgroundColor: PURPLE_LIGHT,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    marginBottom: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
   },
   industryTagText: {
-    color: PURPLE,
-    fontSize: 11,
-    fontFamily: 'Poppins_500Medium',
+    color: '#A0A0B8',
+    fontSize: 12,
+    fontFamily: 'Poppins_400Regular',
+  },
+  metaContainer: {
+    marginTop: 18,
+    gap: 10,
   },
   metaRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 20,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 6,
   },
   metaText: {
-    color: TEXT_SECONDARY,
-    fontSize: 11.5,
+    color: '#A0A0B8',
+    fontSize: 13,
     fontFamily: 'Poppins_400Regular',
   },
   websiteRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+    gap: 6,
   },
   websiteText: {
-    color: PURPLE,
-    fontSize: 12,
+    color: '#9B82FF',
+    fontSize: 13.5,
     fontFamily: 'Poppins_500Medium',
     flexShrink: 1,
   },
 
   /* about */
   aboutSection: {
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: BORDER,
+    marginTop: 18,
   },
   sectionLabel: {
     color: TEXT_PRIMARY,
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Poppins_600SemiBold',
     marginBottom: 4,
   },
   aboutText: {
-    color: TEXT_SECONDARY,
-    fontSize: 13,
-    fontFamily: 'Poppins_400Regular',
+    color: '#A0A0B8',
+    fontSize: 13.5,
+    fontFamily: 'Poppins_300Light',
     lineHeight: 20,
   },
 
   /* action buttons */
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 16,
+    gap: 12,
+    marginTop: 22,
+  },
+  actionBtnFillWrap: {
+    flex: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  actionBtnFillGradient: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  }, 
+  actionBtnFillText: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontFamily: 'Poppins_500Medium',
   },
   actionBtnOutline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    flex: 1,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 18,
+    borderRadius: 24,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   actionBtnOutlineText: {
-    color: TEXT_PRIMARY,
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
-  },
-  actionBtnFilled: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: PURPLE,
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 18,
-  },
-  actionBtnFilledText: {
-    color: TEXT_PRIMARY,
-    fontSize: 13,
-    fontFamily: 'Poppins_600SemiBold',
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontFamily: 'Poppins_500Medium',
   },
 
   /* sections */
   sectionContainer: {
-    marginTop: 20,
+    marginTop: 24,
     paddingHorizontal: 16,
   },
   sectionTitle: {
-    color: TEXT_PRIMARY,
-    fontSize: 17,
-    fontFamily: 'Poppins_700Bold',
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontFamily: 'Poppins_600SemiBold',
     marginBottom: 12,
   },
 
@@ -785,56 +913,60 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
   statCard: {
-    flex: 1,
-    minWidth: '44%',
-    backgroundColor: SURFACE,
-    borderRadius: 14,
+    width: '48%',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: BORDER,
-    padding: 14,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 18,
   },
   statValue: {
-    color: TEXT_PRIMARY,
-    fontSize: 24,
-    fontFamily: 'Poppins_700Bold',
-    marginBottom: 2,
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 4,
   },
   statLabel: {
-    color: TEXT_SECONDARY,
-    fontSize: 12,
+    color: '#A0A0B8',
+    fontSize: 13,
     fontFamily: 'Poppins_400Regular',
   },
 
-  /* social */
-  socialCard: {
-    width: 110,
-    backgroundColor: SURFACE,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: BORDER,
-    padding: 14,
+  /* social links */
+  socialRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
-  socialIconWrap: {
-    width: 34,
-    height: 34,
+  socialCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 14,
+    justifyContent: 'space-between',
+  },
+  socialIconBox: {
+    width: 36,
+    height: 36,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  socialFollowers: {
-    color: TEXT_PRIMARY,
-    fontSize: 17,
-    fontFamily: 'Poppins_700Bold',
+  socialValue: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    marginBottom: 2,
   },
   socialSubLabel: {
-    color: TEXT_SECONDARY,
-    fontSize: 11,
+    color: '#A0A0B8',
+    fontSize: 12,
     fontFamily: 'Poppins_400Regular',
-    marginTop: 2,
   },
 
   /* campaigns */

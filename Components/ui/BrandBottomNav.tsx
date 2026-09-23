@@ -9,7 +9,7 @@ import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Platform, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 export interface BrandBottomNavProps {
     activeKey: string;
@@ -18,7 +18,8 @@ export interface BrandBottomNavProps {
 
 const BAR_HEIGHT = 64;
 const FAB_SIZE = 60;
-const CORNER_RADIUS = 0;
+const TOP_CORNER_RADIUS = 10;
+const BOTTOM_CORNER_RADIUS = 50;
 
 export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNavProps) {
     const insets = useSafeAreaInsets();
@@ -35,22 +36,28 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
     const totalHeight = BAR_HEIGHT + bottomPad;
     const cx = screenWidth / 2;
 
-    // Smooth U-notch math with gap around FAB
-    const notchW = 104;
-    const notchDepth = 48;
-    const leftCurveStart = cx - notchW / 2;
-    const rightCurveEnd = cx + notchW / 2;
+    // Smooth U-notch math wrapping around circular FAB
+    const notchRadius = 36;
+    const shoulderRadius = 16;
+    const notchDepth = 50;
+    const leftCurveStart = cx - notchRadius - shoulderRadius;
+    const rightCurveEnd = cx + notchRadius + shoulderRadius;
+    const notchW = rightCurveEnd - leftCurveStart; // 104
 
     const notchPath = `
-        M 0 ${CORNER_RADIUS}
-        A ${CORNER_RADIUS} ${CORNER_RADIUS} 0 0 1 ${CORNER_RADIUS} 0
+        M 0 ${TOP_CORNER_RADIUS}
+        A ${TOP_CORNER_RADIUS} ${TOP_CORNER_RADIUS} 0 0 1 ${TOP_CORNER_RADIUS} 0
         L ${leftCurveStart} 0
-        C ${leftCurveStart + 20} 0 ${cx - 30} ${notchDepth} ${cx} ${notchDepth}
-        C ${cx + 30} ${notchDepth} ${rightCurveEnd - 20} 0 ${rightCurveEnd} 0
-        L ${screenWidth - CORNER_RADIUS} 0
-        A ${CORNER_RADIUS} ${CORNER_RADIUS} 0 0 1 ${screenWidth} ${CORNER_RADIUS}
-        L ${screenWidth} ${totalHeight}
-        L 0 ${totalHeight}
+        C ${leftCurveStart + 9} 0 ${cx - notchRadius} 5 ${cx - notchRadius} 15
+        C ${cx - notchRadius} 34 ${cx - 20} ${notchDepth} ${cx} ${notchDepth}
+        C ${cx + 20} ${notchDepth} ${cx + notchRadius} 34 ${cx + notchRadius} 15
+        C ${cx + notchRadius} 5 ${rightCurveEnd - 9} 0 ${rightCurveEnd} 0
+        L ${screenWidth - TOP_CORNER_RADIUS} 0
+        A ${TOP_CORNER_RADIUS} ${TOP_CORNER_RADIUS} 0 0 1 ${screenWidth} ${TOP_CORNER_RADIUS}
+        L ${screenWidth} ${totalHeight - BOTTOM_CORNER_RADIUS}
+        A ${BOTTOM_CORNER_RADIUS} ${BOTTOM_CORNER_RADIUS} 0 0 1 ${screenWidth - BOTTOM_CORNER_RADIUS} ${totalHeight}
+        L ${BOTTOM_CORNER_RADIUS} ${totalHeight}
+        A ${BOTTOM_CORNER_RADIUS} ${BOTTOM_CORNER_RADIUS} 0 0 1 0 ${totalHeight - BOTTOM_CORNER_RADIUS}
         Z
     `;
 
@@ -58,13 +65,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
         <View style={[styles.container, { height: totalHeight }]}>
             {/* SVG Background Bar with Smooth U-Notch */}
             <Svg width={screenWidth} height={totalHeight} style={StyleSheet.absoluteFill}>
-                <Defs>
-                    <LinearGradient id="brandBarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <Stop offset="0%" stopColor="#6C47FF" />
-                        <Stop offset="100%" stopColor="#5129FF" />
-                    </LinearGradient>
-                </Defs>
-                <Path d={notchPath} fill="url(#brandBarGrad)" />
+                <Path d={notchPath} fill="#6C47FF" />
             </Svg>
 
             {/* Glassmorphic Central Floating Plus Button */}
@@ -98,7 +99,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
             {/* Tab Buttons Content Overlay */}
             <View style={[styles.tabsRow, { paddingBottom: bottomPad / 2 }]}>
                 {/* Left Tabs (Home, Messages) */}
-                <View style={styles.tabGroup}>
+                <View style={styles.leftTabGroup}>
                     {/* Home */}
                     <TouchableOpacity
                         activeOpacity={0.8}
@@ -107,7 +108,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                     >
                         <Ionicons
                             name="home"
-                            size={21}
+                            size={15}
                             color="#FFFFFF"
                             style={{ opacity: activeKey === 'home' ? 1.0 : 0.8 }}
                         />
@@ -127,7 +128,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                     >
                         <Ionicons
                             name="chatbubbles"
-                            size={21}
+                            size={15}
                             color="#FFFFFF"
                             style={{ opacity: activeKey === 'messages' ? 1.0 : 0.8 }}
                         />
@@ -144,7 +145,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                 <View style={{ width: notchW }} />
 
                 {/* Right Tabs (Profile, Campaign) */}
-                <View style={styles.tabGroup}>
+                <View style={styles.rightTabGroup}>
                     {/* Profile */}
                     <TouchableOpacity
                         activeOpacity={0.8}
@@ -153,7 +154,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                     >
                         <Ionicons
                             name="person"
-                            size={21}
+                            size={15}
                             color="#FFFFFF"
                             style={{ opacity: activeKey === 'profile' ? 1.0 : 0.8 }}
                         />
@@ -173,7 +174,7 @@ export default function BrandBottomNav({ activeKey, onTabPress }: BrandBottomNav
                     >
                         <Ionicons
                             name="megaphone"
-                            size={21}
+                            size={15}
                             color="#FFFFFF"
                             style={{ opacity: activeKey === 'campaign' ? 1.0 : 0.8 }}
                         />
@@ -234,17 +235,27 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    tabGroup: {
+    leftTabGroup: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-around',
+        justifyContent: 'flex-end',
+        gap: 20,
+        paddingRight: 8,
+    },
+    rightTabGroup: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: 20,
+        paddingLeft: 8,
     },
     tabTouch: {
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 8,
-        paddingHorizontal: 12,
+        paddingHorizontal: 8,
     },
     activeLine: {
         width: 14,
