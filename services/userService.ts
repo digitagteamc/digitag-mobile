@@ -244,7 +244,7 @@ export const verifyOtp = async (
 /** POST /auth/verify-firebase — backend returns profile map + active role using Firebase idToken. */
 export const verifyFirebaseToken = async (
     idToken: string,
-    role: 'CREATOR' | 'FREELANCER' | 'BRAND' = 'CREATOR',
+    role: 'CREATOR' | 'FREELANCER' = 'CREATOR',
 ) => {
     try {
         console.log(`🔐 Verifying Firebase token for role ${role}...`);
@@ -262,9 +262,9 @@ export const verifyFirebaseToken = async (
             refreshToken: data?.tokens?.refreshToken,
             user: data?.user,
             isNewUser: data?.isNewUser,
-            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | 'BRAND' | undefined,
-            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean; BRAND?: boolean } | undefined,
-            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER' | 'BRAND'>,
+            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | undefined,
+            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean } | undefined,
+            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER'>,
             isProfileCompleted: data?.isProfileCompleted,
         };
     } catch (error: any) {
@@ -565,165 +565,6 @@ export const getFreelancerById = async (id: string, token: string) => {
     }
 };
 
-/* ─────────────────────────── BRANDS ───────────────────────── */
-
-/** GET /brands/profile/me */
-export const getMyBrandProfile = async (token: string) => {
-    try {
-        const body = await request('/brands/profile/me', {
-            method: 'GET',
-            headers: authHeaders(token),
-        });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/** POST /brands/profile */
-export const createBrandProfile = async (data: any, token: string) => {
-    try {
-        const body = await request('/brands/profile', {
-            method: 'POST',
-            headers: authHeaders(token),
-            body: JSON.stringify(data),
-        });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: describeApiError(error) };
-    }
-};
-
-/** PUT /brands/profile */
-export const updateBrandProfile = async (data: any, token: string) => {
-    try {
-        const body = await request('/brands/profile', {
-            method: 'PUT',
-            headers: authHeaders(token),
-            body: JSON.stringify(data),
-        });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: describeApiError(error) };
-    }
-};
-
-/** GET /brands/:id */
-export const getBrandById = async (id: string, token: string) => {
-    try {
-        const body = await request(`/brands/${id}`, {
-            method: 'GET',
-            headers: authHeaders(token),
-        });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/**
- * GET /brands/me/status — the real approvalStatus/rejectionReason, replacing
- * the isProfileCompleted-derived fake status checkCreatorStatus uses.
- */
-export const checkBrandStatus = async (token: string) => {
-    try {
-        const body = await request('/brands/me/status', {
-            method: 'GET',
-            headers: authHeaders(token),
-        });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/* ──────────────────── BRAND HOME TAB CONTENT ──────────────────── */
-
-/** GET /youtube-channels */
-export const getYoutubeChannels = async (token: string) => {
-    try {
-        const body = await request('/youtube-channels', { method: 'GET', headers: authHeaders(token) });
-        return { success: true, data: body?.data ?? [] };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/** GET /ad-types */
-export const getAdTypes = async (token: string) => {
-    try {
-        const body = await request('/ad-types', { method: 'GET', headers: authHeaders(token) });
-        return { success: true, data: body?.data ?? [] };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/** GET /celebrities */
-export const getCelebrities = async (token: string) => {
-    try {
-        const body = await request('/celebrities', { method: 'GET', headers: authHeaders(token) });
-        return { success: true, data: body?.data ?? [] };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/** POST /brand-requirements — a Brand's "Who are you looking for?" post */
-export const createBrandRequirement = async (data: {
-    targetType?: 'CREATORS' | 'AGENCIES';
-    category?: string;
-    creatorCountMin?: number;
-    creatorCountMax?: number;
-    genderPreference?: string;
-    deliverables?: string;
-    visibility?: string;
-    message?: string;
-}, token: string) => {
-    try {
-        const body = await request('/brand-requirements', {
-            method: 'POST',
-            headers: authHeaders(token),
-            body: JSON.stringify(data),
-        });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: describeApiError(error) };
-    }
-};
-
-/** GET /brand-requirements/mine */
-export const getMyBrandRequirements = async (token: string) => {
-    try {
-        const body = await request('/brand-requirements/mine', { method: 'GET', headers: authHeaders(token) });
-        return { success: true, data: body?.data ?? [] };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/** GET /brand-requirements/open — "Opportunities For You" (Creator/Freelancer only) */
-export const getOpenRequirements = async (token: string, filters: { category?: string; targetType?: 'CREATORS' | 'AGENCIES' } = {}) => {
-    try {
-        const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => !!v) as [string, string][]);
-        const path = `/brand-requirements/open${qs.toString() ? `?${qs}` : ''}`;
-        const body = await request(path, { method: 'GET', headers: authHeaders(token) });
-        return { success: true, data: body?.data ?? [] };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
-/** GET /brand-requirements/:id */
-export const getBrandRequirementById = async (token: string, id: string) => {
-    try {
-        const body = await request(`/brand-requirements/${id}`, { method: 'GET', headers: authHeaders(token) });
-        return { success: true, data: body?.data };
-    } catch (error: any) {
-        return { success: false, error: error.message };
-    }
-};
-
 /* ───────────────────────── POSTS ──────────────────────────── */
 
 type PostPayload = {
@@ -953,7 +794,7 @@ export const getPresignedUpload = async (
 /** POST /collaborations — send a collab request */
 export const sendCollaboration = async (
     token: string,
-    payload: { receiverId: string; postId?: string; requirementId?: string; message?: string },
+    payload: { receiverId: string; postId?: string; message?: string },
 ) => {
     try {
         const body = await request('/collaborations', {
@@ -973,7 +814,6 @@ export const listCollaborations = async (
     params: {
         direction?: 'incoming' | 'outgoing' | 'all';
         status?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED';
-        requirementId?: string;
     } = {},
 ) => {
     try {
@@ -1476,24 +1316,15 @@ export const getFollowing = async (token: string, userId?: string) => {
     }
 };
 
-/** GET /follows/suggestions?page=&limit=&role=&location=&categorySlug= —
- *  page defaults to 1, so any existing caller that only ever passed a limit
- *  keeps getting exactly the same first-page behavior as before this had
- *  real pagination. role/location/categorySlug narrow the candidate pool
- *  server-side (e.g. Brand's Home tab wanting Creators-only vs
- *  Freelancers-only sections). */
-export const getFollowSuggestions = async (
-    token: string,
-    opts: { page?: number; limit?: number; role?: 'CREATOR' | 'FREELANCER'; location?: string; categorySlug?: string } = {},
-) => {
+/** GET /follows/suggestions?page=&limit= — page defaults to 1, so any
+ *  existing caller that only ever passed a limit keeps getting exactly the
+ *  same first-page behavior as before this had real pagination. */
+export const getFollowSuggestions = async (token: string, opts: { page?: number; limit?: number } = {}) => {
     try {
         const qs = new URLSearchParams({
             ...(opts.page ? { page: String(opts.page) } : {}),
             limit: String(opts.limit ?? 20),
         });
-        if (opts.role) qs.set('role', opts.role);
-        if (opts.location) qs.set('location', opts.location);
-        if (opts.categorySlug) qs.set('categorySlug', opts.categorySlug);
         const body = await request(`/follows/suggestions?${qs}`, {
             method: 'GET',
             headers: authHeaders(token),

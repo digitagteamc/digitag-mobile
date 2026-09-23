@@ -26,7 +26,6 @@ import RazorpayCheckout from 'react-native-razorpay';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, RadialGradient, Stop, Svg } from 'react-native-svg';
 import IgVerifyModal from '../../Components/IgVerifyModal';
-import BrandProfileScreen from '../brands/BrandProfileScreen';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
@@ -792,11 +791,6 @@ export default function ProfileScreen() {
     return `${Math.round(h / 24)}d ago`;
   };
 
-  // ── Brand users get their own dedicated profile view ──
-  if (userRole?.toUpperCase() === 'BRAND') {
-    return <BrandProfileScreen />;
-  }
-
   if (loading) {
     return (
       <View className="flex-1 bg-[#060606] justify-center items-center">
@@ -891,7 +885,7 @@ export default function ProfileScreen() {
             />
 
             <TouchableOpacity
-              onPress={() => router.push((userRole?.toUpperCase() === 'BRAND' ? '/Brands-completeprofile' : userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
+              onPress={() => router.push((userRole?.toUpperCase() === 'FREELANCER' ? '/signup/freelancer' : '/signup/creator') as any)}
               activeOpacity={0.85}
               style={{ width: '100%', borderRadius: 99, shadowColor: theme.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } }}
             >

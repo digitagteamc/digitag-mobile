@@ -256,7 +256,6 @@ function RootLayout() {
                             <Stack.Screen name="report-issue" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="privacysettings" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="analytics" options={{ animation: 'slide_from_right' }} />
-                            <Stack.Screen name="analytics-brand" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="brand-coming-soon" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="agency-coming-soon" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="followers" options={{ animation: 'slide_from_right' }} />
@@ -266,9 +265,6 @@ function RootLayout() {
                             <Stack.Screen name="searchbar" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="profile/[tagId]" options={{ animation: 'fade', animationDuration: 200 }} />
                             <Stack.Screen name="post/[postId]" options={{ animation: 'fade', animationDuration: 200 }} />
-                            <Stack.Screen name="brands-creator" options={{ animation: 'slide_from_right' }} />
-                            <Stack.Screen name="celebrity-profile" options={{ animation: 'slide_from_right' }} />
-                            <Stack.Screen name="All-creators" options={{ animation: 'slide_from_right' }} />
                         </Stack>
                     </CallProvider>
                     </ProfileGateProvider>

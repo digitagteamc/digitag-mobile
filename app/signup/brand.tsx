@@ -14,11 +14,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { createBrandProfile } from '../../services/userService';
 
 export default function BrandSignup() {
     const router = useRouter();
-    const { userPhone, token, setProfileCompleted, setProfiles } = useAuth();
+    const { userPhone, token } = useAuth();
     const [loading, setLoading] = useState(false);
     const [step, setStep] = useState<'idle' | 'registering_role' | 'submitting'>('idle');
 
@@ -33,38 +32,12 @@ export default function BrandSignup() {
     const validatePan = (pan: string) => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan.toUpperCase());
 
     const handleSubmit = async () => {
-        if (!form.brandName.trim()) {
-            Alert.alert('Brand name required', 'Enter your brand or company name.');
-            return;
-        }
-        if (!validatePan(form.pan)) {
-            Alert.alert('Invalid PAN', 'Enter a valid PAN (e.g. ABCDE1234F).');
-            return;
-        }
-        if (!token) {
-            Alert.alert('Sign in required', 'Please sign in again to continue.');
-            return;
-        }
-
-        setLoading(true);
-        setStep('submitting');
-        const res = await createBrandProfile({
-            name: form.brandName.trim(),
-            pan: form.pan,
-            gstin: form.gstin || undefined,
-            city: form.city || undefined,
-            state: form.state || undefined,
-        }, token);
-        setLoading(false);
-        setStep('idle');
-
-        if (!res.success) {
-            Alert.alert('Could Not Submit', res.error || 'Please try again.');
-            return;
-        }
-        setProfileCompleted(true);
-        setProfiles({ BRAND: true });
-        router.replace('/signup/pending?role=brand' as any);
+        // Backend does not yet expose a brand module — reconnect this when
+        // /api/v1/brands endpoints are added.
+        Alert.alert(
+            "Coming Soon",
+            "Brand registration is not yet available on the server. Please check back later.",
+        );
     };
 
     const getLoadingText = () => {

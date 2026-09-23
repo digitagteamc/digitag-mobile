@@ -26,9 +26,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomAlert from '../Components/ui/CustomAlert';
 import GradientButton from '../Components/ui/GradientButton';
 import { useAuth } from '../context/AuthContext';
-import { verifyFirebaseToken, requestOtp, verifyOtp } from '../services/userService';
+import { verifyFirebaseToken } from '../services/userService';
 
-type SignupRole = 'CREATOR' | 'FREELANCER' | 'BRAND';
+type SignupRole = 'CREATOR' | 'FREELANCER';
 
 // Firebase throws raw, technical error text (e.g. "[auth/invalid-verification-code]
 // The sms verification code used to create the phone auth credential is invalid...")
@@ -47,8 +47,7 @@ function friendlyOtpError(error: any): string {
 export default function LoginScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ role?: string }>();
-    const paramRole = params.role?.toUpperCase();
-    const role: SignupRole = paramRole === 'FREELANCER' ? 'FREELANCER' : paramRole === 'BRAND' ? 'BRAND' : 'CREATOR';
+    const role: SignupRole = (params.role?.toUpperCase() === 'FREELANCER') ? 'FREELANCER' : 'CREATOR';
 
     const { login } = useAuth();
 
@@ -235,49 +234,6 @@ export default function LoginScreen() {
             showStatus("Error", error.message || "Failed to send OTP.");
         } finally {
             setSendingOtp(false);
-        }
-    };
-
-    // TEMPORARY — Brand-testing convenience only, not for production. Skips
-    // the phone/OTP screens entirely and logs straight in against the
-    // backend's own TEST_PHONE_NUMBERS bypass (see otp.service.js), which is
-    // a fixed mobileNumber/code pair the backend accepts with zero real SMS
-    // and zero Firebase involvement. This used to round-trip through real
-    // Firebase phone-auth against the same test number, but Firebase applies
-    // its own rate limiting on top regardless of the number being a fixed
-    // test one, which was blocking fast repeated demo access — going
-    // straight to the backend's own test-number path avoids Firebase (and
-    // its rate limit) entirely. Remove this function and its button once
-    // Brand no longer needs fast test access.
-    const [skippingBrand, setSkippingBrand] = useState(false);
-    const handleSkipBrandLogin = async () => {
-        setSkippingBrand(true);
-        try {
-            const testPhone = '9991112228';
-            const sendRes = await requestOtp(testPhone, 'BRAND' as any);
-            if (!sendRes.success) {
-                showStatus('Error', sendRes.error || 'Test login failed.');
-                return;
-            }
-            const res = await verifyOtp(testPhone, '123456', 'BRAND' as any);
-            if (!res.success) {
-                showStatus('Error', res.error || 'Test login failed.');
-                return;
-            }
-            login({
-                phone: testPhone,
-                token: res.token,
-                refreshToken: res.refreshToken,
-                role: (res.user?.role as string) ?? 'BRAND',
-                id: res.user?.id,
-                isProfileCompleted: Boolean(res.isProfileCompleted),
-                profiles: res.profiles as any,
-            });
-            router.replace('/(tabs)');
-        } catch (error: any) {
-            showStatus('Error', error?.message || 'Test login failed.');
-        } finally {
-            setSkippingBrand(false);
         }
     };
 
@@ -480,23 +436,6 @@ export default function LoginScreen() {
                                     className="w-full h-[60px] rounded-full bg-[#1C1C28] border border-white/5 items-center justify-center mb-5"
                                 >
                                     <Text className="text-[#5A5A6D] font-poppins-semibold text-[20px]">Get OTP</Text>
-                                </TouchableOpacity>
-                            )}
-
-                            {/* TEMPORARY — Brand-testing only, see handleSkipBrandLogin above. */}
-                            {role === 'BRAND' && (
-                                <TouchableOpacity
-                                    className="items-center mb-4"
-                                    onPress={handleSkipBrandLogin}
-                                    disabled={skippingBrand}
-                                >
-                                    {skippingBrand ? (
-                                        <ActivityIndicator color="#214EE7" />
-                                    ) : (
-                                        <Text className="text-[#214EE7] font-poppins-semibold text-[14px]">
-                                            Skip — Test Mode (Brand)
-                                        </Text>
-                                    )}
                                 </TouchableOpacity>
                             )}
 

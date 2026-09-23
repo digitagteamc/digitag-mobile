@@ -47,12 +47,9 @@ export function ProfileGateProvider({ children }: { children: React.ReactNode })
 
     const handleComplete = useCallback(() => {
         setModalVisible(false);
-        const role = userRole?.toUpperCase();
-        const signupPath = role === 'FREELANCER'
+        const signupPath = userRole?.toUpperCase() === 'FREELANCER'
             ? '/signup/freelancer'
-            : role === 'BRAND'
-                ? '/signup/brand'
-                : '/signup/creator';
+            : '/signup/creator';
         setTimeout(() => router.push(signupPath as any), 250);
     }, [userRole, router]);
 

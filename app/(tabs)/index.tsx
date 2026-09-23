@@ -38,8 +38,6 @@ import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
-import BrandHome from '../../Components/BrandHome';
-import OpportunitiesSection from '../../Components/OpportunitiesSection';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
 import { useCall } from '../../context/CallContext';
@@ -1421,15 +1419,6 @@ export default function Homepage() {
     [carouselData, ITEM_SIZE]
   );
 
-  // Brand's Home tab is a structurally different discovery experience (no
-  // post feed at all) — dispatched here, after every hook above has already
-  // run unconditionally, so this only branches the render output, not the
-  // hook call order (an early return above the hooks broke
-  // react-hooks/rules-of-hooks — this is the fix).
-  if (userRole === 'BRAND') {
-    return <BrandHome />;
-  }
-
   return (
     <View style={[styles.root ]}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
@@ -1627,8 +1616,6 @@ export default function Homepage() {
             pointerEvents="none"
           /> */}
         </View>
-
-        <OpportunitiesSection />
 
         <View style={{ paddingHorizontal: 10, paddingTop: 32 }}>
           {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
