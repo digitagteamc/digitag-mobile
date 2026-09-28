@@ -24,6 +24,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BrandBottomNav from '../../Components/ui/BrandBottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { getMyBrandRequirements, getOpenRequirements, sendCollaboration } from '../../services/userService';
 import { fonts, palette } from '../../theme/colors';
@@ -560,6 +561,26 @@ export default function CampaignScreen() {
         <CampaignCard item={item} onSendRequest={handleSendRequest} />
     ), [handleSendRequest]);
 
+    const handleTabPress = useCallback((key: string) => {
+        if (key === 'campaign') return;
+        if (key === 'create') {
+            router.push('/Brand-Create-Campaign' as any);
+            return;
+        }
+        if (key === 'home') {
+            router.replace('/(tabs)' as any);
+            return;
+        }
+        if (key === 'messages') {
+            router.replace('/(tabs)/messages' as any);
+            return;
+        }
+        if (key === 'profile') {
+            router.replace('/(tabs)/profile' as any);
+            return;
+        }
+    }, [router]);
+
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             {/* Header */}
@@ -593,6 +614,9 @@ export default function CampaignScreen() {
                     ListEmptyComponent={<EmptyState tab={activeTab} />}
                 />
             )}
+
+            {/* Brand Bottom Nav Bar */}
+            <BrandBottomNav activeKey="campaign" onTabPress={handleTabPress} />
         </SafeAreaView>
     );
 }

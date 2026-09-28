@@ -203,19 +203,19 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: 'absolute',
-    width: 340,
-    height: 340,
-    borderRadius: 170,
+    width: 280,
+    height: 280,
+    borderRadius: 280,
   },
   glowTopLeft: {
-    top: -110,
-    left: -110,
-    opacity: 0.18,
+    top: 10,
+    left: -80,
+    opacity: 0.15,
   },
   glowBottomRight: {
-    bottom: -110,
-    right: -110,
-    opacity: 0.14,
+    bottom: -10,
+    right: -80,
+    opacity: 0.15,
   },
   safeArea: {
     flex: 1,
@@ -225,6 +225,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginTop:40,
   },
   backButton: {
     width: 40,
@@ -278,14 +279,14 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#fff',
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: fonts.bold,
     letterSpacing: -0.5,
-    lineHeight: 32,
+    lineHeight: 28,
   },
   statLabel: {
-    color: '#8A8A99',
-    fontSize: 12,
+    color: '#6A6A9A',
+    fontSize: 11,
     fontFamily: fonts.regular,
     marginTop: 1,
   },
@@ -294,18 +295,18 @@ const styles = StyleSheet.create({
     bottom: 12,
     right: 12,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 99,
-    borderWidth: 1,
+    borderWidth: 0.6,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: fonts.semibold,
   },
   sectionTitle: {
     color: '#fff',
-    fontSize: 18,
-    fontFamily: fonts.semibold,
+    fontSize: 20,
+    fontFamily: fonts.medium,
     marginTop: 26,
     marginBottom: 12,
     letterSpacing: -0.3,
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   breakdownItem: {
-    gap: 8,
+    gap: 4,
   },
   breakdownHeader: {
     flexDirection: 'row',
@@ -359,11 +360,11 @@ const styles = StyleSheet.create({
   },
   platformName: {
     color: '#fff',
-    fontSize: 14,
-    fontFamily: fonts.semibold,
+    fontSize: 13,
+    fontFamily: fonts.regular,
   },
   platformPct: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: fonts.semibold,
   },
   progressTrack: {

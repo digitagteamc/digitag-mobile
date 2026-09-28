@@ -1,4 +1,5 @@
-﻿import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -295,9 +296,32 @@ function SectionHeader({ title, onViewAll }: { title: string; subtitle?: string;
                 <TouchableOpacity
                     onPress={onViewAll}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    className="rounded-full px-4 py-2.5 border"
-                    style={{ backgroundColor: 'rgba(66,62,62,0.1)', borderColor: 'rgba(64,64,64,0.5)' }}
+                    activeOpacity={0.85}
+                    style={{
+                        borderRadius: 100,
+                        borderWidth: 1,
+                        borderColor: 'rgba(64, 64, 64, 0.50)',
+                        backgroundColor: 'rgba(66, 62, 62, 0.10)',
+                        overflow: 'hidden',
+                        // Box-shadow approximation (RN doesn't support multi-layer CSS box-shadow)
+                        shadowColor: 'rgba(145, 145, 145, 1)',
+                        shadowOffset: { width: -2, height: 4 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 10,
+                        elevation: 2,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                    }}
                 >
+                    <BlurView
+                        intensity={15}
+                        tint="dark"
+                        style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            borderRadius: 100,
+                        }}
+                    />
                     <Text className="text-white text-xs font-poppins-medium text-center">View all</Text>
                 </TouchableOpacity>
             ) : null}
@@ -321,23 +345,16 @@ function RaisedTabBar({
     const BAR_HEIGHT = 46;
     const CORNER_RADIUS = 12;
     const STROKE = 1.5;
-    // The path runs right along y=0 (top) and x=0/x=barWidth (sides) — a
-    // stroke centered on those coordinates has half its width clipped by
-    // the SVG canvas's own edge. Pad the canvas by the stroke width on
-    // every side and shift the path inward by the same amount so the full
-    // stroke has room to render instead of being cut off.
+    const LEFT_OFFSET = 24;
+     
     const PAD = STROKE;
     const [barWidth, setBarWidth] = useState(0);
     const [creatorsWidth, setCreatorsWidth] = useState(0);
     const [agenciesWidth, setAgenciesWidth] = useState(0);
 
     const activeWidth = activeTab === 'CREATORS' ? creatorsWidth : agenciesWidth;
-    // True (un-padded) x-coordinates, used only to decide which sides have
-    // an adjacent baseline segment to round into — the side flush against
-    // the real edge of the bar (x=0 or x=barWidth) has no baseline there to
-    // curve from, so it stays a plain vertical line; only the side bordering
-    // the other tab gets a rounded bottom corner.
-    const trueActiveX = activeTab === 'CREATORS' ? 0 : creatorsWidth;
+    
+    const trueActiveX = (activeTab === 'CREATORS' ? 0 : creatorsWidth) + LEFT_OFFSET;
     const trueActiveRight = trueActiveX + activeWidth;
     const hasLeftBaseline = trueActiveX > 0.5;
     const hasRightBaseline = barWidth > 0 && trueActiveRight < barWidth - 0.5;
@@ -371,7 +388,7 @@ function RaisedTabBar({
                     <Path d={borderPath} stroke="#1A8CFF" strokeWidth={STROKE} fill="none" />
                 </Svg>
             ) : null}
-            <View className="flex-row" style={{ height: BAR_HEIGHT }}>
+            <View className="flex-row" style={{ height: BAR_HEIGHT, paddingLeft: LEFT_OFFSET }}>
                 <TouchableOpacity
                     onLayout={(e) => setCreatorsWidth(e.nativeEvent.layout.width)}
                     onPress={() => onSelect('CREATORS')}
@@ -383,8 +400,26 @@ function RaisedTabBar({
                         backgroundColor: activeTab === 'CREATORS' ? '#0B0B12' : 'transparent',
                         borderTopLeftRadius: activeTab === 'CREATORS' ? CORNER_RADIUS : 0,
                         borderTopRightRadius: activeTab === 'CREATORS' ? CORNER_RADIUS : 0,
+                        overflow: 'hidden',
                     }}
                 >
+                    {activeTab === 'CREATORS' && (
+                        <LinearGradient
+                            colors={['rgba(26, 140, 255, 0.45)', 'rgba(102, 51, 229, 0.25)', 'transparent']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: 26,
+                                borderTopLeftRadius: CORNER_RADIUS,
+                                borderTopRightRadius: CORNER_RADIUS,
+                            }}
+                            pointerEvents="none"
+                        />
+                    )}
                     <Text
                         className={activeTab === 'CREATORS' ? 'font-poppins-semibold' : 'font-poppins-medium'}
                         style={{ fontSize: 16, color: activeTab === 'CREATORS' ? '#fff' : palette.textMuted }}
@@ -403,8 +438,26 @@ function RaisedTabBar({
                         backgroundColor: activeTab === 'AGENCIES' ? '#0B0B12' : 'transparent',
                         borderTopLeftRadius: activeTab === 'AGENCIES' ? CORNER_RADIUS : 0,
                         borderTopRightRadius: activeTab === 'AGENCIES' ? CORNER_RADIUS : 0,
+                        overflow: 'hidden',
                     }}
                 >
+                    {activeTab === 'AGENCIES' && (
+                        <LinearGradient
+                            colors={['rgba(26, 140, 255, 0.45)', 'rgba(102, 51, 229, 0.25)', 'transparent']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: 26,
+                                borderTopLeftRadius: CORNER_RADIUS,
+                                borderTopRightRadius: CORNER_RADIUS,
+                            }}
+                            pointerEvents="none"
+                        />
+                    )}
                     <Text
                         className={activeTab === 'AGENCIES' ? 'font-poppins-semibold' : 'font-poppins-medium'}
                         style={{ fontSize: 16, color: activeTab === 'AGENCIES' ? '#fff' : palette.textMuted }}
@@ -657,6 +710,37 @@ const DUMMY_CELEBRITIES = [
     { id: 'cel-6', name: 'Kavya Menon', role: 'Influencer', followerCount: 4300000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80' },
 ];
 
+const DUMMY_STAR_CREATORS = [
+    {
+        id: 'sc-1',
+        name: 'Elina Best',
+        category: 'Entertainment',
+        ringColor: '#B4F000',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+        id: 'sc-2',
+        name: 'Wilder Conley',
+        category: 'Beauty',
+        ringColor: '#00A3FF',
+        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+        id: 'sc-3',
+        name: 'Meghan Vance',
+        category: 'News',
+        ringColor: '#FF5500',
+        avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80',
+    },
+    {
+        id: 'sc-4',
+        name: 'Alex Rivera',
+        category: 'Gaming',
+        ringColor: '#A855F7',
+        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
+    },
+];
+
 export default function BrandHome() {
     const router = useRouter();
     const { token } = useAuth();
@@ -675,6 +759,7 @@ export default function BrandHome() {
     const [channelFilter, setChannelFilter] = useState('All');
     const [topCreators, setTopCreators] = useState<any[]>(DUMMY_TOP_CREATORS);
     const [celebrities, setCelebrities] = useState<any[]>(DUMMY_CELEBRITIES);
+    const [starCreators, setStarCreators] = useState<any[]>(DUMMY_STAR_CREATORS);
     const [loading, setLoading] = useState(true);
 
     // "Who are you looking for?" composer
@@ -715,7 +800,7 @@ export default function BrandHome() {
         const [profileRes, channelsRes, creatorsRes, celebsRes] = await Promise.all([
             getMyBrandProfile(token),
             getYoutubeChannels(token),
-            getFollowSuggestions(token, 12, { role: 'CREATOR' }),
+            getFollowSuggestions(token, { limit: 12, role: 'CREATOR' }),
             getCelebrities(token),
         ]);
         if (profileRes.success && profileRes.data) {
@@ -1184,7 +1269,7 @@ export default function BrandHome() {
                 </View>
 
                 {/* ── Celebrities ── */}
-                <View className="px-4 mt-7 mb-10">
+                <View className="px-4 mt-7 mb-2">
                     <SectionHeader title="Celebrities" onViewAll={() => { }} />
                     <Text
                         className="font-poppins-regular mt-0.5"
@@ -1333,6 +1418,162 @@ export default function BrandHome() {
                                 No celebrities yet
                             </Text>
                         )}
+                    </View>
+                </View>
+
+                {/* ── Star Creators ── */}
+                <View className="mt-0 mb-10 overflow-hidden" style={{ backgroundColor: '#000000', position: 'relative' }}>
+                    {/* Top Solid Light Lime Background Block */}
+                    <View
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 195,
+                            backgroundColor: '#DDF6A8',
+                        }}
+                    />
+
+                    <View style={{ paddingTop: 16, paddingBottom: 32 }}>
+                        {/* Section Header */}
+                        <View className="px-4 mb-2">
+                            <Text style={{ color: '#000', fontFamily: 'Poppins_600SemiBold', fontSize: 26,  }}>
+                                Star Creators
+                            </Text>
+                            <Text style={{ color: '#585859', fontFamily: 'Poppins_400Regular', fontSize: 11 }}>
+                                Find your Star creators Here
+                            </Text>
+                        </View>
+
+                        {/* Cards Horizontal Scroll */}
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ paddingHorizontal: 10, gap: 14 }}
+                        >
+                            {starCreators.map((c, index) => {
+                                const ringColors = ['#B4F000', '#00A3FF', '#FF5500', '#A855F7'];
+                                const ringColor = c.ringColor || ringColors[index % ringColors.length];
+                                return (
+                                    <TouchableOpacity
+                                        key={c.id || index}
+                                        activeOpacity={0.85}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: c.name, role: 'CREATOR' } } as any)}
+                                        style={{
+                                            borderRadius: 22,
+                                            borderWidth: 0.6,
+                                            borderColor: '#E5FBAA',
+                                            shadowColor: '#000000',
+                                            shadowOffset: { width: 0, height: 8 },
+                                            shadowOpacity: 0.35,
+                                            shadowRadius: 10,
+                                            elevation: 8,
+                                            overflow: 'hidden',
+                                        }}
+                                    >
+                                        <LinearGradient
+                                            colors={['#0B1020', '#111827']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 0, y: 1 }}
+                                            style={{
+                                                paddingTop: 22,
+                                                paddingBottom: 22,
+                                                paddingLeft: 17,
+                                                paddingRight: 43,
+                                                alignItems: 'flex-start',
+                                            }}
+                                        >
+                                            {/* Avatar with Ring */}
+                                            <View
+                                                style={{
+                                                    width: 60,
+                                                    height: 60,
+                                                    borderRadius: 30,
+                                                    borderWidth: 2.5,
+                                                    borderColor: ringColor,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    backgroundColor: '#0B0F19',
+                                                }}
+                                            >
+                                                <Image
+                                                    source={c.avatar || c.photoUrl || c.profilePicture ? { uri: c.avatar || c.photoUrl || c.profilePicture } : imgDefaultAvatar}
+                                                    style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: palette.surfaceAlt }}
+                                                />
+                                            </View>
+
+                                            {/* Creator Name */}
+                                            <Text
+                                                style={{
+                                                    color: '#FFFFFF',
+                                                    fontFamily: 'Poppins_600SemiBold',
+                                                    fontSize: 15,
+                                                    marginTop: 10,
+                                                    textAlign: 'left',
+                                                }}
+                                                numberOfLines={1}
+                                            >
+                                                {c.name}
+                                            </Text>
+
+                                            {/* Category Badge */}
+                                            <View
+                                                style={{
+                                                    backgroundColor: '#1E293B',
+                                                    paddingHorizontal: 12,
+                                                    paddingVertical: 4,
+                                                    borderRadius: 14,
+                                                    marginTop: 8,
+                                                }}
+                                            >
+                                                <Text style={{ color: '#94A3B8', fontFamily: 'Poppins_400Regular', fontSize: 11 }}>
+                                                    {c.category || (c.categoryNames && c.categoryNames[0]) || 'Creator'}
+                                                </Text>
+                                            </View>
+
+                                            {/* Social Icons Row */}
+                                            <View className="flex-row items-center" style={{ gap: 10, marginTop: 12 }}>
+                                                <Ionicons name="logo-youtube" size={15} color="#CBD5E1" />
+                                                <Ionicons name="logo-instagram" size={15} color="#CBD5E1" />
+                                                <Ionicons name="logo-facebook" size={15} color="#CBD5E1" />
+                                            </View>
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+
+                        {/* View All Creators Button */}
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() => router.push({ pathname: '/people-results', params: { title: 'Star Creators', role: 'CREATOR' } } as any)}
+                            style={{ marginHorizontal: 16, marginTop: 24 }}
+                        >
+                            <LinearGradient
+                                colors={['rgba(26, 140, 255, 1)', 'rgba(102, 51, 229, 1)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{
+                                    height: 52,
+                                    borderRadius: 26,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    shadowColor: '#0070F3',
+                                    shadowOffset: { width: 0, height: 6 },
+                                    shadowOpacity: 0.4,
+                                    shadowRadius: 12,
+                                    elevation: 6,
+                                }}
+                            >
+                                <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 16 }}>
+                                    View All creators
+                                </Text>
+                                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                            </LinearGradient>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </ScrollView>
