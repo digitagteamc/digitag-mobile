@@ -1,17 +1,16 @@
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Image,
     Linking,
     Modal,
     ScrollView,
     Share,
-    StyleSheet,
     Text,
     TouchableOpacity,
     useWindowDimensions,
@@ -21,10 +20,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import ConfirmActionModal from '../Components/ui/ConfirmActionModal';
 import CustomAlert from '../Components/ui/CustomAlert';
 import ReportModal from '../Components/ui/ReportModal';
-import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
-import { useProfileGate } from '../context/ProfileGateContext';
 import { instagramUrl, twitterUrl, youtubeUrl } from '../services/socialLinks';
 import {
     blockUser,
@@ -47,19 +44,46 @@ const imgDefaultAvatar = require('../assets/defaultavatar.png');
 
 const DUMMY_SIMILAR_PROFILES = [
     { id: 'sim-1', name: 'FreshBrew Co.', category: 'Entertainment', followers: '50.6M', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80' },
-    { id: 'sim-2', name: 'Aadhya Sharma', category: 'Beauty', followers: '12M', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80' },
-    { id: 'sim-3', name: 'Rohit Nair', category: 'Podcast', followers: '12M', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80' },
-    { id: 'sim-4', name: 'Rudrakshika', category: 'Beauty', followers: '12M', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80' },
+    { id: 'sim-2', name: 'Aadhya Sharma', category: 'Beauty', followers: '12m', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80' },
+    { id: 'sim-3', name: 'Rohit Nair', category: 'Podcast', followers: '12m', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80' },
+    { id: 'sim-4', name: 'Rudrakshika', category: 'Beauty', followers: '12m', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80' },
 ];
+
+const AdPrefIcon = ({ type }: { type: 'stripe' | 'photo' | 'video' }) => {
+    return (
+        <View
+            style={{
+                width: 28,
+                height: 34,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 4,
+                borderWidth: 1,
+                borderColor: '#D0D0D5',
+                overflow: 'hidden',
+                justifyContent: 'space-between',
+            }}
+        >
+            <View style={{ height: 7, backgroundColor: '#1A8CFF', width: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 8, height: 2, backgroundColor: '#FFFFFF', borderRadius: 1 }} />
+            </View>
+
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 2 }}>
+                {type === 'stripe' && <Ionicons name="megaphone-outline" size={14} color="#1A8CFF" />}
+                {type === 'photo' && <Ionicons name="image-outline" size={14} color="#00E5C3" />}
+                {type === 'video' && <Ionicons name="videocam-outline" size={14} color="#FF4081" />}
+            </View>
+
+            <View style={{ height: 6, backgroundColor: '#FF9500', width: '100%' }} />
+        </View>
+    );
+};
 
 export default function BrandsCreatorScreen() {
     const router = useRouter();
     const { width: screenWidth } = useWindowDimensions();
-    const cardMaxWidth = Math.min(408, screenWidth - 32);
 
-    const { token, userId: myId, userRole } = useAuth();
+    const { token, userId: myId } = useAuth();
     const call = useCall();
-    const { requireProfile, isProfileCompleted } = useProfileGate();
     const { id: paramId, userId: paramUserId, postId: paramPostId } = useLocalSearchParams<{ id?: string; userId?: string; postId?: string }>();
     const [resolvedUserId, setResolvedUserId] = useState<string | null>(paramUserId || paramId || null);
 
@@ -69,7 +93,6 @@ export default function BrandsCreatorScreen() {
     const [loading, setLoading] = useState(true);
     const [followBusy, setFollowBusy] = useState(false);
     const [collabStatus, setCollabStatus] = useState<string>('NONE');
-    const contactUnlocked = collabStatus === 'ACCEPTED';
     const [isBlocked, setIsBlocked] = useState(false);
     const [blockBusy, setBlockBusy] = useState(false);
     const [isReported, setIsReported] = useState(false);
@@ -101,7 +124,6 @@ export default function BrandsCreatorScreen() {
             }
 
             if (!uid) {
-                // Fallback to sample demo creator if no UID provided
                 setProfile({
                     id: 'demo-creator-1',
                     createdAt: '2020-03-15T00:00:00.000Z',
@@ -155,17 +177,7 @@ export default function BrandsCreatorScreen() {
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
-    useEffect(() => {
-        if (!token) return;
-        if (!isProfileCompleted) {
-            requireProfile('view this profile');
-            if (router.canGoBack()) router.back();
-            else router.replace('/(tabs)' as any);
-        }
-    }, [token, isProfileCompleted]);
-
     const handleFollow = async () => {
-        if (!requireProfile('follow this creator')) return;
         if (!token || !resolvedUserId || followBusy) return;
         setFollowBusy(true);
         try {
@@ -186,7 +198,6 @@ export default function BrandsCreatorScreen() {
     };
 
     const handleBlock = async () => {
-        if (!requireProfile('block this user')) return;
         if (!token || !resolvedUserId || blockBusy) return;
         setBlockBusy(true);
         try {
@@ -210,7 +221,6 @@ export default function BrandsCreatorScreen() {
     };
 
     const openChat = async () => {
-        if (!requireProfile('message this user')) return;
         if (!token || !resolvedUserId) {
             showAlert('Demo Profile', 'Connect or log in to message this creator.');
             return;
@@ -224,7 +234,6 @@ export default function BrandsCreatorScreen() {
     };
 
     const handleCall = async () => {
-        if (!requireProfile('call this user')) return;
         if (!token || !resolvedUserId) {
             showAlert('Demo Profile', 'Connect or log in to call this creator.');
             return;
@@ -280,7 +289,7 @@ export default function BrandsCreatorScreen() {
 
     if (loading) {
         return (
-            <View style={{ flex: 1, backgroundColor: '#060606', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ flex: 1, backgroundColor: '#070709', alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator size="large" color="#1A8CFF" />
             </View>
         );
@@ -305,159 +314,173 @@ export default function BrandsCreatorScreen() {
     const languageText = (p.languages && p.languages.length > 0) ? p.languages.join(', ') : (p.language || 'Telugu');
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#060606' }} edges={['top']}>
-            {/* Ambient Decorative Background Blur Circles */}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#070709' }} edges={['top']}>
+            {/* Background Ambient Purple & Teal Glows */}
             <View
                 pointerEvents="none"
                 style={{
                     position: 'absolute',
-                    top: -80,
-                    left: -80,
-                    width: 280,
-                    height: 280,
-                    borderRadius: 140,
-                    backgroundColor: 'rgba(108, 71, 255, 0.25)',
-                }}
-            />
-            <View
-                pointerEvents="none"
-                style={{
-                    position: 'absolute',
-                    top: 590,
-                    right: -100,
+                    top: -100,
+                    left: -100,
                     width: 320,
                     height: 320,
                     borderRadius: 160,
-                    backgroundColor: 'rgba(0, 229, 195, 0.15)',
+                    backgroundColor: 'rgba(88, 44, 180, 0.28)',
+                }}
+            />
+            <View
+                pointerEvents="none"
+                style={{
+                    position: 'absolute',
+                    top: 480,
+                    right: -110,
+                    width: 350,
+                    height: 350,
+                    borderRadius: 175,
+                    backgroundColor: 'rgba(0, 150, 130, 0.14)',
                 }}
             />
 
-            {/* Header Navigation Bar */}
-            <View
-                style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                }}
-            >
-                <TouchableOpacity
-                    onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
-                    style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 18,
-                        backgroundColor: 'rgba(255,255,255,0.06)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }}
-                    activeOpacity={0.7}
-                >
-                    <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    {/* Share Button */}
-                    <TouchableOpacity
-                        onPress={handleShare}
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            backgroundColor: 'rgba(39, 39, 42, 0.6)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="share-social-outline" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
-
-                    {/* Bookmark Button */}
-                    <TouchableOpacity
-                        onPress={() => setIsSaved(!isSaved)}
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            backgroundColor: 'rgba(39, 39, 42, 0.6)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons
-                            name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                            size={18}
-                            color={isSaved ? '#1A8CFF' : '#FFFFFF'}
-                        />
-                    </TouchableOpacity>
-
-                    {/* Options Menu Button */}
-                    <TouchableOpacity
-                        onPress={() => setShowActionMenu(true)}
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            backgroundColor: 'rgba(39, 39, 42, 0.6)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                        activeOpacity={0.7}
-                    >
-                        <Ionicons name="ellipsis-vertical" size={18} color="#FFFFFF" />
-                    </TouchableOpacity>
-                </View>
-            </View>
-
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 110, paddingTop: 10 }}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 110, paddingTop: 4 }}
             >
-                {/* Glassmorphism Main Profile Card */}
+                {/* Top Navigation Bar */}
+                <View
+                    style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: 12,
+                        marginBottom: 6,
+                    }}
+                >
+                    <TouchableOpacity
+                        onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)' as any))}
+                        style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 19,
+                            backgroundColor: 'rgba(255,255,255,0.08)',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+                    </TouchableOpacity>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        {/* Share Button */}
+                        <TouchableOpacity
+                            onPress={handleShare}
+                            style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 19,
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
+                        {/* Bookmark Button */}
+                        <TouchableOpacity
+                            onPress={() => setIsSaved(!isSaved)}
+                            style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 19,
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons
+                                name={isSaved ? 'bookmark' : 'bookmark-outline'}
+                                size={18}
+                                color={isSaved ? '#1A8CFF' : '#FFFFFF'}
+                            />
+                        </TouchableOpacity>
+
+                        {/* Options Menu Button */}
+                        <TouchableOpacity
+                            onPress={() => setShowActionMenu(true)}
+                            style={{
+                                width: 38,
+                                height: 38,
+                                borderRadius: 19,
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="ellipsis-vertical" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+                {/* Main Creator Profile Card */}
                 <View
                     style={{
                         width: '100%',
-                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.10)',
                         borderRadius: 20,
                         borderWidth: 1,
-                        borderColor: 'rgba(64, 64, 64, 0.5)',
+                        borderColor: 'rgba(64, 64, 64, 0.50)',
                         padding: 18,
-                        position: 'relative',
+                        overflow: 'hidden',
+                        shadowColor: '#000000',
+                        shadowOffset: { width: -3, height: 11 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 15,
+                        elevation: 5,
                     }}
                 >
-                    {/* Header Row: Avatar + Message/Call Action Buttons */}
+                    <BlurView
+                        intensity={30}
+                        tint="dark"
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                        }}
+                    />
+                    {/* Top Row: Avatar + Buttons */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Image
                             source={p.profilePicture ? { uri: p.profilePicture } : imgDefaultAvatar}
                             style={{
-                                width: 80,
-                                height: 80,
-                                borderRadius: 40,
-                                borderWidth: 2,
-                                borderColor: 'rgba(255,255,255,0.2)',
+                                width: 76,
+                                height: 76,
+                                borderRadius: 38,
                             }}
                             resizeMode="cover"
                         />
 
                         {/* Message & Call Action Buttons */}
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                             <TouchableOpacity
                                 onPress={openChat}
                                 style={{
-                                    backgroundColor: '#1A8CFF',
-                                    borderRadius: 99,
-                                    paddingHorizontal: 16,
+                                    backgroundColor: '#0084FF',
+                                    borderRadius: 24,
+                                    paddingHorizontal: 18,
                                     paddingVertical: 10,
                                     flexDirection: 'row',
                                     alignItems: 'center',
                                     gap: 6,
                                 }}
-                                activeOpacity={0.85}
+                                activeOpacity={0.8}
                             >
-                                <Ionicons name="send" size={13} color="#FFFFFF" />
+                                <Ionicons name="send" size={12} color="#FFFFFF" style={{ transform: [{ rotate: '-25deg' }] }} />
                                 <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: fonts.medium }}>
                                     Message
                                 </Text>
@@ -466,84 +489,85 @@ export default function BrandsCreatorScreen() {
                             <TouchableOpacity
                                 onPress={handleCall}
                                 style={{
+                                    backgroundColor: 'transparent',
                                     borderWidth: 1,
-                                    borderColor: '#FFFFFF',
-                                    borderRadius: 99,
-                                    paddingHorizontal: 16,
+                                    borderColor: 'rgba(255, 255, 255, 0.35)',
+                                    borderRadius: 24,
+                                    paddingHorizontal: 18,
                                     paddingVertical: 10,
                                     flexDirection: 'row',
                                     alignItems: 'center',
                                     gap: 6,
                                 }}
-                                activeOpacity={0.85}
+                                activeOpacity={0.8}
                             >
                                 <Ionicons name="call-outline" size={14} color="#FFFFFF" />
-                                <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: fonts.regular }}>
+                                <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: fonts.medium }}>
                                     Call
                                 </Text>
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Name & Verified Badge */}
+                    {/* Name & Pink Checkmark Verified Badge */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, gap: 6 }}>
-                        <Text style={{ color: '#FFFFFF', fontSize: 20, fontFamily: fonts.semibold }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 20, fontFamily: fonts.bold }}>
                             {name}
                         </Text>
-                        <VerifiedBadge isPremium={profile?.isPremium ?? true} size={18} />
+                        <Ionicons name="checkmark-circle" size={18} color="#F43F5E" />
                     </View>
 
                     {/* Category | Role */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 }}>
-                        <Text style={{ color: '#E2E2E2', fontSize: 12, fontFamily: fonts.regular }}>
+                        <Text style={{ color: '#9E9EA5', fontSize: 13, fontFamily: fonts.regular }}>
                             {category}
                         </Text>
-                        <Text style={{ color: '#E2E2E2', fontSize: 12, fontFamily: fonts.regular }}>
+                        <Text style={{ color: '#9E9EA5', fontSize: 13, fontFamily: fonts.regular }}>
                             |
                         </Text>
-                        <Text style={{ color: '#E2E2E2', fontSize: 12, fontFamily: fonts.regular }}>
+                        <Text style={{ color: '#9E9EA5', fontSize: 13, fontFamily: fonts.regular }}>
                             {roleLabel}
                         </Text>
                     </View>
 
-                    {/* Location & Joined Date Lines */}
+                    {/* Location & Joined Date */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 16, marginTop: 14 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name="location-outline" size={16} color="#D6D6D6" />
-                            <Text style={{ color: '#D6D6D6', fontSize: 14, fontFamily: fonts.regular }}>
+                            <Ionicons name="location-outline" size={16} color="#A0A0AB" />
+                            <Text style={{ color: '#D1D1D6', fontSize: 13.5, fontFamily: fonts.regular }}>
                                 {location}
                             </Text>
                         </View>
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Ionicons name="calendar-outline" size={16} color="#D6D6D6" />
-                            <Text style={{ color: '#D6D6D6', fontSize: 14, fontFamily: fonts.regular }}>
+                            <Ionicons name="calendar-outline" size={16} color="#A0A0AB" />
+                            <Text style={{ color: '#D1D1D6', fontSize: 13.5, fontFamily: fonts.regular }}>
                                 {joinedLabel}
                             </Text>
                         </View>
                     </View>
 
-                    {/* Main Website / Handle Link */}
+                    {/* Link handle */}
                     <TouchableOpacity
                         onPress={() => openLink(instagramUrl(igHandle))}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}
                         activeOpacity={0.7}
                     >
-                        <Ionicons name="link-outline" size={18} color="#E2E2E2" />
-                        <Text style={{ color: '#E2E2E2', fontSize: 14, fontFamily: fonts.regular }}>
+                        <Ionicons name="link-outline" size={16} color="#A0A0AB" />
+                        <Text style={{ color: '#D1D1D6', fontSize: 13.5, fontFamily: fonts.regular }}>
                             {handleUrl}
                         </Text>
                     </TouchableOpacity>
 
                     {/* About Section */}
-                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.semibold, marginTop: 18 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.semibold, marginTop: 18 }}>
                         About
                     </Text>
                     <Text
                         style={{
-                            color: '#D6D6D6',
+                            color: '#9E9EA5',
                             fontSize: 13,
-                            fontFamily: fonts.small,
+                            fontFamily: fonts.regular,
                             lineHeight: 19,
                             marginTop: 6,
                         }}
@@ -552,9 +576,9 @@ export default function BrandsCreatorScreen() {
                     </Text>
                 </View>
 
-                {/* Social Links Section */}
-                <View style={{ marginTop: 28 }}>
-                    <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.medium }}>
+                {/* Social links Section */}
+                <View style={{ marginTop: 26 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.bold }}>
                         Social links
                     </Text>
 
@@ -568,25 +592,49 @@ export default function BrandsCreatorScreen() {
                             onPress={() => openLink(instagramUrl(igHandle))}
                             activeOpacity={0.85}
                             style={{
-                                width: 128,
-                                height: 141,
-                                borderRadius: 16,
-                                padding: 14,
-                                justifyContent: 'space-between',
-                                borderWidth: 1,
-                                borderColor: '#FFFFFF',
-                                backgroundColor: '#14141A',
+                                borderRadius: 20,
+                                shadowColor: '#000000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 4,
                             }}
                         >
-                            <Ionicons name="logo-instagram" size={28} color="#E1306C" />
-                            <View>
-                                <Text style={{ color: '#FFFFFF', fontSize: 20, fontFamily: fonts.bold }}>
-                                    30M
-                                </Text>
-                                <Text style={{ color: '#D6D6D6', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                    Followers
-                                </Text>
-                            </View>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.70)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.55)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: 20,
+                                    padding: 0.8,
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#1F1F26', '#121216']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        width: 122,
+                                        height: 134,
+                                        padding: 13,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 19,
+                                    }}
+                                >
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Ionicons name="logo-instagram" size={26} color="#E1306C" />
+                                        <Ionicons name="copy-outline" size={16} color="#8E8E93" />
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 20, fontFamily: fonts.bold }}>
+                                            30M
+                                        </Text>
+                                        <Text style={{ color: '#8E8E93', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
+                                            Followers
+                                        </Text>
+                                    </View>
+                                </LinearGradient>
+                            </LinearGradient>
                         </TouchableOpacity>
 
                         {/* YouTube Card */}
@@ -594,25 +642,49 @@ export default function BrandsCreatorScreen() {
                             onPress={() => ytHandle && openLink(youtubeUrl(ytHandle))}
                             activeOpacity={0.85}
                             style={{
-                                width: 128,
-                                height: 141,
-                                borderRadius: 16,
-                                padding: 14,
-                                justifyContent: 'space-between',
-                                borderWidth: 1,
-                                borderColor: '#FFFFFF',
-                                backgroundColor: '#14141A',
+                                borderRadius: 20,
+                                shadowColor: '#000000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 4,
                             }}
                         >
-                            <Ionicons name="logo-youtube" size={28} color="#FF0000" />
-                            <View>
-                                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.medium }}>
-                                    Youtube
-                                </Text>
-                                <Text style={{ color: '#D6D6D6', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                    {ytHandle ? `@${ytHandle}` : 'Add youtube link'}
-                                </Text>
-                            </View>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.70)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.55)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: 20,
+                                    padding: 0.8,
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#1F1F26', '#121216']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        width: 122,
+                                        height: 134,
+                                        padding: 13,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 19,
+                                    }}
+                                >
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Ionicons name="logo-youtube" size={26} color="#FF0000" />
+                                        <Ionicons name="add" size={20} color="#8E8E93" />
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                                            Youtube
+                                        </Text>
+                                        <Text style={{ color: '#8E8E93', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
+                                            {ytHandle ? `@${ytHandle}` : 'Add youtube link'}
+                                        </Text>
+                                    </View>
+                                </LinearGradient>
+                            </LinearGradient>
                         </TouchableOpacity>
 
                         {/* Twitter / X Card */}
@@ -620,32 +692,59 @@ export default function BrandsCreatorScreen() {
                             onPress={() => twHandle && openLink(twitterUrl(twHandle))}
                             activeOpacity={0.85}
                             style={{
-                                width: 128,
-                                height: 141,
-                                borderRadius: 16,
-                                padding: 14,
-                                justifyContent: 'space-between',
-                                borderWidth: 1,
-                                borderColor: '#FFFFFF',
-                                backgroundColor: '#14141A',
+                                borderRadius: 20,
+                                shadowColor: '#000000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 4,
                             }}
                         >
-                            <FontAwesome6 name="x-twitter" size={24} color="#FFFFFF" style={{ marginTop: 2 }} />
-                            <View>
-                                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.medium }}>
-                                    Twitter
-                                </Text>
-                                <Text style={{ color: '#D6D6D6', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                    {twHandle ? `@${twHandle}` : 'Add twitter link'}
-                                </Text>
-                            </View>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.70)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.55)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: 20,
+                                    padding: 0.8,
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#1F1F26', '#121216']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        width: 122,
+                                        height: 134,
+                                        padding: 13,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 19,
+                                    }}
+                                >
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <FontAwesome6 name="x-twitter" size={22} color="#FFFFFF" style={{ marginTop: 2 }} />
+                                        <Ionicons name="add" size={20} color="#8E8E93" />
+                                    </View>
+                                    <View>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                                            Twitter
+                                        </Text>
+                                        <Text style={{ color: '#8E8E93', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
+                                            {twHandle ? `@${twHandle}` : 'Add twitter link'}
+                                        </Text>
+                                    </View>
+                                </LinearGradient>
+                            </LinearGradient>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
 
+                {/* Section Separator */}
+                <View style={{ height: 1, backgroundColor: 'rgba(255, 255, 255, 0.06)', marginTop: 24, marginBottom: 4 }} />
+
                 {/* Ad Preferences Section */}
-                <View style={{ marginTop: 28 }}>
-                    <Text style={{ color: '#FFFFFF', fontSize: 22, fontFamily: fonts.semibold }}>
+                <View style={{ marginTop: 20 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 20, fontFamily: fonts.bold }}>
                         Ad Preferences
                     </Text>
 
@@ -657,83 +756,149 @@ export default function BrandsCreatorScreen() {
                         {/* Stripe Ad */}
                         <View
                             style={{
-                                width: 128,
-                                height: 141,
-                                borderRadius: 16,
-                                padding: 14,
-                                justifyContent: 'space-between',
-                                borderWidth: 1,
-                                borderColor: '#FFFFFF',
-                                backgroundColor: '#14141A',
+                                borderRadius: 20,
+                                shadowColor: '#000000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 4,
                             }}
                         >
-                            <Ionicons name="megaphone-outline" size={24} color="#1A8CFF" />
-                            <View>
-                                <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
-                                    Stripe Ad
-                                </Text>
-                                <Text style={{ color: '#D6D6D6', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                    ₹1000-5000
-                                </Text>
-                            </View>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.70)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.55)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: 20,
+                                    padding: 0.8,
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#1F1F26', '#121216']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        width: 122,
+                                        height: 134,
+                                        padding: 13,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 19,
+                                    }}
+                                >
+                                    <AdPrefIcon type="stripe" />
+                                    <View>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                                            Stripe Ad
+                                        </Text>
+                                        <Text style={{ color: '#8E8E93', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
+                                            ₹1000-5000
+                                        </Text>
+                                    </View>
+                                </LinearGradient>
+                            </LinearGradient>
                         </View>
 
                         {/* Photo Ad */}
                         <View
                             style={{
-                                width: 128,
-                                height: 141,
-                                borderRadius: 16,
-                                padding: 14,
-                                justifyContent: 'space-between',
-                                borderWidth: 1,
-                                borderColor: '#FFFFFF',
-                                backgroundColor: '#14141A',
+                                borderRadius: 20,
+                                shadowColor: '#000000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 4,
                             }}
                         >
-                            <Ionicons name="image-outline" size={24} color="#00E5C3" />
-                            <View>
-                                <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
-                                    Photo Ad
-                                </Text>
-                                <Text style={{ color: '#D6D6D6', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                    ₹800-3000
-                                </Text>
-                            </View>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.70)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.55)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: 20,
+                                    padding: 0.8,
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#1F1F26', '#121216']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        width: 122,
+                                        height: 134,
+                                        padding: 13,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 19,
+                                    }}
+                                >
+                                    <AdPrefIcon type="photo" />
+                                    <View>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                                            Photo Ad
+                                        </Text>
+                                        <Text style={{ color: '#8E8E93', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
+                                            ₹800-3000
+                                        </Text>
+                                    </View>
+                                </LinearGradient>
+                            </LinearGradient>
                         </View>
 
                         {/* Video Ad */}
                         <View
                             style={{
-                                width: 128,
-                                height: 141,
-                                borderRadius: 16,
-                                padding: 14,
-                                justifyContent: 'space-between',
-                                borderWidth: 1,
-                                borderColor: '#FFFFFF',
-                                backgroundColor: '#14141A',
+                                borderRadius: 20,
+                                shadowColor: '#000000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.1,
+                                shadowRadius: 10,
+                                elevation: 4,
                             }}
                         >
-                            <Ionicons name="videocam-outline" size={24} color="#FF4081" />
-                            <View>
-                                <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
-                                    Video Ad
-                                </Text>
-                                <Text style={{ color: '#D6D6D6', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                    ₹1200-4000
-                                </Text>
-                            </View>
+                            <LinearGradient
+                                colors={['rgba(255, 255, 255, 0.70)', 'rgba(255, 255, 255, 0.04)', 'rgba(255, 255, 255, 0.55)']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: 20,
+                                    padding: 0.8,
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#1F1F26', '#121216']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        width: 122,
+                                        height: 134,
+                                        padding: 13,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 19,
+                                    }}
+                                >
+                                    <AdPrefIcon type="video" />
+                                    <View>
+                                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                                            Video Ad
+                                        </Text>
+                                        <Text style={{ color: '#8E8E93', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
+                                            ₹1200-4000
+                                        </Text>
+                                    </View>
+                                </LinearGradient>
+                            </LinearGradient>
                         </View>
                     </ScrollView>
                 </View>
 
+                {/* Section Separator */}
+                <View style={{ height: 1, backgroundColor: 'rgba(255, 255, 255, 0.06)', marginTop: 24, marginBottom: 4 }} />
+
                 {/* Content Type Section */}
                 <View style={{ marginTop: 28 }}>
-                    <Text style={{ color: '#D6D6D6', fontSize: 17, fontFamily: fonts.medium }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.medium }}>
                         Content Type
                     </Text>
-                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                    <View style={{ flexDirection: 'row', marginTop: 6    }}>
                         <View
                             style={{
                                 backgroundColor: '#333435',
@@ -742,10 +907,12 @@ export default function BrandsCreatorScreen() {
                                 paddingVertical: 10,
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                gap: 6,
+                                gap: 8,
+                                borderWidth: 1,
+                                borderColor: 'rgba(255, 255, 255, 0.08)',
                             }}
                         >
-                            <Ionicons name="sparkles-outline" size={16} color="#FFFFFF" />
+                            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
                             <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: fonts.medium }}>
                                 {category}
                             </Text>
@@ -755,12 +922,12 @@ export default function BrandsCreatorScreen() {
 
                 {/* Content Language Section */}
                 <View style={{ marginTop: 24 }}>
-                    <Text style={{ color: '#D6D6D6', fontSize: 17, fontFamily: fonts.medium }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.medium }}>
                         Content Language
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                        <Ionicons name="language-outline" size={18} color="#FFFFFF" />
-                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <Ionicons name="language-outline" size={20} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: fonts.medium }}>
                             {languageText}
                         </Text>
                     </View>
@@ -768,20 +935,35 @@ export default function BrandsCreatorScreen() {
 
                 {/* Profile Type Section */}
                 <View style={{ marginTop: 24 }}>
-                    <Text style={{ color: '#D6D6D6', fontSize: 17, fontFamily: fonts.medium }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.medium }}>
                         Profile Type
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                        <Ionicons name="person-outline" size={18} color="#FFFFFF" />
-                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: fonts.medium }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                        <View
+                            style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: 5,
+                                borderWidth: 1.5,
+                                borderColor: '#FFFFFF',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <Ionicons name="person" size={13} color="#FFFFFF" />
+                        </View>
+                        <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: fonts.medium }}>
                             Individual Creator
                         </Text>
                     </View>
                 </View>
 
+                {/* Section Separator Line */}
+                <View style={{ height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', marginTop: 24, marginBottom: 4 }} />
+
                 {/* Similar Profiles Section */}
-                <View style={{ marginTop: 32 }}>
-                    <Text style={{ color: '#D6D6D6', fontSize: 18, fontFamily: fonts.medium }}>
+                <View style={{ marginTop: 20 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.regular }}>
                         Similar Profiles
                     </Text>
 
@@ -797,39 +979,53 @@ export default function BrandsCreatorScreen() {
                                     } as any)
                                 }
                                 style={{
-                                    backgroundColor: '#14141A',
                                     borderRadius: 16,
-                                    height: 96,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    paddingHorizontal: 14,
+                                    overflow: 'hidden',
                                     borderWidth: 1,
                                     borderColor: '#2C313A',
-                                    justifyContent: 'space-between',
+                                    shadowColor: '#808080',
+                                    shadowOffset: { width: -62, height: 62 },
+                                    shadowOpacity: 0.01,
+                                    shadowRadius: 25,
+                                    elevation: 2,
                                 }}
                             >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                                    <Image
-                                        source={{ uri: item.avatar }}
-                                        style={{ width: 64, height: 64, borderRadius: 32 }}
-                                    />
-                                    <View>
-                                        <Text style={{ color: '#FFFFFF', fontSize: 17, fontFamily: fonts.medium }}>
-                                            {item.name}
-                                        </Text>
-                                        <Text style={{ color: '#D6D6D6', fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>
-                                            {item.category}
-                                        </Text>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                                            <Ionicons name="person-circle-outline" size={13} color="#D6D6D6" />
-                                            <Text style={{ color: '#D6D6D6', fontSize: 13, fontFamily: fonts.regular }}>
-                                                {item.followers}
+                                <LinearGradient
+                                    colors={['#0E0C0C', '#2B2B2C']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 0, y: 1 }}
+                                    style={{
+                                        height: 84,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        paddingHorizontal: 14,
+                                        justifyContent: 'space-between',
+                                        borderRadius: 15,
+                                    }}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                                        <Image
+                                            source={{ uri: item.avatar }}
+                                            style={{ width: 56, height: 56, borderRadius: 28 }}
+                                        />
+                                        <View>
+                                            <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.medium }}>
+                                                {item.name}
                                             </Text>
+                                            <Text style={{ color: '#8E8E93', fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }}>
+                                                {item.category}
+                                            </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                                                <Ionicons name="logo-instagram" size={13} color="#8E8E93" />
+                                                <Text style={{ color: '#8E8E93', fontSize: 14, fontFamily: fonts.regular }}>
+                                                    {item.followers}
+                                                </Text>
+                                            </View> 
                                         </View>
                                     </View>
-                                </View>
 
-                                <Ionicons name="arrow-up-outline" size={20} color="#FFFFFF" style={{ transform: [{ rotate: '45deg' }] }} />
+                                    <Ionicons name="arrow-up-outline" size={18} color="#FFFFFF" style={{ transform: [{ rotate: '45deg' }] }} />
+                                </LinearGradient>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -859,8 +1055,13 @@ export default function BrandsCreatorScreen() {
                     style={{
                         width: Math.min(396, screenWidth - 32),
                         height: 54,
-                        borderRadius: 26,
+                        borderRadius: 27,
                         overflow: 'hidden',
+                        shadowColor: '#7C3AED',
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.5,
+                        shadowRadius: 16,
+                        elevation: 10,
                     }}
                     activeOpacity={0.85}
                 >
@@ -868,7 +1069,7 @@ export default function BrandsCreatorScreen() {
                         colors={
                             isAddedToList
                                 ? ['#262631', '#1C1C24']
-                                : ['#1A8CFF', '#6633E5']
+                                : ['#0084FF', '#7C3AED']
                         }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
@@ -876,10 +1077,10 @@ export default function BrandsCreatorScreen() {
                             flex: 1,
                             alignItems: 'center',
                             justifyContent: 'center',
-                            borderRadius: 26,
+                            borderRadius: 27,
                         }}
                     >
-                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.medium }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold }}>
                             {isAddedToList ? 'Added to List ✓' : 'Add to List'}
                         </Text>
                     </LinearGradient>
