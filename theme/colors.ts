@@ -5,12 +5,13 @@
  * Role themes:
  *   - Creator    → pink/magenta
  *   - Freelancer → orange
+ *   - Brand      → violet
  *
  * Role-agnostic surfaces (backgrounds, typography, borders, semantic colors)
  * live under `palette`.
  */
 
-export type Role = 'CREATOR' | 'FREELANCER';
+export type Role = 'CREATOR' | 'FREELANCER' | 'BRAND';
 
 export interface RolePalette {
     primary: string;     // solid action color
@@ -39,6 +40,15 @@ export const rolePalettes: Record<Role, RolePalette> = {
         softStrong: 'rgba(242, 105, 48, 0.20)',
         light: '#FFE2D6',
         border: 'rgba(242, 105, 48, 0.55)',
+        onPrimary: '#FFFFFF',
+    },
+    BRAND: {
+        primary: '#7352DD',
+        hover: '#5B3DC0',
+        soft: 'rgba(115, 82, 221, 0.12)',
+        softStrong: 'rgba(115, 82, 221, 0.20)',
+        light: '#E4DCFF',
+        border: 'rgba(115, 82, 221, 0.55)',
         onPrimary: '#FFFFFF',
     },
 };

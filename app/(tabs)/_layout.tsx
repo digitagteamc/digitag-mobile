@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
 import { useProfileGate } from '../../context/ProfileGateContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
 
@@ -15,6 +16,7 @@ export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
 export default function TabsLayout() {
     const router = useRouter();
     const { requireProfile } = useProfileGate();
+    const { userRole } = useAuth();
     const insets = useSafeAreaInsets();
     const sceneBottomPad = NAV_BAR_HEIGHT + (insets.bottom > 0 ? insets.bottom : 0);
 
@@ -39,11 +41,12 @@ export default function TabsLayout() {
                 onTabPress={handleTabPress}
                 onFabPress={() => {
                     if (!requireProfile('create a post')) return;
-                    router.push('/create-post' as any);
+                    // Brands post requirements for creators/freelancers, not portfolio posts.
+                    router.push((userRole === 'BRAND' ? '/brand/create-requirement' : '/create-post') as any);
                 }}
             />
         );
-    }, [router]);
+    }, [router, userRole]);
 
     return (
         <Tabs

@@ -58,6 +58,20 @@ export function routeNotificationData(router: ReturnType<typeof useRouter>, data
                 router.push('/(tabs)/explore' as any);
             }
             break;
+        case 'NEW_BRAND_POST':
+            router.push('/brand-requirements' as any);
+            break;
+        case 'BRAND_APPROVED':
+            router.replace('/(tabs)' as any);
+            break;
+        case 'BRAND_REJECTED':
+            router.push({ pathname: '/signup/pending', params: { role: 'BRAND' } } as any);
+            break;
+        case 'AD_REQUEST_UPDATE':
+            if (data.adRequestId) {
+                router.push({ pathname: '/brand/ad-request/[id]', params: { id: data.adRequestId } } as any);
+            }
+            break;
         case 'NEW_FOLLOWER':
             if (data.followerId) {
                 router.push({ pathname: '/creator-details', params: { userId: data.followerId } } as any);

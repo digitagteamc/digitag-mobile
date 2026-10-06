@@ -27,8 +27,9 @@ import CustomAlert from '../Components/ui/CustomAlert';
 import GradientButton from '../Components/ui/GradientButton';
 import { useAuth } from '../context/AuthContext';
 import { verifyFirebaseToken } from '../services/userService';
+import { brandLandingRoute } from '../services/brandService';
 
-type SignupRole = 'CREATOR' | 'FREELANCER';
+type SignupRole = 'CREATOR' | 'FREELANCER' | 'BRAND';
 
 // Firebase throws raw, technical error text (e.g. "[auth/invalid-verification-code]
 // The sms verification code used to create the phone auth credential is invalid...")
@@ -47,7 +48,8 @@ function friendlyOtpError(error: any): string {
 export default function LoginScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{ role?: string }>();
-    const role: SignupRole = (params.role?.toUpperCase() === 'FREELANCER') ? 'FREELANCER' : 'CREATOR';
+    const requestedRole = params.role?.toUpperCase();
+    const role: SignupRole = requestedRole === 'FREELANCER' || requestedRole === 'BRAND' ? requestedRole : 'CREATOR';
 
     const { login } = useAuth();
 
@@ -174,7 +176,7 @@ export default function LoginScreen() {
                         profiles: res.profiles as any,
                     });
 
-                    router.replace('/(tabs)');
+                    router.replace((verifiedRole === 'BRAND' ? await brandLandingRoute(res.token) : '/(tabs)') as any);
                 } catch (error: any) {
                     setOtpError(friendlyOtpError(error));
                 } finally {
@@ -288,7 +290,8 @@ export default function LoginScreen() {
                 profiles: res.profiles as any,
             });
 
-            router.replace('/(tabs)');
+            // Brands go through Brand Registration -> admin approval first.
+            router.replace((verifiedRole === 'BRAND' ? await brandLandingRoute(res.token) : '/(tabs)') as any);
         } catch (error: any) {
             setOtpError(friendlyOtpError(error));
         } finally {

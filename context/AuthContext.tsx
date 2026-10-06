@@ -5,11 +5,12 @@ import { router } from 'expo-router';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { logoutSession, refreshToken as apiRefreshToken, resetAccountSuspendedGuard, setAccountSuspendedCallback, setRefreshTokenCallback } from '../services/userService';
 
-export type Role = 'CREATOR' | 'FREELANCER';
+export type Role = 'CREATOR' | 'FREELANCER' | 'BRAND';
 
 export interface ProfileMap {
     CREATOR: boolean;
     FREELANCER: boolean;
+    BRAND: boolean;
 }
 
 interface AuthContextType {
@@ -97,7 +98,7 @@ async function removeSecureToken(key: string) {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const EMPTY_PROFILES: ProfileMap = { CREATOR: false, FREELANCER: false };
+const EMPTY_PROFILES: ProfileMap = { CREATOR: false, FREELANCER: false, BRAND: false };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userPhone, setUserPhone] = useState<string | null>(null);

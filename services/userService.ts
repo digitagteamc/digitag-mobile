@@ -71,7 +71,7 @@ export function resetAccountSuspendedGuard() {
     _suspendedHandledOnce = false;
 }
 
-async function request(path: string, options: RequestInit = {}, _retry = true) {
+export async function request(path: string, options: RequestInit = {}, _retry = true): Promise<any> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     let res: Response;
@@ -225,9 +225,9 @@ export const verifyOtp = async (
             refreshToken: data?.tokens?.refreshToken,
             user: data?.user,
             isNewUser: data?.isNewUser,
-            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | undefined,
-            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean } | undefined,
-            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER'>,
+            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | 'BRAND' | undefined,
+            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean; BRAND?: boolean } | undefined,
+            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER' | 'BRAND'>,
             isProfileCompleted: data?.isProfileCompleted,
         };
     } catch (error: any) {
@@ -244,7 +244,7 @@ export const verifyOtp = async (
 /** POST /auth/verify-firebase — backend returns profile map + active role using Firebase idToken. */
 export const verifyFirebaseToken = async (
     idToken: string,
-    role: 'CREATOR' | 'FREELANCER' = 'CREATOR',
+    role: 'CREATOR' | 'FREELANCER' | 'BRAND' = 'CREATOR',
 ) => {
     try {
         console.log(`🔐 Verifying Firebase token for role ${role}...`);
@@ -262,9 +262,9 @@ export const verifyFirebaseToken = async (
             refreshToken: data?.tokens?.refreshToken,
             user: data?.user,
             isNewUser: data?.isNewUser,
-            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | undefined,
-            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean } | undefined,
-            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER'>,
+            activeRole: data?.activeRole as 'CREATOR' | 'FREELANCER' | 'BRAND' | undefined,
+            profiles: data?.profiles as { CREATOR: boolean; FREELANCER: boolean; BRAND?: boolean } | undefined,
+            availableRoles: (data?.availableRoles || []) as Array<'CREATOR' | 'FREELANCER' | 'BRAND'>,
             isProfileCompleted: data?.isProfileCompleted,
         };
     } catch (error: any) {
@@ -279,7 +279,7 @@ export const verifyFirebaseToken = async (
 };
 
 /** POST /auth/switch-role — change the active role for the current account. */
-export const switchRole = async (token: string, role: 'CREATOR' | 'FREELANCER') => {
+export const switchRole = async (token: string, role: 'CREATOR' | 'FREELANCER' | 'BRAND') => {
     try {
         const body = await request('/auth/switch-role', {
             method: 'POST',

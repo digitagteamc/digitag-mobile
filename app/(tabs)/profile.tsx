@@ -29,6 +29,7 @@ import IgVerifyModal from '../../Components/IgVerifyModal';
 import CompleteProfileModal from '../../Components/ui/CompleteProfileModal';
 import VerifiedBadge from '../../Components/ui/VerifiedBadge';
 import { useAuth } from '../../context/AuthContext';
+import BrandProfileTab from '../../Components/brand/BrandProfileTab';
 import { useProfileGate } from '../../context/ProfileGateContext';
 import { useApplePurchase } from '../../hooks/useApplePurchase';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
@@ -101,7 +102,13 @@ export const MENU_ITEMS = [
 
 const PROFILE_REQUIRED_ITEMS = new Set(['my_profile', 'saved', 'my_posts', 'my_collabs', 'report']);
 
-export default function ProfileScreen() {
+export default function ProfileTab() {
+  const { userRole } = useAuth();
+  if (userRole === 'BRAND') return <BrandProfileTab />;
+  return <ProfileScreen />;
+}
+
+function ProfileScreen() {
   const router = useRouter();
   const { token, isGuest, userPhone, userRole, userId, logout, setProfiles, isProfileCompleted } = useAuth();
   const { requireProfile } = useProfileGate();
