@@ -17,7 +17,7 @@ export function useRoleTheme(explicitRole?: Role | string | null): RolePalette {
 export function normalizeRole(value: string | null | undefined): Role | null {
     if (!value) return null;
     const upper = value.toUpperCase();
-    if (upper === 'CREATOR' || upper === 'FREELANCER' || upper === 'BRAND') return upper;
+    if (upper === 'CREATOR' || upper === 'FREELANCER') return upper;
     return null;
 }
 

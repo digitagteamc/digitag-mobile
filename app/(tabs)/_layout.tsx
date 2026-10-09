@@ -3,8 +3,9 @@ import React, { useCallback } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppBottomNav, { APP_TABS } from '../../Components/ui/AppBottomNav';
-import { useProfileGate } from '../../context/ProfileGateContext';
+import BrandBottomNav from '../../Components/ui/BrandBottomNav';
 import { useAuth } from '../../context/AuthContext';
+import { useProfileGate } from '../../context/ProfileGateContext';
 
 export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
 
@@ -15,38 +16,58 @@ export const NAV_BAR_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
  */
 export default function TabsLayout() {
     const router = useRouter();
-    const { requireProfile } = useProfileGate();
     const { userRole } = useAuth();
+    const { requireProfile } = useProfileGate();
     const insets = useSafeAreaInsets();
     const sceneBottomPad = NAV_BAR_HEIGHT + (insets.bottom > 0 ? insets.bottom : 0);
+    const isBrand = userRole === 'BRAND';
 
     const isNavigating = React.useRef(false);
 
+    const navigateTab = (props: any, routeName: string) => {
+        if (isNavigating.current) return;
+        isNavigating.current = true;
+        props.navigation.navigate(routeName as never);
+        setTimeout(() => {
+            isNavigating.current = false;
+        }, 300);
+    };
+
     const renderTabBar = useCallback((props: any) => {
         const activeRouteName = props.state.routes[props.state.index]?.name ?? 'index';
-        const activeKey = routeToTabKey(activeRouteName);
-        
-        const handleTabPress = (tab: any) => {
-            if (isNavigating.current) return;
-            isNavigating.current = true;
-            props.navigation.navigate(tabKeyToRoute(tab.key) as never);
-            setTimeout(() => {
-                isNavigating.current = false;
-            }, 300);
-        };
 
+        if (isBrand) {
+            const activeKey = routeToBrandTabKey(activeRouteName);
+            return (
+                <BrandBottomNav
+                    activeKey={activeKey}
+                    onTabPress={(key) => {
+                        if (key === 'create') {
+                            router.push('/Brand-Create-Campaign' as any);
+                            return;
+                        }
+                        if (key === 'campaign') {
+                            router.push('/brands/campaign' as any);
+                            return;
+                        }
+                        navigateTab(props, brandTabKeyToRoute(key));
+                    }}
+                />
+            );
+        }
+
+        const activeKey = routeToTabKey(activeRouteName);
         return (
             <AppBottomNav
                 activeKey={activeKey}
-                onTabPress={handleTabPress}
+                onTabPress={(tab) => navigateTab(props, tabKeyToRoute(tab.key))}
                 onFabPress={() => {
                     if (!requireProfile('create a post')) return;
-                    // Brands post requirements for creators/freelancers, not portfolio posts.
-                    router.push((userRole === 'BRAND' ? '/brand/create-requirement' : '/create-post') as any);
+                    router.push('/create-post' as any);
                 }}
             />
         );
-    }, [router, userRole]);
+    }, [router, isBrand, requireProfile]);
 
     return (
         <Tabs
@@ -85,6 +106,27 @@ function tabKeyToRoute(key: string): string {
     switch (key) {
         case 'home': return 'index';
         case 'explore': return 'explore';
+        case 'messages': return 'messages';
+        case 'profile': return 'profile';
+        default: return 'index';
+    }
+}
+
+// Brand's nav bar only has Home/Messages/Profile as real tabs (Explore
+// doesn't apply to Brand's home layout; "create" and "campaign" are
+// router.push destinations, not tab switches — handled above).
+function routeToBrandTabKey(routeName: string): string {
+    switch (routeName) {
+        case 'index': return 'home';
+        case 'messages': return 'messages';
+        case 'profile': return 'profile';
+        default: return 'home';
+    }
+}
+
+function brandTabKeyToRoute(key: string): string {
+    switch (key) {
+        case 'home': return 'index';
         case 'messages': return 'messages';
         case 'profile': return 'profile';
         default: return 'index';

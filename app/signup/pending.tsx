@@ -10,8 +10,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { checkCreatorStatus } from '../../services/userService';
-import { getBrandStatus } from '../../services/brandService';
+import { checkBrandStatus, checkCreatorStatus } from '../../services/userService';
 
 type Status = 'PENDING' | 'APPROVED' | 'REJECTED';
 type Role = 'CREATOR' | 'BRAND';
@@ -46,25 +45,17 @@ export default function PendingScreen() {
         }
         setLoading(true);
         try {
-            if (role === 'BRAND') {
-                const res = await getBrandStatus(token);
-                if (res.success) {
-                    // Never registered (or session restored mid-signup) — back to the form.
-                    if (!res.data.hasProfile) { router.replace('/signup/brand'); return; }
-                    const s = (res.data.status || 'PENDING') as Status;
-                    setStatus(s);
-                    setRejectionReason(res.data.rejectionReason);
-                    if (s === 'APPROVED') router.replace('/(tabs)');
-                }
-                return;
-            }
-            const result = await checkCreatorStatus(token);
+            // Brand has a real approvalStatus to check; Creator's status is
+            // still derived from isProfileCompleted (separate, pre-existing
+            // issue, not part of this scope).
+            const result = role === 'BRAND' ? await checkBrandStatus(token) : await checkCreatorStatus(token);
 
             if (result.success && result.data) {
                 // Backend may return status under various field names
-                const s = result.data.status || result.data.creatorStatus || 'PENDING';
+                const s = result.data.status || result.data.creatorStatus || result.data.approvalStatus || 'PENDING';
                 const normalized = s.toUpperCase() as Status;
                 setStatus(normalized);
+                setRejectionReason(result.data.rejectionReason || null);
 
                 if (normalized === 'APPROVED') {
                     // Auto-navigate to home on approval
@@ -108,17 +99,12 @@ export default function PendingScreen() {
                     <Text style={styles.title}>Application Rejected</Text>
                     <Text style={styles.desc}>
                         Your {roleLabel} application was not approved.
-                        Please update your details and re-apply.
+                        {rejectionReason ? `\n\nReason: ${rejectionReason}` : ''}
+                        {'\n\n'}Please update your details and re-apply.
                     </Text>
-                    {!!rejectionReason && (
-                        <View style={styles.reasonBox}>
-                            <Text style={styles.reasonLabel}>REASON</Text>
-                            <Text style={styles.reasonText}>{rejectionReason}</Text>
-                        </View>
-                    )}
                     <TouchableOpacity
                         style={styles.primaryButton}
-                        onPress={() => router.replace((role === 'BRAND' ? '/signup/brand?mode=edit' : '/signup/creator') as any)}
+                        onPress={() => router.replace(role === 'BRAND' ? '/signup/brand' : '/signup/creator')}
                     >
                         <Text style={styles.primaryButtonText}>Re-apply Now</Text>
                     </TouchableOpacity>
@@ -200,17 +186,6 @@ const styles = StyleSheet.create({
     title: { fontSize: 26, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 14 },
     desc: { fontSize: 15, color: '#888', textAlign: 'center', lineHeight: 24, marginBottom: 12 },
     autoCheckNote: { color: '#555', fontSize: 12, marginBottom: 32, fontStyle: 'italic' },
-    reasonBox: {
-        width: '100%',
-        backgroundColor: 'rgba(239,68,68,0.08)',
-        borderColor: 'rgba(239,68,68,0.35)',
-        borderWidth: 1,
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 24,
-    },
-    reasonLabel: { color: '#ef4444', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
-    reasonText: { color: '#ddd', fontSize: 14, lineHeight: 20 },
     primaryButton: {
         backgroundColor: '#4f46e5',
         paddingVertical: 15,

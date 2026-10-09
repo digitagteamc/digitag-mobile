@@ -21,7 +21,6 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BrandPublicProfile from '../Components/brand/BrandPublicProfile';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useProfileGate } from '../context/ProfileGateContext';
@@ -373,9 +372,6 @@ export default function CreatorDetails() {
             </View>
         );
     }
-
-    // Brands have their own public card (no portfolio, posts or follow).
-    if (profile.role === 'BRAND') return <BrandPublicProfile profile={profile} />;
 
     const isFreelancerProfile = profile.role === 'FREELANCER';
     // Both following and collaborating only make sense across roles (Creator

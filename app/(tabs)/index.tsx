@@ -38,10 +38,10 @@ import Carousel from 'react-native-reanimated-carousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Circle, Defs, Path, RadialGradient, Stop, Svg, LinearGradient as SvgGradient, Text as SvgText, SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../../assets/creator-cat';
+import BrandHome from '../../Components/BrandHome';
+import OpportunitiesSection from '../../Components/OpportunitiesSection';
 import CustomAlert from '../../Components/ui/CustomAlert';
 import { useAuth } from '../../context/AuthContext';
-import BrandHome from '../../Components/brand/BrandHome';
-import BrandRequirementsCard from '../../Components/brand/BrandRequirementsCard';
 import { useCall } from '../../context/CallContext';
 import { useNotificationCount } from '../../context/NotificationCountContext';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
@@ -963,15 +963,7 @@ const CarouselCard = React.memo(({ item, index, scrollX, ITEM_SIZE, CARD_WIDTH, 
   );
 });
 
-// Brands get their own Home (approval state, advertising, Brand Home
-// sections). A separate component so neither screen's hooks depend on role.
-export default function HomeTab() {
-  const { userRole } = useAuth();
-  if (userRole === 'BRAND') return <BrandHome />;
-  return <Homepage />;
-}
-
-function Homepage() {
+export default function Homepage() {
   const router = useRouter();
   const { token, isGuest, userRole, userId, isProfileCompleted } = useAuth();
   const { requireProfile } = useProfileGate();
@@ -1429,6 +1421,15 @@ function Homepage() {
     [carouselData, ITEM_SIZE]
   );
 
+  // Brand's Home tab is a structurally different discovery experience (no
+  // post feed at all) — dispatched here, after every hook above has already
+  // run unconditionally, so this only branches the render output, not the
+  // hook call order (an early return above the hooks broke
+  // react-hooks/rules-of-hooks — this is the fix).
+  if (userRole === 'BRAND') {
+    return <BrandHome />;
+  }
+
   return (
     <View style={[styles.root ]}>
       <StatusBar translucent barStyle="light-content" backgroundColor="transparent" />
@@ -1627,9 +1628,9 @@ function Homepage() {
           /> */}
         </View>
 
+        <OpportunitiesSection />
+
         <View style={{ paddingHorizontal: 10, paddingTop: 32 }}>
-          {/* Brand requirements open to me (renders nothing for guests) */}
-          <BrandRequirementsCard />
           {/* ══════════════ CATEGORIES BY ROLE ══════════════ */}
           <View style={{ marginBottom: 10 }}>
             <Text style={[styles.gradientHeadingText, { color: '#fff' }]}>

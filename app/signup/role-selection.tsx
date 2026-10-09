@@ -17,7 +17,7 @@ export default function RoleSelectionScreen() {
         if (selectedRole === 'CREATOR') {
             router.push('/signup/creator');
         } else {
-            router.replace({ pathname: '/login', params: { role: 'BRAND' } } as any);
+            router.push('/signup/brand');
         }
     };
 
