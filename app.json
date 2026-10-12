@@ -167,10 +167,12 @@
           "project": "digitag-mobile"
         }
       ],
+      "./plugins/withLegacyApplicationId",
       "expo-iap",
       "./plugins/withSentryAuthToken",
       "./plugins/withRecaptchaEnterprise",
-      "./plugins/withPushKit"
+      "./plugins/withPushKit",
+      "./plugins/withNotifeeMavenRepo"
     ],
     "experiments": {
       "typedRoutes": true,
