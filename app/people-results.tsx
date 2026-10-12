@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { getFollowSuggestions } from '../services/userService';
@@ -23,6 +23,7 @@ export default function PeopleResultsScreen() {
 
     const [people, setPeople] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const load = useCallback(async () => {
         if (!token) { setLoading(false); return; }
@@ -38,6 +39,17 @@ export default function PeopleResultsScreen() {
 
     useEffect(() => { load(); }, [load]);
 
+    const filteredPeople = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return people;
+        return people.filter((p) =>
+            (p.name || '').toLowerCase().includes(q) ||
+            (p.username || '').toLowerCase().includes(q) ||
+            (p.location || '').toLowerCase().includes(q) ||
+            (p.categoryNames || []).some((c: string) => (c || '').toLowerCase().includes(q))
+        );
+    }, [people, searchQuery]);
+
     return (
         <SafeAreaView style={styles.safe} edges={['top']}>
             <View style={styles.header}>
@@ -48,13 +60,33 @@ export default function PeopleResultsScreen() {
                 <View style={{ width: 36 }} />
             </View>
 
+            <View style={styles.searchBar}>
+                <Ionicons name="search" size={18} color="#9CA3AF" />
+                <TextInput
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Search by name, category or location"
+                    placeholderTextColor="#6B7280"
+                    style={styles.searchInput}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                />
+                {searchQuery.length > 0 && (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        <Ionicons name="close-circle" size={18} color="#6B7280" />
+                    </TouchableOpacity>
+                )}
+            </View>
+
             {loading ? (
                 <View style={styles.centerFill}>
                     <ActivityIndicator color={palette.textPrimary} size="large" />
                 </View>
             ) : (
                 <FlatList
-                    data={people}
+                    data={filteredPeople}
+                    keyboardShouldPersistTaps="handled"
                     keyExtractor={(item) => item.id}
                     numColumns={2}
                     columnWrapperStyle={{ gap: 12 }}
@@ -62,7 +94,7 @@ export default function PeopleResultsScreen() {
                     ListEmptyComponent={
                         <View style={styles.centerFill}>
                             <Ionicons name="people-outline" size={40} color={palette.borderStrong} />
-                            <Text style={styles.emptyText}>No one here yet</Text>
+                            <Text style={styles.emptyText}>{searchQuery.trim() ? 'No matches found' : 'No one here yet'}</Text>
                         </View>
                     }
                     renderItem={({ item }) => (
@@ -87,6 +119,8 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
     backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
     headerTitle: { color: '#fff', fontSize: 16, fontFamily: fonts.semibold, flex: 1, textAlign: 'center' },
+    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#18181B', borderRadius: 16, paddingHorizontal: 14, height: 48, marginHorizontal: 16, marginBottom: 4, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+    searchInput: { flex: 1, color: '#FFFFFF', fontSize: 14, fontFamily: fonts.regular, marginLeft: 10, paddingVertical: 0 },
     centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60, gap: 10 },
     emptyText: { color: palette.textMuted, fontSize: 14, fontFamily: fonts.regular },
     card: { flex: 1, backgroundColor: palette.surface, borderRadius: 16, padding: 14, alignItems: 'center' },

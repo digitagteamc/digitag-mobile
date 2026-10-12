@@ -484,7 +484,8 @@ export default function AllCreatorsScreen() {
                     numColumns={2}
                     columnWrapperStyle={styles.columnWrapper}
                     contentContainerStyle={styles.listContent}
-                    ListHeaderComponent={renderHeader}
+                    ListHeaderComponent={renderHeader()}
+                    keyboardShouldPersistTaps="handled"
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="people-outline" size={40} color="#6B7280" />
