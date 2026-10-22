@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     FlatList,
     Image,
     SafeAreaView,
@@ -61,6 +62,8 @@ export default function YoutubeChannelDetailScreen() {
     // loading or for the demo placeholder, which keeps the mock content.
     const [channel, setChannel] = useState<any>(null);
     const [channelLoading, setChannelLoading] = useState(!!params.channelId);
+    // Why the live channel didn't load, shown when Collab is tapped.
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!token || !params.channelId) { setChannelLoading(false); return; }
@@ -68,6 +71,7 @@ export default function YoutubeChannelDetailScreen() {
         getChannelById(token, params.channelId).then((res) => {
             if (!active) return;
             if (res.success && res.data) setChannel(res.data);
+            else setLoadError(res.error || null);
             setChannelLoading(false);
         });
         return () => { active = false; };
@@ -94,7 +98,17 @@ export default function YoutubeChannelDetailScreen() {
     const pastCollabs: any[] = channel?.pastCollaborations || [];
 
     const openQuote = (adTypeId?: string) => {
-        if (!channel) return;
+        if (!channel) {
+            // Home falls back to built-in sample channels when the server has
+            // none — those have no rate card to request a quote from.
+            Alert.alert(
+                'Channel not available yet',
+                loadError && !/not found/i.test(loadError)
+                    ? `Couldn't load this channel: ${loadError}`
+                    : 'This is a sample channel. Collab works on channels added by the Digitag team — they will appear here once listed.',
+            );
+            return;
+        }
         router.push({ pathname: '/channel-request-quote', params: { channelId: channel.id, adTypeId: adTypeId || '' } } as any);
     };
 
@@ -344,8 +358,7 @@ export default function YoutubeChannelDetailScreen() {
                 >
                     <TouchableOpacity
                         onPress={() => openQuote()}
-                        disabled={!channel}
-                        style={{ flex: 2, height: 48, borderRadius: 24, overflow: 'hidden', opacity: channel ? 1 : 0.5 }}
+                        style={{ flex: 2, height: 48, borderRadius: 24, overflow: 'hidden' }}
                         activeOpacity={0.85}
                     >
                         <LinearGradient
