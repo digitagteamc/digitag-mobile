@@ -84,13 +84,13 @@ export default function RequirementResponsesScreen() {
                     ListEmptyComponent={
                         <View style={{ alignItems: 'center', marginTop: 80, gap: 10 }}>
                             <Ionicons name="mail-open-outline" size={40} color={palette.borderStrong} />
-                            <Text style={{ color: palette.textMuted, fontSize: 14, fontFamily: fonts.regular }}>No pitches yet</Text>
+                            <Text style={{ color: palette.textMuted, fontSize: 14, fontFamily: fonts.regular }}>No one has shown interest yet</Text>
                         </View>
                     }
                     renderItem={({ item }) => (
                         <NotificationItem
                             name={getSenderName(item.sender)}
-                            subtitle={item.message || 'Sent a pitch'}
+                            subtitle={item.message || 'Interested in your post'}
                             avatarUri={getSenderPic(item.sender)}
                             role={item.sender?.role}
                             variant={item.status === 'PENDING' ? 'request' : 'info'}

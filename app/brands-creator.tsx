@@ -12,6 +12,7 @@ import {
     ScrollView,
     Share,
     Text,
+    TextInput,
     TouchableOpacity,
     useWindowDimensions,
     View,
@@ -35,6 +36,7 @@ import {
     getUserStats,
     initiateCall,
     openConversationWith,
+    sendCollaboration,
     unblockUser,
     unfollowUser,
 } from '../services/userService';
@@ -99,8 +101,12 @@ export default function BrandsCreatorScreen() {
     const [showActionMenu, setShowActionMenu] = useState(false);
     const [showBlockConfirm, setShowBlockConfirm] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
-    const [isSaved, setIsSaved] = useState(false);
-    const [isAddedToList, setIsAddedToList] = useState(false);
+    const [collabBusy, setCollabBusy] = useState(false);
+    // Collab sheet — the brand says what it wants to collaborate on.
+    const [showCollabSheet, setShowCollabSheet] = useState(false);
+    const [collabNote, setCollabNote] = useState('');
+    // LinkedIn-style: Message/Call only open up once the creator accepts.
+    const isConnected = collabStatus === 'ACCEPTED';
 
     const [alertConfig, setAlertConfig] = useState({
         visible: false,
@@ -230,6 +236,31 @@ export default function BrandsCreatorScreen() {
             router.push({ pathname: '/chat/[id]', params: { id: res.data.id } } as any);
         } else {
             showAlert('Chat Error', res.error || 'Could not open conversation.');
+        }
+    };
+
+    const handleCollab = async () => {
+        if (isConnected) { openChat(); return; }
+        if (!token || !resolvedUserId) {
+            showAlert('Demo Profile', 'Log in to collaborate with this creator.');
+            return;
+        }
+        if (collabStatus === 'PENDING' || collabBusy) return;
+        setCollabNote('');
+        setShowCollabSheet(true);
+    };
+
+    const submitCollab = async () => {
+        if (!token || !resolvedUserId || collabBusy || !collabNote.trim()) return;
+        setCollabBusy(true);
+        const res = await sendCollaboration(token, { receiverId: resolvedUserId, message: collabNote.trim() });
+        setCollabBusy(false);
+        if (res.success) {
+            setShowCollabSheet(false);
+            setCollabStatus('PENDING');
+            showAlert('Interest Sent', `${name} will be notified. Message and call open up once they accept.`);
+        } else {
+            showAlert('Could not send', res.error || 'Please try again.');
         }
     };
 
@@ -387,26 +418,6 @@ export default function BrandsCreatorScreen() {
                             <Ionicons name="share-outline" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
 
-                        {/* Bookmark Button */}
-                        <TouchableOpacity
-                            onPress={() => setIsSaved(!isSaved)}
-                            style={{
-                                width: 38,
-                                height: 38,
-                                borderRadius: 19,
-                                backgroundColor: 'rgba(255,255,255,0.08)',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons
-                                name={isSaved ? 'bookmark' : 'bookmark-outline'}
-                                size={18}
-                                color={isSaved ? '#1A8CFF' : '#FFFFFF'}
-                            />
-                        </TouchableOpacity>
-
                         {/* Options Menu Button */}
                         <TouchableOpacity
                             onPress={() => setShowActionMenu(true)}
@@ -465,7 +476,8 @@ export default function BrandsCreatorScreen() {
                             resizeMode="cover"
                         />
 
-                        {/* Message & Call Action Buttons */}
+                        {/* Message & Call Action Buttons — hidden until the collab is accepted */}
+                        {isConnected && (
                         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
                             <TouchableOpacity
                                 onPress={openChat}
@@ -507,6 +519,7 @@ export default function BrandsCreatorScreen() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                        )}
                     </View>
 
                     {/* Name & Pink Checkmark Verified Badge */}
@@ -1043,15 +1056,8 @@ export default function BrandsCreatorScreen() {
                 }}
             >
                 <TouchableOpacity
-                    onPress={() => {
-                        setIsAddedToList(!isAddedToList);
-                        showAlert(
-                            isAddedToList ? 'Removed from List' : 'Added to List',
-                            isAddedToList
-                                ? `${name} has been removed from your saved list.`
-                                : `${name} has been added to your shortlist for upcoming campaigns.`
-                        );
-                    }}
+                    onPress={handleCollab}
+                    disabled={collabBusy || collabStatus === 'PENDING'}
                     style={{
                         width: Math.min(396, screenWidth - 32),
                         height: 54,
@@ -1067,7 +1073,7 @@ export default function BrandsCreatorScreen() {
                 >
                     <LinearGradient
                         colors={
-                            isAddedToList
+                            collabStatus === 'PENDING'
                                 ? ['#262631', '#1C1C24']
                                 : ['#0084FF', '#7C3AED']
                         }
@@ -1075,17 +1081,92 @@ export default function BrandsCreatorScreen() {
                         end={{ x: 1, y: 0 }}
                         style={{
                             flex: 1,
+                            flexDirection: 'row',
+                            gap: 8,
                             alignItems: 'center',
                             justifyContent: 'center',
                             borderRadius: 27,
                         }}
                     >
-                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold }}>
-                            {isAddedToList ? 'Added to List ✓' : 'Add to List'}
-                        </Text>
+                        {(
+                            <>
+                                <Ionicons
+                                    name={isConnected ? 'chatbubble-ellipses-outline' : collabStatus === 'PENDING' ? 'time-outline' : 'people-outline'}
+                                    size={18}
+                                    color="#FFFFFF"
+                                />
+                                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold }}>
+                                    {isConnected ? 'Message' : collabStatus === 'PENDING' ? 'Interest Sent · Pending' : 'Collab'}
+                                </Text>
+                            </>
+                        )}
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
+
+            {/* Collab sheet — what the brand wants to collaborate on */}
+            <Modal
+                visible={showCollabSheet}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowCollabSheet(false)}
+            >
+                <TouchableOpacity
+                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
+                    activeOpacity={1}
+                    onPress={() => setShowCollabSheet(false)}
+                >
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        style={{ backgroundColor: '#14141C', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 32 }}
+                    >
+                        <Text style={{ color: '#FFFFFF', fontSize: 18, fontFamily: fonts.semibold }}>
+                            Collab with {name}
+                        </Text>
+                        <Text style={{ color: '#A1A2A4', fontSize: 12, fontFamily: fonts.regular, marginTop: 4 }}>
+                            Tell them what you want to collaborate on. They can accept or decline — Message and Call open once they accept.
+                        </Text>
+                        <TextInput
+                            value={collabNote}
+                            onChangeText={setCollabNote}
+                            placeholder="e.g. 1 reel + 2 stories for our summer skincare launch, ₹25k budget"
+                            placeholderTextColor="#6E7180"
+                            multiline
+                            maxLength={1000}
+                            style={{
+                                marginTop: 16,
+                                minHeight: 110,
+                                color: '#FFFFFF',
+                                fontSize: 14,
+                                fontFamily: fonts.regular,
+                                backgroundColor: 'rgba(255,255,255,0.08)',
+                                borderRadius: 14,
+                                borderWidth: 1,
+                                borderColor: 'rgba(64,64,64,0.5)',
+                                padding: 14,
+                                textAlignVertical: 'top',
+                            }}
+                        />
+                        <TouchableOpacity
+                            onPress={submitCollab}
+                            disabled={collabBusy || !collabNote.trim()}
+                            style={{ marginTop: 16, height: 52, borderRadius: 26, overflow: 'hidden', opacity: collabNote.trim() ? 1 : 0.5 }}
+                            activeOpacity={0.85}
+                        >
+                            <LinearGradient
+                                colors={['#0084FF', '#7C3AED']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 26 }}
+                            >
+                                {collabBusy
+                                    ? <ActivityIndicator color="#FFFFFF" />
+                                    : <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold }}>Send Collab Request</Text>}
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
 
             {/* Action Modals */}
             <Modal

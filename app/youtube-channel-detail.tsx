@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     FlatList,
     Image,
     SafeAreaView,
@@ -12,6 +13,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { getChannelById } from '../services/userService';
 import { fonts } from '../theme/colors';
 
 const DUMMY_AD_TYPES = [
@@ -20,6 +23,14 @@ const DUMMY_AD_TYPES = [
     { id: 'ad-3', name: 'Corner Ads', accentColor: '#F1CEFF' },
     { id: 'ad-4', name: 'L - Shape Ads', accentColor: '#F5C344' },
 ];
+
+function formatPrice(val: any): string | null {
+    const n = Number(val);
+    if (val === null || val === undefined || !Number.isFinite(n)) return null;
+    return `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+}
+
+const AD_TYPE_ACCENTS = ['#DADAFF', '#F1CEFF', '#F5C344', '#C8F5E4', '#FFD6EB'];
 
 function formatNumber(val: any): string {
     if (!val) return '0';
@@ -45,26 +56,63 @@ export default function YoutubeChannelDetailScreen() {
         joinedDate?: string;
     }>();
 
-    const channelName = params.name || 'TechTalks';
-    const channelCategory = params.category || 'Tech';
-    const rawSubs = params.subscriberCount || '4.2M';
-    const formattedSubs = isNaN(Number(rawSubs)) ? rawSubs : formatNumber(Number(rawSubs));
-    const channelHandle = params.handle || `@${channelName.toLowerCase().replace(/\s+/g, '')}_official`;
-    const videoCount = params.videoCount || '1.8K';
-    const viewCount = params.viewCount || '320M';
-    const description = params.description || `We cover the latest in tech, gadgets, AI & software. From in-depth reviews to beginner tutorials, ${channelName} is your go-to tech hub.`;
-    const location = params.location || 'Mumbai, India';
-    const joinedDate = params.joinedDate || 'Joined Jan 2018';
-    const logoUrl = params.logoUrl || null;
+    const { token } = useAuth();
+    // Live channel (TV / YouTube / …) from GET /channels/:id. Null while
+    // loading or for the demo placeholder, which keeps the mock content.
+    const [channel, setChannel] = useState<any>(null);
+    const [channelLoading, setChannelLoading] = useState(!!params.channelId);
 
-    const [isSubscribed, setIsSubscribed] = useState(false);
+    useEffect(() => {
+        if (!token || !params.channelId) { setChannelLoading(false); return; }
+        let active = true;
+        getChannelById(token, params.channelId).then((res) => {
+            if (!active) return;
+            if (res.success && res.data) setChannel(res.data);
+            setChannelLoading(false);
+        });
+        return () => { active = false; };
+    }, [token, params.channelId]);
+
+    const isTv = channel?.type === 'TV';
+    const channelName = channel?.name || params.name || 'TechTalks';
+    const channelCategory = channel?.category || params.category || 'Tech';
+    const rawSubs = channel ? String(channel.subscriberCount ?? 0) : params.subscriberCount || '4.2M';
+    const formattedSubs = isNaN(Number(rawSubs)) ? rawSubs : formatNumber(Number(rawSubs));
+    const channelHandle = channel
+        ? `${isTv ? 'TV channel' : channel.type === 'YOUTUBE' ? 'YouTube channel' : 'Media channel'}${channel.isVerified ? ' · Verified' : ''}`
+        : params.handle || `@${channelName.toLowerCase().replace(/\s+/g, '')}_official`;
+    const videoCount = channel ? String(channel.adTypes?.length ?? 0) : params.videoCount || '1.8K';
+    const viewCount = channel ? formatPrice(channel.startingPrice) || '—' : params.viewCount || '320M';
+    const description = channel?.description || params.description || `We cover the latest in tech, gadgets, AI & software. From in-depth reviews to beginner tutorials, ${channelName} is your go-to tech hub.`;
+    const location = channel ? channel.region || 'India' : params.location || 'Mumbai, India';
+    const joinedDate = channel ? (channel.languages?.length ? channel.languages.join(', ') : 'All languages') : params.joinedDate || 'Joined Jan 2018';
+    const logoUrl = channel?.logoUrl || params.logoUrl || null;
+
+    const adTypes: any[] = channel
+        ? (channel.adTypes || []).map((a: any, i: number) => ({ ...a, accentColor: AD_TYPE_ACCENTS[i % AD_TYPE_ACCENTS.length] }))
+        : DUMMY_AD_TYPES;
+    const pastCollabs: any[] = channel?.pastCollaborations || [];
+
+    const openQuote = (adTypeId?: string) => {
+        if (!channel) return;
+        router.push({ pathname: '/channel-request-quote', params: { channelId: channel.id, adTypeId: adTypeId || '' } } as any);
+    };
+
     const [isNotified, setIsNotified] = useState(false);
     const [selectedAdType, setSelectedAdType] = useState<string>(DUMMY_AD_TYPES[0].id);
+
+    if (channelLoading) {
+        return (
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#060606', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator color="#6C47FF" size="large" />
+            </SafeAreaView>
+        );
+    }
 
     // Initial letters fallback avatar
     const initials = channelName
         .split(' ')
-        .map((w) => w[0])
+        .map((w: string) => w[0])
         .join('')
         .slice(0, 2)
         .toUpperCase() || 'YT';
@@ -257,7 +305,7 @@ export default function YoutubeChannelDetailScreen() {
                                 {formattedSubs}
                             </Text>
                             <Text style={{ color: '#A1A2A4', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                Subscribers
+                                {isTv ? 'Reach' : 'Subscribers'}
                             </Text>
                         </View>
 
@@ -268,7 +316,7 @@ export default function YoutubeChannelDetailScreen() {
                                 {videoCount}
                             </Text>
                             <Text style={{ color: '#A1A2A4', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                Videos
+                                {channel ? 'Ad Types' : 'Videos'}
                             </Text>
                         </View>
 
@@ -279,13 +327,13 @@ export default function YoutubeChannelDetailScreen() {
                                 {viewCount}
                             </Text>
                             <Text style={{ color: '#A1A2A4', fontSize: 11, fontFamily: fonts.regular, marginTop: 2 }}>
-                                Views
+                                {channel ? 'Starts at' : 'Views'}
                             </Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Subscribe & Notify Action Buttons */}
+                {/* Collab & Notify Action Buttons */}
                 <View
                     style={{
                         flexDirection: 'row',
@@ -295,16 +343,13 @@ export default function YoutubeChannelDetailScreen() {
                     }}
                 >
                     <TouchableOpacity
-                        onPress={() => setIsSubscribed(!isSubscribed)}
-                        style={{ flex: 2, height: 48, borderRadius: 24, overflow: 'hidden' }}
+                        onPress={() => openQuote()}
+                        disabled={!channel}
+                        style={{ flex: 2, height: 48, borderRadius: 24, overflow: 'hidden', opacity: channel ? 1 : 0.5 }}
                         activeOpacity={0.85}
                     >
                         <LinearGradient
-                            colors={
-                                isSubscribed
-                                    ? ['#262631', '#1C1C24']
-                                    : ['#1A8CFF', '#6633E5']
-                            }
+                            colors={['#1A8CFF', '#6633E5']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
                             style={{
@@ -316,14 +361,10 @@ export default function YoutubeChannelDetailScreen() {
                                 borderRadius: 24,
                             }}
                         >
+                            <Ionicons name="megaphone-outline" size={16} color="#FFFFFF" />
                             <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: fonts.semibold }}>
-                                {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                                Collab · Get Quote
                             </Text>
-                            <Ionicons
-                                name={isSubscribed ? 'checkmark-circle' : 'sparkles'}
-                                size={16}
-                                color="#FFFFFF"
-                            />
                         </LinearGradient>
                     </TouchableOpacity>
 
@@ -437,7 +478,12 @@ export default function YoutubeChannelDetailScreen() {
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        data={DUMMY_AD_TYPES}
+                        data={adTypes}
+                        ListEmptyComponent={
+                            <Text style={{ color: '#A1A2A4', fontSize: 12, fontFamily: fonts.regular }}>
+                                This channel has not listed its ad rates on Digitag yet.
+                            </Text>
+                        }
                         keyExtractor={(item) => item.id}
                         contentContainerStyle={{ paddingTop: 12, gap: 10 }}
                         renderItem={({ item }) => {
@@ -448,7 +494,8 @@ export default function YoutubeChannelDetailScreen() {
                                     activeOpacity={0.8}
                                     onPress={() => {
                                         setSelectedAdType(item.id);
-                                        router.push({ pathname: '/brands/PreviewAdSheet', params: { adItemId: item.id } } as any);
+                                        if (channel) openQuote(item.id);
+                                        else router.push({ pathname: '/brands/PreviewAdSheet', params: { adItemId: item.id } } as any);
                                     }}
                                     style={[
                                         {
@@ -509,12 +556,87 @@ export default function YoutubeChannelDetailScreen() {
                                     >
                                         {item.name}
                                     </Text>
+                                    {!!formatPrice(item.startingPrice) && (
+                                        <Text
+                                            style={{ fontSize: 10, fontFamily: fonts.regular, color: '#333', textAlign: 'center', marginTop: -6, marginBottom: 8 }}
+                                            numberOfLines={1}
+                                        >
+                                            from {formatPrice(item.startingPrice)}
+                                        </Text>
+                                    )}
                                 </TouchableOpacity>
                             );
                         }}
                     />
                 </View>
 
+                {/* Past Brand Collaborations — managed by the channel in its portal */}
+                {channel && (
+                    <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.semibold }}>
+                            Past Brand Collaborations
+                        </Text>
+                        {pastCollabs.length === 0 ? (
+                            <Text style={{ color: '#A1A2A4', fontSize: 12, fontFamily: fonts.regular, marginTop: 10 }}>
+                                No collaborations showcased yet.
+                            </Text>
+                        ) : (
+                            <View style={{ marginTop: 12, gap: 10 }}>
+                                {pastCollabs.map((c) => (
+                                    <View
+                                        key={c.id}
+                                        style={{
+                                            flexDirection: 'row',
+                                            gap: 12,
+                                            backgroundColor: '#0F0F0F',
+                                            borderRadius: 14,
+                                            padding: 12,
+                                            borderWidth: 1,
+                                            borderColor: 'rgba(255,255,255,0.05)',
+                                        }}
+                                    >
+                                        <View
+                                            style={{
+                                                width: 48,
+                                                height: 48,
+                                                borderRadius: 12,
+                                                backgroundColor: '#1C1C24',
+                                                overflow: 'hidden',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            {c.brandLogoUrl ? (
+                                                <Image source={{ uri: c.brandLogoUrl }} style={{ width: '100%', height: '100%' }} />
+                                            ) : (
+                                                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bold }}>
+                                                    {(c.brandName || '?').slice(0, 1).toUpperCase()}
+                                                </Text>
+                                            )}
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: fonts.semibold }} numberOfLines={1}>
+                                                {c.brandName}
+                                            </Text>
+                                            <Text style={{ color: '#D1D2D4', fontSize: 12, fontFamily: fonts.regular, marginTop: 2 }} numberOfLines={2}>
+                                                {c.title}
+                                            </Text>
+                                            <Text style={{ color: '#A1A2A4', fontSize: 11, fontFamily: fonts.regular, marginTop: 4 }} numberOfLines={1}>
+                                                {[c.adTypeName, c.campaignDate ? new Date(c.campaignDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : null]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* Mock sections below have no backend data yet — shown only for the demo placeholder channel. */}
+                {!channel && (
+                <>
                 {/* Recent Videos Section */}
                 <View style={{ paddingHorizontal: 16, marginTop: 28 }}>
                     <View
@@ -1288,6 +1410,8 @@ export default function YoutubeChannelDetailScreen() {
                         ))}
                     </View>
                 </View>
+                </>
+                )}
             </ScrollView>
         </SafeAreaView>
     );

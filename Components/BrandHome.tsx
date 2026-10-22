@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
+    Alert,
     FlatList,
     Image,
     ImageBackground,
@@ -26,6 +27,7 @@ import {
     getFollowSuggestions,
     getMyBrandProfile,
     getYoutubeChannels,
+    listChannels,
 } from '../services/userService';
 import { palette } from '../theme/colors';
 
@@ -757,6 +759,8 @@ export default function BrandHome() {
 
     const [channels, setChannels] = useState<any[]>(DUMMY_YOUTUBE_CHANNELS);
     const [channelFilter, setChannelFilter] = useState('All');
+    // TV channels (admin-managed MediaChannel rows of type TV) — real data only.
+    const [tvChannels, setTvChannels] = useState<any[]>([]);
     const [topCreators, setTopCreators] = useState<any[]>(DUMMY_TOP_CREATORS);
     const [celebrities, setCelebrities] = useState<any[]>(DUMMY_CELEBRITIES);
     const [starCreators, setStarCreators] = useState<any[]>(DUMMY_STAR_CREATORS);
@@ -765,6 +769,7 @@ export default function BrandHome() {
     // "Who are you looking for?" composer
     const [requirementTab, setRequirementTab] = useState<'CREATORS' | 'AGENCIES'>('CREATORS');
     const [requirementText, setRequirementText] = useState('');
+    const [freelancersCanSee, setFreelancersCanSee] = useState(false);
     const [posting, setPosting] = useState(false);
 
     // Top Creators carousel page tracking — dots reflect actual horizontal
@@ -797,12 +802,14 @@ export default function BrandHome() {
 
     const load = useCallback(async () => {
         if (!token) { setLoading(false); return; }
-        const [profileRes, channelsRes, creatorsRes, celebsRes] = await Promise.all([
+        const [profileRes, channelsRes, creatorsRes, celebsRes, tvRes] = await Promise.all([
             getMyBrandProfile(token),
             getYoutubeChannels(token),
             getFollowSuggestions(token, { limit: 12, role: 'CREATOR' }),
             getCelebrities(token),
+            listChannels(token, { type: 'TV', limit: 10 }),
         ]);
+        if (tvRes.success) setTvChannels(tvRes.data || []);
         if (profileRes.success && profileRes.data) {
             setBrandName(profileRes.data.name || '');
             setBrandAvatar(profileRes.data.profilePicture || null);
@@ -834,10 +841,17 @@ export default function BrandHome() {
     const handlePostRequirement = async () => {
         if (!requirementText.trim() || !token || posting) return;
         setPosting(true);
-        const res = await createBrandRequirement({ targetType: requirementTab, message: requirementText.trim() }, token);
+        const res = await createBrandRequirement({
+            targetType: requirementTab,
+            freelancersCanSee: requirementTab === 'CREATORS' && freelancersCanSee,
+            message: requirementText.trim(),
+        }, token);
         setPosting(false);
         if (res.success) {
             setRequirementText('');
+            Alert.alert('Requirement posted', 'It is now live under Brand Posts. Interested people show up in your Campaign tab.');
+        } else {
+            Alert.alert('Could not post', res.error || 'Please try again.');
         }
     };
 
@@ -1036,6 +1050,60 @@ export default function BrandHome() {
                     />
                 </View>
 
+                {/* ── Top TV Channels ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Top TV channels" />
+                    <FlatList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={tvChannels}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{ paddingTop: 12, gap: 9 }}
+                        ListEmptyComponent={
+                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                                No TV channels yet
+                            </Text>
+                        }
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={() =>
+                                    router.push({
+                                        pathname: '/youtube-channel-detail',
+                                        params: { channelId: item.id, name: item.name, category: item.category, logoUrl: item.logoUrl },
+                                    } as any)
+                                }
+                                className="items-center rounded-3xl p-4 border"
+                                style={{ width: 130, height: 158, backgroundColor: '#1a1a1a', borderColor: 'rgba(153,153,153,0.3)' }}
+                            >
+                                <View
+                                    className="overflow-hidden mb-2"
+                                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }}
+                                >
+                                    <Image
+                                        source={item.logoUrl ? { uri: item.logoUrl } : imgDefaultAvatar}
+                                        style={{ width: '100%', height: '100%', borderRadius: 24 }}
+                                    />
+                                </View>
+                                <Text className="text-white text-[16px] font-poppins-semibold mt-1 text-center" numberOfLines={1}>
+                                    {item.name}
+                                </Text>
+                                <Text className="text-[12px] font-poppins-regular mt-0.5" style={{ color: palette.textMuted }} numberOfLines={1}>
+                                    {item.startingPrice ? `From ₹${Number(item.startingPrice).toLocaleString('en-IN')}` : `${formatCount(item.subscriberCount)} Reach`}
+                                </Text>
+                                {!!item.category && (
+                                    <View className="flex-row items-center mt-1" style={{ gap: 4 }}>
+                                        <View className="rounded-full" style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: palette.success }} />
+                                        <Text className="text-[12px] font-poppins-regular" style={{ fontSize: 10, color: palette.textMuted }} numberOfLines={1}>
+                                            {item.category}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        )}
+                    />
+                </View>
+
                 </ImageBackground>
 
                 {/* ── Top Creators ── */}
@@ -1189,6 +1257,32 @@ export default function BrandHome() {
                             }
                         </TouchableOpacity>
                     </View>
+
+                    {requirementTab === 'CREATORS' && (
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            onPress={() => setFreelancersCanSee(!freelancersCanSee)}
+                            className="flex-row items-center mt-2.5"
+                            style={{ gap: 8 }}
+                        >
+                            <View
+                                className="items-center justify-center"
+                                style={{
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: 4,
+                                    borderWidth: 1,
+                                    borderColor: freelancersCanSee ? '#1A8CFF' : 'rgba(255,255,255,0.4)',
+                                    backgroundColor: freelancersCanSee ? '#1A8CFF' : 'transparent',
+                                }}
+                            >
+                                {freelancersCanSee && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                            </View>
+                            <Text className="text-xs font-poppins-regular" style={{ color: 'rgba(208,226,255,0.8)' }}>
+                                Freelancers can also see this
+                            </Text>
+                        </TouchableOpacity>
+                    )}
 
                     <RaisedTabBar activeTab={requirementTab} onSelect={setRequirementTab} />
 

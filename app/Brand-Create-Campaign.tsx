@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Modal,
     SafeAreaView,
@@ -14,6 +15,8 @@ import {
     TouchableWithoutFeedback,
     View,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { createBrandRequirement } from '../services/userService';
 
 const OBJECTIVES = ['Awareness', 'Engagement', 'Conversions', 'App Installs'] as const;
 
@@ -59,8 +62,18 @@ const CREATOR_COUNTS = [
     '50+ creators',
 ];
 
+/** "5 - 10 creators" → { min: 5, max: 10 }; "50+ creators" → { min: 50 }. */
+function parseCreatorCount(label: string): { min?: number; max?: number } {
+    const nums = (label.match(/\d+/g) || []).map(Number);
+    if (nums.length >= 2) return { min: nums[0], max: nums[1] };
+    if (nums.length === 1) return { min: nums[0] };
+    return {};
+}
+
 export default function BrandCreateCampaign() {
     const router = useRouter();
+    const { token } = useAuth();
+    const [launching, setLaunching] = useState(false);
 
     // Form state
     const [brief, setBrief] = useState('');
@@ -71,6 +84,8 @@ export default function BrandCreateCampaign() {
     const [numCreators, setNumCreators] = useState('5 - 10 creators');
     const [autoInvite, setAutoInvite] = useState(true);
     const [deliverables, setDeliverables] = useState<string[]>(['Story', 'Collab Reel', 'Non-Collab Reel']);
+    // Shows the requirement under "Brand Posts" for freelancers as well as creators.
+    const [freelancersCanSee, setFreelancersCanSee] = useState(false);
 
     // Modal pickers state
     const [activeModal, setActiveModal] = useState<'niche' | 'budget' | 'category' | 'creators' | null>(null);
@@ -83,15 +98,42 @@ export default function BrandCreateCampaign() {
         }
     };
 
-    const handleLaunchCampaign = () => {
+    const handleLaunchCampaign = async () => {
         if (!category) {
             Alert.alert('Category Required', 'Please select a category for your campaign.');
             return;
         }
+        if (!token || launching) return;
+        const count = parseCreatorCount(numCreators);
+        const details = [
+            brief.trim(),
+            targetNiche ? `Target niche: ${targetNiche}` : '',
+            `Objective: ${objective}`,
+        ].filter(Boolean).join('\n\n');
+        setLaunching(true);
+        const res = await createBrandRequirement({
+            targetType: 'CREATORS',
+            freelancersCanSee,
+            title: `${objective} campaign${targetNiche ? ` · ${targetNiche}` : ''}`,
+            category,
+            budget,
+            creatorCountMin: count.min,
+            creatorCountMax: count.max,
+            deliverables: deliverables.join(' + ') || undefined,
+            visibility: freelancersCanSee ? 'CREATORS_AND_FREELANCERS' : 'CREATORS',
+            message: details,
+        }, token);
+        setLaunching(false);
+        if (!res.success) {
+            Alert.alert('Could not launch campaign', res.error || 'Please try again.');
+            return;
+        }
         Alert.alert(
-            'Campaign Created!',
-            'Your campaign has been successfully submitted and launched.',
-            [{ text: 'OK', onPress: () => router.back() }]
+            'Campaign Launched!',
+            freelancersCanSee
+                ? 'Creators and freelancers can now see it under Brand Posts. Responses will appear in your Campaign tab.'
+                : 'Creators can now see it under Brand Posts. Responses will appear in your Campaign tab.',
+            [{ text: 'OK', onPress: () => router.replace('/brands/campaign' as any) }]
         );
     };
 
@@ -263,6 +305,22 @@ export default function BrandCreateCampaign() {
                     </TouchableOpacity>
                 </View>
 
+                {/* 7b. Freelancer visibility */}
+                <View className="gap-2">
+                    <Text className="text-white text-base tracking-tight mb-1">Who can see this post</Text>
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => setFreelancersCanSee(!freelancersCanSee)}
+                        className="flex-row items-center gap-2.5 mt-1"
+                    >
+                        <View className={freelancersCanSee ? 'w-5 h-5 rounded bg-[#1A8CFF] border border-[#1A8CFF] items-center justify-center' : 'w-5 h-5 rounded border border-white/40 items-center justify-center bg-transparent'}>
+                            {freelancersCanSee && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                        </View>
+                        <Text className="text-white text-base">Freelancers can also see this</Text>
+                    </TouchableOpacity>
+                    <Text className="text-[#6E7180] text-xs">Creators always see it.</Text>
+                </View>
+
                 {/* 8. Deliverables */}
                 <View className="gap-2">
                     <Text className="text-white text-base tracking-tight mb-1">Deliverables</Text>
@@ -296,6 +354,7 @@ export default function BrandCreateCampaign() {
                     <TouchableOpacity
                         activeOpacity={0.85}
                         onPress={handleLaunchCampaign}
+                        disabled={launching}
                         className="rounded-full overflow-hidden shadow-lg shadow-blue-500/40"
                     >
                         <LinearGradient
@@ -304,7 +363,9 @@ export default function BrandCreateCampaign() {
                             end={{ x: 0.9, y: 0.5 }}
                             className="h-14 items-center justify-center rounded-full"
                         >
-                            <Text className="text-white text-lg font-medium">Launch Campaign</Text>
+                            {launching
+                                ? <ActivityIndicator color="#FFFFFF" />
+                                : <Text className="text-white text-lg font-medium">Launch Campaign</Text>}
                         </LinearGradient>
                     </TouchableOpacity>
 

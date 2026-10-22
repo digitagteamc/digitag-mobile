@@ -6,7 +6,8 @@
  *  - Header with title "Campaign" & megaphone icon
  *  - Tab switcher: "Hire Agencies" | "Hire Creators"
  *  - List of campaigns with brand profile header, status tag ("Actively Reviewing"),
- *    view count, category badge, 2x2 requirement detail grid, excerpt text, and "Send Request" gradient CTA button.
+ *    view count, category badge, 2x2 requirement detail grid, excerpt text, and a "View Responses" gradient CTA
+ *    that opens the creators/freelancers who tapped Interested (accepting one opens chat).
  */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,7 +27,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BrandBottomNav from '../../Components/ui/BrandBottomNav';
 import { useAuth } from '../../context/AuthContext';
-import { getMyBrandRequirements, getOpenRequirements, sendCollaboration } from '../../services/userService';
+import { getMyBrandRequirements } from '../../services/userService';
 import { fonts, palette } from '../../theme/colors';
 
 const BLUE = '#1A8CFF';
@@ -62,14 +63,16 @@ function formatCampaign(raw: any): Campaign {
     return {
         id: raw.id ?? String(Math.random()),
         receiverId: raw.receiverId ?? raw.brandUser?.id ?? raw.brandId ?? raw.userId ?? raw.id,
-        brandName: raw.brandName ?? raw.brand?.name ?? raw.user?.name ?? 'Rohit',
-        brandAvatar: raw.brandAvatar ?? raw.brand?.avatar ?? raw.user?.avatar ?? undefined,
-        jobTitle: raw.jobTitle ?? raw.brand?.jobTitle ?? 'Junior Influencer Executive Manager',
+        brandName: raw.brandUser?.brandProfile?.name ?? raw.brandName ?? raw.brand?.name ?? raw.user?.name ?? 'Rohit',
+        brandAvatar: raw.brandUser?.brandProfile?.profilePicture ?? raw.brandAvatar ?? raw.brand?.avatar ?? raw.user?.avatar ?? undefined,
+        jobTitle: raw.title ?? raw.jobTitle ?? raw.brand?.jobTitle ?? 'Junior Influencer Executive Manager',
         status: raw.status ?? 'ACTIVE',
         viewCount: raw.viewCount ?? 56,
         category: raw.category ?? 'Beauty, lifestyle & living',
         targetType: raw.targetType ?? 'CREATORS',
-        brandCollabWith: raw.visibility === 'PUBLIC' ? 'Visible to all' : 'Visible Only to creators',
+        brandCollabWith: raw.freelancersCanSee || raw.visibility === 'PUBLIC'
+            ? 'Visible to creators & freelancers'
+            : 'Visible Only to creators',
         noOfCreators:
             raw.creatorCountMin && raw.creatorCountMax
                 ? `${raw.creatorCountMin} - ${raw.creatorCountMax} ${raw.genderPreference ?? 'Female'} Creators`
@@ -175,7 +178,7 @@ const gcStyles = StyleSheet.create({
 });
 
 /* ── Campaign Card ── */
-function CampaignCard({ item, onSendRequest }: { item: Campaign; onSendRequest: (id: string) => void }) {
+function CampaignCard({ item, onViewResponses }: { item: Campaign; onViewResponses: (id: string) => void }) {
     const isActive = (item.status ?? 'ACTIVE') !== 'CLOSED';
 
     return (
@@ -246,7 +249,7 @@ function CampaignCard({ item, onSendRequest }: { item: Campaign; onSendRequest: 
             {/* ── CTA ── */}
             <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() => onSendRequest(item.id)}
+                onPress={() => onViewResponses(item.id)}
                 style={cardStyles.ctaWrap}
             >
                 <LinearGradient
@@ -255,7 +258,9 @@ function CampaignCard({ item, onSendRequest }: { item: Campaign; onSendRequest: 
                     end={{ x: 0.85, y: 0 }}
                     style={cardStyles.ctaGrad}
                 >
-                    <Text style={cardStyles.ctaText}>Send Request</Text>
+                    <Text style={cardStyles.ctaText}>
+                        View Responses{item.pitchCount ? ` (${item.pitchCount})` : ''}
+                    </Text>
                 </LinearGradient>
             </TouchableOpacity>
         </View>
@@ -491,7 +496,6 @@ export default function CampaignScreen() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [sending, setSending] = useState<string | null>(null);
 
     const load = useCallback(async (silent = false) => {
         if (!token) {
@@ -508,32 +512,14 @@ export default function CampaignScreen() {
 
         const targetType = activeTab === 'agencies' ? 'AGENCIES' : 'CREATORS';
 
-        const [openRes, mineRes] = await Promise.all([
-            getOpenRequirements(token, { targetType }),
-            getMyBrandRequirements(token),
-        ]);
-
-        const openItems: Campaign[] = (openRes.success ? openRes.data : []).map(formatCampaign);
+        // The brand's own posted requirements — empty shows EmptyState rather
+        // than sample cards, since every card here now opens real responses.
+        const mineRes = await getMyBrandRequirements(token);
         const mineItems: Campaign[] = (mineRes.success ? mineRes.data : [])
             .filter((r: any) => r.targetType === targetType)
             .map(formatCampaign);
 
-        const seen = new Set<string>();
-        const merged: Campaign[] = [];
-        for (const c of [...mineItems, ...openItems]) {
-            if (!seen.has(c.id)) { seen.add(c.id); merged.push(c); }
-        }
-
-        if (merged.length === 0) {
-            // Default sample items matching Figma mock
-            merged.push(
-                formatCampaign({ id: 'sample-1', targetType }),
-                formatCampaign({ id: 'sample-2', targetType }),
-                formatCampaign({ id: 'sample-3', targetType })
-            );
-        }
-
-        setCampaigns(merged);
+        setCampaigns(mineItems);
         setLoading(false);
         setRefreshing(false);
     }, [token, activeTab]);
@@ -545,21 +531,13 @@ export default function CampaignScreen() {
         load(true);
     }, [load]);
 
-    const handleSendRequest = useCallback(async (id: string) => {
-        if (!token || sending) return;
-        setSending(id);
-        const item = campaigns.find((c) => c.id === id);
-        const receiverId = item?.receiverId || id;
-        await sendCollaboration(token, {
-            receiverId,
-            requirementId: id,
-        });
-        setSending(null);
-    }, [token, sending, campaigns]);
+    const handleViewResponses = useCallback((id: string) => {
+        router.push({ pathname: '/requirement-responses', params: { requirementId: id } } as any);
+    }, [router]);
 
     const renderItem = useCallback(({ item }: ListRenderItemInfo<Campaign>) => (
-        <CampaignCard item={item} onSendRequest={handleSendRequest} />
-    ), [handleSendRequest]);
+        <CampaignCard item={item} onViewResponses={handleViewResponses} />
+    ), [handleViewResponses]);
 
     const handleTabPress = useCallback((key: string) => {
         if (key === 'campaign') return;
@@ -588,6 +566,17 @@ export default function CampaignScreen() {
 
             {/* Tab switcher */}
             <TabBar active={activeTab} onPress={(k) => { setActiveTab(k); }} />
+
+            {/* Quotation requests sent to TV / YouTube channels */}
+            <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => router.push('/my-ad-requests' as any)}
+                style={styles.adRequestsLink}
+            >
+                <Ionicons name="tv-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.adRequestsText}>Channel ad requests & quotations</Text>
+                <Ionicons name="chevron-forward" size={16} color="#A1A2A4" />
+            </TouchableOpacity>
 
             {/* Content */}
             {loading ? (
@@ -630,5 +619,24 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    adRequestsLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginHorizontal: 16,
+        marginBottom: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderRadius: 14,
+        backgroundColor: CARD_BG,
+        borderWidth: 1,
+        borderColor: 'rgba(26,140,255,0.35)',
+    },
+    adRequestsText: {
+        flex: 1,
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontFamily: fonts.medium,
     },
 });

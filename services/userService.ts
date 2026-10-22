@@ -672,7 +672,11 @@ export const getCelebrities = async (token: string) => {
 /** POST /brand-requirements — a Brand's "Who are you looking for?" post */
 export const createBrandRequirement = async (data: {
     targetType?: 'CREATORS' | 'AGENCIES';
+    /** Also show a CREATORS requirement to freelancers. */
+    freelancersCanSee?: boolean;
+    title?: string;
     category?: string;
+    budget?: string;
     creatorCountMin?: number;
     creatorCountMax?: number;
     genderPreference?: string;
@@ -721,6 +725,99 @@ export const getBrandRequirementById = async (token: string, id: string) => {
         return { success: true, data: body?.data };
     } catch (error: any) {
         return { success: false, error: error.message };
+    }
+};
+
+/* ─────────────────── CHANNELS & AD REQUESTS ─────────────────── */
+
+export type ChannelType = 'TV' | 'YOUTUBE' | 'RADIO' | 'OTT' | 'PRINT' | 'DIGITAL' | 'OTHER';
+
+/** GET /channels — TV / YouTube / … channels with their ad types and starting price */
+export const listChannels = async (token: string, filters: { type?: ChannelType; category?: string; search?: string; limit?: number } = {}) => {
+    try {
+        const qs = new URLSearchParams(
+            Object.entries(filters).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => [k, String(v)]),
+        );
+        const body = await request(`/channels${qs.toString() ? `?${qs}` : ''}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /channels/:id — profile, ad types, starting price and past brand collaborations */
+export const getChannelById = async (token: string, id: string) => {
+    try {
+        const body = await request(`/channels/${id}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /channels/:id/catalog — the channel's rate card */
+export const getChannelCatalog = async (token: string, id: string) => {
+    try {
+        const body = await request(`/channels/${id}/catalog`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /ad-requests — a brand's quotation request to a channel */
+export const createAdRequest = async (token: string, data: {
+    channelId: string;
+    campaignName?: string;
+    brief?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    budget?: number | null;
+    items: { catalogItemId: string; quantity: number; notes?: string }[];
+}) => {
+    try {
+        const body = await request('/ad-requests', {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify(data),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error) };
+    }
+};
+
+/** GET /ad-requests — the brand's own requests */
+export const listMyAdRequests = async (token: string, status?: string) => {
+    try {
+        const body = await request(`/ad-requests${status ? `?status=${status}` : ''}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data ?? [] };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** GET /ad-requests/:id — items and the channel's status history */
+export const getAdRequestById = async (token: string, id: string) => {
+    try {
+        const body = await request(`/ad-requests/${id}`, { method: 'GET', headers: authHeaders(token) });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+};
+
+/** POST /ad-requests/:id/cancel */
+export const cancelAdRequest = async (token: string, id: string, note?: string) => {
+    try {
+        const body = await request(`/ad-requests/${id}/cancel`, {
+            method: 'POST',
+            headers: authHeaders(token),
+            body: JSON.stringify(note ? { note } : {}),
+        });
+        return { success: true, data: body?.data };
+    } catch (error: any) {
+        return { success: false, error: describeApiError(error) };
     }
 };
 
