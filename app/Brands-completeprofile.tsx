@@ -18,6 +18,7 @@ import {
     View,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { createBrandProfile, getMyBrandProfile, updateBrandProfile } from '../services/userService';
 
 const LANGUAGES = [
     'English',
@@ -48,7 +49,7 @@ const CATEGORIES = [
 
 export default function BrandsCompleteProfile() {
     const router = useRouter();
-    const { setProfileCompleted, setProfiles } = useAuth();
+    const { token, setProfileCompleted, setProfiles } = useAuth();
 
     // Form fields
     const [firstName, setFirstName] = useState('');
@@ -87,7 +88,7 @@ export default function BrandsCompleteProfile() {
         Alert.alert('GST Verified', 'Your GST number has been verified successfully!');
     };
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         if (!firstName.trim()) {
             Alert.alert('First Name Required', 'Please enter your first name.');
             return;
@@ -121,18 +122,41 @@ export default function BrandsCompleteProfile() {
             return;
         }
 
+        if (!token) {
+            Alert.alert('Sign in required', 'Please sign in again to continue.');
+            return;
+        }
+
+        // Email isn't sent: the backend only accepts an OTP-verified brand
+        // email, and this screen has no verify step yet.
+        const payload = {
+            name: businessName.trim(),
+            contactPerson: firstName.trim(),
+            industry: category,
+            gstin: gstNumber.trim().toUpperCase(),
+            instagramHandle: instagramLink.trim() || undefined,
+            youtubeHandle: youtubeLink.trim() || undefined,
+        };
+
         setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            setProfileCompleted(true);
-            setProfiles({ BRAND: true });
-            Alert.alert('Profile Completed', 'Your brand profile has been completed successfully!', [
-                {
-                    text: 'OK',
-                    onPress: () => router.replace('/(tabs)'),
-                },
-            ]);
-        }, 800);
+        const existing = await getMyBrandProfile(token);
+        const res = existing.success && existing.data
+            ? await updateBrandProfile(payload, token)
+            : await createBrandProfile(payload, token);
+        setLoading(false);
+
+        if (!res.success) {
+            Alert.alert('Could Not Submit', res.error || 'Please try again.');
+            return;
+        }
+        setProfileCompleted(true);
+        setProfiles({ BRAND: true });
+        const approved = res.data?.approvalStatus === 'APPROVED';
+        Alert.alert(
+            approved ? 'Profile Updated' : 'Submitted for Approval',
+            approved ? 'Your brand profile has been updated.' : 'Your brand profile has been sent to the DigiTag team for approval.',
+            [{ text: 'OK', onPress: () => router.replace('/(tabs)') }],
+        );
     };
 
     const languageChoice = secondaryLanguage || primaryLanguage;
