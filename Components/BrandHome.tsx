@@ -1,28 +1,28 @@
 import { Ionicons } from '@expo/vector-icons';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    Alert,
     FlatList,
     Image,
     ImageBackground,
     ActivityIndicator,
+    Linking,
+    Platform,
     ScrollView,
     Text,
-    TextInput,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../assets/creator-cat';
 import { useAuth } from '../context/AuthContext';
 import {
-    createBrandRequirement,
     getCelebrities,
     getFollowSuggestions,
     getMyBrandProfile,
@@ -52,7 +52,6 @@ const imgVoiceOver = require('../assets/tabs-icons-freelancer/VoiceOver.png');
 const imgModal = require('../assets/tabs-icons-freelancer/Modals.png');
 const imgSocialMediaManager = require('../assets/tabs-icons-freelancer/SocialMediaManager.png');
 const imgLocation = require('../assets/location.png');
-const imgHireAgencies = require('../assets/Brands/hire-agencies.png');
 
 // Per-city landmark photos for "Creators by location" — keyed by the exact
 // city name used in CITIES below. Filename spellings ("Banglore", no "a")
@@ -331,147 +330,6 @@ function SectionHeader({ title, onViewAll }: { title: string; subtitle?: string;
     );
 }
 
-// "Hire Creators"/"Hire Agencies" tab bar — drawn as ONE continuous SVG
-// stroke (bottom baseline → up the active tab's side → across its rounded
-// top → down its other side → back to baseline) instead of two elements
-// each owning a separate border. That's what makes it a single unbroken
-// border rather than a per-tab border that has to be hidden/aligned against
-// a neighboring line — there's structurally only one border to draw.
-function RaisedTabBar({
-    activeTab,
-    onSelect,
-}: {
-    activeTab: 'CREATORS' | 'AGENCIES';
-    onSelect: (tab: 'CREATORS' | 'AGENCIES') => void;
-}) {
-    const BAR_HEIGHT = 46;
-    const CORNER_RADIUS = 12;
-    const STROKE = 1.5;
-    const LEFT_OFFSET = 24;
-     
-    const PAD = STROKE;
-    const [barWidth, setBarWidth] = useState(0);
-    const [creatorsWidth, setCreatorsWidth] = useState(0);
-    const [agenciesWidth, setAgenciesWidth] = useState(0);
-
-    const activeWidth = activeTab === 'CREATORS' ? creatorsWidth : agenciesWidth;
-    
-    const trueActiveX = (activeTab === 'CREATORS' ? 0 : creatorsWidth) + LEFT_OFFSET;
-    const trueActiveRight = trueActiveX + activeWidth;
-    const hasLeftBaseline = trueActiveX > 0.5;
-    const hasRightBaseline = barWidth > 0 && trueActiveRight < barWidth - 0.5;
-
-    const activeX = trueActiveX + PAD;
-    const r = Math.min(CORNER_RADIUS, activeWidth / 2 || 0, BAR_HEIGHT / 2);
-    const topY = PAD;
-    const bottomY = BAR_HEIGHT + PAD;
-
-    let borderPath: string | null = null;
-    if (barWidth > 0 && activeWidth > 0) {
-        borderPath = hasLeftBaseline
-            ? `M${PAD},${bottomY} L${activeX - r},${bottomY} Q${activeX},${bottomY} ${activeX},${bottomY - r} `
-            : `M${activeX},${bottomY} `;
-        borderPath += `L${activeX},${topY + r} Q${activeX},${topY} ${activeX + r},${topY} `
-            + `L${activeX + activeWidth - r},${topY} Q${activeX + activeWidth},${topY} ${activeX + activeWidth},${topY + r} `;
-        borderPath += hasRightBaseline
-            ? `L${activeX + activeWidth},${bottomY - r} Q${activeX + activeWidth},${bottomY} ${activeX + activeWidth + r},${bottomY} L${barWidth + PAD},${bottomY}`
-            : `L${activeX + activeWidth},${bottomY}`;
-    }
-
-    return (
-        <View style={{ marginTop: 40, height: BAR_HEIGHT }} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}>
-            {borderPath ? (
-                <Svg
-                    width={barWidth + PAD * 2}
-                    height={BAR_HEIGHT + PAD * 2}
-                    style={{ position: 'absolute', top: -PAD, left: -PAD }}
-                    pointerEvents="none"
-                >
-                    <Path d={borderPath} stroke="#1A8CFF" strokeWidth={STROKE} fill="none" />
-                </Svg>
-            ) : null}
-            <View className="flex-row" style={{ height: BAR_HEIGHT, paddingLeft: LEFT_OFFSET }}>
-                <TouchableOpacity
-                    onLayout={(e) => setCreatorsWidth(e.nativeEvent.layout.width)}
-                    onPress={() => onSelect('CREATORS')}
-                    activeOpacity={0.85}
-                    style={{
-                        height: '100%',
-                        justifyContent: 'center',
-                        paddingHorizontal: 20,
-                        backgroundColor: activeTab === 'CREATORS' ? '#0B0B12' : 'transparent',
-                        borderTopLeftRadius: activeTab === 'CREATORS' ? CORNER_RADIUS : 0,
-                        borderTopRightRadius: activeTab === 'CREATORS' ? CORNER_RADIUS : 0,
-                        overflow: 'hidden',
-                    }}
-                >
-                    {activeTab === 'CREATORS' && (
-                        <LinearGradient
-                            colors={['rgba(26, 140, 255, 0.45)', 'rgba(102, 51, 229, 0.25)', 'transparent']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 1 }}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 26,
-                                borderTopLeftRadius: CORNER_RADIUS,
-                                borderTopRightRadius: CORNER_RADIUS,
-                            }}
-                            pointerEvents="none"
-                        />
-                    )}
-                    <Text
-                        className={activeTab === 'CREATORS' ? 'font-poppins-semibold' : 'font-poppins-medium'}
-                        style={{ fontSize: 16, color: activeTab === 'CREATORS' ? '#fff' : palette.textMuted }}
-                    >
-                        Hire Creators
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onLayout={(e) => setAgenciesWidth(e.nativeEvent.layout.width)}
-                    onPress={() => onSelect('AGENCIES')}
-                    activeOpacity={0.85}
-                    style={{
-                        height: '100%',
-                        justifyContent: 'center',
-                        paddingHorizontal: 20,
-                        backgroundColor: activeTab === 'AGENCIES' ? '#0B0B12' : 'transparent',
-                        borderTopLeftRadius: activeTab === 'AGENCIES' ? CORNER_RADIUS : 0,
-                        borderTopRightRadius: activeTab === 'AGENCIES' ? CORNER_RADIUS : 0,
-                        overflow: 'hidden',
-                    }}
-                >
-                    {activeTab === 'AGENCIES' && (
-                        <LinearGradient
-                            colors={['rgba(26, 140, 255, 0.45)', 'rgba(102, 51, 229, 0.25)', 'transparent']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 0, y: 1 }}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 26,
-                                borderTopLeftRadius: CORNER_RADIUS,
-                                borderTopRightRadius: CORNER_RADIUS,
-                            }}
-                            pointerEvents="none"
-                        />
-                    )}
-                    <Text
-                        className={activeTab === 'AGENCIES' ? 'font-poppins-semibold' : 'font-poppins-medium'}
-                        style={{ fontSize: 16, color: activeTab === 'AGENCIES' ? '#fff' : palette.textMuted }}
-                    >
-                        Hire Agencies
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-}
-
 // Pagination dots for the Top Creators carousel
 function PaginationDots({ total, active }: { total: number; active: number }) {
     if (total <= 1) return null;
@@ -508,201 +366,6 @@ const DUMMY_TOP_CREATORS = [
     { id: 'c-6', name: 'Rudrakshika', categoryNames: ['Beauty'], profilePicture: null },
 ];
 
-// One stat tile inside a MatchCard's 2x2 info grid — label on top, optional
-// leading icon, value below.
-// One cell's content only — the divider lines between cells live on the
-// wrapping grid (StatGrid), not on each box individually, so the 4 cells
-// read as one card split by a cross rather than 4 separate boxes with gaps.
-function StatBox({ label, value, icon }: { label: string; value: string; icon?: keyof typeof Ionicons.glyphMap }) {
-    return (
-        <View className="flex-1" style={{ padding: 12 }}>
-            <Text style={{ color: '#8A8A99', fontSize: 10, fontFamily: 'Poppins_400Regular', marginBottom: 6 }}>
-                {label}
-            </Text>
-            <View className="flex-row items-center" style={{ gap: 5 }}>
-                {icon ? <Ionicons name={icon} size={13} color="#C7C7D1" /> : null}
-                <Text
-                    className="font-poppins-medium"
-                    style={{ color: '#fff', fontSize: 12, flexShrink: 1 }}
-                    numberOfLines={2}
-                >
-                    {value}
-                </Text>
-            </View>
-        </View>
-    );
-}
-
-// One dark card holding all 4 stats in a 2x2 grid, split by a single
-// cross-shaped divider (a vertical line down the middle of each row, plus
-// one horizontal line between the rows) instead of 4 separately-boxed
-// tiles with gaps between them.
-function StatGrid({ children }: { children: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode] }) {
-    const DIVIDER = 'rgba(255,255,255,0.08)';
-    return (
-        <View
-            style={{
-                backgroundColor: '#242424',
-                borderRadius: 16,
-                marginTop: 10,
-                overflow: 'hidden',
-            }}
-        >
-            <View className="flex-row" style={{ borderBottomWidth: 1, borderBottomColor: DIVIDER }}>
-                <View className="flex-1" style={{ borderRightWidth: 1, borderRightColor: DIVIDER }}>
-                    {children[0]}
-                </View>
-                <View className="flex-1">{children[1]}</View>
-            </View>
-            <View className="flex-row">
-                <View className="flex-1" style={{ borderRightWidth: 1, borderRightColor: DIVIDER }}>
-                    {children[2]}
-                </View>
-                <View className="flex-1">{children[3]}</View>
-            </View>
-        </View>
-    );
-}
-
-// "Hire Creators"/"Hire Agencies" candidate card — matches the Figma spec
-// exactly: avatar+name+verified badge, view count, status pill, a
-// "Looking for" category chip, a 2x2 stat grid, a truncated message preview,
-// and a gradient Send Request button.
-function MatchCard({ item, onSendRequest }: { item: any; onSendRequest: () => void }) {
-    return (
-        <View
-            style={{
-                backgroundColor: '#161616',
-                borderRadius: 22,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.06)',
-            }}
-        >
-            <View className="flex-row items-start justify-between">
-                <View className="flex-row items-center flex-1" style={{ gap: 10 }}>
-                    <Image
-                        source={item.avatar ? { uri: item.avatar } : imgDefaultAvatar}
-                        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: palette.surfaceAlt }}
-                    />
-                    <View className="flex-1">
-                        <View className="flex-row items-center" style={{ gap: 5 }}>
-                            <Text className="text-white font-poppins-semibold" style={{ fontSize: 15 }} numberOfLines={1}>
-                                {item.name}
-                            </Text>
-                            {item.isVerified ? (
-                                <Ionicons name="shield-checkmark" size={14} color="#38BDF8" />
-                            ) : null}
-                        </View>
-                        <View className="flex-row items-center" style={{ gap: 4, marginTop: 2 }}>
-                            <Ionicons name="briefcase-outline" size={11} color="#8A8A99" />
-                            <Text
-                                className="font-poppins-regular"
-                                style={{ color: '#8A8A99', fontSize: 11, flexShrink: 1 }}
-                                numberOfLines={1}
-                            >
-                                {item.role}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-                <View className="flex-row items-center" style={{ gap: 4 }}>
-                    <Ionicons name="eye-outline" size={12} color="#8A8A99" />
-                    <Text className="font-poppins-regular" style={{ color: '#8A8A99', fontSize: 11 }}>
-                        {item.views} views
-                    </Text>
-                </View>
-            </View>
-
-            <View
-                className="flex-row items-center self-start"
-                style={{
-                    gap: 5,
-                    backgroundColor: 'rgba(34,197,94,0.12)',
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 20,
-                    marginTop: 10,
-                }}
-            >
-                <Ionicons name="checkmark-circle" size={12} color={palette.success} />
-                <Text className="font-poppins-medium" style={{ color: palette.success, fontSize: 11 }}>
-                    {item.status}
-                </Text>
-            </View>
-
-            <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginTop: 14, marginBottom: 12 }} />
-
-            <Text className="font-poppins-regular" style={{ color: '#8A8A99', fontSize: 11, marginBottom: 8 }}>
-                Looking for
-            </Text>
-            <View
-                className="flex-row items-center"
-                style={{ gap: 10, backgroundColor: '#242424', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 14 }}
-            >
-                <Ionicons name="pricetag-outline" size={16} color="#fff" />
-                <Text className="font-poppins-medium" style={{ color: '#fff', fontSize: 13 }}>
-                    {item.lookingForCategory}
-                </Text>
-            </View>
-
-            <StatGrid>
-                <StatBox label="Brand Collab with" value={item.brandCollabValue} icon="lock-closed-outline" />
-                <StatBox label="Category" value={item.categoryValue} />
-                <StatBox label="No.of Creators" value={item.creatorsCountValue} icon="people-outline" />
-                <StatBox label="Deliverables" value={item.deliverablesValue} />
-            </StatGrid>
-
-            <View style={{ backgroundColor: '#242424', borderRadius: 14, padding: 12, marginTop: 12 }}>
-                <Text className="font-poppins-regular" style={{ color: '#C7C7D1', fontSize: 12, lineHeight: 18 }} numberOfLines={3}>
-                    {item.message} <Text style={{ color: '#FF7A45' }}>See more</Text>
-                </Text>
-            </View>
-
-            <LinearGradient
-                colors={['#1A8CFF', '#6C47FF']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ borderRadius: 999, marginTop: 14, overflow: 'hidden' }}
-            >
-                <TouchableOpacity
-                    onPress={onSendRequest}
-                    activeOpacity={0.85}
-                    style={{ paddingVertical: 13, alignItems: 'center', justifyContent: 'center' }}
-                >
-                    <Text className="text-white font-poppins-semibold" style={{ fontSize: 14 }}>
-                        Send Request
-                    </Text>
-                </TouchableOpacity>
-            </LinearGradient>
-        </View>
-    );
-}
-
-// Static placeholder candidates for the Hire Creators / Hire Agencies tabs —
-// same fixed-showcase convention as DUMMY_TOP_CREATORS;
-// the app has no structured requirement-matching fields (category, collab
-// visibility, creator count, deliverables) yet, only free-text message +
-// targetType, so this card's content isn't wired to real data.
-const DUMMY_CREATOR_MATCHES = [
-    {
-        id: 'match-creator-1',
-        name: 'Rohit',
-        role: 'Junior influencer Executive Manager',
-        views: 56,
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
-        isVerified: true,
-        status: 'Actively Reviewing',
-        lookingForCategory: 'Beauty, lifestyle & living',
-        brandCollabValue: 'Visible Only to creators',
-        categoryValue: 'Beauty, lifestyle & living',
-        creatorsCountValue: '15 – 25 Female Creators',
-        deliverablesValue: '1 Non Collab reel + Story',
-        message: "Hi, we have an exciting collaboration opportunity with L'oeal paris for the the launch of the collagen lifter...",
-    },
-];
-
-
 const DUMMY_STAR_CREATORS = [
     {
         id: 'sc-1',
@@ -734,6 +397,278 @@ const DUMMY_STAR_CREATORS = [
     },
 ];
 
+// Same Digitag contact points the Creator/Freelancer home's "Bharat First"
+// footer already links to (app/(tabs)/index.tsx), so both roles reach the
+// same Instagram, WhatsApp and phone line.
+const DIGITAG_INSTAGRAM_URL = 'https://www.instagram.com/digitagapp/';
+const DIGITAG_WHATSAPP_URL = 'https://wa.me/917680805720';
+const DIGITAG_PHONE_URL = 'tel:+917680805720';
+
+const CTA_AVATARS: { letter: string; colors: [string, string] }[] = [
+    { letter: 'A', colors: ['#F43F5E', '#EC4899'] },
+    { letter: 'R', colors: ['#6366F1', '#8B5CF6'] },
+    { letter: 'S', colors: ['#3B82F6', '#22D3EE'] },
+    { letter: 'P', colors: ['#F59E0B', '#F97316'] },
+];
+
+// Outermost → innermost, as in the design: red, purple, blue.
+const CTA_CURVE_COLORS = ['#FF5A3C', '#A855F7', '#3B6BFF'];
+
+// The page's ScrollView adds this much plain padding after the last section.
+// This section pulls itself down over it so its background (and the lines,
+// which end at its bottom edge) continue right under the BrandBottomNav —
+// otherwise that padding shows as a dark seam inside the nav's centre notch.
+const PAGE_BOTTOM_PADDING = 40;
+
+// Where BrandBottomNav's Home and Messages icons sit, measured from the
+// screen centre. BrandBottomNav is drawn by the (tabs) layout, not by this
+// screen, so these mirror its own layout numbers rather than being measured:
+// half its centre notch (36 + 16), its left group's paddingRight (8), each
+// tab's width (8 + 15 icon + 8) and the gap between tabs (20).
+const NAV_MESSAGES_OFFSET = 52 + 8 + 31 / 2;
+const NAV_HOME_OFFSET = NAV_MESSAGES_OFFSET + 31 + 20;
+const NAV_BAR_HEIGHT = 64;
+
+// One quarter of an ellipse whose centre is the arc's top-left corner: it
+// starts out flat at the bottom and bends up into a vertical climb at the
+// right, bulging toward the bottom-right — the sweep in the design.
+//
+// The flat bottom sits `depth` px under the nav bar's top edge (navTopY), so
+// the line's start is hidden behind the nav. It's shifted left by exactly the
+// distance the curve needs to rise those `depth` px, so the line comes out
+// of the nav bar right at `emergeX`.
+function buildNavArcPath(emergeX: number, navTopY: number, rightX: number, topY: number, depth: number) {
+    const KAPPA = 0.5523; // control-point ratio for a cubic Bézier quarter ellipse
+    const bottomY = navTopY + depth;
+    const ry = bottomY - topY;
+    const u = Math.sqrt(1 - (1 - depth / ry) ** 2);
+    const startX = (emergeX - u * rightX) / (1 - u);
+    const rx = rightX - startX;
+    return `M${startX.toFixed(1)},${bottomY.toFixed(1)} `
+        + `C${(startX + KAPPA * rx).toFixed(1)},${bottomY.toFixed(1)} `
+        + `${rightX.toFixed(1)},${(topY + KAPPA * ry).toFixed(1)} `
+        + `${rightX.toFixed(1)},${topY.toFixed(1)}`;
+}
+
+// Bottom-of-page "Bharat First Creator Collabs" call-to-action. The bottom
+// nav seen under it in the design is the existing BrandBottomNav, which the
+// (tabs) layout already draws over this screen — so this section only
+// reserves bottom clearance for it rather than rendering a second copy.
+function BrandCtaFooter() {
+    const router = useRouter();
+    const { width } = useWindowDimensions();
+    const insets = useSafeAreaInsets();
+    const [height, setHeight] = useState(0);
+
+    // Same bottom-padding rule BrandBottomNav uses, so we know where its top
+    // edge lands once the page is scrolled to the end (this section's bottom
+    // edge is then the bottom of the screen).
+    const navBottomPad = Platform.OS === 'ios'
+        ? Math.max(insets.bottom, 12)
+        : (insets.bottom > 0 ? insets.bottom : 8);
+    const navTopY = height - (NAV_BAR_HEIGHT + navBottomPad);
+
+    // One line lands above Home, one above Messages, one between them.
+    const homeX = width / 2 - NAV_HOME_OFFSET;
+    const messagesX = width / 2 - NAV_MESSAGES_OFFSET;
+    const arcTargets = [homeX, (homeX + messagesX) / 2, messagesX];
+
+    const headline = {
+        color: '#FFFFFF',
+        fontFamily: 'Poppins_700Bold',
+        fontSize: width < 360 ? 27 : 31,
+        lineHeight: width < 360 ? 36 : 41,
+        letterSpacing: -0.5,
+    } as const;
+
+    const openUrl = (url: string) => {
+        Linking.openURL(url).catch(() => {});
+    };
+
+    // Decorative tiles are placed as fractions of the screen width so they
+    // keep the same composition on narrow and wide phones.
+    return (
+        <LinearGradient
+            colors={['#0E0D18', '#141126', '#1B1335']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{
+               
+                marginTop: 30,
+                overflow: 'hidden',
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                borderTopWidth: 1,
+                borderColor: 'rgba(255,255,255,0.07)',
+                marginBottom: -PAGE_BOTTOM_PADDING,
+            }}
+            onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
+        >
+            {height > 0 ? (
+                <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
+                    {/* 3 nested sweeping arcs: each rises out of the nav
+                        bar's top edge (above Home, between, above
+                        Messages) and bends up and out through the right
+                        edge. The one starting furthest left is the
+                        outermost and leaves highest. */}
+                    {CTA_CURVE_COLORS.map((color, i) => (
+                        <Path
+                            key={color}
+                            d={buildNavArcPath(arcTargets[i], navTopY, width + 40, height * (0.06 + i * 0.1), 12)}
+                            stroke={color}
+                            strokeOpacity={0.45}
+                            strokeWidth={1.3}
+                            fill="none"
+                        />
+                    ))}
+                </Svg>
+            ) : null}
+
+            {/* Floating accents */}
+            <View pointerEvents="none" style={{ position: 'absolute', top: 37, left: width * 0.35, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(237,42,145,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: '#ED2A91' }} />
+            </View>
+            <View pointerEvents="none" style={{ position: 'absolute', top: 8, left: width * 0.9, width: 14, height: 14, borderRadius: 7, backgroundColor: 'rgba(255,90,44,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF5A2C' }} />
+            </View>
+            <View
+                pointerEvents="none"
+                style={{
+                    position: 'absolute', top: 26, left: width * 0.67, width: 34, height: 34, borderRadius: 10,
+                    backgroundColor: 'rgba(30,30,40,0.9)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.35)',
+                    alignItems: 'center', justifyContent: 'center',
+                }}
+            >
+                <Ionicons name="pricetag-outline" size={16} color="#A78BFA" />
+            </View>
+            <View
+                pointerEvents="none"
+                style={{
+                    position: 'absolute', top: 66, left: width * 0.81, width: 44, height: 44, borderRadius: 12,
+                    backgroundColor: 'rgba(30,22,34,0.95)', borderWidth: 1, borderColor: 'rgba(237,42,145,0.55)',
+                    alignItems: 'center', justifyContent: 'center',
+                    shadowColor: '#ED2A91', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12, elevation: 6,
+                }}
+            >
+                <Ionicons name="bag-handle-outline" size={20} color="#ED2A91" />
+            </View>
+            <View
+                pointerEvents="none"
+                style={{
+                    position: 'absolute', top: 166, left: width * 0.72, width: 36, height: 36, borderRadius: 10,
+                    backgroundColor: 'rgba(34,26,22,0.95)', borderWidth: 1, borderColor: 'rgba(251,146,60,0.45)',
+                    alignItems: 'center', justifyContent: 'center',
+                    shadowColor: '#FB923C', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 4,
+                }}
+            >
+                <Ionicons name="megaphone-outline" size={16} color="#FB923C" />
+            </View>
+
+            <View style={{ paddingHorizontal: 24, paddingTop: 28, paddingBottom: 110 + PAGE_BOTTOM_PADDING }}>
+                <LinearGradient
+                    colors={['#F0428F', '#C13BDB']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                        width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+                        shadowColor: '#ED2A91', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 6,
+                    }}
+                >
+                    <Ionicons name="storefront-outline" size={22} color="#FFFFFF" />
+                </LinearGradient>
+
+                <View style={{ marginTop: 28 }}>
+                    <Text style={headline}>Bharat First</Text>
+                    <MaskedView style={{ alignSelf: 'flex-start' }} maskElement={<Text style={headline}>Creator Collabs</Text>}>
+                        <LinearGradient colors={['#2F7BFF', '#5B5BF0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                            <Text style={[headline, { opacity: 0 }]}>Creator Collabs</Text>
+                        </LinearGradient>
+                    </MaskedView>
+                    <Text style={headline}>For Your Brand</Text>
+                </View>
+
+                <Text style={{ color: '#B4B4C0', fontFamily: 'Poppins_400Regular', fontSize: 13.5, lineHeight: 22, marginTop: 14 }}>
+                    Discover verified creators, launch campaigns and track results — all in one place.
+                </Text>
+
+                <View className="flex-row items-center" style={{ marginTop: 22 }}>
+                    <View className="flex-row">
+                        {CTA_AVATARS.map((a, i) => (
+                            <LinearGradient
+                                key={a.letter}
+                                colors={a.colors}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#0B0B10',
+                                    marginLeft: i === 0 ? 0 : -9, alignItems: 'center', justifyContent: 'center',
+                                }}
+                            >
+                                <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 11 }}>{a.letter}</Text>
+                            </LinearGradient>
+                        ))}
+                        <View
+                            style={{
+                                width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#0B0B10',
+                                marginLeft: -9, backgroundColor: '#2A2A33', alignItems: 'center', justifyContent: 'center',
+                            }}
+                        >
+                            <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13, lineHeight: 16 }}>+</Text>
+                        </View>
+                    </View>
+                    <View style={{ marginLeft: 14, flexShrink: 1 }}>
+                        <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13 }}>12K+ verified creators</Text>
+                        <Text style={{ color: '#9A9AA8', fontFamily: 'Poppins_400Regular', fontSize: 11 }}>Ready to collaborate with brands</Text>
+                    </View>
+                </View>
+
+                <View className="flex-row items-center" style={{ marginTop: 24, gap: 12 }}>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => router.push('/Brand-Create-Campaign' as any)}
+                        style={{
+                            flex: 1, borderRadius: 14,
+                            shadowColor: '#3B6BFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 6,
+                        }}
+                    >
+                        <LinearGradient
+                            colors={['#1A8CFF', '#6633E5']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={{ height: 50, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                        >
+                            <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 15 }}>Start a Campaign</Text>
+                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                        </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => openUrl(DIGITAG_WHATSAPP_URL)}
+                        style={{ width: 50, height: 50, borderRadius: 14, borderWidth: 1.2, borderColor: '#2F80FF', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                        <Ionicons name="chatbubble-outline" size={20} color="#3B8BFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => openUrl(DIGITAG_PHONE_URL)}
+                        style={{ width: 50, height: 50, borderRadius: 14, borderWidth: 1.2, borderColor: '#2F80FF', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                        <Ionicons name="call-outline" size={20} color="#3B8BFF" />
+                    </TouchableOpacity>
+                </View>
+
+                <Text style={{ color: '#8A8A99', fontFamily: 'Poppins_400Regular', fontSize: 12, textAlign: 'center', marginTop: 22 }}>
+                    Follow{' '}
+                    <Text style={{ color: '#3B8BFF' }} onPress={() => openUrl(DIGITAG_INSTAGRAM_URL)}>
+                        @Digitag_official
+                    </Text>
+                    {' '}for creator drops
+                </Text>
+            </View>
+        </LinearGradient>
+    );
+}
+
 export default function BrandHome() {
     const router = useRouter();
     const { token } = useAuth();
@@ -756,12 +691,6 @@ export default function BrandHome() {
     const [celebrities, setCelebrities] = useState<any[]>([]);
     const [starCreators, setStarCreators] = useState<any[]>(DUMMY_STAR_CREATORS);
     const [loading, setLoading] = useState(true);
-
-    // "Who are you looking for?" composer
-    const [requirementTab, setRequirementTab] = useState<'CREATORS' | 'AGENCIES'>('CREATORS');
-    const [requirementText, setRequirementText] = useState('');
-    const [freelancersCanSee, setFreelancersCanSee] = useState(false);
-    const [posting, setPosting] = useState(false);
 
     // Top Creators carousel page tracking — dots reflect actual horizontal
     // scroll position/content width rather than a fixed chunk count, since
@@ -824,23 +753,6 @@ export default function BrandHome() {
     const filteredChannels = channelFilter === 'All'
         ? channels
         : channels.filter((c) => (c.category || '').toLowerCase() === channelFilter.toLowerCase());
-
-    const handlePostRequirement = async () => {
-        if (!requirementText.trim() || !token || posting) return;
-        setPosting(true);
-        const res = await createBrandRequirement({
-            targetType: requirementTab,
-            freelancersCanSee: requirementTab === 'CREATORS' && freelancersCanSee,
-            message: requirementText.trim(),
-        }, token);
-        setPosting(false);
-        if (res.success) {
-            setRequirementText('');
-            Alert.alert('Requirement posted', 'It is now live under Brand Posts. Interested people show up in your Campaign tab.');
-        } else {
-            Alert.alert('Could not post', res.error || 'Please try again.');
-        }
-    };
 
     // chunk cities into 2 rows of 4
     const cityRows: string[][] = [];
@@ -1037,321 +949,9 @@ export default function BrandHome() {
                     />
                 </View>
 
-                {/* ── Top TV Channels ── */}
-                <View className="px-4 mt-7">
-                    <SectionHeader title="Top TV channels" />
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={tvChannels}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ paddingTop: 12, gap: 9 }}
-                        ListEmptyComponent={
-                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
-                                No TV channels yet
-                            </Text>
-                        }
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: '/youtube-channel-detail',
-                                        params: { channelId: item.id, name: item.name, category: item.category, logoUrl: item.logoUrl },
-                                    } as any)
-                                }
-                                className="items-center rounded-3xl p-4 border"
-                                style={{ width: 130, height: 158, backgroundColor: '#1a1a1a', borderColor: 'rgba(153,153,153,0.3)' }}
-                            >
-                                <View
-                                    className="overflow-hidden mb-2"
-                                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }}
-                                >
-                                    <Image
-                                        source={item.logoUrl ? { uri: item.logoUrl } : imgDefaultAvatar}
-                                        style={{ width: '100%', height: '100%', borderRadius: 24 }}
-                                    />
-                                </View>
-                                <Text className="text-white text-[16px] font-poppins-semibold mt-1 text-center" numberOfLines={1}>
-                                    {item.name}
-                                </Text>
-                                <Text className="text-[12px] font-poppins-regular mt-0.5" style={{ color: palette.textMuted }} numberOfLines={1}>
-                                    {item.startingPrice ? `From ₹${Number(item.startingPrice).toLocaleString('en-IN')}` : `${formatCount(item.subscriberCount)} Reach`}
-                                </Text>
-                                {!!item.category && (
-                                    <View className="flex-row items-center mt-1" style={{ gap: 4 }}>
-                                        <View className="rounded-full" style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: palette.success }} />
-                                        <Text className="text-[12px] font-poppins-regular" style={{ fontSize: 10, color: palette.textMuted }} numberOfLines={1}>
-                                            {item.category}
-                                        </Text>
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                        )}
-                    />
-                </View>
-
-                </ImageBackground>
-
-                {/* ── Top Creators ── */}
-                <View className="px-4 mt-7">
-                    <SectionHeader title="Top Creators" onViewAll={() => router.push({ pathname: '/people-results', params: { title: 'Top Creators', role: 'CREATOR' } } as any)} />
-                    {topCreators.length === 0 ? (
-                        <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
-                            No creators yet
-                        </Text>
-                    ) : (
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            style={{ marginTop: 16 }}
-                            scrollEventThrottle={16}
-                            onLayout={(e) => setCreatorsViewportWidth(e.nativeEvent.layout.width)}
-                            onContentSizeChange={(w) => setCreatorsContentWidth(w)}
-                            onScroll={(e) => {
-                                if (creatorsViewportWidth <= 0) return;
-                                const page = Math.round(e.nativeEvent.contentOffset.x / creatorsViewportWidth);
-                                const maxPage = Math.max(creatorsTotalPages - 1, 0);
-                                setCreatorsPage(Math.min(Math.max(page, 0), maxPage));
-                            }}
-                        >
-                            <View>
-                                <View className="flex-row" style={{ gap: 12 }}>
-                                    {topCreators.filter((_, i) => i % 2 === 0).map((c) => (
-                                        <TopCreatorCard key={c.id} creator={c} onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)} />
-                                    ))}
-                                </View>
-                                <View className="flex-row" style={{ gap: 12, marginTop: 12 }}>
-                                    {topCreators.filter((_, i) => i % 2 === 1).map((c) => (
-                                        <TopCreatorCard key={c.id} creator={c} onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)} />
-                                    ))}
-                                </View>
-                            </View>
-                        </ScrollView>
-                    )}
-                    <PaginationDots total={creatorsTotalPages} active={creatorsPage} />
-                </View>
-
-                {/* ── Creator Categories ── */}
-                <View className="px-4 mt-7">
-                    <SectionHeader title="Creator Categories" onViewAll={() => router.push('/All-creators' as any)} />
-                    {/* Render as a 2-row scrollable grid */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{ marginTop: 12 }}
-                        scrollEventThrottle={16}
-                        onLayout={(e) => setCreatorCatsViewportWidth(e.nativeEvent.layout.width)}
-                        onContentSizeChange={(w) => setCreatorCatsContentWidth(w)}
-                        onScroll={(e) => {
-                            if (creatorCatsViewportWidth <= 0) return;
-                            const page = Math.round(e.nativeEvent.contentOffset.x / creatorCatsViewportWidth);
-                            const maxPage = Math.max(creatorCatsTotalPages - 1, 0);
-                            setCreatorCatsPage(Math.min(Math.max(page, 0), maxPage));
-                        }}
-                    >
-                        <View>
-                            <View className="flex-row" style={{ gap: 2 }}>
-                                {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 0).map((cat) => (
-                                    <CategoryChip
-                                        key={cat.id}
-                                        cat={cat}
-                                        colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)}
-                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'CREATOR', categorySlug: cat.slug } } as any)}
-                                    />
-                                ))}
-                            </View>
-                            <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
-                                {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 1).map((cat) => (
-                                    <CategoryChip
-                                        key={cat.id}
-                                        cat={cat}
-                                        colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)}
-                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'CREATOR', categorySlug: cat.slug } } as any)}
-                                    />
-                                ))}
-                            </View>
-                        </View>
-                    </ScrollView>
-                    <PaginationDots total={creatorCatsTotalPages} active={creatorCatsPage} />
-                </View>
-
-                {/* ── Creators by Location ── */}
-                <View className="px-4 mt-7">
-                    <SectionHeader title="Creators by location" onViewAll={() => router.push('/choose-location' as any)} />
-                    <View className="flex-row flex-wrap mt-3" style={{ gap: 10 }}>
-                        {CITIES.map((city) => (
-                            <TouchableOpacity
-                                key={city}
-                                className="overflow-hidden rounded-2xl"
-                                style={{ width: CITY_TILE_WIDTH, height: 100 }}
-                                
-                                onPress={() => router.push({ pathname: '/people-results', params: { title: `Creators in ${city}`, role: 'CREATOR', location: city } } as any)}
-                            >
-                                <Image
-                                    source={CITY_IMAGES[city] || imgLocation}
-                                    style={{ width: '100%', height: '100%', position: 'absolute', }}
-                                    resizeMode="cover"
-                                />
-                                <View
-                                    className="absolute inset-0"
-
-                                    />
-                                <Text
-                                    className="absolute text-#000 font-poppins-semibold align-items-center x"
-                                    style={{ top: 10, left: 10, right: 6, fontSize: 11 }}
-                                    numberOfLines={1}
-                                    adjustsFontSizeToFit
-                                    minimumFontScale={0.7}
-                                >
-                                    {city}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-
-                {/* ── Who are you looking for? ── */}
-                <View className="px-4 mt-7">
-                    <Text className="text-white text-xl font-poppins-semibold" style={{ letterSpacing: -0.5 }}>
-                        Who are you looking for?
-                    </Text>
-                    <Text
-                        className="text-xs font-poppins-regular mt-1"
-                        style={{ color: 'rgba(208,226,255,0.65)' }}
-                    >
-                        Post your requirement & receive responses, Instantly....
-                    </Text>
-
-                    <View
-                        className="flex-row items-center rounded-2xl px-3.5 py-2.5 mt-3.5"
-                        style={{ gap: 10, backgroundColor: palette.surface }}
-                    >
-                        <Ionicons name="person-circle-outline" size={20} color="#8A8A99" />
-                        <TextInput
-                            className="flex-1 text-white text-sm font-poppins-regular"
-                            style={{ maxHeight: 80 }}
-                            placeholder="Type your requirement here"
-                            placeholderTextColor="#6B6B7A"
-                            value={requirementText}
-                            onChangeText={setRequirementText}
-                            multiline
-                        />
-                        <TouchableOpacity onPress={handlePostRequirement} disabled={posting || !requirementText.trim()}>
-                            {posting
-                                ? <ActivityIndicator size="small" color={BRAND_PRIMARY} />
-                                : <Ionicons name="add-circle" size={26} color={requirementText.trim() ? BRAND_PRIMARY : '#3a3a44'} />
-                            }
-                        </TouchableOpacity>
-                    </View>
-
-                    {requirementTab === 'CREATORS' && (
-                        <TouchableOpacity
-                            activeOpacity={0.8}
-                            onPress={() => setFreelancersCanSee(!freelancersCanSee)}
-                            className="flex-row items-center mt-2.5"
-                            style={{ gap: 8 }}
-                        >
-                            <View
-                                className="items-center justify-center"
-                                style={{
-                                    width: 18,
-                                    height: 18,
-                                    borderRadius: 4,
-                                    borderWidth: 1,
-                                    borderColor: freelancersCanSee ? '#1A8CFF' : 'rgba(255,255,255,0.4)',
-                                    backgroundColor: freelancersCanSee ? '#1A8CFF' : 'transparent',
-                                }}
-                            >
-                                {freelancersCanSee && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
-                            </View>
-                            <Text className="text-xs font-poppins-regular" style={{ color: 'rgba(208,226,255,0.8)' }}>
-                                Freelancers can also see this
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <RaisedTabBar activeTab={requirementTab} onSelect={setRequirementTab} />
-
-                    {requirementTab === 'CREATORS' ? (
-                        <View style={{ marginTop: 16, gap: 14 }}>
-                            {DUMMY_CREATOR_MATCHES.map((item) => (
-                                <MatchCard
-                                    key={item.id}
-                                    item={item}
-                                    onSendRequest={() => router.push({ pathname: '/brands-creator', params: { userId: item.id } } as any)}
-                                />
-                            ))}
-                        </View>
-                    ) : (
-                        <View className="items-center" style={{ marginTop: 10, paddingHorizontal: 8 }}>
-                            <Image
-                                source={imgHireAgencies}
-                                style={{ width: '100%', maxWidth: 320, height: 260 }}
-                                resizeMode="contain"
-                            />
-                            <Text
-                                className="text-white font-poppins-semibold text-center"
-                                style={{ fontSize: 42, marginTop: 2 }}
-                            >
-                                Coming Soon
-                            </Text>
-                            <Text
-                                className="font-poppins-regular text-center"
-                                style={{ color: palette.textMuted, fontSize: 13, lineHeight: 20, marginTop: 2 }}
-                            >
-                                The future of agency collaboration is coming. Manage talent, streamline campaigns, and deliver greater impact for every brand you represent.
-                            </Text>
-                        </View>
-                    )}
-                </View>
-
-                {/* ── Freelancers by Category ── */}
-                <View className="px-4 mt-7">
-                    <SectionHeader title="Freelancers by Category" />
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={{ marginTop: 12 }}
-                        scrollEventThrottle={16}
-                        onLayout={(e) => setFreelancerCatsViewportWidth(e.nativeEvent.layout.width)}
-                        onContentSizeChange={(w) => setFreelancerCatsContentWidth(w)}
-                        onScroll={(e) => {
-                            if (freelancerCatsViewportWidth <= 0) return;
-                            const page = Math.round(e.nativeEvent.contentOffset.x / freelancerCatsViewportWidth);
-                            const maxPage = Math.max(freelancerCatsTotalPages - 1, 0);
-                            setFreelancerCatsPage(Math.min(Math.max(page, 0), maxPage));
-                        }}
-                    >
-                        <View>
-                            <View className="flex-row" style={{ gap: 2 }}>
-                                {FREELANCER_CATEGORIES.filter((_, i) => i < 6).map((cat) => (
-                                    <CategoryChip
-                                        key={cat.id}
-                                        cat={cat}
-                                        colorIndex={FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)}
-                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
-                                    />
-                                ))}
-                            </View>
-                            <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
-                                {FREELANCER_CATEGORIES.filter((_, i) => i >= 6).map((cat) => (
-                                    <CategoryChip
-                                        key={cat.id}
-                                        cat={cat}
-                                        colorIndex={FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)}
-                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
-                                    />
-                                ))}
-                            </View>
-                        </View>
-                    </ScrollView>
-                    <PaginationDots total={freelancerCatsTotalPages} active={freelancerCatsPage} />
-                </View>
-
                 {/* ── Celebrities ── */}
-                <View className="px-4 mt-7 mb-2">
-                    <SectionHeader title="Celebrities" onViewAll={() => { }} />
+                <View className="px-4 mt-7 ">
+                    <SectionHeader title="Celebrities" onViewAll={() => router.push('/celebrities' as any)} />
                     <Text
                         className="font-poppins-regular mt-0.5"
                         style={{ color: '#94A3B8', fontSize: 11 }}
@@ -1506,8 +1106,103 @@ export default function BrandHome() {
                     </View>
                 </View>
 
+                {/* ── Top TV Channels ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Top TV channels" />
+                    <FlatList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={tvChannels}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{ paddingTop: 12, gap: 9 }}
+                        ListEmptyComponent={
+                            <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                                No TV channels yet
+                            </Text>
+                        }
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={() =>
+                                    router.push({
+                                        pathname: '/youtube-channel-detail',
+                                        params: { channelId: item.id, name: item.name, category: item.category, logoUrl: item.logoUrl },
+                                    } as any)
+                                }
+                                className="items-center rounded-3xl p-4 border"
+                                style={{ width: 130, height: 158, backgroundColor: '#1a1a1a', borderColor: 'rgba(153,153,153,0.3)' }}
+                            >
+                                <View
+                                    className="overflow-hidden mb-2"
+                                    style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }}
+                                >
+                                    <Image
+                                        source={item.logoUrl ? { uri: item.logoUrl } : imgDefaultAvatar}
+                                        style={{ width: '100%', height: '100%', borderRadius: 24 }}
+                                    />
+                                </View>
+                                <Text className="text-white text-[16px] font-poppins-semibold mt-1 text-center" numberOfLines={1}>
+                                    {item.name}
+                                </Text>
+                                <Text className="text-[12px] font-poppins-regular mt-0.5" style={{ color: palette.textMuted }} numberOfLines={1}>
+                                    {item.startingPrice ? `From ₹${Number(item.startingPrice).toLocaleString('en-IN')}` : `${formatCount(item.subscriberCount)} Reach`}
+                                </Text>
+                                {!!item.category && (
+                                    <View className="flex-row items-center mt-1" style={{ gap: 4 }}>
+                                        <View className="rounded-full" style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: palette.success }} />
+                                        <Text className="text-[12px] font-poppins-regular" style={{ fontSize: 10, color: palette.textMuted }} numberOfLines={1}>
+                                            {item.category}
+                                        </Text>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        )}
+                    />
+                </View>
+
+                </ImageBackground>
+
+                {/* ── Top Creators ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Top Creators" onViewAll={() => router.push({ pathname: '/people-results', params: { title: 'Top Creators', role: 'CREATOR' } } as any)} />
+                    {topCreators.length === 0 ? (
+                        <Text className="text-xs font-poppins-regular py-2" style={{ color: palette.textMuted }}>
+                            No creators yet
+                        </Text>
+                    ) : (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={{ marginTop: 16 }}
+                            scrollEventThrottle={16}
+                            onLayout={(e) => setCreatorsViewportWidth(e.nativeEvent.layout.width)}
+                            onContentSizeChange={(w) => setCreatorsContentWidth(w)}
+                            onScroll={(e) => {
+                                if (creatorsViewportWidth <= 0) return;
+                                const page = Math.round(e.nativeEvent.contentOffset.x / creatorsViewportWidth);
+                                const maxPage = Math.max(creatorsTotalPages - 1, 0);
+                                setCreatorsPage(Math.min(Math.max(page, 0), maxPage));
+                            }}
+                        >
+                            <View>
+                                <View className="flex-row" style={{ gap: 12 }}>
+                                    {topCreators.filter((_, i) => i % 2 === 0).map((c) => (
+                                        <TopCreatorCard key={c.id} creator={c} onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)} />
+                                    ))}
+                                </View>
+                                <View className="flex-row" style={{ gap: 12, marginTop: 12 }}>
+                                    {topCreators.filter((_, i) => i % 2 === 1).map((c) => (
+                                        <TopCreatorCard key={c.id} creator={c} onPress={() => router.push({ pathname: '/brands-creator', params: { userId: c.id } } as any)} />
+                                    ))}
+                                </View>
+                            </View>
+                        </ScrollView>
+                    )}
+                    <PaginationDots total={creatorsTotalPages} active={creatorsPage} />
+                </View>
+
                 {/* ── Star Creators ── */}
-                <View className="mt-0 mb-10 overflow-hidden" style={{ backgroundColor: '#000000', position: 'relative' }}>
+                <View className="mt-10 mb-0 overflow-hidden" style={{ backgroundColor: '#000000', position: 'relative' }}>
                     {/* Top Solid Light Lime Background Block */}
                     <View
                         style={{
@@ -1661,6 +1356,131 @@ export default function BrandHome() {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                {/* ── Creator Categories ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Creator Categories" onViewAll={() => router.push('/All-creators' as any)} />
+                    {/* Render as a 2-row scrollable grid */}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{ marginTop: 12 }}
+                        scrollEventThrottle={16}
+                        onLayout={(e) => setCreatorCatsViewportWidth(e.nativeEvent.layout.width)}
+                        onContentSizeChange={(w) => setCreatorCatsContentWidth(w)}
+                        onScroll={(e) => {
+                            if (creatorCatsViewportWidth <= 0) return;
+                            const page = Math.round(e.nativeEvent.contentOffset.x / creatorCatsViewportWidth);
+                            const maxPage = Math.max(creatorCatsTotalPages - 1, 0);
+                            setCreatorCatsPage(Math.min(Math.max(page, 0), maxPage));
+                        }}
+                    >
+                        <View>
+                            <View className="flex-row" style={{ gap: 2 }}>
+                                {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 0).map((cat) => (
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'CREATOR', categorySlug: cat.slug } } as any)}
+                                    />
+                                ))}
+                            </View>
+                            <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
+                                {CREATOR_CATEGORIES.filter((_, i) => i % 2 === 1).map((cat) => (
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={CREATOR_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'CREATOR', categorySlug: cat.slug } } as any)}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
+                    <PaginationDots total={creatorCatsTotalPages} active={creatorCatsPage} />
+                </View>
+
+                {/* ── Creators by Location ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Creators by location" onViewAll={() => router.push('/choose-location' as any)} />
+                    <View className="flex-row flex-wrap mt-3" style={{ gap: 10 }}>
+                        {CITIES.map((city) => (
+                            <TouchableOpacity
+                                key={city}
+                                className="overflow-hidden rounded-2xl"
+                                style={{ width: CITY_TILE_WIDTH, height: 100 }}
+                                
+                                onPress={() => router.push({ pathname: '/people-results', params: { title: `Creators in ${city}`, role: 'CREATOR', location: city } } as any)}
+                            >
+                                <Image
+                                    source={CITY_IMAGES[city] || imgLocation}
+                                    style={{ width: '100%', height: '100%', position: 'absolute', }}
+                                    resizeMode="cover"
+                                />
+                                <View
+                                    className="absolute inset-0"
+
+                                    />
+                                <Text
+                                    className="absolute text-#000 font-poppins-semibold align-items-center x"
+                                    style={{ top: 10, left: 10, right: 6, fontSize: 11 }}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.7}
+                                >
+                                    {city}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                {/* ── Freelancers by Category ── */}
+                <View className="px-4 mt-7">
+                    <SectionHeader title="Freelancers by Category" />
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{ marginTop: 12 }}
+                        scrollEventThrottle={16}
+                        onLayout={(e) => setFreelancerCatsViewportWidth(e.nativeEvent.layout.width)}
+                        onContentSizeChange={(w) => setFreelancerCatsContentWidth(w)}
+                        onScroll={(e) => {
+                            if (freelancerCatsViewportWidth <= 0) return;
+                            const page = Math.round(e.nativeEvent.contentOffset.x / freelancerCatsViewportWidth);
+                            const maxPage = Math.max(freelancerCatsTotalPages - 1, 0);
+                            setFreelancerCatsPage(Math.min(Math.max(page, 0), maxPage));
+                        }}
+                    >
+                        <View>
+                            <View className="flex-row" style={{ gap: 2 }}>
+                                {FREELANCER_CATEGORIES.filter((_, i) => i < 6).map((cat) => (
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
+                                    />
+                                ))}
+                            </View>
+                            <View className="flex-row" style={{ gap: 2, marginTop: 6 }}>
+                                {FREELANCER_CATEGORIES.filter((_, i) => i >= 6).map((cat) => (
+                                    <CategoryChip
+                                        key={cat.id}
+                                        cat={cat}
+                                        colorIndex={FREELANCER_CATEGORIES.findIndex(c => c.id === cat.id)}
+                                        onPress={() => router.push({ pathname: '/people-results', params: { title: cat.label.replace('\n', ' '), role: 'FREELANCER', categorySlug: cat.slug } } as any)}
+                                    />
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
+                    <PaginationDots total={freelancerCatsTotalPages} active={freelancerCatsPage} />
+                </View>
+
+                {/* ── Bharat First Creator Collabs CTA ── */}
+                <BrandCtaFooter />
             </ScrollView>
         </SafeAreaView>
     );
