@@ -4,7 +4,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Dimensions,
-    Dimensions,
     Image,
     Linking,
     Platform,
