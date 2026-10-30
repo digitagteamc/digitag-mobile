@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Dimensions,
+    Dimensions,
     Image,
     Linking,
     Platform,
@@ -20,115 +21,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const imgDefaultAvatar = require('../assets/defaultavatar.png');
 
-// ── Static extended data keyed by celebrity name ──────────────────────────────
-interface CelebData {
-    bio: string;
-    about: string;
-    born: string;
-    nationality: string;
-    website: string;
-    instagram: string;
-    location: string;
-    youtubeFollowers: string;
-    instagramFollowers: string;
-    facebookFollowers: string;
-    following: number;
-    posts: number;
-    bannerGradient: [string, string, ...string[]];
-}
-
-const CELEB_DATA: Record<string, CelebData> = {
-    'Meera Iyer': {
-        bio: 'Actor by profession, dreamer by heart. Living to entertain & inspire.',
-        about: 'Known for versatile roles in film and web series. Passionate about storytelling and connecting with people through art.',
-        born: '15 March 1992',
-        nationality: 'Indian',
-        website: 'meeraiyer.com',
-        instagram: '@meera_iyer',
-        location: 'Mumbai, India',
-        youtubeFollowers: '7.2M',
-        instagramFollowers: '5.1M',
-        facebookFollowers: '3.4M',
-        following: 236,
-        posts: 128,
-        bannerGradient: ['#1a0533', '#6b0f9e', '#3d1080', '#0d1b6e'],
-    },
-    'Aryan Kapoor': {
-        bio: 'Singer & performer. Music is my language, the stage is my home.',
-        about: 'Acclaimed playback and independent singer with multiple chart-topping albums. Known for his soulful voice and live performance energy.',
-        born: '3 July 1995',
-        nationality: 'Indian',
-        website: 'aryankapoor.com',
-        instagram: '@aryan_kapoor',
-        location: 'Mumbai, India',
-        youtubeFollowers: '6.8M',
-        instagramFollowers: '4.3M',
-        facebookFollowers: '2.8M',
-        following: 312,
-        posts: 204,
-        bannerGradient: ['#0d1b6e', '#1e40af', '#1d4ed8', '#0c4a6e'],
-    },
-    'Simran Kaur': {
-        bio: 'Comedian & writer. Turning life\'s chaos into laughter since day one.',
-        about: 'Stand-up comedian and content creator with a unique perspective on everyday life. Known for relatable humor and sharp wit.',
-        born: '22 November 1993',
-        nationality: 'Indian',
-        website: 'simrankaur.in',
-        instagram: '@simran_kaur',
-        location: 'Delhi, India',
-        youtubeFollowers: '9.5M',
-        instagramFollowers: '6.8M',
-        facebookFollowers: '4.1M',
-        following: 189,
-        posts: 356,
-        bannerGradient: ['#450a0a', '#991b1b', '#b45309', '#78350f'],
-    },
-    'Vikram Rao': {
-        bio: 'Dancer & choreographer. Every step tells a story.',
-        about: 'Award-winning dancer and choreographer specialising in classical fusion and contemporary styles. Performed on global stages.',
-        born: '8 August 1990',
-        nationality: 'Indian',
-        website: 'vikramrao.dance',
-        instagram: '@vikram_rao',
-        location: 'Bangalore, India',
-        youtubeFollowers: '4.1M',
-        instagramFollowers: '3.2M',
-        facebookFollowers: '1.9M',
-        following: 421,
-        posts: 97,
-        bannerGradient: ['#064e3b', '#065f46', '#047857', '#0d9488'],
-    },
-    'Aditya Malhotra': {
-        bio: 'Sports star & fitness icon. Pushing limits every single day.',
-        about: 'Professional athlete and fitness influencer. Multiple national championship titles and brand ambassador for leading sports brands.',
-        born: '14 February 1988',
-        nationality: 'Indian',
-        website: 'adityamalhotra.fit',
-        instagram: '@aditya_malhotra',
-        location: 'Hyderabad, India',
-        youtubeFollowers: '12.3M',
-        instagramFollowers: '9.7M',
-        facebookFollowers: '6.2M',
-        following: 156,
-        posts: 512,
-        bannerGradient: ['#1c1917', '#292524', '#44403c', '#1c1917'],
-    },
-    'Kavya Menon': {
-        bio: 'Influencer & lifestyle creator. Curating beauty, fashion & travel.',
-        about: 'Top lifestyle influencer collaborating with luxury brands. Her aesthetic-driven content reaches millions across platforms.',
-        born: '29 April 1997',
-        nationality: 'Indian',
-        website: 'kavyamenon.com',
-        instagram: '@kavya_menon',
-        location: 'Chennai, India',
-        youtubeFollowers: '3.6M',
-        instagramFollowers: '2.8M',
-        facebookFollowers: '1.5M',
-        following: 678,
-        posts: 289,
-        bannerGradient: ['#500724', '#9d174d', '#be185d', '#831843'],
-    },
-};
+const BANNER_GRADIENT: [string, string, ...string[]] = ['#1a0533', '#6b0f9e', '#3d1080', '#0d1b6e'];
 
 function formatCount(n?: number | null | string): string {
     if (n == null) return '0';
@@ -138,14 +31,7 @@ function formatCount(n?: number | null | string): string {
     return String(n);
 }
 
-type Tab = 'Posts' | 'Collabs' | 'About';
-
-// Dummy post thumbnails — three images
-const DUMMY_POSTS = [
-    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80',
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
-];
+type Tab = 'Posts' | 'Collabs';
 
 export default function CelebrityProfile() {
     const router = useRouter();
@@ -155,38 +41,31 @@ export default function CelebrityProfile() {
         followerCount,
         photoUrl,
         isVerified,
+        instagramHandle,
+        instagramFollowers,
+        youtubeUrl,
+        youtubeSubscribers,
     } = useLocalSearchParams<{
         name?: string;
         role?: string;
         followerCount?: string;
         photoUrl?: string;
         isVerified?: string;
+        instagramHandle?: string;
+        instagramFollowers?: string;
+        youtubeUrl?: string;
+        youtubeSubscribers?: string;
     }>();
 
     const [activeTab, setActiveTab] = useState<Tab>('Posts');
     const [isFollowing, setIsFollowing] = useState(false);
 
     const displayName = name || 'Celebrity';
-    const data: CelebData = CELEB_DATA[displayName] ?? {
-        bio: 'Inspiring millions through passion and dedication.',
-        about: 'A celebrated public figure known for outstanding contributions to their field.',
-        born: 'N/A',
-        nationality: 'Indian',
-        website: `${displayName.toLowerCase().replace(/\s/g, '')}.com`,
-        instagram: `@${displayName.toLowerCase().replace(/\s/g, '_')}`,
-        location: 'India',
-        youtubeFollowers: '1M',
-        instagramFollowers: '500K',
-        facebookFollowers: '300K',
-        following: 100,
-        posts: 50,
-        bannerGradient: ['#1a0533', '#6b0f9e', '#3d1080', '#0d1b6e'],
-    };
 
     const verified = isVerified !== 'false';
     const followers = followerCount ? Number(followerCount) : 0;
     const avatarSource = photoUrl ? { uri: photoUrl } : imgDefaultAvatar;
-    const thumbnailSize = (SCREEN_WIDTH - 40) / 3;
+    const hasChannels = !!instagramHandle || !!youtubeUrl;
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -198,7 +77,7 @@ export default function CelebrityProfile() {
                 <View style={styles.headerBlock}>
                     {/* Banner gradient background */}
                     <LinearGradient
-                        colors={data.bannerGradient}
+                        colors={BANNER_GRADIENT}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={StyleSheet.absoluteFillObject}
@@ -269,10 +148,6 @@ export default function CelebrityProfile() {
                                 <Text style={styles.roleChipText}>{role}</Text>
                             </View>
                         )}
-                        <View style={styles.locationRow}>
-                            <Ionicons name="location-outline" size={12} color="#94A3B8" />
-                            <Text style={styles.locationText}>{data.location}</Text>
-                        </View>
                     </View>
 
                     {/* Follow / Following toggle */}
@@ -287,93 +162,78 @@ export default function CelebrityProfile() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Short bio */}
-                <Text style={styles.bio}>{data.bio}</Text>
-
                 {/* ── Stats Row ── */}
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>{formatCount(followers)}</Text>
                         <Text style={styles.statLabel}>Followers</Text>
                     </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{data.following}</Text>
-                        <Text style={styles.statLabel}>Following</Text>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{data.posts}</Text>
-                        <Text style={styles.statLabel}>Posts</Text>
-                    </View>
                 </View>
 
-                {/* ── About Panel ── */}
-                <View style={styles.aboutPanel}>
-                    <View style={styles.aboutHeader}>
-                        <Ionicons name="information-circle-outline" size={18} color="#fff" />
-                        <Text style={styles.aboutTitle}>About</Text>
-                    </View>
-                    <Text style={styles.aboutBodyText}>{data.about}</Text>
-                    <View style={styles.divider} />
+                {hasChannels && (
+                    <>
+                        {/* ── About Panel ── */}
+                        <View style={styles.aboutPanel}>
+                            <View style={styles.aboutHeader}>
+                                <Ionicons name="information-circle-outline" size={18} color="#fff" />
+                                <Text style={styles.aboutTitle}>About</Text>
+                            </View>
+                            {!!instagramHandle && (
+                                <InfoRow
+                                    icon="📷"
+                                    label="Instagram"
+                                    value={`@${instagramHandle}`}
+                                    onPress={() => Linking.openURL(`https://instagram.com/${instagramHandle}`).catch(() => {})}
+                                />
+                            )}
+                            {!!youtubeUrl && (
+                                <InfoRow
+                                    icon="▶️"
+                                    label="YouTube"
+                                    value="View channel"
+                                    onPress={() => Linking.openURL(youtubeUrl).catch(() => {})}
+                                />
+                            )}
+                        </View>
 
-                    <InfoRow icon="🎂" label="Born" value={data.born} />
-                    <InfoRow icon="🌟" label="Nationality" value={data.nationality} />
-                    <InfoRow
-                        icon="🔗"
-                        label="Website"
-                        value={data.website}
-                        onPress={() => Linking.openURL(`https://${data.website}`).catch(() => {})}
-                    />
-                    <InfoRow
-                        icon="📷"
-                        label="Instagram"
-                        value={data.instagram}
-                        onPress={() => Linking.openURL(`https://instagram.com/${data.instagram.replace('@', '')}`).catch(() => {})}
-                    />
-                </View>
+                        {/* ── Top Channels ── */}
+                        <View style={styles.channelsSection}>
+                            <View style={styles.channelsHeader}>
+                                <Text style={styles.channelsSectionTitle}>Top Channels</Text>
+                            </View>
 
-                {/* ── Top Channels ── */}
-                <View style={styles.channelsSection}>
-                    <View style={styles.channelsHeader}>
-                        <Text style={styles.channelsSectionTitle}>Top Channels</Text>
-                        <TouchableOpacity activeOpacity={0.7}>
-                            <Text style={styles.viewAllText}>View all</Text>
-                        </TouchableOpacity>
-                    </View>
+                            <View style={styles.channelsRow}>
+                                {!!youtubeUrl && (
+                                    <ChannelItem
+                                        icon={<Ionicons name="logo-youtube" size={18} color="#FF0000" />}
+                                        bgColor="rgba(255,0,0,0.12)"
+                                        name="YouTube"
+                                        count={formatCount(Number(youtubeSubscribers))}
+                                    />
+                                )}
+                                {!!instagramHandle && (
+                                    <ChannelItem
+                                        icon={<Ionicons name="logo-instagram" size={18} color="#E1306C" />}
+                                        bgColor="rgba(225,48,108,0.12)"
+                                        name="Instagram"
+                                        count={formatCount(Number(instagramFollowers))}
+                                    />
+                                )}
+                            </View>
+                        </View>
+                    </>
+                )}
 
-                    <View style={styles.channelsRow}>
-                        <ChannelItem
-                            icon={<Ionicons name="logo-youtube" size={18} color="#FF0000" />}
-                            bgColor="rgba(255,0,0,0.12)"
-                            name="YouTube"
-                            count={data.youtubeFollowers}
-                        />
-                        <ChannelItem
-                            icon={<Ionicons name="logo-instagram" size={18} color="#E1306C" />}
-                            bgColor="rgba(225,48,108,0.12)"
-                            name="Instagram"
-                            count={data.instagramFollowers}
-                        />
-                        <ChannelItem
-                            icon={<Ionicons name="logo-facebook" size={18} color="#1877F2" />}
-                            bgColor="rgba(24,119,242,0.12)"
-                            name="Facebook"
-                            count={data.facebookFollowers}
-                        />
-                    </View>
-                </View>
-
-                {/* ── Posts / Collabs / About Tabs ── */}
+                {/* ── Posts / Collabs Tabs ── */}
                 <View style={styles.tabsContainer}>
                     <View style={styles.tabBar}>
-                        {(['Posts', 'Collabs', 'About'] as Tab[]).map((tab) => (
+                        {(['Posts', 'Collabs'] as Tab[]).map((tab) => (
                             <TouchableOpacity
                                 key={tab}
                                 style={styles.tabItem}
                                 onPress={() => setActiveTab(tab)}
                                 activeOpacity={0.7}
-                            >
+                            > 
                                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
                                     {tab}
                                 </Text>
@@ -383,19 +243,9 @@ export default function CelebrityProfile() {
                     </View>
 
                     {activeTab === 'Posts' && (
-                        <View style={styles.postsGrid}>
-                            {DUMMY_POSTS.map((uri, i) => (
-                                <TouchableOpacity key={i} activeOpacity={0.85} style={{ position: 'relative' }}>
-                                    <Image
-                                        source={{ uri }}
-                                        style={{ width: thumbnailSize, height: thumbnailSize * 1.25, borderRadius: 10, backgroundColor: palette.surfaceAlt }}
-                                        resizeMode="cover"
-                                    />
-                                    <View style={styles.postThumbOverlay}>
-                                        <Ionicons name="bookmark-outline" size={13} color="#fff" />
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
+                        <View style={styles.emptyTab}>
+                            <Ionicons name="images-outline" size={38} color="#2a2a3a" />
+                            <Text style={styles.emptyTabText}>No posts yet</Text>
                         </View>
                     )}
 
@@ -403,12 +253,6 @@ export default function CelebrityProfile() {
                         <View style={styles.emptyTab}>
                             <Ionicons name="people-outline" size={38} color="#2a2a3a" />
                             <Text style={styles.emptyTabText}>No collaborations yet</Text>
-                        </View>
-                    )}
-
-                    {activeTab === 'About' && (
-                        <View style={{ paddingTop: 14 }}>
-                            <Text style={styles.aboutBodyText}>{data.about}</Text>
                         </View>
                     )}
                 </View>
@@ -618,16 +462,6 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontFamily: fonts.medium,
     },
-    locationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-    },
-    locationText: {
-        color: '#94A3B8',
-        fontSize: 11,
-        fontFamily: fonts.regular,
-    },
     followBtn: {
         marginTop: 34,
         paddingHorizontal: 18,
@@ -651,14 +485,6 @@ const styles = StyleSheet.create({
     },
 
     // Bio
-    bio: {
-        color: '#CBD5E1',
-        fontSize: 13,
-        fontFamily: fonts.regular,
-        lineHeight: 20,
-        marginHorizontal: 16,
-        marginTop: 14,
-    },
 
     // Stats
     statsRow: {
@@ -687,11 +513,6 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
         marginTop: 2,
     },
-    statDivider: {
-        width: StyleSheet.hairlineWidth,
-        height: 34,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-    },
 
     // About panel
     aboutPanel: {
@@ -712,18 +533,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 15,
         fontFamily: fonts.semibold,
-    },
-    aboutBodyText: {
-        color: '#94A3B8',
-        fontSize: 13,
-        fontFamily: fonts.regular,
-        lineHeight: 20,
-        marginTop: 10,
-    },
-    divider: {
-        height: StyleSheet.hairlineWidth,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        marginVertical: 14,
     },
     infoRow: {
         flexDirection: 'row',
@@ -776,11 +585,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontFamily: fonts.semibold,
-    },
-    viewAllText: {
-        color: '#3B82F6',
-        fontSize: 13,
-        fontFamily: fonts.medium,
     },
     channelsRow: {
         flexDirection: 'row',
@@ -864,21 +668,6 @@ const styles = StyleSheet.create({
         height: 2,
         borderRadius: 1,
         backgroundColor: '#3B82F6',
-    },
-    postsGrid: {
-        flexDirection: 'row',
-        gap: 4,
-    },
-    postThumbOverlay: {
-        position: 'absolute',
-        top: 6,
-        right: 6,
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     emptyTab: {
         alignItems: 'center',

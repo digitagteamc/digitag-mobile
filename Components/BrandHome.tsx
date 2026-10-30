@@ -680,7 +680,7 @@ function MatchCard({ item, onSendRequest }: { item: any; onSendRequest: () => vo
 }
 
 // Static placeholder candidates for the Hire Creators / Hire Agencies tabs —
-// same fixed-showcase convention as DUMMY_TOP_CREATORS/DUMMY_CELEBRITIES;
+// same fixed-showcase convention as DUMMY_TOP_CREATORS;
 // the app has no structured requirement-matching fields (category, collab
 // visibility, creator count, deliverables) yet, only free-text message +
 // targetType, so this card's content isn't wired to real data.
@@ -702,15 +702,6 @@ const DUMMY_CREATOR_MATCHES = [
     },
 ];
 
-
-const DUMMY_CELEBRITIES = [
-    { id: 'cel-1', name: 'Meera Iyer', role: 'Actor', followerCount: 12400000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80' },
-    { id: 'cel-2', name: 'Aryan Kapoor', role: 'Singer', followerCount: 8900000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80' },
-    { id: 'cel-3', name: 'Simran Kaur', role: 'Comedian', followerCount: 15200000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80' },
-    { id: 'cel-4', name: 'Vikram Rao', role: 'Dancer', followerCount: 6100000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80' },
-    { id: 'cel-5', name: 'Aditya Malhotra', role: 'Sports Star', followerCount: 20700000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=300&q=80' },
-    { id: 'cel-6', name: 'Kavya Menon', role: 'Influencer', followerCount: 4300000, isVerified: true, photoUrl: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=300&q=80' },
-];
 
 const DUMMY_STAR_CREATORS = [
     {
@@ -762,7 +753,7 @@ export default function BrandHome() {
     // TV channels (admin-managed MediaChannel rows of type TV) — real data only.
     const [tvChannels, setTvChannels] = useState<any[]>([]);
     const [topCreators, setTopCreators] = useState<any[]>(DUMMY_TOP_CREATORS);
-    const [celebrities, setCelebrities] = useState<any[]>(DUMMY_CELEBRITIES);
+    const [celebrities, setCelebrities] = useState<any[]>([]);
     const [starCreators, setStarCreators] = useState<any[]>(DUMMY_STAR_CREATORS);
     const [loading, setLoading] = useState(true);
 
@@ -824,11 +815,7 @@ export default function BrandHome() {
         } else {
             setTopCreators(DUMMY_TOP_CREATORS);
         }
-        if (celebsRes.success && celebsRes.data && celebsRes.data.length > 0) {
-            setCelebrities(celebsRes.data);
-        } else {
-            setCelebrities(DUMMY_CELEBRITIES);
-        }
+        if (celebsRes.success) setCelebrities(celebsRes.data || []);
         setLoading(false);
     }, [token]);
 
@@ -1496,6 +1483,10 @@ export default function BrandHome() {
                                                     followerCount: String(c.followerCount ?? 0),
                                                     photoUrl: c.photoUrl ?? '',
                                                     isVerified: c.isVerified !== false ? 'true' : 'false',
+                                                    instagramHandle: c.instagramHandle ?? '',
+                                                    instagramFollowers: String(c.instagramFollowers ?? 0),
+                                                    youtubeUrl: c.youtubeUrl ?? '',
+                                                    youtubeSubscribers: String(c.youtubeSubscribers ?? 0),
                                                 },
                                             } as any)}
                                         >
