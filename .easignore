@@ -18,3 +18,7 @@ __tests__
 *.spec.tsx
 digitag-backend-key.pem
 *.zip
+
+# Sibling repos checked out inside this folder (not part of the app; backend .env holds secrets)
+digitag-backend
+digitag-website
