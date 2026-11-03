@@ -2,9 +2,9 @@
   "expo": {
     "name": "digitag",
     "slug": "digitag",
-    "version": "1.0.18",
+    "version": "1.0.19",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-diwali-ios.png",
     "scheme": "digitag",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -41,7 +41,7 @@
         ]
       },
       "buildNumber": "7",
-      "icon": "./assets/images/icon-ios.png"
+      "icon": "./assets/images/icon-diwali-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
@@ -80,7 +80,7 @@
         }
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/icon-diwali-android.png"
       },
       "privacyPolicyUrl": "https://thedigitag.ai/privacy-policy",
       "permissions": [
