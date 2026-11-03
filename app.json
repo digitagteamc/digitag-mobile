@@ -40,12 +40,12 @@
           "voip"
         ]
       },
-      "buildNumber": "7",
+      "buildNumber": "9",
       "icon": "./assets/images/icon-diwali-ios.png"
     },
     "android": {
       "package": "ai.thedigitag.app",
-      "versionCode": 58,
+      "versionCode": 65,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
