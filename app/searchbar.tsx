@@ -1,6 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -11,10 +9,10 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import GlassSearchBar from '../Components/ui/GlassSearchBar';
 import VerifiedBadge from '../Components/ui/VerifiedBadge';
 import { useAuth } from '../context/AuthContext';
 import { useProfileGate } from '../context/ProfileGateContext';
@@ -142,31 +140,26 @@ export default function SearchbarScreen() {
 
       {/* Search Bar */}
       <View className="px-4 mb-4">
-        <View className="overflow-hidden" style={styles.searchBar}>
-          <BlurView intensity={35} tint="dark" style={StyleSheet.absoluteFill} />
-          <LinearGradient
-            colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.02)', 'rgba(255,255,255,0.08)']}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.searchBarInner}>
-            <Feather name="search" size={18} color="#d6d6d6" />
-            <TextInput
-              style={{ flex: 1, color: '#fff', fontFamily: 'Poppins_400Regular', fontSize: 13, height: '100%', paddingVertical: 0 }}
-              placeholder=""
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus={true}
-              returnKeyType="search"
-              autoCorrect={false}
-              autoCapitalize="none"
-              cursorColor="#fff"
-            />
+        <GlassSearchBar
+          placeholder=""
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoFocus={true}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+          trailing={searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Feather name="x-circle" size={16} color="#C6C6CA" />
+            </TouchableOpacity>
+          )}
+        >
             {searchQuery.length === 0 && (
               <View style={styles.placeholderContainer} pointerEvents="none">
                 <Text style={{
                   fontFamily: 'Poppins_400Regular',
-                  fontSize: 13,
-                  color: '#9a9a9a',
+                  fontSize: 11,
+                  color: '#C6C6CA',
                   height: 20,
                   lineHeight: 20
                 }}>
@@ -179,7 +172,7 @@ export default function SearchbarScreen() {
                         key={idx}
                         style={{
                           fontFamily: 'Poppins_400Regular',
-                          fontSize: 13,
+                          fontSize: 11,
                           color: '#fff',
                           height: 20,
                           lineHeight: 20
@@ -192,13 +185,7 @@ export default function SearchbarScreen() {
                 </View>
               </View>
             )}
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Feather name="x-circle" size={16} color="#9a9a9a" />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+        </GlassSearchBar>
       </View>
 
       {searchQuery.trim().length > 0 && (
@@ -333,28 +320,9 @@ export default function SearchbarScreen() {
 }
 
 const styles = StyleSheet.create({
-  searchBar: {
-    height: 56,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(156, 156, 156, 0.40)',
-    backgroundColor: 'rgba(70, 70, 70, 0.15)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 1,
-    shadowRadius: 40,
-    elevation: 10,
-  },
-  searchBarInner: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-  },
   placeholderContainer: {
     position: 'absolute',
-    left: 48,
+    left: 32,
     right: 16,
     height: '100%',
     flexDirection: 'row',

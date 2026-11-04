@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Dimensions,
     Image,
     Linking,
     Platform,
@@ -13,14 +12,23 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, fonts } from '../theme/colors';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const imgDefaultAvatar = require('../assets/defaultavatar.png');
 
 const BANNER_GRADIENT: [string, string, ...string[]] = ['#1a0533', '#6b0f9e', '#3d1080', '#0d1b6e'];
+
+// Ad types from celebrity onboarding (BRAND_OPTIONS in the website's BrandStep).
+const AD_TYPES: Record<string, { title: string; text: string; icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+    'l-bands': { title: 'L-Bands', text: 'L-shaped screen frames that wrap content with brand messaging.', icon: 'tablet-landscape-outline', color: '#F97316' },
+    'full-screen-ad': { title: 'Full Screen Ad', text: 'Immersive full-frame brand takeovers between or within content.', icon: 'scan-outline', color: '#F97316' },
+    'streak-ad': { title: 'Streak Ad', text: 'Slim banner strips pinned to the top or bottom of the screen.', icon: 'remove-outline', color: '#F97316' },
+    'product-showcases': { title: 'Product Showcases & Feature Integrations', text: 'Seamless, organic placement of brand products within content.', icon: 'bag-handle-outline', color: '#EC4899' },
+    'community-mentions': { title: 'Community Direct Mentions', text: 'Smart link placements, stickers, pinned comments, and profile/post tags.', icon: 'chatbubble-ellipses-outline', color: '#34D399' },
+    'collaborative-releases': { title: 'Collaborative Releases', text: 'Co-authored Instagram posts, dedicated Reels, Shorts, and long-form video segments.', icon: 'people-outline', color: '#A78BFA' },
+    'brand-endorsements': { title: 'Creator Brand Endorsements', text: 'On-camera recommendations and authentic brand reviews.', icon: 'star-outline', color: '#EC4899' },
+};
 
 function formatCount(n?: number | null | string): string {
     if (n == null) return '0';
@@ -28,6 +36,15 @@ function formatCount(n?: number | null | string): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
     return String(n);
+}
+
+function parseList<T>(raw?: string): T[] {
+    try {
+        const list = JSON.parse(raw || '[]');
+        return Array.isArray(list) ? list : [];
+    } catch {
+        return [];
+    }
 }
 
 type Tab = 'Posts' | 'Collabs';
@@ -44,6 +61,9 @@ export default function CelebrityProfile() {
         instagramFollowers,
         youtubeUrl,
         youtubeSubscribers,
+        instagramAccounts,
+        youtubeChannels,
+        brandIntegrations,
     } = useLocalSearchParams<{
         name?: string;
         role?: string;
@@ -54,7 +74,12 @@ export default function CelebrityProfile() {
         instagramFollowers?: string;
         youtubeUrl?: string;
         youtubeSubscribers?: string;
+        instagramAccounts?: string;
+        youtubeChannels?: string;
+        brandIntegrations?: string;
     }>();
+
+    const insets = useSafeAreaInsets();
 
     const [activeTab, setActiveTab] = useState<Tab>('Posts');
     const [isFollowing, setIsFollowing] = useState(false);
@@ -64,10 +89,26 @@ export default function CelebrityProfile() {
     const verified = isVerified !== 'false';
     const followers = followerCount ? Number(followerCount) : 0;
     const avatarSource = photoUrl ? { uri: photoUrl } : imgDefaultAvatar;
-    const hasChannels = !!instagramHandle || !!youtubeUrl;
+    // Celebrities approved before these lists existed only have the single
+    // handle/URL fields, so fall back to those.
+    const parsedInstagram = parseList<{ handle: string; followers?: string }>(instagramAccounts);
+    const parsedYoutube = parseList<{ name?: string; url: string; subscribers?: string }>(youtubeChannels);
+    const instagramList = parsedInstagram.length
+        ? parsedInstagram
+        : instagramHandle ? [{ handle: instagramHandle, followers: formatCount(Number(instagramFollowers)) }] : [];
+    const youtubeList = parsedYoutube.length
+        ? parsedYoutube
+        : youtubeUrl ? [{ name: 'YouTube', url: youtubeUrl, subscribers: formatCount(Number(youtubeSubscribers)) }] : [];
+    const adTypes = parseList<string>(brandIntegrations);
+    const hasChannels = instagramList.length > 0 || youtubeList.length > 0;
+
+    const openInstagram = (handle: string) =>
+        Linking.openURL(`https://instagram.com/${handle.replace(/^@/, '')}`).catch(() => {});
+    const openYoutube = (url: string) =>
+        Linking.openURL(/^https?:\/\//i.test(url) ? url : `https://${url}`).catch(() => {});
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 100 }}
@@ -86,12 +127,14 @@ export default function CelebrityProfile() {
                     <View style={[styles.orb, { top: 20, right: 20, width: 160, height: 160, backgroundColor: 'rgba(138,43,226,0.25)' }]} />
                     <View style={[styles.orb, { top: 110, right: 90, width: 100, height: 100, backgroundColor: 'rgba(30,64,175,0.25)' }]} />
 
-                    {/* Celebrity hero image — right-aligned like the design */}
-                    <Image
-                        source={avatarSource}
-                        style={styles.heroCelebrityImage}
-                        resizeMode="cover"
-                    />
+                    {/* Celebrity hero image — full width like the design */}
+                    {!!photoUrl && (
+                        <Image
+                            source={avatarSource}
+                            style={styles.heroCelebrityImage}
+                            resizeMode="cover"
+                        />
+                    )}
 
                     {/* Dark fade at bottom */}
                     <LinearGradient
@@ -103,7 +146,7 @@ export default function CelebrityProfile() {
 
                     {/* Back button */}
                     <TouchableOpacity
-                        style={styles.backBtn}
+                        style={[styles.backBtn, { top: insets.top + 8 }]}
                         onPress={() => router.back()}
                         activeOpacity={0.8}
                     >
@@ -111,7 +154,7 @@ export default function CelebrityProfile() {
                     </TouchableOpacity>
 
                     {/* More button */}
-                    <TouchableOpacity style={styles.moreBtn} activeOpacity={0.8}>
+                    <TouchableOpacity style={[styles.moreBtn, { top: insets.top + 8 }]} activeOpacity={0.8}>
                         <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
                     </TouchableOpacity>
                 </View>
@@ -167,61 +210,111 @@ export default function CelebrityProfile() {
                         <Text style={styles.statValue}>{formatCount(followers)}</Text>
                         <Text style={styles.statLabel}>Followers</Text>
                     </View>
+                    {instagramList.length > 0 && (
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{formatCount(Number(instagramFollowers))}</Text>
+                            <Text style={styles.statLabel}>Instagram</Text>
+                        </View>
+                    )}
+                    {youtubeList.length > 0 && (
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{formatCount(Number(youtubeSubscribers))}</Text>
+                            <Text style={styles.statLabel}>YouTube</Text>
+                        </View>
+                    )}
                 </View>
 
-                {hasChannels && (
-                    <>
-                        {/* ── About Panel ── */}
-                        <View style={styles.aboutPanel}>
-                            <View style={styles.aboutHeader}>
-                                <Ionicons name="information-circle-outline" size={18} color="#fff" />
-                                <Text style={styles.aboutTitle}>About</Text>
-                            </View>
-                            {!!instagramHandle && (
-                                <InfoRow
-                                    icon="📷"
-                                    label="Instagram"
-                                    value={`@${instagramHandle}`}
-                                    onPress={() => Linking.openURL(`https://instagram.com/${instagramHandle}`).catch(() => {})}
-                                />
-                            )}
-                            {!!youtubeUrl && (
-                                <InfoRow
-                                    icon="▶️"
-                                    label="YouTube"
-                                    value="View channel"
-                                    onPress={() => Linking.openURL(youtubeUrl).catch(() => {})}
-                                />
-                            )}
+                {/* ── About Panel ── */}
+                {(hasChannels || !!role) && (
+                    <View style={styles.aboutPanel}>
+                        <View style={styles.aboutHeader}>
+                            <Ionicons name="information-circle-outline" size={18} color="#fff" />
+                            <Text style={styles.aboutTitle}>About</Text>
                         </View>
-
-                        {/* ── Top Channels ── */}
-                        <View style={styles.channelsSection}>
-                            <View style={styles.channelsHeader}>
-                                <Text style={styles.channelsSectionTitle}>Top Channels</Text>
-                            </View>
-
-                            <View style={styles.channelsRow}>
-                                {!!youtubeUrl && (
-                                    <ChannelItem
-                                        icon={<Ionicons name="logo-youtube" size={18} color="#FF0000" />}
-                                        bgColor="rgba(255,0,0,0.12)"
-                                        name="YouTube"
-                                        count={formatCount(Number(youtubeSubscribers))}
-                                    />
-                                )}
-                                {!!instagramHandle && (
-                                    <ChannelItem
-                                        icon={<Ionicons name="logo-instagram" size={18} color="#E1306C" />}
-                                        bgColor="rgba(225,48,108,0.12)"
-                                        name="Instagram"
-                                        count={formatCount(Number(instagramFollowers))}
-                                    />
-                                )}
-                            </View>
-                        </View>
-                    </>
+                        {!!role && <InfoRow icon="🎬" label="Partner type" value={role} />}
+                        {instagramList.map((a) => (
+                            <InfoRow
+                                key={a.handle}
+                                icon="📷"
+                                label="Instagram"
+                                value={`@${a.handle.replace(/^@/, '')}`}
+                                onPress={() => openInstagram(a.handle)}
+                            />
+                        ))}
+                        {youtubeList.map((c) => (
+                            <InfoRow
+                                key={c.url}
+                                icon="▶️"
+                                label="YouTube"
+                                value={c.name && c.name !== 'YouTube' ? c.name : 'View channel'}
+                                onPress={() => openYoutube(c.url)}
+                            />
+                        ))}
+                    </View>
                 )}
+
+                {/* ── Top Channels ── */}
+                {hasChannels && (
+                    <View style={styles.channelsSection}>
+                        <View style={styles.channelsHeader}>
+                            <Text style={styles.channelsSectionTitle}>Top Channels</Text>
+                        </View>
+
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.channelsCard}
+                            contentContainerStyle={styles.channelsRow}
+                        >
+                            {youtubeList.map((c) => (
+                                <ChannelItem
+                                    key={c.url}
+                                    icon={<Ionicons name="logo-youtube" size={18} color="#FF0000" />}
+                                    bgColor="rgba(255,0,0,0.12)"
+                                    name={c.name || 'YouTube'}
+                                    count={c.subscribers || ''}
+                                    onPress={() => openYoutube(c.url)}
+                                />
+                            ))}
+                            {instagramList.map((a) => (
+                                <ChannelItem
+                                    key={a.handle}
+                                    icon={<Ionicons name="logo-instagram" size={18} color="#E1306C" />}
+                                    bgColor="rgba(225,48,108,0.12)"
+                                    name={instagramList.length > 1 ? `@${a.handle.replace(/^@/, '')}` : 'Instagram'}
+                                    count={a.followers || ''}
+                                    onPress={() => openInstagram(a.handle)}
+                                />
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
+                {/* ── Ad Types ── */}
+                <View style={styles.aboutPanel}>
+                    <View style={styles.aboutHeader}>
+                        <Ionicons name="megaphone-outline" size={18} color="#fff" />
+                        <Text style={styles.aboutTitle}>Ad Types</Text>
+                    </View>
+                    {adTypes.length === 0 ? (
+                        <Text style={styles.adTypeText}>No ad types added yet</Text>
+                    ) : (
+                        adTypes.map((id) => {
+                            const adType = AD_TYPES[id];
+                            return (
+                                <View key={id} style={styles.adTypeRow}>
+                                    <View style={[styles.adTypeIcon, { backgroundColor: `${adType?.color ?? '#3B82F6'}22` }]}>
+                                        <Ionicons name={adType?.icon ?? 'pricetag-outline'} size={16} color={adType?.color ?? '#3B82F6'} />
+                                    </View>
+                                    <View style={styles.adTypeInfo}>
+                                        <Text style={styles.adTypeTitle}>{adType?.title ?? id}</Text>
+                                        {!!adType && <Text style={styles.adTypeText}>{adType.text}</Text>}
+                                    </View>
+                                </View>
+                            );
+                        })
+                    )}
+                </View>
 
                 {/* ── Posts / Collabs Tabs ── */}
                 <View style={styles.tabsContainer}>
@@ -256,6 +349,13 @@ export default function CelebrityProfile() {
                     )}
                 </View>
             </ScrollView>
+
+            {/* Keeps the status bar readable over bright photos and scrolled content */}
+            <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(10,10,16,0.9)', 'rgba(10,10,16,0.6)', 'transparent']}
+                style={[styles.statusBarShade, { height: insets.top + 24 }]}
+            />
 
             {/* ── Bottom Action Bar (fixed) ── */}
             <View style={styles.bottomBar}>
@@ -306,7 +406,7 @@ function InfoRow({
             </View>
             <View style={styles.infoRowRight}>
                 <Text style={[styles.infoRowValue, !!onPress && { color: '#60A5FA' }]}>{value}</Text>
-                <Text style={styles.infoRowChevron}>›</Text>
+                {!!onPress && <Text style={styles.infoRowChevron}>›</Text>}
             </View>
         </TouchableOpacity>
     );
@@ -317,25 +417,27 @@ function ChannelItem({
     bgColor,
     name,
     count,
+    onPress,
 }: {
     icon: React.ReactNode;
     bgColor: string;
     name: string;
     count: string;
+    onPress: () => void;
 }) {
     return (
-        <View style={styles.channelItem}>
+        <TouchableOpacity style={styles.channelItem} onPress={onPress} activeOpacity={0.7}>
             <View style={[styles.channelIconBg, { backgroundColor: bgColor }]}>
                 {icon}
             </View>
             <View style={styles.channelInfo}>
                 <View style={styles.channelNameRow}>
-                    <Text style={styles.channelName}>{name}</Text>
+                    <Text style={styles.channelName} numberOfLines={1}>{name}</Text>
                     <View style={styles.channelVerifiedDot} />
                 </View>
-                <Text style={styles.channelCount}>{count}</Text>
+                {!!count && <Text style={styles.channelCount}>{count}</Text>}
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 
@@ -350,7 +452,7 @@ const styles = StyleSheet.create({
     // Header
     headerBlock: {
         width: '100%',
-        height: 290,
+        height: 320,
         position: 'relative',
         overflow: 'hidden',
     },
@@ -359,18 +461,22 @@ const styles = StyleSheet.create({
         borderRadius: 999,
     },
     heroCelebrityImage: {
+        ...StyleSheet.absoluteFillObject,
+        width: '100%',
+        height: '100%',
+    },
+    statusBarShade: {
         position: 'absolute',
+        left: 0,
         right: 0,
-        bottom: 0,
-        width: SCREEN_WIDTH * 0.7,
-        height: 290,
+        top: 0,
     },
     bannerOverlay: {
         position: 'absolute',
         left: 0,
         right: 0,
         bottom: 0,
-        height: 110,
+        height: 140,
     },
     backBtn: {
         position: 'absolute',
@@ -400,7 +506,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-start',
         paddingHorizontal: 16,
-        marginTop: -28,
+        marginTop: -48,
         gap: 10,
     },
     avatarWrapper: {
@@ -435,7 +541,7 @@ const styles = StyleSheet.create({
     },
     nameBlock: {
         flex: 1,
-        paddingTop: 30,
+        paddingTop: 22,
         gap: 4,
     },
     nameRow: {
@@ -445,7 +551,8 @@ const styles = StyleSheet.create({
     },
     nameText: {
         color: '#fff',
-        fontSize: 15,
+        flexShrink: 1,
+        fontSize: 18,
         fontFamily: fonts.semibold,
         letterSpacing: -0.3,
     },
@@ -462,7 +569,7 @@ const styles = StyleSheet.create({
         fontFamily: fonts.medium,
     },
     followBtn: {
-        marginTop: 34,
+        marginTop: 24,
         paddingHorizontal: 18,
         paddingVertical: 8,
         borderRadius: 20,
@@ -517,16 +624,17 @@ const styles = StyleSheet.create({
     aboutPanel: {
         marginHorizontal: 16,
         marginTop: 18,
-        backgroundColor: '#0F1626',
+        backgroundColor: '#12131C',
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: 'rgba(59,130,246,0.2)',
+        borderColor: 'rgba(255,255,255,0.08)',
         padding: 16,
     },
     aboutHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        marginBottom: 4,
     },
     aboutTitle: {
         color: '#fff',
@@ -555,6 +663,7 @@ const styles = StyleSheet.create({
         fontFamily: fonts.regular,
     },
     infoRowRight: {
+        flexShrink: 1,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
@@ -567,6 +676,37 @@ const styles = StyleSheet.create({
     infoRowChevron: {
         color: '#475569',
         fontSize: 16,
+    },
+
+    // Ad Types
+    adTypeRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingVertical: 10,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    adTypeIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    adTypeInfo: {
+        flex: 1,
+    },
+    adTypeTitle: {
+        color: '#fff',
+        fontSize: 13,
+        fontFamily: fonts.semibold,
+    },
+    adTypeText: {
+        color: '#94A3B8',
+        fontSize: 11,
+        fontFamily: fonts.regular,
+        marginTop: 2,
     },
 
     // Top Channels
@@ -585,18 +725,21 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontFamily: fonts.semibold,
     },
-    channelsRow: {
-        flexDirection: 'row',
-        gap: 8,
-        backgroundColor: '#0F1626',
+    channelsCard: {
+        backgroundColor: '#12131C',
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: 'rgba(59,130,246,0.15)',
+        borderColor: 'rgba(255,255,255,0.08)',
+    },
+    channelsRow: {
+        flexGrow: 1,
+        justifyContent: 'space-between',
+        gap: 12,
         paddingHorizontal: 14,
         paddingVertical: 14,
     },
     channelItem: {
-        flex: 1,
+        width: 150,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
@@ -612,11 +755,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     channelNameRow: {
+        flexShrink: 1,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
     },
     channelName: {
+        flexShrink: 1,
         color: '#fff',
         fontSize: 11,
         fontFamily: fonts.semibold,
@@ -637,7 +782,13 @@ const styles = StyleSheet.create({
     // Tabs
     tabsContainer: {
         marginTop: 22,
+        marginHorizontal: 16,
         paddingHorizontal: 16,
+        paddingTop: 14,
+        backgroundColor: '#12131C',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     tabBar: {
         flexDirection: 'row',
@@ -646,7 +797,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     tabItem: {
-        flex: 1,
+        marginRight: 24,
         alignItems: 'center',
         paddingBottom: 10,
         position: 'relative',
@@ -662,8 +813,8 @@ const styles = StyleSheet.create({
     tabUnderline: {
         position: 'absolute',
         bottom: 0,
-        left: '20%',
-        right: '20%',
+        left: 0,
+        right: 0,
         height: 2,
         borderRadius: 1,
         backgroundColor: '#3B82F6',

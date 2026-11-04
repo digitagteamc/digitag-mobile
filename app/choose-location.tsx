@@ -5,12 +5,12 @@ import {
     Image,
     SectionList,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
     useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GlassSearchBar from '../Components/ui/GlassSearchBar';
 import { palette } from '../theme/colors';
 
 // ── City image assets (same map used in BrandHome) ─────────────────────────
@@ -123,42 +123,18 @@ export default function ChooseLocationScreen() {
             </View>
 
             {/* ── Search bar ── */}
-            <View style={{
-                marginHorizontal: 16,
-                marginBottom: 20,
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: '#1A1A2A',
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#2A2A3E',
-                paddingHorizontal: 14,
-                paddingVertical: 11,
-                gap: 10,
-            }}>
-                <Ionicons name="search" size={18} color="#666" />
-                <TextInput
-                    value={search}
-                    onChangeText={setSearch}
-                    placeholder="Search by city"
-                    placeholderTextColor="#555"
-                    style={{
-                        flex: 1,
-                        color: '#fff',
-                        fontFamily: 'Poppins_400Regular',
-                        fontSize: 14,
-                        padding: 0,
-                    }}
-                    returnKeyType="search"
-                />
-                {search.length > 0 ? (
+            <GlassSearchBar
+                containerStyle={{ marginHorizontal: 16, marginBottom: 20 }}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search by city"
+                returnKeyType="search"
+                trailing={search.length > 0 && (
                     <TouchableOpacity onPress={() => setSearch('')}>
-                        <Ionicons name="close-circle" size={18} color="#555" />
+                        <Ionicons name="close-circle" size={18} color="#C6C6CA" />
                     </TouchableOpacity>
-                ) : (
-                    <Ionicons name="mic-outline" size={20} color="#666" />
                 )}
-            </View>
+            />
 
             <SectionList
                 sections={sections}

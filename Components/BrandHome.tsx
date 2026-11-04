@@ -18,7 +18,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, Path, RadialGradient, Stop } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
 import { CREATOR_CAT_SVGS } from '../assets/creator-cat';
 import { useAuth } from '../context/AuthContext';
@@ -405,50 +405,58 @@ const DIGITAG_WHATSAPP_URL = 'https://wa.me/917680805720';
 const DIGITAG_PHONE_URL = 'tel:+917680805720';
 
 const CTA_AVATARS: { letter: string; colors: [string, string] }[] = [
-    { letter: 'A', colors: ['#F43F5E', '#EC4899'] },
-    { letter: 'R', colors: ['#6366F1', '#8B5CF6'] },
-    { letter: 'S', colors: ['#3B82F6', '#22D3EE'] },
-    { letter: 'P', colors: ['#F59E0B', '#F97316'] },
+    { letter: 'A', colors: ['#FF8A5C', '#F0389B'] },
+    { letter: 'R', colors: ['#4F8CFF', '#7A4DF0'] },
+    { letter: 'S', colors: ['#22D3C5', '#3B82F6'] },
+    { letter: 'P', colors: ['#FBBF24', '#F97316'] },
 ];
 
-// Outermost → innermost, as in the design: red, purple, blue.
-const CTA_CURVE_COLORS = ['#FF5A3C', '#A855F7', '#3B6BFF'];
-
 // The page's ScrollView adds this much plain padding after the last section.
-// This section pulls itself down over it so its background (and the lines,
-// which end at its bottom edge) continue right under the BrandBottomNav —
-// otherwise that padding shows as a dark seam inside the nav's centre notch.
+// This section pulls itself down over it so its background (and the lines)
+// continue right under the BrandBottomNav — otherwise that padding shows as a
+// dark seam inside the nav's centre notch.
 const PAGE_BOTTOM_PADDING = 40;
 
-// Where BrandBottomNav's Home and Messages icons sit, measured from the
-// screen centre. BrandBottomNav is drawn by the (tabs) layout, not by this
-// screen, so these mirror its own layout numbers rather than being measured:
-// half its centre notch (36 + 16), its left group's paddingRight (8), each
-// tab's width (8 + 15 icon + 8) and the gap between tabs (20).
-const NAV_MESSAGES_OFFSET = 52 + 8 + 31 / 2;
-const NAV_HOME_OFFSET = NAV_MESSAGES_OFFSET + 31 + 20;
+// BrandBottomNav's own bar height; it is drawn by the (tabs) layout, not here.
 const NAV_BAR_HEIGHT = 64;
 
-// One quarter of an ellipse whose centre is the arc's top-left corner: it
-// starts out flat at the bottom and bends up into a vertical climb at the
-// right, bulging toward the bottom-right — the sweep in the design.
-//
-// The flat bottom sits `depth` px under the nav bar's top edge (navTopY), so
-// the line's start is hidden behind the nav. It's shifted left by exactly the
-// distance the curve needs to rise those `depth` px, so the line comes out
-// of the nav bar right at `emergeX`.
-function buildNavArcPath(emergeX: number, navTopY: number, rightX: number, topY: number, depth: number) {
-    const KAPPA = 0.5523; // control-point ratio for a cubic Bézier quarter ellipse
-    const bottomY = navTopY + depth;
-    const ry = bottomY - topY;
-    const u = Math.sqrt(1 - (1 - depth / ry) ** 2);
-    const startX = (emergeX - u * rightX) / (1 - u);
-    const rx = rightX - startX;
-    return `M${startX.toFixed(1)},${bottomY.toFixed(1)} `
-        + `C${(startX + KAPPA * rx).toFixed(1)},${bottomY.toFixed(1)} `
-        + `${rightX.toFixed(1)},${(topY + KAPPA * ry).toFixed(1)} `
-        + `${rightX.toFixed(1)},${topY.toFixed(1)}`;
-}
+// The design is drawn on a 376pt wide screen; every size below is in those
+// units and scaled to the real width, so the composition never distorts.
+const CTA_DESIGN_WIDTH = 376;
+// Where the bottom nav's top edge sits in the design. The neon lines are
+// anchored to it, so they keep running behind the nav on any section height.
+const CTA_DESIGN_NAV_TOP = 440;
+// Clear space between the "Follow" line and the top of the bottom nav.
+const CTA_NAV_CLEARANCE = 48;
+
+// S-curves that rise from behind the nav and exit through the right edge.
+const CTA_NEON_LINES = [
+    { color: '#D42C8C', d: 'M-20,462 C70,440 150,412 212,362 C262,320 278,262 306,196 C322,160 348,136 396,100' },
+    { color: '#C8702F', d: 'M40,473 C110,460 205,398 266,338 C299,305 316,235 330,200C342,170 361,152 396,124' },
+    { color: '#5346E0', d: 'M110,470 C170,440 240,405 282,362 C312,330 328,290 342,246 C350,220 362,190 396,152' },
+];
+
+// Soft pools of light behind the content.
+const CTA_LIGHTS = [
+    { id: 'ctaLightLeft', cx: 90, cy: 60, r: 210, opacity: 0.075 },
+    { id: 'ctaLightRight', cx: 350, cy: 345, r: 200, opacity: 0.075 },
+];
+
+// Painted instead of shadows, which can't be coloured on Android.
+const CTA_GLOWS = [
+    { id: 'ctaGlowStore', cx: 36, cy: 46, r: 38, color: '#ED2A91', opacity: 0.45 },
+    { id: 'ctaGlowDot', cx: 133, cy: 42, r: 22, color: '#ED2A91', opacity: 0.2 },
+    { id: 'ctaGlowTag', cx: 258, cy: 38, r: 34, color: '#7C6FF0', opacity: 0.22 },
+    { id: 'ctaGlowBag', cx: 333, cy: 83, r: 50, color: '#ED2A91', opacity: 0.2 },
+    { id: 'ctaGlowMegaphone', cx: 289, cy: 172, r: 38, color: '#FB923C', opacity: 0.18 },
+    { id: 'ctaGlowOrange', cx: 345, cy: 14, r: 16, color: '#FF7A2C', opacity: 0.3 },
+];
+
+const CTA_TILES = [
+    { icon: 'pricetag-outline', x: 241, y: 21, size: 33, radius: 10, tilt: '6deg', iconTilt: '-90deg', iconSize: 16, color: '#6E62C0', background: 'rgba(124,111,214,0.16)' },
+    { icon: 'bag-handle-outline', x: 310, y: 60, size: 46, radius: 14, tilt: '6deg', iconTilt: '0deg', iconSize: 22, color: '#A81C6E', background: 'rgba(237,42,145,0.14)' },
+    { icon: 'megaphone-outline', x: 271, y: 153, size: 37, radius: 11, tilt: '-6deg', iconTilt: '0deg', iconSize: 18, color: '#B85E26', background: 'rgba(251,146,60,0.12)' },
+] as const;
 
 // Bottom-of-page "Bharat First Creator Collabs" call-to-action. The bottom
 // nav seen under it in the design is the existing BrandBottomNav, which the
@@ -459,6 +467,8 @@ function BrandCtaFooter() {
     const { width } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const [height, setHeight] = useState(0);
+    const scale = width / CTA_DESIGN_WIDTH;
+    const u = (n: number) => n * scale;
 
     // Same bottom-padding rule BrandBottomNav uses, so we know where its top
     // edge lands once the page is scrolled to the end (this section's bottom
@@ -466,132 +476,118 @@ function BrandCtaFooter() {
     const navBottomPad = Platform.OS === 'ios'
         ? Math.max(insets.bottom, 12)
         : (insets.bottom > 0 ? insets.bottom : 8);
-    const navTopY = height - (NAV_BAR_HEIGHT + navBottomPad);
-
-    // One line lands above Home, one above Messages, one between them.
-    const homeX = width / 2 - NAV_HOME_OFFSET;
-    const messagesX = width / 2 - NAV_MESSAGES_OFFSET;
-    const arcTargets = [homeX, (homeX + messagesX) / 2, messagesX];
+    const navHeight = NAV_BAR_HEIGHT + navBottomPad;
+    const navTopY = height - navHeight;
 
     const headline = {
         color: '#FFFFFF',
         fontFamily: 'Poppins_700Bold',
-        fontSize: width < 360 ? 27 : 31,
-        lineHeight: width < 360 ? 36 : 41,
-        letterSpacing: -0.5,
+        fontSize: u(29),
+        lineHeight: u(38),
+    } as const;
+
+    const contactButton = {
+        width: u(44), height: u(45), borderRadius: u(13), borderWidth: 1.2, borderColor: '#2F80F0',
+        backgroundColor: 'rgba(47,128,240,0.13)', alignItems: 'center', justifyContent: 'center',
     } as const;
 
     const openUrl = (url: string) => {
         Linking.openURL(url).catch(() => {});
     };
 
-    // Decorative tiles are placed as fractions of the screen width so they
-    // keep the same composition on narrow and wide phones.
     return (
-        <LinearGradient
-            colors={['#0E0D18', '#141126', '#1B1335']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={{
-               
-                marginTop: 30,
-                overflow: 'hidden',
-                borderTopLeftRadius: 28,
-                borderTopRightRadius: 28,
-                borderTopWidth: 1,
-                borderColor: 'rgba(255,255,255,0.07)',
-                marginBottom: -PAGE_BOTTOM_PADDING,
-            }}
+        <View
+            style={{ marginTop: 30, overflow: 'hidden', backgroundColor: '#0A0A0E', marginBottom: -PAGE_BOTTOM_PADDING }}
             onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
         >
             {height > 0 ? (
                 <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
-                    {/* 3 nested sweeping arcs: each rises out of the nav
-                        bar's top edge (above Home, between, above
-                        Messages) and bends up and out through the right
-                        edge. The one starting furthest left is the
-                        outermost and leaves highest. */}
-                    {CTA_CURVE_COLORS.map((color, i) => (
-                        <Path
-                            key={color}
-                            d={buildNavArcPath(arcTargets[i], navTopY, width + 40, height * (0.06 + i * 0.1), 12)}
-                            stroke={color}
-                            strokeOpacity={0.45}
-                            strokeWidth={1.3}
-                            fill="none"
-                        />
-                    ))}
+                    <Defs>
+                        {CTA_LIGHTS.map((light) => (
+                            <RadialGradient key={light.id} id={light.id} cx="50%" cy="50%" r="50%">
+                                <Stop offset="0" stopColor="#FFFFFF" stopOpacity={light.opacity} />
+                                <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+                            </RadialGradient>
+                        ))}
+                        {CTA_GLOWS.map((glow) => (
+                            <RadialGradient key={glow.id} id={glow.id} cx="50%" cy="50%" r="50%">
+                                <Stop offset="0" stopColor={glow.color} stopOpacity={glow.opacity} />
+                                <Stop offset="1" stopColor={glow.color} stopOpacity={0} />
+                            </RadialGradient>
+                        ))}
+                    </Defs>
+
+                    <G transform={`scale(${scale})`}>
+                        {CTA_LIGHTS.map((light) => (
+                            <Circle key={light.id} cx={light.cx} cy={light.cy} r={light.r} fill={`url(#${light.id})`} />
+                        ))}
+                        <Circle cx={325} cy={102} r={88} stroke="#FFFFFF" strokeOpacity={0.1} strokeWidth={0.8} fill="none" />
+                        <Circle cx={325} cy={102} r={130} stroke="#FFFFFF" strokeOpacity={0.09} strokeWidth={0.8} strokeDasharray="4 7" fill="none" />
+                        {CTA_GLOWS.map((glow) => (
+                            <Circle key={glow.id} cx={glow.cx} cy={glow.cy} r={glow.r} fill={`url(#${glow.id})`} />
+                        ))}
+                        <Circle cx={133} cy={42} r={9.5} fill="#ED2A91" fillOpacity={0.16} />
+                        <Circle cx={133} cy={42} r={4.5} fill="#ED2A91" />
+                        <Circle cx={345} cy={14} r={7} fill="#FF7A2C" fillOpacity={0.22} />
+                        <Circle cx={345} cy={14} r={3} fill="#FF7A2C" />
+                    </G>
+
+                    <G transform={`translate(0 ${navTopY - u(CTA_DESIGN_NAV_TOP)}) scale(${scale})`}>
+                        {CTA_NEON_LINES.map((line) => (
+                            <G key={line.color}>
+                                <Path d={line.d} stroke={line.color} strokeOpacity={0.04} strokeWidth={7} fill="none" />
+                                <Path d={line.d} stroke={line.color} strokeOpacity={0.08} strokeWidth={3} fill="none" />
+                                <Path d={line.d} stroke={line.color} strokeOpacity={0.42} strokeWidth={1} fill="none" />
+                            </G>
+                        ))}
+                    </G>
                 </Svg>
             ) : null}
 
-            {/* Floating accents */}
-            <View pointerEvents="none" style={{ position: 'absolute', top: 37, left: width * 0.35, width: 18, height: 18, borderRadius: 9, backgroundColor: 'rgba(237,42,145,0.22)', alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: '#ED2A91' }} />
-            </View>
-            <View pointerEvents="none" style={{ position: 'absolute', top: 8, left: width * 0.9, width: 14, height: 14, borderRadius: 7, backgroundColor: 'rgba(255,90,44,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#FF5A2C' }} />
-            </View>
-            <View
-                pointerEvents="none"
-                style={{
-                    position: 'absolute', top: 26, left: width * 0.67, width: 34, height: 34, borderRadius: 10,
-                    backgroundColor: 'rgba(30,30,40,0.9)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.35)',
-                    alignItems: 'center', justifyContent: 'center',
-                }}
-            >
-                <Ionicons name="pricetag-outline" size={16} color="#A78BFA" />
-            </View>
-            <View
-                pointerEvents="none"
-                style={{
-                    position: 'absolute', top: 66, left: width * 0.81, width: 44, height: 44, borderRadius: 12,
-                    backgroundColor: 'rgba(30,22,34,0.95)', borderWidth: 1, borderColor: 'rgba(237,42,145,0.55)',
-                    alignItems: 'center', justifyContent: 'center',
-                    shadowColor: '#ED2A91', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 12, elevation: 6,
-                }}
-            >
-                <Ionicons name="bag-handle-outline" size={20} color="#ED2A91" />
-            </View>
-            <View
-                pointerEvents="none"
-                style={{
-                    position: 'absolute', top: 166, left: width * 0.72, width: 36, height: 36, borderRadius: 10,
-                    backgroundColor: 'rgba(34,26,22,0.95)', borderWidth: 1, borderColor: 'rgba(251,146,60,0.45)',
-                    alignItems: 'center', justifyContent: 'center',
-                    shadowColor: '#FB923C', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 4,
-                }}
-            >
-                <Ionicons name="megaphone-outline" size={16} color="#FB923C" />
-            </View>
+            {/* Floating glass tiles */}
+            {CTA_TILES.map((tile) => (
+                <View
+                    key={tile.icon}
+                    pointerEvents="none"
+                    style={{
+                        position: 'absolute', left: u(tile.x), top: u(tile.y), width: u(tile.size), height: u(tile.size),
+                        borderRadius: u(tile.radius), borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)',
+                        backgroundColor: tile.background, alignItems: 'center', justifyContent: 'center',
+                        transform: [{ rotate: tile.tilt }],
+                    }}
+                >
+                    <Ionicons name={tile.icon} size={u(tile.iconSize)} color={tile.color} style={{ transform: [{ rotate: tile.iconTilt }] }} />
+                </View>
+            ))}
 
-            <View style={{ paddingHorizontal: 24, paddingTop: 28, paddingBottom: 110 + PAGE_BOTTOM_PADDING }}>
+            <View style={{ paddingHorizontal: u(16), paddingTop: u(24), paddingBottom: navHeight + CTA_NAV_CLEARANCE }}>
                 <LinearGradient
-                    colors={['#F0428F', '#C13BDB']}
+                    colors={['#EC2A93', '#6B4BFF']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{
-                        width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-                        shadowColor: '#ED2A91', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12, elevation: 6,
+                        width: u(40), height: u(40), borderRadius: u(11), borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+                        alignItems: 'center', justifyContent: 'center',
                     }}
                 >
-                    <Ionicons name="storefront-outline" size={22} color="#FFFFFF" />
+                    <Ionicons name="storefront-outline" size={u(22)} color="#FFFFFF" />
                 </LinearGradient>
 
-                <View style={{ marginTop: 28 }}>
+                <View style={{ marginTop: u(17) }}>
                     <Text style={headline}>Bharat First</Text>
                     <MaskedView style={{ alignSelf: 'flex-start' }} maskElement={<Text style={headline}>Creator Collabs</Text>}>
-                        <LinearGradient colors={['#2F7BFF', '#5B5BF0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                        <LinearGradient colors={['#2196FF', '#6A2FDC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                             <Text style={[headline, { opacity: 0 }]}>Creator Collabs</Text>
                         </LinearGradient>
                     </MaskedView>
                     <Text style={headline}>For Your Brand</Text>
                 </View>
 
-                <Text style={{ color: '#B4B4C0', fontFamily: 'Poppins_400Regular', fontSize: 13.5, lineHeight: 22, marginTop: 14 }}>
+                <Text style={{ color: '#A9A9AF', fontFamily: 'Poppins_400Regular', fontSize: u(12), lineHeight: u(19), marginTop: u(10), maxWidth: u(318) }}>
                     Discover verified creators, launch campaigns and track results — all in one place.
                 </Text>
 
-                <View className="flex-row items-center" style={{ marginTop: 22 }}>
+                <View className="flex-row items-center" style={{ marginTop: u(16) }}>
                     <View className="flex-row">
                         {CTA_AVATARS.map((a, i) => (
                             <LinearGradient
@@ -600,72 +596,68 @@ function BrandCtaFooter() {
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={{
-                                    width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#0B0B10',
-                                    marginLeft: i === 0 ? 0 : -9, alignItems: 'center', justifyContent: 'center',
+                                    width: u(32), height: u(32), borderRadius: u(16), borderWidth: 2, borderColor: '#0A0A0E',
+                                    marginLeft: i === 0 ? 0 : u(-11), alignItems: 'center', justifyContent: 'center',
                                 }}
                             >
-                                <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 11 }}>{a.letter}</Text>
+                                <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: u(11) }}>{a.letter}</Text>
                             </LinearGradient>
                         ))}
                         <View
                             style={{
-                                width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#0B0B10',
-                                marginLeft: -9, backgroundColor: '#2A2A33', alignItems: 'center', justifyContent: 'center',
+                                width: u(32), height: u(32), borderRadius: u(16), borderWidth: 2, borderColor: '#0A0A0E',
+                                marginLeft: u(-11), backgroundColor: '#1E1E26', alignItems: 'center', justifyContent: 'center',
                             }}
                         >
-                            <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13, lineHeight: 16 }}>+</Text>
+                            <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: u(13), lineHeight: u(16) }}>+</Text>
                         </View>
                     </View>
-                    <View style={{ marginLeft: 14, flexShrink: 1 }}>
-                        <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13 }}>12K+ verified creators</Text>
-                        <Text style={{ color: '#9A9AA8', fontFamily: 'Poppins_400Regular', fontSize: 11 }}>Ready to collaborate with brands</Text>
+                    <View style={{ marginLeft: u(10.5), flexShrink: 1 }}>
+                        <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: u(11) }}>12K+ verified creators</Text>
+                        <Text style={{ color: '#8A8A90', fontFamily: 'Poppins_400Regular', fontSize: u(9.5) }}>Ready to collaborate with brands</Text>
                     </View>
                 </View>
 
-                <View className="flex-row items-center" style={{ marginTop: 24, gap: 12 }}>
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => router.push('/Brand-Create-Campaign' as any)}
-                        style={{
-                            flex: 1, borderRadius: 14,
-                            shadowColor: '#3B6BFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 14, elevation: 6,
-                        }}
-                    >
-                        <LinearGradient
-                            colors={['#1A8CFF', '#6633E5']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={{ height: 50, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                        >
-                            <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold', fontSize: 15 }}>Start a Campaign</Text>
-                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                        </LinearGradient>
+                <View className="flex-row items-center" style={{ marginTop: u(22), gap: u(8.5) }}>
+                    <View style={{ flex: 1 }}>
+                        <Svg width={u(260)} height={u(64)} style={{ position: 'absolute', left: u(-12), top: u(14) }} pointerEvents="none">
+                            <Defs>
+                                <RadialGradient id="ctaButtonGlow" cx="50%" cy="50%" r="50%">
+                                    <Stop offset="0" stopColor="#1A8CFF" stopOpacity={0.38} />
+                                    <Stop offset="1" stopColor="#1A8CFF" stopOpacity={0} />
+                                </RadialGradient>
+                            </Defs>
+                            <Ellipse cx={u(130)} cy={u(32)} rx={u(130)} ry={u(32)} fill="url(#ctaButtonGlow)" />
+                        </Svg>
+                        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/Brand-Create-Campaign' as any)}>
+                            <LinearGradient
+                                colors={['#2196FF', '#6A2FDC']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={{ height: u(45), borderRadius: u(13), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: u(10) }}
+                            >
+                                <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_500Medium', fontSize: u(13) }}>Start a Campaign</Text>
+                                <Ionicons name="arrow-forward" size={u(16)} color="#FFFFFF" />
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity activeOpacity={0.85} onPress={() => openUrl(DIGITAG_WHATSAPP_URL)} style={contactButton}>
+                        <Ionicons name="chatbubble-outline" size={u(19)} color="#2F8CF0" />
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => openUrl(DIGITAG_WHATSAPP_URL)}
-                        style={{ width: 50, height: 50, borderRadius: 14, borderWidth: 1.2, borderColor: '#2F80FF', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                        <Ionicons name="chatbubble-outline" size={20} color="#3B8BFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        onPress={() => openUrl(DIGITAG_PHONE_URL)}
-                        style={{ width: 50, height: 50, borderRadius: 14, borderWidth: 1.2, borderColor: '#2F80FF', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                        <Ionicons name="call-outline" size={20} color="#3B8BFF" />
+                    <TouchableOpacity activeOpacity={0.85} onPress={() => openUrl(DIGITAG_PHONE_URL)} style={contactButton}>
+                        <Ionicons name="call-outline" size={u(19)} color="#2F8CF0" />
                     </TouchableOpacity>
                 </View>
 
-                <Text style={{ color: '#8A8A99', fontFamily: 'Poppins_400Regular', fontSize: 12, textAlign: 'center', marginTop: 22 }}>
+                <Text style={{ color: '#77777F', fontFamily: 'Poppins_400Regular', fontSize: u(10.4), textAlign: 'center', marginTop: u(19.5) }}>
                     Follow{' '}
-                    <Text style={{ color: '#3B8BFF' }} onPress={() => openUrl(DIGITAG_INSTAGRAM_URL)}>
+                    <Text style={{ color: '#2F8CF0' }} onPress={() => openUrl(DIGITAG_INSTAGRAM_URL)}>
                         @Digitag_official
                     </Text>
                     {' '}for creator drops
                 </Text>
             </View>
-        </LinearGradient>
+        </View>
     );
 }
 
@@ -678,6 +670,10 @@ export default function BrandHome() {
     // padding each side; capped at 93 so it only shrinks (never grows past
     // spec) on wider screens.
     const { width: screenWidth } = useWindowDimensions();
+    // Places background.png's blue wave behind Top YouTube Channels / Celebrities.
+    const sectionBgWidth = screenWidth * 5.04;
+    const sectionBgHeight = sectionBgWidth / 1.5;
+    const sectionBgTop = -screenWidth * 1.03;
     const CITY_TILE_WIDTH = Math.min(93, (screenWidth - 32 - 30) / 4);
 
     const [brandName, setBrandName] = useState('');
@@ -842,16 +838,35 @@ export default function BrandHome() {
                 </ImageBackground>
 
                 {/* ── Top YouTube Channels → Ad Types share one background image ──
-                    imageStyle (not style) holds the top/left/right/bottom
-                    offsets — style is the outer container that also lays out
-                    the content, so putting offsets there dragged the content
-                    along with the image; imageStyle only affects the
-                    rendered background image itself. */}
+                    imageStyle (not style) holds the size and offsets — style is
+                    the outer container that also lays out the content. The
+                    image is sized from the screen width rather than "cover":
+                    its top 40% is near-black, so covering this tall container
+                    pushed the blue wave far below Top YouTube Channels.
+                    overflow hidden stops the negative top bleeding over the hero. */}
                 <ImageBackground
                     source={imgSectionBg}
                     resizeMode="cover"
-                    imageStyle={{ top: 0, left: 0, right: -220, bottom: -40 }}
+                    style={{ overflow: 'hidden' }}
+                    imageStyle={{
+                        top: sectionBgTop,
+                        left: -screenWidth * 1.26,
+                        width: sectionBgWidth,
+                        height: sectionBgHeight,
+                    }}
                 >
+                {/* Fades the image's bottom edge into the screen background */}
+                <LinearGradient
+                    pointerEvents="none"
+                    colors={['transparent', palette.background]}
+                    style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: sectionBgTop + sectionBgHeight - 240,
+                        height: 240,
+                    }}
+                />
                 {/* ── Top YouTube Channels ── */}
                 <View className="px-4 mt-7">
                     <SectionHeader title="Top youtube channels" onViewAll={() => router.push('/youtube-channels' as any)} />
@@ -1087,6 +1102,9 @@ export default function BrandHome() {
                                                     instagramFollowers: String(c.instagramFollowers ?? 0),
                                                     youtubeUrl: c.youtubeUrl ?? '',
                                                     youtubeSubscribers: String(c.youtubeSubscribers ?? 0),
+                                                    instagramAccounts: JSON.stringify(c.instagramAccounts ?? []),
+                                                    youtubeChannels: JSON.stringify(c.youtubeChannels ?? []),
+                                                    brandIntegrations: JSON.stringify(c.brandIntegrations ?? []),
                                                 },
                                             } as any)}
                                         >

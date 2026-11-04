@@ -269,6 +269,9 @@ function RootLayout() {
                             <Stack.Screen name="brands-creator" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="brands/campaign" options={{ animation: 'none' }} />
                             <Stack.Screen name="celebrity-profile" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="select-ad-types" options={{ animation: 'slide_from_bottom' }} />
+                            <Stack.Screen name="brands/ad-design" options={{ animation: 'slide_from_right' }} />
+                            <Stack.Screen name="brands/request-sent" options={{ animation: 'slide_from_right' }} />
                             <Stack.Screen name="All-creators" options={{ animation: 'slide_from_right' }} />
                         </Stack>
                     </CallProvider>

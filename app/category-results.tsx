@@ -14,11 +14,11 @@ import {
     ScrollView,
     StatusBar,
     Text,
-    TextInput,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from 'react-native';
+import GlassSearchBar from '../Components/ui/GlassSearchBar';
 import { useAuth } from '../context/AuthContext';
 import { getFeed, getUsersByCategory } from '../services/userService';
 import { facebookUrl, instagramUrl, twitterUrl, youtubeUrl } from '../services/socialLinks';
@@ -638,27 +638,13 @@ export default function CategoryResultsScreen() {
                     <View style={{ paddingHorizontal: 16, marginBottom: 18 }}>
                         {/* Search + Filters */}
                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <View
-                                style={{
-                                    flex: 1,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    backgroundColor: 'rgba(255,255,255,0.06)',
-                                    borderRadius: 12,
-                                    paddingHorizontal: 12,
-                                    height: 44,
-                                    gap: 8,
-                                }}
-                            >
-                                <Ionicons name="search" size={18} color="#8A8A99" />
-                                <TextInput
-                                    value={query}
-                                    onChangeText={setQuery}
-                                    placeholder={`Search ${categoryLabel.toLowerCase()}...`}
-                                    placeholderTextColor="#8A8A99"
-                                    style={{ flex: 1, color: '#fff', fontSize: 14, fontFamily: fonts.regular }}
-                                />
-                            </View>
+                            <GlassSearchBar
+                                height={44}
+                                containerStyle={{ flex: 1 }}
+                                value={query}
+                                onChangeText={setQuery}
+                                placeholder={`Search ${categoryLabel.toLowerCase()}...`}
+                            />
                             <TouchableOpacity
                                 activeOpacity={0.8}
                                 onPress={() => { setFilterStep('main'); setFiltersOpen(true); }}
@@ -1083,25 +1069,11 @@ export default function CategoryResultsScreen() {
 
                         {filterStep === 'location' && (
                             <View>
-                                <View
-                                    style={{
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        backgroundColor: 'rgba(255,255,255,0.06)',
-                                        borderRadius: 12,
-                                        paddingHorizontal: 12,
-                                        height: 44,
-                                        gap: 8,
-                                        marginBottom: 20,
-                                    }}
-                                >
-                                    <Ionicons name="search" size={16} color="#8A8A99" />
-                                    <TextInput
-                                        placeholder="Search Location..."
-                                        placeholderTextColor="#8A8A99"
-                                        style={{ flex: 1, color: '#fff', fontSize: 14, fontFamily: fonts.regular }}
-                                    />
-                                </View>
+                                <GlassSearchBar
+                                    height={44}
+                                    containerStyle={{ marginBottom: 20 }}
+                                    placeholder="Search Location..."
+                                />
                                 <Text style={{ color: '#fff', fontSize: 16, fontFamily: fonts.medium, marginBottom: 4 }}>
                                     Popular Locations
                                 </Text>
@@ -1152,25 +1124,11 @@ export default function CategoryResultsScreen() {
 
                         {filterStep === 'availability' && (
                             <View>
-                                <View
-                                    style={{
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        backgroundColor: 'rgba(255,255,255,0.06)',
-                                        borderRadius: 12,
-                                        paddingHorizontal: 12,
-                                        height: 44,
-                                        gap: 8,
-                                        marginBottom: 20,
-                                    }}
-                                >
-                                    <Ionicons name="search" size={16} color="#8A8A99" />
-                                    <TextInput
-                                        placeholder="Search Location..."
-                                        placeholderTextColor="#8A8A99"
-                                        style={{ flex: 1, color: '#fff', fontSize: 14, fontFamily: fonts.regular }}
-                                    />
-                                </View>
+                                <GlassSearchBar
+                                    height={44}
+                                    containerStyle={{ marginBottom: 20 }}
+                                    placeholder="Search Location..."
+                                />
                                 <Text style={{ color: '#8A8A99', fontSize: 13, fontFamily: fonts.medium, marginBottom: 4 }}>
                                     Select Your Availability
                                 </Text>

@@ -10,12 +10,12 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GlassSearchBar from '../Components/ui/GlassSearchBar';
 import { useAuth } from '../context/AuthContext';
 import { getFollowSuggestions } from '../services/userService';
 import { fonts, palette } from '../theme/colors';
@@ -414,21 +414,17 @@ export default function AllCreatorsScreen() {
 
             {/* Search and Filter Row */}
             <View style={styles.controlsRow}>
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={18} color="#9CA3AF" />
-                    <TextInput
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        placeholder="Search here for"
-                        placeholderTextColor="#6B7280"
-                        style={styles.searchInput}
-                    />
-                    {searchQuery.length > 0 && (
+                <GlassSearchBar
+                    containerStyle={{ flex: 1 }}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    placeholder="Search here for"
+                    trailing={searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <Ionicons name="close-circle" size={18} color="#6B7280" />
+                            <Ionicons name="close-circle" size={18} color="#C6C6CA" />
                         </TouchableOpacity>
                     )}
-                </View>
+                />
 
                 <TouchableOpacity
                     style={styles.filterButton}
@@ -606,21 +602,19 @@ export default function AllCreatorsScreen() {
                         {/* Right Content Options Column */}
                         <View style={styles.filterRightContent}>
                             {/* Search Field inside Filter tab */}
-                            <View style={styles.filterSearchRow}>
-                                <Ionicons name="search" size={16} color="#8E8E93" />
-                                <TextInput
-                                    value={filterTabSearch}
-                                    onChangeText={setFilterTabSearch}
-                                    placeholder="Search"
-                                    placeholderTextColor="#6E6E73"
-                                    style={styles.filterSearchInput}
-                                />
-                                {filterTabSearch.length > 0 && (
+                            <GlassSearchBar
+                                height={40}
+                                showMic={false}
+                                containerStyle={{ marginBottom: 12 }}
+                                value={filterTabSearch}
+                                onChangeText={setFilterTabSearch}
+                                placeholder="Search"
+                                trailing={filterTabSearch.length > 0 && (
                                     <TouchableOpacity onPress={() => setFilterTabSearch('')}>
-                                        <Ionicons name="close-circle" size={16} color="#6E6E73" />
+                                        <Ionicons name="close-circle" size={16} color="#C6C6CA" />
                                     </TouchableOpacity>
                                 )}
-                            </View>
+                            />
 
                             {/* Select All Option */}
                             <TouchableOpacity
@@ -871,25 +865,6 @@ const styles = StyleSheet.create({
         marginTop: 18,
         gap: 12,
     },
-    searchBar: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#18181B',
-        borderRadius: 16,
-        paddingHorizontal: 14,
-        height: 48,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    searchInput: {
-        flex: 1,
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontFamily: fonts.regular,
-        marginLeft: 10,
-        paddingVertical: 0,
-    },
     filterButton: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1101,22 +1076,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#000000',
         paddingHorizontal: 16,
         paddingTop: 12,
-    },
-    filterSearchRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#2C2C2E',
-        marginBottom: 12,
-    },
-    filterSearchInput: {
-        flex: 1,
-        color: '#FFFFFF',
-        fontSize: 15,
-        fontFamily: fonts.regular,
-        marginLeft: 10,
-        paddingVertical: 0,
     },
     selectAllRow: {
         flexDirection: 'row',

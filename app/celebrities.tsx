@@ -7,12 +7,12 @@ import {
     FlatList,
     Image,
     Text,
-    TextInput,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GlassSearchBar from '../Components/ui/GlassSearchBar';
 import { useAuth } from '../context/AuthContext';
 import { getCelebrities } from '../services/userService';
 import { fonts, palette } from '../theme/colors';
@@ -99,19 +99,11 @@ export default function CelebritiesScreen() {
                 ListHeaderComponent={
                     <View style={{ marginBottom: 4 }}>
                         {/* Search bar */}
-                        <View
-                            className="flex-row items-center rounded-2xl px-4"
-                            style={{ height: 52, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: palette.borderSoft, gap: 10 }}
-                        >
-                            <Ionicons name="search" size={18} color={palette.textMuted} />
-                            <TextInput
-                                value={query}
-                                onChangeText={setQuery}
-                                placeholder="Search celebrities"
-                                placeholderTextColor={palette.textMuted}
-                                style={{ flex: 1, color: '#fff', fontFamily: fonts.regular, fontSize: 14 }}
-                            />
-                        </View>
+                        <GlassSearchBar
+                            value={query}
+                            onChangeText={setQuery}
+                            placeholder="Search celebrities"
+                        />
 
                         {/* Role filter chips */}
                         <FlatList
@@ -268,6 +260,9 @@ export default function CelebritiesScreen() {
                                             instagramFollowers: String(c.instagramFollowers ?? 0),
                                             youtubeUrl: c.youtubeUrl ?? '',
                                             youtubeSubscribers: String(c.youtubeSubscribers ?? 0),
+                                            instagramAccounts: JSON.stringify(c.instagramAccounts ?? []),
+                                            youtubeChannels: JSON.stringify(c.youtubeChannels ?? []),
+                                            brandIntegrations: JSON.stringify(c.brandIntegrations ?? []),
                                         },
                                     } as any)}
                                 >

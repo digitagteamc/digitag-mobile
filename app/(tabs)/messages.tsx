@@ -9,11 +9,11 @@ import {
     StatusBar,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import GlassSearchBar from '../../Components/ui/GlassSearchBar';
 import { useAuth } from '../../context/AuthContext';
 import { listConversations, openConversationWith, searchProfiles } from '../../services/userService';
 import { useRoleTheme } from '../../theme/useRoleTheme';
@@ -109,24 +109,19 @@ export default function MessagesTab() {
             </View>
 
             <View style={styles.searchWrap}>
-                <View style={styles.searchBar}>
-                    <Ionicons name="search-outline" size={18} color="#6B6B7A" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search chats or find people..."
-                        placeholderTextColor="#6B6B7A"
-                        value={search}
-                        onChangeText={setSearch}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        returnKeyType="search"
-                    />
-                    {search.length > 0 && (
+                <GlassSearchBar
+                    placeholder="Search chats or find people..."
+                    value={search}
+                    onChangeText={setSearch}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="search"
+                    trailing={search.length > 0 && (
                         <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                            <Feather name="x" size={16} color="#6B6B7A" />
+                            <Feather name="x" size={16} color="#C6C6CA" />
                         </TouchableOpacity>
                     )}
-                </View>
+                />
 
                 {/* PROFILE SEARCH RESULTS */}
                 {search.trim().length > 0 && (
@@ -242,28 +237,6 @@ const styles = StyleSheet.create({
     subtitle: { color: '#E2E2E2', fontSize: 12, fontFamily: 'Poppins_400Regular', marginTop: 2, lineHeight: 18 },
 
     searchWrap: { paddingHorizontal: 16, paddingBottom: 14, borderRadius: 12, marginTop: 15 },
-    searchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        backgroundColor: "rgba(167, 167, 167, 0.14)",
-        borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderColor: "rgba(156, 156, 156, 0.50)",
-        borderWidth: 1,
-        height: 56,
-    },
-    searchInput: {
-        flex: 1,
-        color: '#fff',
-        fontSize: 14,
-        fontFamily: 'Poppins_400Regular',
-
-        textAlignVertical: 'center', // ✅ Android
-        paddingVertical: 0,          // ✅ removes extra space
-        includeFontPadding: false,   // 🔥 Android perfect centering
-    },
     centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', },
 
     emptyBox: {
